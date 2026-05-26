@@ -20,6 +20,17 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'apps.users.apps.UsersConfig',
+    'apps.organizations.apps.OrganizationsConfig',
+    'apps.jobs.apps.JobsConfig',
+    'apps.applications.apps.ApplicationsConfig',
+    'apps.interviews.apps.InterviewsConfig',
+    'apps.evaluations.apps.EvaluationsConfig',
+    'apps.hiring.apps.HiringConfig',
+    'apps.notifications.apps.NotificationsConfig',
+    'apps.analytics.apps.AnalyticsConfig',
+    'apps.billing.apps.BillingConfig',
+    'apps.ai_services.apps.AiServicesConfig',
 ]
 
 MIDDLEWARE = [
