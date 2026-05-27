@@ -52,3 +52,41 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class ApplicantProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='applicant_profile')
+    linkedin_url = models.URLField(blank=True)
+    personal_summary = models.TextField(blank=True)
+    resume_file = models.FileField(upload_to='resumes/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class RecruiterProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='recruiter_profile')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class InterviewerProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='interviewer_profile')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class HRHeadProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='hr_head_profile')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+def create_profile_for_user(user):
+    if user.role == User.Role.APPLICANT:
+        ApplicantProfile.objects.get_or_create(user=user)
+    elif user.role == User.Role.RECRUITER:
+        RecruiterProfile.objects.get_or_create(user=user)
+    elif user.role == User.Role.INTERVIEWER:
+        InterviewerProfile.objects.get_or_create(user=user)
+    elif user.role == User.Role.HR_HEAD:
+        HRHeadProfile.objects.get_or_create(user=user)
