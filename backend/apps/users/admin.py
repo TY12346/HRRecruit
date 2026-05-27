@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import User
+from .models import ApplicantProfile, HRHeadProfile, InterviewerProfile, RecruiterProfile, User
 
 
 @admin.register(User)
@@ -28,3 +28,27 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
+
+
+@admin.register(ApplicantProfile)
+class ApplicantProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'created_at', 'updated_at')
+    search_fields = ('user__email', 'user__full_name')
+
+
+@admin.register(RecruiterProfile)
+class RecruiterProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'created_at', 'updated_at')
+    search_fields = ('user__email', 'user__full_name')
+
+
+@admin.register(InterviewerProfile)
+class InterviewerProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'created_at', 'updated_at')
+    search_fields = ('user__email', 'user__full_name')
+
+
+@admin.register(HRHeadProfile)
+class HRHeadProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'created_at', 'updated_at')
+    search_fields = ('user__email', 'user__full_name')
