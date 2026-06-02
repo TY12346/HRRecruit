@@ -49,7 +49,7 @@ Create this structure:
 - backend/config/
 - backend/manage.py
 - backend/requirements.txt
-- backend/.env.example
+- backend/.env
 - backend/.gitignore
 
 Configure:
