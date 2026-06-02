@@ -7,13 +7,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
 from apps.jobs.models import JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
 from .models import JobApplication
 from .serializers import ApplicationStageHistorySerializer, JobApplicationSerializer
-from .services import schedule_resume_screening
+from .services import schedule_resume_screening, screen_job_application
 
 
 def get_active_membership(user, role):
@@ -63,7 +64,7 @@ class JobApplyAPIView(APIView):
         if not created:
             raise ValidationError({'job': 'You have already applied for this job.'})
 
-        # This intentionally remains a no-op until mock AI resume screening is implemented.
+        # Screening remains recruiter-triggered; submission must not make an automated decision.
         schedule_resume_screening(application)
         return Response(JobApplicationSerializer(application, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -107,3 +108,22 @@ class ApplicationStatusHistoryAPIView(APIView):
         application = get_object_or_404(visible_applications_for(request.user), id=application_id)
         history = application.stage_history.select_related('changed_by')
         return Response(ApplicationStageHistorySerializer(history, many=True).data)
+
+
+class ApplicationScreenAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, application_id):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can screen job applications.')
+
+        application = get_object_or_404(visible_applications_for(request.user), id=application_id)
+        try:
+            resume_file = application.applicant.applicant_profile.resume_file
+            if not resume_file:
+                raise ValidationError({'resume_file': 'The applicant must upload a resume before screening.'})
+            application = screen_job_application(application, changed_by=request.user)
+        except ResumeTextExtractionError as exc:
+            raise ValidationError({'resume_file': str(exc)}) from exc
+
+        return Response(JobApplicationSerializer(application, context={'request': request}).data)
