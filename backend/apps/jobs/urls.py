@@ -1,5 +1,7 @@
 from django.urls import path
 
+from apps.applications.views import JobApplyAPIView
+
 from .views import (
     JobDetailAPIView,
     JobDuplicateAPIView,
@@ -18,4 +20,5 @@ urlpatterns = [
     path('<int:job_id>/requirements/', JobRequirementsAPIView.as_view(), name='job-requirements'),
     path('<int:job_id>/eval-form/', JobEvaluationFormAPIView.as_view(), name='job-evaluation-form'),
     path('<int:job_id>/save/', JobSaveAPIView.as_view(), name='job-save'),
+    path('<int:job_id>/apply/', JobApplyAPIView.as_view(), name='job-apply'),
 ]
