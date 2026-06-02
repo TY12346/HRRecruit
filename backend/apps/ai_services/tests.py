@@ -7,6 +7,13 @@ from django.test import SimpleTestCase
 from docx import Document
 
 from .resume_text_extractor import ResumeTextExtractionError, extract_resume_text
+from .resume_screening import (
+    calculate_education_score,
+    calculate_experience_score,
+    calculate_skill_score,
+    extract_education,
+    extract_experience,
+)
 from .scoring import calculate_final_score, calculate_score_breakdown
 from .semantic_matcher import semantic_similarity
 from .skill_extractor import extract_skills, normalize_text
@@ -109,3 +116,20 @@ class ScoringTests(SimpleTestCase):
     def test_calculate_final_score_rejects_out_of_range_component(self):
         with self.assertRaisesMessage(ValueError, 'skill_score must be between 0 and 100'):
             calculate_final_score(80, 101, 60, 50)
+
+
+class ResumeScreeningScoreComponentTests(SimpleTestCase):
+    def test_extract_experience_uses_highest_explicit_year_value(self):
+        self.assertEqual(extract_experience('2 years support and 5+ yrs development'), {'years': 5.0})
+
+    def test_extract_education_uses_highest_mentioned_level(self):
+        self.assertEqual(extract_education("Bachelor's degree and master's degree"), {'level': 'master'})
+
+    def test_skill_score_calculates_required_skill_coverage(self):
+        self.assertEqual(calculate_skill_score(['django', 'python'], ['django', 'python', 'sql']), 66.67)
+
+    def test_experience_score_is_capped_at_one_hundred(self):
+        self.assertEqual(calculate_experience_score({'years': 5.0}, {'years': 3.0}), 100.0)
+
+    def test_education_score_is_zero_when_required_level_is_missing_from_resume(self):
+        self.assertEqual(calculate_education_score({'level': None}, {'level': 'bachelor'}), 0.0)

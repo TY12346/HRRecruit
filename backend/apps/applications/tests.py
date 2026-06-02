@@ -1,13 +1,17 @@
+from io import BytesIO
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from docx import Document
 
-from apps.jobs.models import JobPosting
+from apps.jobs.models import JobPosting, JobRequirement
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
@@ -145,6 +149,170 @@ class JobApplicationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [own_application.id])
+
+
+class ApplicationResumeScreeningAPITests(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.media_directory = TemporaryDirectory()
+        cls.media_override = override_settings(MEDIA_ROOT=cls.media_directory.name)
+        cls.media_override.enable()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls.media_override.disable()
+        cls.media_directory.cleanup()
+
+    def setUp(self):
+        self.hr_head = self.create_user('screen-head@example.com', User.Role.HR_HEAD)
+        self.recruiter = self.create_user('screen-recruiter@example.com', User.Role.RECRUITER)
+        self.other_recruiter = self.create_user('screen-other-recruiter@example.com', User.Role.RECRUITER)
+        self.applicant = self.create_user('screen-applicant@example.com', User.Role.APPLICANT)
+        self.organization = Organization.objects.create(
+            name='Screening Organization',
+            registration_no='REG-SCREENING',
+            email='screening-organization@example.com',
+            contact_number='+60123456789',
+            address='Example address',
+            status=Organization.Status.ACTIVE,
+            created_by=self.hr_head,
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.hr_head,
+            role=OrganizationMembership.Role.HR_HEAD,
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.recruiter,
+            role=OrganizationMembership.Role.RECRUITER,
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.other_recruiter,
+            role=OrganizationMembership.Role.RECRUITER,
+        )
+        self.job = JobPosting.objects.create(
+            organization=self.organization,
+            recruiter=self.recruiter,
+            title='Backend Engineer',
+            description='Build APIs',
+            employment_type='Full-time',
+            approximate_salary='5000.00',
+            location='Kuala Lumpur',
+            status=JobPosting.Status.OPEN,
+        )
+
+    def create_user(self, email, role):
+        return User.objects.create_user(email=email, password='test-pass-123', full_name=email, role=role)
+
+    def authenticate(self, user):
+        self.client.force_authenticate(user)
+
+    def create_resume(self, text, filename='resume.docx'):
+        output = BytesIO()
+        document = Document()
+        document.add_paragraph(text)
+        document.save(output)
+        self.applicant.applicant_profile.resume_file.save(
+            filename,
+            SimpleUploadedFile(filename, output.getvalue()),
+        )
+
+    def create_screening_requirements(self):
+        JobRequirement.objects.create(
+            job=self.job,
+            requirement_type=JobRequirement.RequirementType.SKILL,
+            description='Python and Django',
+            weight_score='30.00',
+            minimum_threshold='60.00',
+        )
+        JobRequirement.objects.create(
+            job=self.job,
+            requirement_type=JobRequirement.RequirementType.EXPERIENCE,
+            description='At least 3 years of professional experience',
+            weight_score='20.00',
+            minimum_threshold='60.00',
+        )
+        JobRequirement.objects.create(
+            job=self.job,
+            requirement_type=JobRequirement.RequirementType.EDUCATION,
+            description="Bachelor's degree",
+            weight_score='10.00',
+            minimum_threshold='60.00',
+        )
+
+    @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
+    def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity):
+        self.create_resume("Bachelor's degree. Python and Django developer with 5 years of experience.")
+        self.create_screening_requirements()
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        application.refresh_from_db()
+        self.assertEqual(application.status, JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(float(application.semantic_score), 80.0)
+        self.assertEqual(float(application.skill_score), 100.0)
+        self.assertEqual(float(application.experience_score), 100.0)
+        self.assertEqual(float(application.education_score), 100.0)
+        self.assertEqual(float(application.final_score), 92.0)
+        self.assertEqual(application.extracted_skills, ['django', 'python'])
+        self.assertEqual(application.extracted_experience, {'years': 5.0})
+        self.assertEqual(application.extracted_education, {'level': 'bachelor'})
+        self.assertEqual(response.data['score_explanation']['skills']['matched'], ['django', 'python'])
+        history = application.stage_history.get()
+        self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
+        self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(history.changed_by, self.recruiter)
+
+    @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0)
+    def test_low_score_marks_application_not_qualified_without_rejecting_it(self, _semantic_similarity):
+        self.create_resume('High school graduate with Java experience.')
+        self.create_screening_requirements()
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        application.refresh_from_db()
+        self.assertEqual(application.status, JobApplication.Status.SCREENED_NOT_QUALIFIED)
+        self.assertNotEqual(application.status, JobApplication.Status.REJECTED)
+        self.assertEqual(float(application.final_score), 3.33)
+        self.assertEqual(application.stage_history.get().to_stage, JobApplication.Status.SCREENED_NOT_QUALIFIED)
+
+    def test_screening_requires_an_uploaded_resume(self):
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['resume_file'], 'The applicant must upload a resume before screening.')
+
+    def test_colleague_recruiter_cannot_screen_job_owners_application(self):
+        self.create_resume('Python developer')
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.other_recruiter)
+
+        response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        application.refresh_from_db()
+        self.assertEqual(application.status, JobApplication.Status.SUBMITTED)
+
+    def test_non_recruiter_cannot_screen_an_application(self):
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.hr_head)
+
+        response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class JobApplicationModelTests(TestCase):
