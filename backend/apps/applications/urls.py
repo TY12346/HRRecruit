@@ -1,5 +1,7 @@
 from django.urls import path
 
+from apps.interviews.views import AssignInterviewerAPIView
+
 from .views import (
     ApplicationDetailAPIView,
     ApplicationListAPIView,
@@ -17,6 +19,7 @@ urlpatterns = [
     path('<int:application_id>/screen/', ApplicationScreenAPIView.as_view(), name='application-screen'),
     path('<int:application_id>/candidate-profile/', CandidateProfileAPIView.as_view(), name='application-candidate-profile'),
     path('<int:application_id>/shortlist/', ApplicationShortlistAPIView.as_view(), name='application-shortlist'),
+    path('<int:application_id>/assign-interviewer/', AssignInterviewerAPIView.as_view(), name='application-assign-interviewer'),
     path('<int:application_id>/reject/', ApplicationRejectAPIView.as_view(), name='application-reject'),
     path('<int:application_id>/remark/', ApplicationRemarkAPIView.as_view(), name='application-remark'),
     path('<int:application_id>/status-history/', ApplicationStatusHistoryAPIView.as_view(), name='application-status-history'),
