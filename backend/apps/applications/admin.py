@@ -5,9 +5,9 @@ from .models import ApplicationStageHistory, JobApplication
 
 @admin.register(JobApplication)
 class JobApplicationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'job', 'applicant', 'status', 'final_score', 'applied_at', 'updated_at')
+    list_display = ('id', 'job', 'applicant', 'status', 'final_score', 'assigned_interviewer', 'applied_at', 'updated_at')
     list_filter = ('status', 'job')
-    search_fields = ('job__title', 'applicant__email', 'applicant__full_name', 'recruiter_remark')
+    search_fields = ('job__title', 'applicant__email', 'applicant__full_name', 'assigned_interviewer__email', 'recruiter_remark')
 
 
 @admin.register(ApplicationStageHistory)

@@ -40,6 +40,18 @@ class JobApplication(models.Model):
     )
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.SUBMITTED)
     recruiter_remark = models.TextField(blank=True)
+    assigned_interviewer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='assigned_job_applications',
+        blank=True,
+        null=True,
+        limit_choices_to={'role': User.Role.INTERVIEWER},
+    )
+    extracted_resume_text = models.TextField(blank=True)
+    extracted_skills = models.JSONField(default=list, blank=True)
+    extracted_experience = models.JSONField(default=dict, blank=True)
+    extracted_education = models.JSONField(default=dict, blank=True)
     semantic_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     skill_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     experience_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
