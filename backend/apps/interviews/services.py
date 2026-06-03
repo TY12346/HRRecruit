@@ -4,15 +4,7 @@ from urllib.parse import urlencode
 
 from django.utils.http import urlsafe_base64_encode
 
-
-def create_in_app_notification(user, title, message, data=None):
-    """Placeholder until the notifications app has a concrete model/API."""
-    return {
-        'recipient_id': user.id,
-        'title': title,
-        'message': message,
-        'data': data or {},
-    }
+from apps.notifications.services import create_in_app_notification
 
 
 def build_calendar_link(interview):
