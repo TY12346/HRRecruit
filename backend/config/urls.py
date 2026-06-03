@@ -7,4 +7,6 @@ urlpatterns = [
     path('api/org/', include('apps.organizations.urls')),
     path('api/jobs/', include('apps.jobs.urls')),
     path('api/applications/', include('apps.applications.urls')),
+    path('api/interviews/', include('apps.interviews.urls')),
+    path('api/interview-invitations/', include('apps.interviews.invitation_urls')),
 ]
