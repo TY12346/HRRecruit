@@ -23,12 +23,15 @@ class JobApplicationAPITests(APITestCase):
         self.hr_head = self.create_user('head@example.com', User.Role.HR_HEAD)
         self.recruiter = self.create_user('recruiter@example.com', User.Role.RECRUITER)
         self.other_recruiter = self.create_user('other-recruiter@example.com', User.Role.RECRUITER)
+        self.interviewer = self.create_user('interviewer@example.com', User.Role.INTERVIEWER)
+        self.external_interviewer = self.create_user('external-interviewer@example.com', User.Role.INTERVIEWER)
         self.applicant = self.create_user('applicant@example.com', User.Role.APPLICANT)
         self.other_applicant = self.create_user('other-applicant@example.com', User.Role.APPLICANT)
         self.organization = self.create_organization('Example Organization', self.hr_head)
         self.create_membership(self.hr_head, self.organization, OrganizationMembership.Role.HR_HEAD)
         self.create_membership(self.recruiter, self.organization, OrganizationMembership.Role.RECRUITER)
         self.create_membership(self.other_recruiter, self.organization, OrganizationMembership.Role.RECRUITER)
+        self.create_membership(self.interviewer, self.organization, OrganizationMembership.Role.INTERVIEWER)
         self.job = self.create_job(self.recruiter)
 
     def create_user(self, email, role):
@@ -149,6 +152,131 @@ class JobApplicationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [own_application.id])
+
+    def test_recruiter_views_ranked_candidates_for_own_job_only(self):
+        high_score_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            final_score='91.25',
+        )
+        low_score_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.other_applicant,
+            final_score='64.50',
+        )
+        colleague_job = self.create_job(self.other_recruiter, title='Designer')
+        JobApplication.objects.create(job=colleague_job, applicant=self.create_user('third@example.com', User.Role.APPLICANT), final_score='99.00')
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]))
+        forbidden_response = self.client.get(reverse('job-ranked-candidates', args=[colleague_job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [high_score_application.id, low_score_application.id])
+        self.assertEqual(forbidden_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_recruiter_views_candidate_profile_with_resume_info_scores_and_status(self):
+        application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            extracted_skills=['python', 'django'],
+            extracted_experience={'years': 4},
+            extracted_education={'level': 'bachelor'},
+            semantic_score='80.00',
+            skill_score='90.00',
+            experience_score='70.00',
+            education_score='100.00',
+            final_score='83.00',
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('application-candidate-profile', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['applicant_profile']['email'], self.applicant.email)
+        self.assertEqual(response.data['resume_info']['extracted_experience'], {'years': 4})
+        self.assertEqual(response.data['extracted_skills'], ['python', 'django'])
+        self.assertEqual(response.data['scores']['final_score'], '83.00')
+        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+
+    def test_shortlist_requires_same_organization_interviewer_and_records_history(self):
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        other_head = self.create_user('external-head@example.com', User.Role.HR_HEAD)
+        other_organization = self.create_organization('External Organization', other_head)
+        self.create_membership(other_head, other_organization, OrganizationMembership.Role.HR_HEAD)
+        self.create_membership(self.external_interviewer, other_organization, OrganizationMembership.Role.INTERVIEWER)
+        self.authenticate(self.recruiter)
+
+        invalid_response = self.client.post(
+            reverse('application-shortlist', args=[application.id]),
+            {'interviewer_id': self.external_interviewer.id, 'remark': 'Strong backend candidate.'},
+            format='json',
+        )
+        valid_response = self.client.post(
+            reverse('application-shortlist', args=[application.id]),
+            {'interviewer_id': self.interviewer.id, 'remark': 'Strong backend candidate.'},
+            format='json',
+        )
+
+        self.assertEqual(invalid_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(valid_response.status_code, status.HTTP_200_OK)
+        application.refresh_from_db()
+        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(application.assigned_interviewer, self.interviewer)
+        self.assertEqual(application.recruiter_remark, 'Strong backend candidate.')
+        history = application.stage_history.get()
+        self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
+        self.assertEqual(history.to_stage, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(history.changed_by, self.recruiter)
+
+    def test_reject_requires_reason_or_remark_and_records_history(self):
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        invalid_response = self.client.post(reverse('application-reject', args=[application.id]), {}, format='json')
+        valid_response = self.client.post(
+            reverse('application-reject', args=[application.id]),
+            {'reason': 'Does not meet minimum Django experience.'},
+            format='json',
+        )
+
+        self.assertEqual(invalid_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(valid_response.status_code, status.HTTP_200_OK)
+        application.refresh_from_db()
+        self.assertEqual(application.status, JobApplication.Status.REJECTED)
+        self.assertEqual(application.recruiter_remark, 'Does not meet minimum Django experience.')
+        history = application.stage_history.get()
+        self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
+        self.assertEqual(history.note, 'Does not meet minimum Django experience.')
+
+    def test_remark_is_saved_without_status_change_and_visible_on_candidate_profile(self):
+        application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.SHORTLISTED,
+            assigned_interviewer=self.interviewer,
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.patch(
+            reverse('application-remark', args=[application.id]),
+            {'remark': 'Ask about API security experience.'},
+            format='json',
+        )
+        profile_response = self.client.get(reverse('application-candidate-profile', args=[application.id]))
+        self.authenticate(self.interviewer)
+        interviewer_profile_response = self.client.get(reverse('application-candidate-profile', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        application.refresh_from_db()
+        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(application.recruiter_remark, 'Ask about API security experience.')
+        self.assertEqual(profile_response.data['recruiter_remark'], 'Ask about API security experience.')
+        self.assertEqual(interviewer_profile_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(interviewer_profile_response.data['recruiter_remark'], 'Ask about API security experience.')
+        history = application.stage_history.get()
+        self.assertEqual(history.from_stage, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(history.to_stage, JobApplication.Status.SHORTLISTED)
 
 
 class ApplicationResumeScreeningAPITests(APITestCase):
