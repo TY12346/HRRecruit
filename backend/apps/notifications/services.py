@@ -1,14 +1,35 @@
 from .models import Notification
 
 
-def create_in_app_notification(user, title, message, data=None):
+def _related_entity_values(related_entity):
+    if related_entity is None:
+        return '', None
+    return related_entity._meta.model_name, related_entity.pk
+
+
+def create_notification(recipient, notification_type, title, message, related_entity=None):
+    related_entity_type, related_entity_id = _related_entity_values(related_entity)
     return Notification.objects.create(
-        recipient=user,
+        recipient=recipient,
+        notification_type=notification_type,
         title=title,
         message=message,
-        data=data or {},
+        related_entity_type=related_entity_type,
+        related_entity_id=related_entity_id,
     )
 
 
-def create_bulk_in_app_notifications(users, title, message, data=None):
-    return [create_in_app_notification(user, title, message, data) for user in users]
+def create_bulk_notifications(recipients, notification_type, title, message, related_entity=None):
+    related_entity_type, related_entity_id = _related_entity_values(related_entity)
+    notifications = [
+        Notification(
+            recipient=recipient,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            related_entity_type=related_entity_type,
+            related_entity_id=related_entity_id,
+        )
+        for recipient in recipients
+    ]
+    return Notification.objects.bulk_create(notifications)
