@@ -59,7 +59,7 @@ def enforce_job_opening_allowed(organization, requested_status, current_job=None
     try:
         enforce_open_job_limit(organization, open_jobs.count())
     except SubscriptionLimitError as exc:
-        raise ValidationError({'status': str(exc)}) from exc
+        raise ValidationError({'status': [str(exc)]}) from exc
 
 
 def recruiter_job_or_404(user, job_id):
