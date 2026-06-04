@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
 from apps.jobs.models import JobPosting
+from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
@@ -196,9 +197,19 @@ class ApplicationScreenAPIView(APIView):
             resume_file = application.applicant.applicant_profile.resume_file
             if not resume_file:
                 raise ValidationError({'resume_file': 'The applicant must upload a resume before screening.'})
+            previous_status = application.status
             application = screen_job_application(application, changed_by=request.user)
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
+
+        if previous_status != application.status:
+            create_notification(
+                application.applicant,
+                'application_status_update',
+                'Application status updated',
+                f'Your application for {application.job.title} is now {application.get_status_display()}.',
+                related_entity=application,
+            )
 
         return Response(JobApplicationSerializer(application, context={'request': request}).data)
 
@@ -252,6 +263,20 @@ class ApplicationShortlistAPIView(APIView):
             request.user,
             f'Shortlisted and assigned to interviewer {interviewer.full_name}.',
         )
+        create_notification(
+            application.applicant,
+            'application_status_update',
+            'Application status updated',
+            f'Your application for {application.job.title} has been shortlisted.',
+            related_entity=application,
+        )
+        create_notification(
+            interviewer,
+            'interview_assignment',
+            'Candidate assigned',
+            f'{application.applicant.full_name} was shortlisted and assigned to you for {application.job.title}.',
+            related_entity=application,
+        )
         return Response(JobApplicationSerializer(application, context={'request': request}).data)
 
 
@@ -275,6 +300,13 @@ class ApplicationRejectAPIView(APIView):
             JobApplication.Status.REJECTED,
             request.user,
             reason or remark,
+        )
+        create_notification(
+            application.applicant,
+            'application_status_update',
+            'Application status updated',
+            f'Your application for {application.job.title} was not selected.',
+            related_entity=application,
         )
         return Response(JobApplicationSerializer(application, context={'request': request}).data)
 

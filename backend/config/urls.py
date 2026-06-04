@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/interview-invitations/', include('apps.interviews.invitation_urls')),
     path('api/', include('apps.evaluations.urls')),
     path('api/', include('apps.hiring.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
 ]

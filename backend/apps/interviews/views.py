@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.applications.models import ApplicationStageHistory, JobApplication
+from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
@@ -21,7 +22,7 @@ from .serializers import (
     InterviewSerializer,
     SendInterviewInvitationSerializer,
 )
-from .services import build_calendar_link, create_in_app_notification
+from .services import build_calendar_link
 
 
 def get_active_membership(user, role):
@@ -193,11 +194,12 @@ class AssignInterviewerAPIView(APIView):
                 note=f'Interviewer reassigned to {interviewer.full_name}.',
             )
 
-        create_in_app_notification(
+        create_notification(
             interviewer,
+            'interview_assignment',
             'New interview assignment',
             f'You were assigned to interview {application.applicant.full_name} for {application.job.title}.',
-            {'interview_id': interview.id, 'application_id': application.id},
+            related_entity=interview,
         )
         return Response(InterviewSerializer(interview, context={'request': request}).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
@@ -229,11 +231,12 @@ class SendInterviewInvitationAPIView(APIView):
             request.user,
             'Interview invitation sent.',
         )
-        create_in_app_notification(
+        create_notification(
             interview.application.applicant,
+            'interview_invitation',
             'Interview invitation received',
             f'You have a new interview invitation for {interview.application.job.title}.',
-            {'interview_id': interview.id, 'invitation_id': invitation.id},
+            related_entity=invitation,
         )
         return Response(InterviewInvitationSerializer(invitation, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -305,11 +308,12 @@ class AcceptInterviewInvitationAPIView(APIView):
                 'sync_status': CalendarEvent.SyncStatus.NOT_SYNCED,
             },
         )
-        create_in_app_notification(
+        create_notification(
             interview.interviewer,
+            'invitation_response',
             'Interview invitation accepted',
             f'{request.user.full_name} accepted the interview invitation.',
-            {'interview_id': interview.id, 'invitation_id': invitation.id},
+            related_entity=invitation,
         )
         return Response(InterviewInvitationSerializer(invitation, context={'request': request}).data)
 
@@ -348,10 +352,11 @@ class DeclineInterviewInvitationAPIView(APIView):
             request.user,
             invitation.decline_reason,
         )
-        create_in_app_notification(
+        create_notification(
             interview.interviewer,
+            'invitation_response',
             'Interview invitation declined',
             f'{request.user.full_name} declined the interview invitation.',
-            {'interview_id': interview.id, 'invitation_id': invitation.id},
+            related_entity=invitation,
         )
         return Response(InterviewInvitationSerializer(invitation, context={'request': request}).data)

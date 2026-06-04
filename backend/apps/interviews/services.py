@@ -1,10 +1,9 @@
-"""Small local helpers for early-stage interview notifications/calendar placeholders."""
+"""Small local helpers for early-stage interview calendar placeholders."""
 
 from urllib.parse import urlencode
 
 from django.utils.http import urlsafe_base64_encode
 
-from apps.notifications.services import create_in_app_notification
 
 
 def build_calendar_link(interview):
