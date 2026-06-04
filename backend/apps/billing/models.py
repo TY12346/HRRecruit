@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from apps.organizations.models import Organization
 
@@ -35,6 +36,7 @@ class SubscriptionPlan(models.Model):
 
 class Subscription(models.Model):
     class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
         ACTIVE = 'active', 'Active'
         EXPIRED = 'expired', 'Expired'
         CANCELLED = 'cancelled', 'Cancelled'
@@ -94,7 +96,7 @@ class Payment(models.Model):
     currency = models.CharField(max_length=3, default='MYR')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     paid_at = models.DateTimeField(blank=True, null=True)
-    invoice_number = models.CharField(max_length=100, unique=True)
+    invoice_number = models.CharField(max_length=100, unique=True, blank=True)
 
     class Meta:
         ordering = ['-paid_at', '-id']
@@ -102,6 +104,13 @@ class Payment(models.Model):
             models.Index(fields=['payment_gateway', 'status']),
             models.Index(fields=['invoice_number']),
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.invoice_number:
+            super().save(*args, **kwargs)
+            self.invoice_number = f'INV-{timezone.now():%Y%m%d}-{self.id:06d}'
+            return super().save(update_fields=['invoice_number'])
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.invoice_number} - {self.amount} {self.currency} ({self.status})'

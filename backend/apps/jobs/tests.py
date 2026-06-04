@@ -1,9 +1,13 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from django.utils import timezone
+
+from apps.billing.models import Subscription, SubscriptionPlan
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
@@ -18,6 +22,22 @@ class JobPostingAPITests(APITestCase):
         self.organization = self.create_organization('Example Organization', self.hr_head)
         self.create_membership(self.hr_head, self.organization, OrganizationMembership.Role.HR_HEAD)
         self.create_membership(self.recruiter, self.organization, OrganizationMembership.Role.RECRUITER)
+        self.plan, _ = SubscriptionPlan.objects.get_or_create(
+            name=SubscriptionPlan.Name.PRO,
+            billing_cycle=SubscriptionPlan.BillingCycle.MONTHLY,
+            defaults={
+                'max_job_postings': 10,
+                'price': '149.00',
+                'features_description': 'Test plan',
+            },
+        )
+        Subscription.objects.create(
+            organization=self.organization,
+            plan=self.plan,
+            start_date=timezone.localdate(),
+            end_date=timezone.localdate() + timedelta(days=30),
+            status=Subscription.Status.ACTIVE,
+        )
         self.job_payload = {
             'title': 'Backend Engineer',
             'description': 'Build recruitment APIs with Django.',
