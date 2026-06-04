@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -112,6 +113,27 @@ def recruiter_application_or_404(user, application_id):
     )
 
 
+def pending_decision_for_hr_head_or_404(user, decision_id):
+    membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
+    if not membership:
+        raise PermissionDenied('An active HR head organization membership is required.')
+    decision = get_object_or_404(
+        HiringDecision.objects.select_for_update(),
+        id=decision_id,
+        status=HiringDecision.Status.PENDING_HR_APPROVAL,
+    )
+    if decision.application.job.organization_id != membership.organization_id:
+        raise Http404('Hiring decision not found.')
+    return decision
+
+
+def applicant_offer_for_update_or_404(user, offer_id):
+    offer = get_object_or_404(JobOffer.objects.select_for_update(), id=offer_id)
+    if offer.application.applicant_id != user.id:
+        raise Http404('Job offer not found.')
+    return offer
+
+
 def change_application_status(application, new_status, changed_by, note):
     return application.change_status(new_status, changed_by=changed_by, note=note)
 
@@ -193,11 +215,7 @@ class HiringDecisionApproveAPIView(APIView):
     def post(self, request, decision_id):
         if request.user.role != User.Role.HR_HEAD:
             raise PermissionDenied('Only HR heads can approve hiring decisions.')
-        decision = get_object_or_404(
-            visible_decisions_for(request.user).select_for_update(),
-            id=decision_id,
-            status=HiringDecision.Status.PENDING_HR_APPROVAL,
-        )
+        decision = pending_decision_for_hr_head_or_404(request.user, decision_id)
         serializer = HRDecisionReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -240,11 +258,7 @@ class HiringDecisionRejectAPIView(APIView):
     def post(self, request, decision_id):
         if request.user.role != User.Role.HR_HEAD:
             raise PermissionDenied('Only HR heads can reject hiring decisions.')
-        decision = get_object_or_404(
-            visible_decisions_for(request.user).select_for_update(),
-            id=decision_id,
-            status=HiringDecision.Status.PENDING_HR_APPROVAL,
-        )
+        decision = pending_decision_for_hr_head_or_404(request.user, decision_id)
         serializer = HRDecisionReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -325,7 +339,7 @@ class JobOfferAcceptAPIView(APIView):
     def post(self, request, offer_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can accept job offers.')
-        offer = get_object_or_404(visible_offers_for(request.user).select_for_update(), id=offer_id)
+        offer = applicant_offer_for_update_or_404(request.user, offer_id)
         if offer.offer_status != JobOffer.OfferStatus.SENT:
             raise ValidationError({'offer_status': 'Only sent job offers can be accepted.'})
         if offer.respond_deadline < timezone.now():
@@ -362,7 +376,7 @@ class JobOfferDeclineAPIView(APIView):
     def post(self, request, offer_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can decline job offers.')
-        offer = get_object_or_404(visible_offers_for(request.user).select_for_update(), id=offer_id)
+        offer = applicant_offer_for_update_or_404(request.user, offer_id)
         if offer.offer_status != JobOffer.OfferStatus.SENT:
             raise ValidationError({'offer_status': 'Only sent job offers can be declined.'})
         serializer = JobOfferDeclineSerializer(data=request.data)
