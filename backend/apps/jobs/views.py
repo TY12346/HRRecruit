@@ -4,11 +4,12 @@ from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.billing.services import SubscriptionLimitError, enforce_open_job_limit
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
@@ -46,6 +47,21 @@ def visible_jobs_for(user):
     return jobs.filter(organization=membership.organization) if membership else jobs.none()
 
 
+
+def enforce_job_opening_allowed(organization, requested_status, current_job=None):
+    if requested_status != JobPosting.Status.OPEN:
+        return
+    if current_job and current_job.status == JobPosting.Status.OPEN:
+        return
+    open_jobs = JobPosting.objects.filter(organization=organization, status=JobPosting.Status.OPEN)
+    if current_job:
+        open_jobs = open_jobs.exclude(id=current_job.id)
+    try:
+        enforce_open_job_limit(organization, open_jobs.count())
+    except SubscriptionLimitError as exc:
+        raise ValidationError({'status': str(exc)}) from exc
+
+
 def recruiter_job_or_404(user, job_id):
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
@@ -76,9 +92,11 @@ class JobListCreateAPIView(APIView):
         membership = get_active_membership(request.user, OrganizationMembership.Role.RECRUITER)
         if not membership:
             raise PermissionDenied('An active recruiter organization membership is required.')
-        # TODO: Enforce the organization's subscription maximum-open-job limit here once billing is implemented.
         serializer = JobPostingSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
+        enforce_job_opening_allowed(
+            membership.organization, serializer.validated_data.get('status', JobPosting.Status.DRAFT)
+        )
         job = serializer.save(organization=membership.organization, recruiter=request.user)
         return Response(JobPostingSerializer(job, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -96,6 +114,9 @@ class JobDetailAPIView(APIView):
         job = recruiter_job_or_404(request.user, job_id)
         serializer = JobPostingSerializer(job, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
+        enforce_job_opening_allowed(
+            job.organization, serializer.validated_data.get('status', job.status), current_job=job
+        )
         serializer.save()
         return Response(serializer.data)
 
@@ -115,7 +136,6 @@ class JobDuplicateAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can duplicate job postings.')
         source = recruiter_job_or_404(request.user, job_id)
-        # TODO: Enforce the organization's subscription maximum-open-job limit if duplicated jobs can be opened directly.
         duplicate = JobPosting.objects.create(
             organization=source.organization,
             recruiter=request.user,
