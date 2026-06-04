@@ -168,3 +168,38 @@ class AnalyticsAPITests(APITestCase):
         response = self.client.get(reverse('analytics-recruiter-dashboard'))
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def assert_pdf_response(self, response, filename):
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn(filename, response['Content-Disposition'])
+        self.assertTrue(response.content.startswith(b'%PDF'))
+        self.assertGreater(len(response.content), 1000)
+
+    def test_recruiter_summary_pdf_exports_own_organization_metrics(self):
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('reports-recruiter-summary-pdf'))
+
+        self.assert_pdf_response(response, 'recruiter-summary.pdf')
+
+    def test_interviewer_summary_pdf_exports_assigned_metrics(self):
+        self.authenticate(self.interviewer)
+
+        response = self.client.get(reverse('reports-interviewer-summary-pdf'))
+
+        self.assert_pdf_response(response, 'interviewer-summary.pdf')
+
+    def test_hr_head_summary_pdf_exports_organization_metrics(self):
+        self.authenticate(self.hr_head)
+
+        response = self.client.get(reverse('reports-hr-head-summary-pdf'))
+
+        self.assert_pdf_response(response, 'hr-head-summary.pdf')
+
+    def test_applicant_cannot_export_analytics_reports(self):
+        self.authenticate(self.applicant)
+
+        response = self.client.get(reverse('reports-recruiter-summary-pdf'))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
