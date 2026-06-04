@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 from apps.ai_services.interview_evaluation import generate_interview_summary, transcribe_interview_recording
 from apps.interviews.models import Interview
-from apps.interviews.services import create_in_app_notification
+from apps.notifications.services import create_notification
 from apps.interviews.views import visible_interviews_for
 from apps.users.models import User
 from .models import InterviewAISummary, InterviewEvaluation, InterviewRecording, InterviewTranscript
@@ -162,11 +162,12 @@ class InterviewEvaluationSubmitAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         evaluation = serializer.save()
         interview.change_status(Interview.Status.COMPLETED, changed_by=request.user, note='Interview evaluation submitted.')
-        create_in_app_notification(
+        create_notification(
             interview.recruiter,
+            'evaluation_submitted',
             'Interview evaluation submitted',
             f'{request.user.full_name} submitted an evaluation for {interview.application.applicant.full_name}.',
-            {'interview_id': interview.id, 'application_id': interview.application_id, 'evaluation_id': evaluation.id},
+            related_entity=evaluation,
         )
         return Response(InterviewEvaluationSerializer(evaluation).data, status=status.HTTP_201_CREATED)
 

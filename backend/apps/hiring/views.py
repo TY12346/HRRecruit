@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.applications.models import JobApplication
-from apps.notifications.services import create_bulk_in_app_notifications, create_in_app_notification
+from apps.notifications.services import create_bulk_notifications, create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 from .models import HiringDecision, JobOffer
@@ -158,11 +158,12 @@ class HiringDecisionSubmitAPIView(APIView):
             f'Recruiter submitted {decision.decision} decision for HR approval.',
         )
         hr_heads = list(organization_hr_heads(application.job.organization))
-        create_bulk_in_app_notifications(
+        create_bulk_notifications(
             hr_heads,
+            'hiring_decision_submitted',
             'Hiring decision pending approval',
             f'{request.user.full_name} submitted a {decision.decision} decision for {application.applicant.full_name}.',
-            {'hiring_decision_id': decision.id, 'application_id': application.id},
+            related_entity=decision,
         )
         return Response(HiringDecisionSerializer(decision, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -214,18 +215,20 @@ class HiringDecisionApproveAPIView(APIView):
             new_status = JobApplication.Status.REJECTED
             note = f'HR approved reject decision: {decision.hr_head_justification}'
         change_application_status(application, new_status, request.user, note)
-        create_in_app_notification(
+        create_notification(
             decision.recruiter,
+            'hiring_decision_reviewed',
             'Hiring decision approved',
             f'HR approved your {decision.decision} decision for {application.applicant.full_name}.',
-            {'hiring_decision_id': decision.id, 'application_id': application.id},
+            related_entity=decision,
         )
         if decision.decision == HiringDecision.Decision.REJECT:
-            create_in_app_notification(
+            create_notification(
                 application.applicant,
+                'application_status_update',
                 'Application status updated',
                 f'Your application for {application.job.title} was not selected.',
-                {'hiring_decision_id': decision.id, 'application_id': application.id},
+                related_entity=application,
             )
         return Response(HiringDecisionSerializer(decision, context={'request': request}).data)
 
@@ -258,11 +261,12 @@ class HiringDecisionRejectAPIView(APIView):
             request.user,
             f'HR rejected {decision.decision} decision: {decision.hr_head_justification}',
         )
-        create_in_app_notification(
+        create_notification(
             decision.recruiter,
+            'hiring_decision_reviewed',
             'Hiring decision rejected by HR',
             f'HR rejected your {decision.decision} decision for {application.applicant.full_name}.',
-            {'hiring_decision_id': decision.id, 'application_id': application.id},
+            related_entity=decision,
         )
         return Response(HiringDecisionSerializer(decision, context={'request': request}).data)
 
@@ -289,17 +293,19 @@ class JobOfferCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         offer = JobOffer.objects.create(application=application, **serializer.validated_data)
         change_application_status(application, JobApplication.Status.OFFER_SENT, request.user, 'Recruiter sent job offer.')
-        create_in_app_notification(
+        create_notification(
             application.applicant,
+            'job_offer_sent',
             'Job offer received',
             f'You received a job offer for {application.job.title}.',
-            {'job_offer_id': offer.id, 'application_id': application.id},
+            related_entity=offer,
         )
-        create_bulk_in_app_notifications(
+        create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
+            'job_offer_sent',
             'Job offer sent',
             f'{request.user.full_name} sent a job offer to {application.applicant.full_name}.',
-            {'job_offer_id': offer.id, 'application_id': application.id},
+            related_entity=offer,
         )
         return Response(JobOfferSerializer(offer, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -332,17 +338,19 @@ class JobOfferAcceptAPIView(APIView):
         offer.save(update_fields=['offer_status', 'responded_at'])
         application = offer.application
         change_application_status(application, JobApplication.Status.OFFER_ACCEPTED, request.user, 'Applicant accepted job offer.')
-        create_in_app_notification(
+        create_notification(
             application.job.recruiter,
+            'offer_response',
             'Job offer accepted',
             f'{request.user.full_name} accepted the job offer for {application.job.title}.',
-            {'job_offer_id': offer.id, 'application_id': application.id},
+            related_entity=offer,
         )
-        create_bulk_in_app_notifications(
+        create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
+            'offer_response',
             'Job offer accepted',
             f'{request.user.full_name} accepted the job offer for {application.job.title}.',
-            {'job_offer_id': offer.id, 'application_id': application.id},
+            related_entity=offer,
         )
         return Response(JobOfferSerializer(offer, context={'request': request}).data)
 
@@ -366,16 +374,18 @@ class JobOfferDeclineAPIView(APIView):
         application = offer.application
         decline_note = serializer.validated_data.get('reason') or 'Applicant declined job offer.'
         change_application_status(application, JobApplication.Status.OFFER_DECLINED, request.user, decline_note)
-        create_in_app_notification(
+        create_notification(
             application.job.recruiter,
+            'offer_response',
             'Job offer declined',
             f'{request.user.full_name} declined the job offer for {application.job.title}.',
-            {'job_offer_id': offer.id, 'application_id': application.id, 'reason': serializer.validated_data.get('reason', '')},
+            related_entity=offer,
         )
-        create_bulk_in_app_notifications(
+        create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
+            'offer_response',
             'Job offer declined',
             f'{request.user.full_name} declined the job offer for {application.job.title}.',
-            {'job_offer_id': offer.id, 'application_id': application.id, 'reason': serializer.validated_data.get('reason', '')},
+            related_entity=offer,
         )
         return Response(JobOfferSerializer(offer, context={'request': request}).data)
