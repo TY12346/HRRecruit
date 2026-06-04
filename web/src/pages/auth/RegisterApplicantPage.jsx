@@ -9,27 +9,30 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
-import { login } from '../../api/client.js';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { registerApplicant } from '../../api/client.js';
 import { useAuthStore } from '../../store/authStore.js';
-import { getDashboardPathForRole } from '../../routes/guards.jsx';
 
-function getErrorMessage(error) {
-  const detail = error.response?.data?.detail;
-  if (Array.isArray(detail)) {
-    return detail.join(' ');
+function collectApiErrors(error) {
+  const data = error.response?.data;
+  if (!data || typeof data !== 'object') {
+    return 'Unable to register. Please check the form and try again.';
   }
-  if (typeof detail === 'string') {
-    return detail;
-  }
-  return 'Unable to log in. Check your email and password, then try again.';
+
+  return Object.entries(data)
+    .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(' ') : messages}`)
+    .join(' ');
 }
 
-export default function LoginPage() {
+export default function RegisterApplicantPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const setSession = useAuthStore((state) => state.setSession);
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    password: '',
+  });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,29 +46,27 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const data = await login(formData);
+      const data = await registerApplicant(formData);
       setSession({
         accessToken: data.tokens.access,
         refreshToken: data.tokens.refresh,
         user: data.user,
       });
-
-      const redirectPath = location.state?.from?.pathname ?? getDashboardPathForRole(data.user.role);
-      navigate(redirectPath, { replace: true });
+      navigate('/profile', { replace: true });
     } catch (submitError) {
-      setError(getErrorMessage(submitError));
+      setError(collectApiErrors(submitError));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Paper sx={{ p: 3, maxWidth: 520, mx: 'auto' }}>
+    <Paper sx={{ p: 3, maxWidth: 560, mx: 'auto' }}>
       <Typography component="h2" variant="h5" sx={{ mb: 1 }}>
-        Staff Login
+        Applicant Registration
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Sign in with your HRRecruit email and password to access your role-specific workspace.
+        Create a job applicant account. Staff accounts are created by HR department heads.
       </Typography>
 
       {error ? (
@@ -77,6 +78,14 @@ export default function LoginPage() {
       <Box component="form" onSubmit={handleSubmit}>
         <Stack spacing={2}>
           <TextField
+            autoComplete="name"
+            label="Full name"
+            name="fullName"
+            onChange={handleChange}
+            required
+            value={formData.fullName}
+          />
+          <TextField
             autoComplete="email"
             label="Email address"
             name="email"
@@ -86,7 +95,15 @@ export default function LoginPage() {
             value={formData.email}
           />
           <TextField
-            autoComplete="current-password"
+            autoComplete="tel"
+            label="Phone number"
+            name="phoneNumber"
+            onChange={handleChange}
+            value={formData.phoneNumber}
+          />
+          <TextField
+            autoComplete="new-password"
+            helperText="Use at least 8 characters."
             label="Password"
             name="password"
             onChange={handleChange}
@@ -95,15 +112,15 @@ export default function LoginPage() {
             value={formData.password}
           />
           <Button disabled={isSubmitting} type="submit" variant="contained">
-            {isSubmitting ? 'Signing in…' : 'Sign in'}
+            {isSubmitting ? 'Creating account…' : 'Create applicant account'}
           </Button>
         </Stack>
       </Box>
 
       <Typography color="text.secondary" sx={{ mt: 3 }}>
-        Applicant?{' '}
-        <MuiLink component={RouterLink} to="/register-applicant">
-          Create an applicant account
+        Already have an account?{' '}
+        <MuiLink component={RouterLink} to="/login">
+          Sign in
         </MuiLink>
         .
       </Typography>
