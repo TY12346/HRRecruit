@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/auth_controller.dart';
+import 'api_settings_button.dart';
 import 'auth_form_helpers.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -124,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: isLoading ? null : () => context.go('/register'),
                       child: const Text('Create applicant account'),
                     ),
+                    const ApiSettingsButton(),
                   ],
                 ),
               ),
