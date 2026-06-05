@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'api/api_client.dart';
@@ -11,8 +12,39 @@ void main() {
   runApp(const HRRecruitApplicantApp());
 }
 
-class HRRecruitApplicantApp extends StatelessWidget {
+class HRRecruitApplicantApp extends StatefulWidget {
   const HRRecruitApplicantApp({super.key});
+
+  @override
+  State<HRRecruitApplicantApp> createState() => _HRRecruitApplicantAppState();
+}
+
+class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
+  late final TokenStorage _tokenStorage;
+  late final ApiClient _apiClient;
+  late final ApplicantAuthService _authService;
+  late final AuthController _authController;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _tokenStorage = TokenStorage();
+    _apiClient = ApiClient(tokenStorage: _tokenStorage);
+    _authService = ApplicantAuthService(_apiClient);
+    _authController = AuthController(
+      authService: _authService,
+      tokenStorage: _tokenStorage,
+    )..initialize();
+    _router = createAppRouter(_authController);
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    _authController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,28 +54,19 @@ class HRRecruitApplicantApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
-        Provider<TokenStorage>.value(value: tokenStorage),
-        Provider<ApiClient>.value(value: apiClient),
-        Provider<ApplicantAuthService>.value(value: authService),
-        ChangeNotifierProvider<AuthController>(
-          create: (_) => AuthController(
-            authService: authService,
-            tokenStorage: tokenStorage,
-          )..initialize(),
-        ),
+        Provider<TokenStorage>.value(value: _tokenStorage),
+        Provider<ApiClient>.value(value: _apiClient),
+        Provider<ApplicantAuthService>.value(value: _authService),
+        ChangeNotifierProvider<AuthController>.value(value: _authController),
       ],
-      child: Consumer<AuthController>(
-        builder: (context, authController, _) {
-          return MaterialApp.router(
-            title: 'HRRecruit Applicant',
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-              useMaterial3: true,
-            ),
-            routerConfig: createAppRouter(authController),
-          );
-        },
+      child: MaterialApp.router(
+        title: 'HRRecruit Applicant',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          useMaterial3: true,
+        ),
+        routerConfig: _router,
       ),
     );
   }
