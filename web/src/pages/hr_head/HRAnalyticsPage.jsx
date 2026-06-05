@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Tooltip } from 'chart.js';
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   CircularProgress,
@@ -14,9 +17,21 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { getOrganizationAnalyticsOverview } from '../../api/client.js';
+import { downloadAnalyticsReportPdf, getOrganizationAnalyticsOverview } from '../../api/client.js';
+import {
+  barChartOptions,
+  chartFromMap,
+  chartHeight,
+  compactChartOptions,
+  downloadBlob,
+  horizontalBarChartOptions,
+  percentageDoughnut,
+  singleValueBar,
+} from '../analytics/analyticsChartUtils.js';
 import HRHeadNav from './HRHeadNav.jsx';
 import { getApiErrorMessage, titleize } from './hrHeadUtils.js';
+
+ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 function MetricCard({ label, value }) {
   return (
@@ -29,13 +44,25 @@ function MetricCard({ label, value }) {
   );
 }
 
+function ChartCard({ title, description, children }) {
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography component="h3" variant="h6">{title}</Typography>
+        {description ? <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>{description}</Typography> : null}
+        <Box sx={chartHeight}>{children}</Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PerformanceTable({ rows, type }) {
   const isRecruiter = type === 'recruiter';
   return (
     <Card>
       <CardContent>
         <Typography component="h3" variant="h6" sx={{ mb: 2 }}>
-          {isRecruiter ? 'Recruiter performance' : 'Interviewer performance'}
+          {isRecruiter ? 'Recruiter performance details' : 'Interviewer performance details'}
         </Typography>
         <Table>
           <TableHead>
@@ -91,6 +118,7 @@ export default function HRAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,17 +128,11 @@ export default function HRAnalyticsPage() {
       setError('');
       try {
         const data = await getOrganizationAnalyticsOverview();
-        if (isMounted) {
-          setAnalytics(data);
-        }
+        if (isMounted) setAnalytics(data);
       } catch (loadError) {
-        if (isMounted) {
-          setError(getApiErrorMessage(loadError, 'Unable to load HR analytics.'));
-        }
+        if (isMounted) setError(getApiErrorMessage(loadError, 'Unable to load HR analytics.'));
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -121,28 +143,44 @@ export default function HRAnalyticsPage() {
     };
   }, []);
 
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    setError('');
+    try {
+      const pdfBlob = await downloadAnalyticsReportPdf('hr_head');
+      downloadBlob(pdfBlob, 'hr-head-summary.pdf');
+    } catch (exportError) {
+      setError(getApiErrorMessage(exportError, 'Unable to export HR analytics PDF.'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const metrics = analytics?.metrics ?? {};
+  const charts = analytics?.charts ?? {};
   const applicationsByStatus = metrics.applications_by_status ?? {};
+  const applicationsByStatusChart = charts.applications_by_status ?? chartFromMap(applicationsByStatus, 'Applications', titleize);
+  const timeToHireChart = singleValueBar('Average time-to-hire', metrics.average_time_to_hire_days, 'Days', '#7c3aed');
+  const offerAcceptanceChart = percentageDoughnut('Accepted offers', metrics.offer_acceptance_rate, '#16a34a');
 
   return (
     <Box>
       <HRHeadNav />
       <Stack spacing={3}>
-        <Box>
-          <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
-            HR Analytics
-          </Typography>
-          <Typography color="text.secondary">
-            Organization-level hiring metrics, candidate funnel totals, and team performance.
-          </Typography>
-        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
+          <Box>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>HR Analytics</Typography>
+            <Typography color="text.secondary">Organization-level hiring metrics, candidate funnel totals, offer outcomes, and team performance.</Typography>
+          </Box>
+          <Button variant="outlined" onClick={handleExportPdf} disabled={isExporting || isLoading}>
+            {isExporting ? 'Exporting…' : 'Export PDF'}
+          </Button>
+        </Stack>
 
         {error ? <Alert severity="error">{error}</Alert> : null}
         {isLoading ? <CircularProgress aria-label="Loading HR analytics" /> : null}
 
-        {analytics?.organization ? (
-          <Alert severity="info">Viewing analytics for {analytics.organization.name}.</Alert>
-        ) : null}
+        {analytics?.organization ? <Alert severity="info">Viewing analytics for {analytics.organization.name}.</Alert> : null}
 
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}><MetricCard label="Job postings" value={metrics.total_job_postings} /></Grid>
@@ -155,30 +193,38 @@ export default function HRAnalyticsPage() {
           <Grid item xs={12} sm={6} md={3}><MetricCard label="Offer acceptance" value={`${metrics.offer_acceptance_rate ?? 0}%`} /></Grid>
         </Grid>
 
-        <Card>
-          <CardContent>
-            <Typography component="h3" variant="h6" sx={{ mb: 2 }}>Applications by status</Typography>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Count</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Object.entries(applicationsByStatus).map(([status, count]) => (
-                  <TableRow key={status}>
-                    <TableCell>{titleize(status)}</TableCell>
-                    <TableCell>{count}</TableCell>
-                  </TableRow>
-                ))}
-                {!Object.keys(applicationsByStatus).length ? (
-                  <TableRow><TableCell colSpan={2}>No application status data yet.</TableCell></TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <ChartCard title="Applications by status" description="Organization application totals grouped by status.">
+              {applicationsByStatusChart.labels?.length ? <Bar data={applicationsByStatusChart} options={barChartOptions} /> : <Typography color="text.secondary">No status data yet.</Typography>}
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ChartCard title="Candidate funnel" description="Candidates across the end-to-end recruitment funnel.">
+              {charts.candidate_funnel ? <Bar data={charts.candidate_funnel} options={barChartOptions} /> : <Typography color="text.secondary">No funnel data yet.</Typography>}
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <ChartCard title="Time-to-hire" description="Average days from application to hired status.">
+              <Bar data={timeToHireChart} options={barChartOptions} />
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <ChartCard title="Offer acceptance rate" description="Accepted offers compared with total offers.">
+              <Doughnut data={offerAcceptanceChart} options={compactChartOptions} />
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <ChartCard title="Recruiter performance" description="Jobs, applications, and hires per recruiter.">
+              {charts.recruiter_performance ? <Bar data={charts.recruiter_performance} options={horizontalBarChartOptions} /> : <Typography color="text.secondary">No recruiter performance data yet.</Typography>}
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12}>
+            <ChartCard title="Interviewer performance" description="Assigned interviews, completed interviews, and submitted evaluations.">
+              {charts.interviewer_performance ? <Bar data={charts.interviewer_performance} options={barChartOptions} /> : <Typography color="text.secondary">No interviewer performance data yet.</Typography>}
+            </ChartCard>
+          </Grid>
+        </Grid>
 
         <PerformanceTable rows={analytics?.recruiter_performance ?? []} type="recruiter" />
         <PerformanceTable rows={analytics?.interviewer_performance ?? []} type="interviewer" />
