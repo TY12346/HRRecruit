@@ -318,3 +318,47 @@ export const sendJobOffer = async (applicationId, payload) => {
   });
   return response.data;
 };
+
+export const getAssignedInterviews = async () => {
+  const response = await apiClient.get('/interviews/assigned/');
+  return response.data;
+};
+
+export const getInterview = async (interviewId) => {
+  const response = await apiClient.get(`/interviews/${interviewId}/`);
+  return response.data;
+};
+
+export const uploadInterviewRecording = async (interviewId, audioFile) => {
+  const formData = new FormData();
+  formData.append('audio_file', audioFile);
+  const response = await apiClient.post(`/interviews/${interviewId}/recordings/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const transcribeRecording = async (recordingId) => {
+  const response = await apiClient.post(`/recordings/${recordingId}/transcribe/`);
+  return response.data;
+};
+
+export const generateTranscriptSummary = async (transcriptId) => {
+  const response = await apiClient.post(`/transcripts/${transcriptId}/generate-summary/`);
+  return response.data;
+};
+
+export const updateInterviewSummary = async (summaryId, payload) => {
+  const response = await apiClient.patch(`/interview-summaries/${summaryId}/`, payload);
+  return response.data;
+};
+
+export const submitInterviewEvaluation = async (interviewId, payload) => {
+  const response = await apiClient.post(`/interviews/${interviewId}/evaluations/`, payload);
+  return response.data;
+};
+
+export const getInterviewerAnalytics = async () => {
+  const response = await apiClient.get('/analytics/interviewer/dashboard/');
+  return response.data;
+};
