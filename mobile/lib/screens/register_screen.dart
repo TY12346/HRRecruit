@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/auth_controller.dart';
+import 'api_settings_button.dart';
 import 'auth_form_helpers.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -158,6 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: isLoading ? null : () => context.go('/login'),
                       child: const Text('Already have an account? Login'),
                     ),
+                    const ApiSettingsButton(),
                   ],
                 ),
               ),

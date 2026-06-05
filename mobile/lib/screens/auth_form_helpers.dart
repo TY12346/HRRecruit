@@ -5,9 +5,9 @@ String readableApiError(Object error) {
   if (error is DioException) {
     if (_isConnectionProblem(error)) {
       return 'Could not reach the HRRecruit API. If you are using a '
-          'physical phone, run the backend on 0.0.0.0 and start Flutter '
-          'with --dart-define=HRRECRUIT_API_BASE_URL='
-          'http://YOUR_COMPUTER_LAN_IP:8000/api/';
+          'physical phone, tap API settings and use '
+          'http://YOUR_COMPUTER_LAN_IP:8000/api/. Also run Django with '
+          'python manage.py runserver 0.0.0.0:8000.';
     }
 
     final data = error.response?.data;
