@@ -48,6 +48,10 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
 
   @override
   Widget build(BuildContext context) {
+    final tokenStorage = TokenStorage();
+    final apiClient = ApiClient(tokenStorage: tokenStorage);
+    final authService = ApplicantAuthService(apiClient);
+
     return MultiProvider(
       providers: [
         Provider<TokenStorage>.value(value: _tokenStorage),
