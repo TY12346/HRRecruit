@@ -174,3 +174,147 @@ export const getUnreadNotificationCount = async () => {
 };
 
 export default apiClient;
+
+export const getRecruiterAnalytics = async () => {
+  const response = await apiClient.get('/analytics/recruiter/dashboard/');
+  return response.data;
+};
+
+export const getJobFunnelAnalytics = async (jobId) => {
+  const response = await apiClient.get(`/analytics/jobs/${jobId}/funnel/`);
+  return response.data;
+};
+
+export const getJobs = async () => {
+  const response = await apiClient.get('/jobs/');
+  return response.data;
+};
+
+export const getJob = async (jobId) => {
+  const response = await apiClient.get(`/jobs/${jobId}/`);
+  return response.data;
+};
+
+export const createJob = async (job) => {
+  const response = await apiClient.post('/jobs/', job);
+  return response.data;
+};
+
+export const updateJob = async (jobId, job) => {
+  const response = await apiClient.patch(`/jobs/${jobId}/`, job);
+  return response.data;
+};
+
+export const deleteJob = async (jobId) => {
+  const response = await apiClient.delete(`/jobs/${jobId}/`);
+  return response.data;
+};
+
+export const duplicateJob = async (jobId) => {
+  const response = await apiClient.post(`/jobs/${jobId}/duplicate/`);
+  return response.data;
+};
+
+export const configureJobRequirements = async (jobId, payload) => {
+  const response = await apiClient.post(`/jobs/${jobId}/requirements/`, payload);
+  return response.data;
+};
+
+export const createJobEvaluationForm = async (jobId, payload) => {
+  const response = await apiClient.post(`/jobs/${jobId}/eval-form/`, payload);
+  return response.data;
+};
+
+export const getApplications = async () => {
+  const response = await apiClient.get('/applications/');
+  return response.data;
+};
+
+export const getApplication = async (applicationId) => {
+  const response = await apiClient.get(`/applications/${applicationId}/`);
+  return response.data;
+};
+
+export const screenApplication = async (applicationId) => {
+  const response = await apiClient.post(`/applications/${applicationId}/screen/`);
+  return response.data;
+};
+
+export const getCandidateProfile = async (applicationId) => {
+  const response = await apiClient.get(`/applications/${applicationId}/candidate-profile/`);
+  return response.data;
+};
+
+export const shortlistApplication = async (applicationId, payload) => {
+  const response = await apiClient.post(`/applications/${applicationId}/shortlist/`, payload);
+  return response.data;
+};
+
+export const assignInterviewer = async (applicationId, payload) => {
+  const response = await apiClient.post(`/applications/${applicationId}/assign-interviewer/`, payload);
+  return response.data;
+};
+
+export const rejectApplication = async (applicationId, payload) => {
+  const response = await apiClient.post(`/applications/${applicationId}/reject/`, payload);
+  return response.data;
+};
+
+export const updateApplicationRemark = async (applicationId, remark) => {
+  const response = await apiClient.patch(`/applications/${applicationId}/remark/`, { remark });
+  return response.data;
+};
+
+export const getApplicationStatusHistory = async (applicationId) => {
+  const response = await apiClient.get(`/applications/${applicationId}/status-history/`);
+  return response.data;
+};
+
+export const getRankedCandidates = async (jobId) => {
+  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`);
+  return response.data;
+};
+
+export const getInterviews = async () => {
+  const response = await apiClient.get('/interviews/');
+  return response.data;
+};
+
+export const sendInterviewInvitation = async (interviewId, payload) => {
+  const response = await apiClient.post(`/interviews/${interviewId}/send-invitation/`, payload);
+  return response.data;
+};
+
+export const getInterviewEvaluationDetail = async (interviewId) => {
+  const response = await apiClient.get(`/interviews/${interviewId}/evaluation-detail/`);
+  return response.data;
+};
+
+export const submitHiringDecision = async (applicationId, payload) => {
+  const response = await apiClient.post(`/applications/${applicationId}/hiring-decision/`, payload);
+  return response.data;
+};
+
+export const getHiringDecision = async (decisionId) => {
+  const response = await apiClient.get(`/hiring-decisions/${decisionId}/`);
+  return response.data;
+};
+
+export const getJobOffers = async () => {
+  const response = await apiClient.get('/job-offers/');
+  return response.data;
+};
+
+export const sendJobOffer = async (applicationId, payload) => {
+  const hasFile = payload.offer_letter_file instanceof File;
+  const body = hasFile ? new FormData() : payload;
+  if (hasFile) {
+    body.append('offer_message', payload.offer_message);
+    body.append('respond_deadline', payload.respond_deadline);
+    body.append('offer_letter_file', payload.offer_letter_file);
+  }
+  const response = await apiClient.post(`/applications/${applicationId}/job-offer/`, body, {
+    headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  });
+  return response.data;
+};
