@@ -175,6 +175,23 @@ export const getUnreadNotificationCount = async () => {
 
 export default apiClient;
 
+
+export const downloadAnalyticsReportPdf = async (reportType) => {
+  const reportPaths = {
+    recruiter: '/reports/recruiter-summary.pdf',
+    interviewer: '/reports/interviewer-summary.pdf',
+    hr_head: '/reports/hr-head-summary.pdf',
+  };
+  const reportPath = reportPaths[reportType];
+
+  if (!reportPath) {
+    throw new Error('Unsupported analytics report type.');
+  }
+
+  const response = await apiClient.get(reportPath, { responseType: 'blob' });
+  return response.data;
+};
+
 export const getRecruiterAnalytics = async () => {
   const response = await apiClient.get('/analytics/recruiter/dashboard/');
   return response.data;
