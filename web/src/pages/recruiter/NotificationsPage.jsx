@@ -1,0 +1,14 @@
+import { useEffect, useState } from 'react';
+import { Alert, Box, Button, Chip, CircularProgress, List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material';
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/client.js';
+import RecruiterNav from './RecruiterNav.jsx';
+import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
+
+export default function NotificationsPage() {
+  const [notifications, setNotifications] = useState([]); const [error, setError] = useState(''); const [isLoading, setIsLoading] = useState(true);
+  const load = async () => { setIsLoading(true); try { setNotifications(await getNotifications()); } catch (err) { setError(getApiErrorMessage(err, 'Unable to load notifications.')); } finally { setIsLoading(false); } };
+  useEffect(() => { let active = true; getNotifications().then((data) => { if (active) setNotifications(data); }).catch((err) => { if (active) setError(getApiErrorMessage(err, 'Unable to load notifications.')); }).finally(() => { if (active) setIsLoading(false); }); return () => { active = false; }; }, []);
+  const markRead = async (notification) => { try { await markNotificationRead(notification.id); load(); } catch (err) { setError(getApiErrorMessage(err, 'Unable to mark notification as read.')); } };
+  const markAll = async () => { try { await markAllNotificationsRead(); load(); } catch (err) { setError(getApiErrorMessage(err, 'Unable to mark all notifications as read.')); } };
+  return <Box><RecruiterNav /><Paper sx={{ p: 3 }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 2 }}><Box><Typography variant="h5" sx={{ fontWeight: 700 }}>Notifications</Typography><Typography color="text.secondary">Application, interview, hiring decision, and offer updates.</Typography></Box><Button onClick={markAll} variant="outlined">Mark all read</Button></Stack>{error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}{isLoading ? <CircularProgress /> : null}<List>{notifications.map((notification) => <ListItem key={notification.id} secondaryAction={!notification.is_read ? <Button onClick={() => markRead(notification)} size="small">Mark read</Button> : null}><ListItemText primary={<Stack direction="row" spacing={1} alignItems="center"><Typography>{notification.title}</Typography><Chip label={notification.is_read ? 'Read' : 'Unread'} size="small" color={notification.is_read ? 'default' : 'primary'} /></Stack>} secondary={`${titleize(notification.notification_type ?? notification.type)} • ${notification.message} • ${formatDateTime(notification.created_at)}`} /></ListItem>)}{!isLoading && notifications.length === 0 ? <ListItem><ListItemText primary="No notifications yet." /></ListItem> : null}</List></Paper></Box>;
+}
