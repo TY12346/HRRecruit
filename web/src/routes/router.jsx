@@ -18,6 +18,16 @@ import JobRequirementsPage from '../pages/recruiter/JobRequirementsPage.jsx';
 import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.jsx';
 import RecruiterNotificationsPage from '../pages/recruiter/NotificationsPage.jsx';
 import InterviewerDashboardPage from '../pages/interviewer/InterviewerDashboardPage.jsx';
+import AssignedCandidatesPage from '../pages/interviewer/AssignedCandidatesPage.jsx';
+import CandidateDetailPage from '../pages/interviewer/CandidateDetailPage.jsx';
+import InterviewerInterviewDetailPage from '../pages/interviewer/InterviewDetailPage.jsx';
+import InterviewListPage from '../pages/interviewer/InterviewListPage.jsx';
+import InterviewerAnalyticsPage from '../pages/interviewer/InterviewerAnalyticsPage.jsx';
+import InterviewerNotificationsPage from '../pages/interviewer/NotificationsPage.jsx';
+import SendInvitationPage from '../pages/interviewer/SendInvitationPage.jsx';
+import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx';
+import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
+import UploadRecordingPage from '../pages/interviewer/UploadRecordingPage.jsx';
 import HRHeadDashboardPage from '../pages/hr_head/HRHeadDashboardPage.jsx';
 import OrganizationProfilePage from '../pages/hr_head/OrganizationProfilePage.jsx';
 import TeamMembersPage from '../pages/hr_head/TeamMembersPage.jsx';
@@ -71,7 +81,19 @@ export const router = createBrowserRouter([
       },
       {
         element: <RoleRoute allowedRoles={['interviewer']} />,
-        children: [{ path: 'interviewer', element: <InterviewerDashboardPage /> }],
+        children: [
+          { path: 'interviewer', element: <InterviewerDashboardPage /> },
+          { path: 'interviewer/candidates', element: <AssignedCandidatesPage /> },
+          { path: 'interviewer/candidates/:applicationId', element: <CandidateDetailPage /> },
+          { path: 'interviewer/interviews', element: <InterviewListPage /> },
+          { path: 'interviewer/interviews/:interviewId', element: <InterviewerInterviewDetailPage /> },
+          { path: 'interviewer/interviews/:interviewId/invitation', element: <SendInvitationPage /> },
+          { path: 'interviewer/interviews/:interviewId/recording', element: <UploadRecordingPage /> },
+          { path: 'interviewer/interviews/:interviewId/transcript-summary', element: <TranscriptSummaryPage /> },
+          { path: 'interviewer/interviews/:interviewId/evaluation', element: <SubmitEvaluationPage /> },
+          { path: 'interviewer/analytics', element: <InterviewerAnalyticsPage /> },
+          { path: 'interviewer/notifications', element: <InterviewerNotificationsPage /> },
+        ],
       },
       {
         element: <RoleRoute allowedRoles={['hr_head']} />,
