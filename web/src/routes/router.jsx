@@ -3,6 +3,20 @@ import PortalLayout from '../layouts/PortalLayout.jsx';
 import LoginPage from '../pages/auth/LoginPage.jsx';
 import RegisterApplicantPage from '../pages/auth/RegisterApplicantPage.jsx';
 import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.jsx';
+import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
+import CandidateProfilePage from '../pages/recruiter/CandidateProfilePage.jsx';
+import CandidateRankingPage from '../pages/recruiter/CandidateRankingPage.jsx';
+import EvaluationFormBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
+import HiringDecisionPage from '../pages/recruiter/HiringDecisionPage.jsx';
+import InterviewAssignmentPage from '../pages/recruiter/InterviewAssignmentPage.jsx';
+import InterviewEvaluationDetailPage from '../pages/recruiter/InterviewEvaluationDetailPage.jsx';
+import JobCreateEditPage from '../pages/recruiter/JobCreateEditPage.jsx';
+import JobDetailPage from '../pages/recruiter/JobDetailPage.jsx';
+import JobListPage from '../pages/recruiter/JobListPage.jsx';
+import JobOfferPage from '../pages/recruiter/JobOfferPage.jsx';
+import JobRequirementsPage from '../pages/recruiter/JobRequirementsPage.jsx';
+import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.jsx';
+import RecruiterNotificationsPage from '../pages/recruiter/NotificationsPage.jsx';
 import InterviewerDashboardPage from '../pages/interviewer/InterviewerDashboardPage.jsx';
 import HRHeadDashboardPage from '../pages/hr_head/HRHeadDashboardPage.jsx';
 import OrganizationProfilePage from '../pages/hr_head/OrganizationProfilePage.jsx';
@@ -35,7 +49,25 @@ export const router = createBrowserRouter([
       },
       {
         element: <RoleRoute allowedRoles={['recruiter']} />,
-        children: [{ path: 'recruiter', element: <RecruiterDashboardPage /> }],
+        children: [
+          { path: 'recruiter', element: <RecruiterDashboardPage /> },
+          { path: 'recruiter/jobs', element: <JobListPage /> },
+          { path: 'recruiter/jobs/create', element: <JobCreateEditPage /> },
+          { path: 'recruiter/jobs/:jobId', element: <JobDetailPage /> },
+          { path: 'recruiter/jobs/:jobId/edit', element: <JobCreateEditPage /> },
+          { path: 'recruiter/jobs/:jobId/requirements', element: <JobRequirementsPage /> },
+          { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationFormBuilderPage /> },
+          { path: 'recruiter/jobs/:jobId/ranking', element: <CandidateRankingPage /> },
+          { path: 'recruiter/applications', element: <ApplicationsPage /> },
+          { path: 'recruiter/applications/:applicationId', element: <CandidateProfilePage /> },
+          { path: 'recruiter/applications/:applicationId/assign-interview', element: <InterviewAssignmentPage /> },
+          { path: 'recruiter/applications/:applicationId/hiring-decision', element: <HiringDecisionPage /> },
+          { path: 'recruiter/interviews', element: <InterviewEvaluationDetailPage /> },
+          { path: 'recruiter/hiring-decisions', element: <HiringDecisionPage /> },
+          { path: 'recruiter/job-offers', element: <JobOfferPage /> },
+          { path: 'recruiter/analytics', element: <RecruiterAnalyticsPage /> },
+          { path: 'recruiter/notifications', element: <RecruiterNotificationsPage /> },
+        ],
       },
       {
         element: <RoleRoute allowedRoles={['interviewer']} />,
