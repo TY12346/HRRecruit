@@ -6,6 +6,7 @@ class TokenStorage {
 
   static const _accessTokenKey = 'hrrecruit_access_token';
   static const _refreshTokenKey = 'hrrecruit_refresh_token';
+  static const _apiBaseUrlKey = 'hrrecruit_api_base_url';
 
   final FlutterSecureStorage _secureStorage;
 
@@ -23,6 +24,14 @@ class TokenStorage {
 
   Future<String?> readRefreshToken() {
     return _secureStorage.read(key: _refreshTokenKey);
+  }
+
+  Future<void> saveApiBaseUrl(String apiBaseUrl) {
+    return _secureStorage.write(key: _apiBaseUrlKey, value: apiBaseUrl);
+  }
+
+  Future<String?> readApiBaseUrl() {
+    return _secureStorage.read(key: _apiBaseUrlKey);
   }
 
   Future<void> clearTokens() async {
