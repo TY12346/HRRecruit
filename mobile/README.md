@@ -38,3 +38,11 @@ You can also pass the URL at launch time:
 ```bash
 flutter run --dart-define=HRRECRUIT_API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:8000/api/
 ```
+
+
+### Windows firewall note
+
+If the app still says the API is unreachable after setting the LAN IP, allow
+Python/Django through Windows Firewall or temporarily allow inbound TCP traffic
+on port `8000` for your private Wi-Fi network. A physical phone cannot reach a
+Django server that is bound only to `127.0.0.1` or blocked by the firewall.

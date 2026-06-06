@@ -1,13 +1,19 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-String readableApiError(Object error) {
+import '../api/api_client.dart';
+
+String readableApiError(Object error, {String? apiBaseUrl}) {
   if (error is DioException) {
     if (_isConnectionProblem(error)) {
-      return 'Could not reach the HRRecruit API. If you are using a '
-          'physical phone, tap API settings and use '
-          'http://YOUR_COMPUTER_LAN_IP:8000/api/. Also run Django with '
-          'python manage.py runserver 0.0.0.0:8000.';
+      final currentUrl = apiBaseUrl == null ? '' : '\nCurrent API URL: $apiBaseUrl';
+      return 'Could not reach the HRRecruit API.$currentUrl\n\n'
+          'If you are using a physical phone, 10.0.2.2 will not work. '
+          'Tap API settings and use http://YOUR_COMPUTER_LAN_IP:8000/api/.\n\n'
+          'Also check that Django is running with '
+          'python manage.py runserver 0.0.0.0:8000, that Windows Firewall '
+          'allows port 8000, and that DJANGO_ALLOWED_HOSTS includes your LAN IP.';
     }
 
     final data = error.response?.data;
@@ -50,8 +56,16 @@ String _stringifyMessage(Object? value) {
   return value?.toString() ?? '';
 }
 
-void showErrorSnackBar(BuildContext context, Object error) {
+Future<void> showErrorSnackBar(BuildContext context, Object error) async {
+  String? apiBaseUrl;
+  try {
+    apiBaseUrl = await context.read<ApiClient>().currentBaseUrl();
+  } catch (_) {
+    apiBaseUrl = null;
+  }
+
+  if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(readableApiError(error))),
+    SnackBar(content: Text(readableApiError(error, apiBaseUrl: apiBaseUrl))),
   );
 }

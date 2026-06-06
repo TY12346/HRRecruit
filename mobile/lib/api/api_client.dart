@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/token_storage.dart';
 
@@ -31,6 +32,15 @@ class ApiClient {
           }
 
           handler.next(options);
+        },
+        onError: (error, handler) {
+          debugPrint(
+            'HRRecruit API request failed: '
+            '${error.requestOptions.method} '
+            '${error.requestOptions.baseUrl}${error.requestOptions.path} '
+            '${error.type} ${error.message}',
+          );
+          handler.next(error);
         },
       ),
     );
