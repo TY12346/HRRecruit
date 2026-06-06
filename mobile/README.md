@@ -46,3 +46,15 @@ If the app still says the API is unreachable after setting the LAN IP, allow
 Python/Django through Windows Firewall or temporarily allow inbound TCP traffic
 on port `8000` for your private Wi-Fi network. A physical phone cannot reach a
 Django server that is bound only to `127.0.0.1` or blocked by the firewall.
+
+
+### Android cleartext HTTP note
+
+The local backend URL uses plain HTTP, not HTTPS. Android apps can block
+cleartext HTTP even when the same URL works in Chrome or another browser. The
+tracked Android manifest enables cleartext traffic for local FYP development via
+`android:usesCleartextTraffic="true"` and `@xml/network_security_config`.
+
+If you already have an untracked/generated `android/` folder locally, make sure
+`mobile/android/app/src/main/AndroidManifest.xml` contains the same
+`uses-permission`, `usesCleartextTraffic`, and `networkSecurityConfig` entries.
