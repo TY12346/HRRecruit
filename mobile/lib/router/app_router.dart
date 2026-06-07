@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../controllers/auth_controller.dart';
+import '../screens/applicant/application_detail_screen.dart';
+import '../screens/applicant/job_detail_screen.dart';
+import '../screens/applicant/job_search_screen.dart';
+import '../screens/applicant/my_applications_screen.dart';
+import '../screens/applicant/saved_jobs_screen.dart';
 import '../screens/applicant_home_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/profile_screen.dart';
@@ -54,6 +59,30 @@ GoRouter createAppRouter(AuthController authController) {
       GoRoute(
         path: '/resume',
         builder: (context, state) => const ResumeUploadScreen(),
+      ),
+      GoRoute(
+        path: '/jobs',
+        builder: (context, state) => const JobSearchScreen(),
+      ),
+      GoRoute(
+        path: '/jobs/:jobId',
+        builder: (context, state) => JobDetailScreen(
+          jobId: int.parse(state.pathParameters['jobId']!),
+        ),
+      ),
+      GoRoute(
+        path: '/saved-jobs',
+        builder: (context, state) => const SavedJobsScreen(),
+      ),
+      GoRoute(
+        path: '/applications',
+        builder: (context, state) => const MyApplicationsScreen(),
+      ),
+      GoRoute(
+        path: '/applications/:applicationId',
+        builder: (context, state) => ApplicationDetailScreen(
+          applicationId: int.parse(state.pathParameters['applicationId']!),
+        ),
       ),
     ],
   );

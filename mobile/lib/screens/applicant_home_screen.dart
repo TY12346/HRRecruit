@@ -38,6 +38,34 @@ class ApplicantHomeScreen extends StatelessWidget {
             const SizedBox(height: 8),
             const Text('Keep your profile and resume current for recruiter screening.'),
             const SizedBox(height: 24),
+
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.search),
+                title: const Text('Find jobs'),
+                subtitle: const Text('Search and filter open job postings'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/jobs'),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.bookmark_border),
+                title: const Text('Saved jobs'),
+                subtitle: const Text('Review jobs you saved for later'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/saved-jobs'),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.assignment_outlined),
+                title: const Text('My applications'),
+                subtitle: const Text('Track application status and history'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/applications'),
+              ),
+            ),
             Card(
               child: ListTile(
                 leading: const Icon(Icons.person_outline),

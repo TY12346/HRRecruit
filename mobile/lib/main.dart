@@ -6,6 +6,7 @@ import 'api/api_client.dart';
 import 'controllers/auth_controller.dart';
 import 'router/app_router.dart';
 import 'services/applicant_auth_service.dart';
+import 'services/job_discovery_service.dart';
 import 'services/token_storage.dart';
 
 void main() {
@@ -48,15 +49,14 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
 
   @override
   Widget build(BuildContext context) {
-    final tokenStorage = TokenStorage();
-    final apiClient = ApiClient(tokenStorage: tokenStorage);
-    final authService = ApplicantAuthService(apiClient);
-
     return MultiProvider(
       providers: [
         Provider<TokenStorage>.value(value: _tokenStorage),
         Provider<ApiClient>.value(value: _apiClient),
         Provider<ApplicantAuthService>.value(value: _authService),
+        Provider<JobDiscoveryService>(
+          create: (_) => JobDiscoveryService(_apiClient),
+        ),
         ChangeNotifierProvider<AuthController>.value(value: _authController),
       ],
       child: MaterialApp.router(
