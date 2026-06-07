@@ -1,0 +1,4 @@
+﻿email,full_name,phone_number,role
+recruiter.two@example-tech.com,Recruiter Two,+60333333333,recruiter
+interviewer.two@example-tech.com,Interviewer Two,+60444444444,interviewer
+invalid-role@example-tech.com,Invalid Role User,+60555555555,applicant
