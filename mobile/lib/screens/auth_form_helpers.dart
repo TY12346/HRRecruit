@@ -13,7 +13,8 @@ String readableApiError(Object error, {String? apiBaseUrl}) {
           'Tap API settings and use http://YOUR_COMPUTER_LAN_IP:8000/api/.\n\n'
           'Also check that Django is running with '
           'python manage.py runserver 0.0.0.0:8000, that Windows Firewall '
-          'allows port 8000, and that DJANGO_ALLOWED_HOSTS includes your LAN IP.';
+          'allows port 8000, DJANGO_ALLOWED_HOSTS includes your LAN IP, '
+          'and Android cleartext HTTP is enabled for local development.';
     }
 
     final data = error.response?.data;
