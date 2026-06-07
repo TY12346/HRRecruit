@@ -10,7 +10,8 @@ String readableApiError(Object error, {String? apiBaseUrl}) {
       final currentUrl = apiBaseUrl == null ? '' : '\nCurrent API URL: $apiBaseUrl';
       return 'Could not reach the HRRecruit API.$currentUrl\n\n'
           'If you are using a physical phone, 10.0.2.2 will not work. '
-          'Tap API settings and use http://YOUR_COMPUTER_LAN_IP:8000/api/.\n\n'
+          'Tap API settings and use http://YOUR_COMPUTER_LAN_IP:8000/api/. '
+          'Do not omit :8000.\n\n'
           'Also check that Django is running with '
           'python manage.py runserver 0.0.0.0:8000, that Windows Firewall '
           'allows port 8000, DJANGO_ALLOWED_HOSTS includes your LAN IP, '

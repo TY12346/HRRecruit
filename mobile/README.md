@@ -33,6 +33,9 @@ When running on a physical phone:
    http://YOUR_COMPUTER_LAN_IP:8000/api/
    ```
 
+   If you omit `:8000`, Android will try port `80` and the app will show the
+   API-unreachable message even though `:8000` works in a browser.
+
 You can also pass the URL at launch time:
 
 ```bash

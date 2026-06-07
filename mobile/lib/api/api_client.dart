@@ -56,7 +56,48 @@ class ApiClient {
     if (trimmed.isEmpty) {
       return defaultBaseUrl;
     }
-    return trimmed.endsWith('/') ? trimmed : '$trimmed/';
+
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || uri.scheme.isEmpty || uri.host.isEmpty) {
+      return trimmed.endsWith('/') ? trimmed : '$trimmed/';
+    }
+
+    final isLocalDevelopmentHost = uri.host == 'localhost' ||
+        uri.host == '127.0.0.1' ||
+        uri.host == '10.0.2.2' ||
+        _isPrivateIpv4Address(uri.host);
+    final shouldUseDjangoDevPort = uri.scheme == 'http' &&
+        isLocalDevelopmentHost &&
+        !uri.hasPort;
+    final normalizedPath = _normalizeApiPath(uri.path);
+    final normalizedUri = uri.replace(
+      port: shouldUseDjangoDevPort
+          ? 8000
+          : (uri.hasPort ? uri.port : null),
+      path: normalizedPath,
+    );
+
+    return normalizedUri.toString();
+  }
+
+  static String _normalizeApiPath(String path) {
+    if (path.isEmpty || path == '/') {
+      return '/api/';
+    }
+    return path.endsWith('/') ? path : '$path/';
+  }
+
+  static bool _isPrivateIpv4Address(String host) {
+    final parts = host.split('.').map(int.tryParse).toList();
+    if (parts.length != 4 || parts.any((part) => part == null)) {
+      return false;
+    }
+
+    final first = parts[0]!;
+    final second = parts[1]!;
+    return first == 10 ||
+        (first == 172 && second >= 16 && second <= 31) ||
+        (first == 192 && second == 168);
   }
 
   Future<void> updateBaseUrl(String baseUrl) async {
@@ -66,7 +107,8 @@ class ApiClient {
   }
 
   Future<String> currentBaseUrl() async {
-    return await _tokenStorage.readApiBaseUrl() ?? dio.options.baseUrl;
+    final storedBaseUrl = await _tokenStorage.readApiBaseUrl();
+    return normalizeBaseUrl(storedBaseUrl ?? dio.options.baseUrl);
   }
 
   final TokenStorage _tokenStorage;
