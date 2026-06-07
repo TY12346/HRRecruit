@@ -6,6 +6,7 @@ import 'api/api_client.dart';
 import 'controllers/auth_controller.dart';
 import 'router/app_router.dart';
 import 'services/applicant_auth_service.dart';
+import 'services/applicant_workflow_service.dart';
 import 'services/job_discovery_service.dart';
 import 'services/token_storage.dart';
 
@@ -56,6 +57,9 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
         Provider<ApplicantAuthService>.value(value: _authService),
         Provider<JobDiscoveryService>(
           create: (_) => JobDiscoveryService(_apiClient),
+        ),
+        Provider<ApplicantWorkflowService>(
+          create: (_) => ApplicantWorkflowService(_apiClient),
         ),
         ChangeNotifierProvider<AuthController>.value(value: _authController),
       ],

@@ -3,9 +3,14 @@ import 'package:go_router/go_router.dart';
 
 import '../controllers/auth_controller.dart';
 import '../screens/applicant/application_detail_screen.dart';
+import '../screens/applicant/interview_invitation_detail_screen.dart';
+import '../screens/applicant/interview_invitations_screen.dart';
+import '../screens/applicant/job_offers_screen.dart';
 import '../screens/applicant/job_detail_screen.dart';
 import '../screens/applicant/job_search_screen.dart';
 import '../screens/applicant/my_applications_screen.dart';
+import '../screens/applicant/my_interviews_screen.dart';
+import '../screens/applicant/notifications_screen.dart';
 import '../screens/applicant/saved_jobs_screen.dart';
 import '../screens/applicant_home_screen.dart';
 import '../screens/login_screen.dart';
@@ -84,6 +89,29 @@ GoRouter createAppRouter(AuthController authController) {
           applicationId: int.parse(state.pathParameters['applicationId']!),
         ),
       ),
+      GoRoute(
+        path: '/interview-invitations',
+        builder: (context, state) => const InterviewInvitationsScreen(),
+      ),
+      GoRoute(
+        path: '/interview-invitations/:invitationId',
+        builder: (context, state) => InterviewInvitationDetailScreen(
+          invitationId: int.parse(state.pathParameters['invitationId']!),
+        ),
+      ),
+      GoRoute(
+        path: '/interviews',
+        builder: (context, state) => const MyInterviewsScreen(),
+      ),
+      GoRoute(
+        path: '/job-offers',
+        builder: (context, state) => const JobOffersScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+
     ],
   );
 }

@@ -68,6 +68,42 @@ class ApplicantHomeScreen extends StatelessWidget {
             ),
             Card(
               child: ListTile(
+                leading: const Icon(Icons.event_available_outlined),
+                title: const Text('Interview invitations'),
+                subtitle: const Text('Accept or decline interview invitations'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/interview-invitations'),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.event_outlined),
+                title: const Text('My interviews'),
+                subtitle: const Text('View upcoming and completed interviews'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/interviews'),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.card_giftcard_outlined),
+                title: const Text('Job offers'),
+                subtitle: const Text('Review and respond to job offers'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/job-offers'),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.notifications_outlined),
+                title: const Text('Notifications'),
+                subtitle: const Text('Read application, interview, and offer updates'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/notifications'),
+              ),
+            ),
+            Card(
+              child: ListTile(
                 leading: const Icon(Icons.person_outline),
                 title: const Text('Profile'),
                 subtitle: const Text('View and edit your applicant information'),
