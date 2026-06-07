@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from apps.users.models import User
+
 from .models import ApplicationStageHistory, JobApplication
 
 
@@ -53,6 +55,27 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user.role == User.Role.APPLICANT:
+            for field in (
+                'recruiter_remark',
+                'assigned_interviewer',
+                'extracted_resume_text',
+                'extracted_skills',
+                'extracted_experience',
+                'extracted_education',
+                'semantic_score',
+                'skill_score',
+                'experience_score',
+                'education_score',
+                'final_score',
+                'score_explanation',
+            ):
+                data.pop(field, None)
+        return data
 
 
 class CandidateScoreSerializer(serializers.Serializer):

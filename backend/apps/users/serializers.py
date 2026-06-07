@@ -127,6 +127,12 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         otp.save(update_fields=['is_used'])
 
 
+ALLOWED_RESUME_CONTENT_TYPES = {
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
+
 class ResumeUploadSerializer(serializers.ModelSerializer):
     resume_file = serializers.FileField(write_only=True)
 
@@ -142,6 +148,10 @@ class ResumeUploadSerializer(serializers.ModelSerializer):
         filename = file.name.lower()
         if not (filename.endswith('.pdf') or filename.endswith('.docx')):
             raise serializers.ValidationError('Only PDF and DOCX files are allowed.')
+
+        content_type = getattr(file, 'content_type', '')
+        if content_type and content_type not in ALLOWED_RESUME_CONTENT_TYPES:
+            raise serializers.ValidationError('Unsupported resume content type.')
         return file
 
 

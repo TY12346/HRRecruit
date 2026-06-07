@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from apps.applications.serializers import AssignedInterviewerSerializer, JobApplicationSerializer
+from apps.users.models import User
 from .models import CalendarEvent, Interview, InterviewInvitation, InterviewStatusHistory
 
 
@@ -48,6 +49,13 @@ class InterviewInvitationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user.role == User.Role.APPLICANT:
+            data.pop('interviewer', None)
+        return data
+
     def get_calendar_link(self, invitation):
         event = invitation.interview.calendar_events.order_by('-id').first()
         return event.calendar_link if event else ''
@@ -80,6 +88,14 @@ class InterviewSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user.role == User.Role.APPLICANT:
+            data.pop('recruiter', None)
+            data.pop('interviewer', None)
+        return data
 
     def get_latest_invitation(self, interview):
         invitation = interview.invitations.order_by('-sent_at').first()

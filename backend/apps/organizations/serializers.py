@@ -78,6 +78,9 @@ class OrganizationMemberSerializer(serializers.ModelSerializer):
         return user.organization_memberships.get(organization=self.context['organization'])
 
 
+ALLOWED_CSV_CONTENT_TYPES = {'text/csv', 'application/csv', 'application/vnd.ms-excel'}
+
+
 class OrganizationMemberBulkImportSerializer(serializers.Serializer):
     csv_file = serializers.FileField()
 
@@ -86,6 +89,9 @@ class OrganizationMemberBulkImportSerializer(serializers.Serializer):
             raise serializers.ValidationError('Only CSV files are supported. Excel import can be added later.')
         if csv_file.size > 1024 * 1024:
             raise serializers.ValidationError('CSV file must not exceed 1MB.')
+        content_type = getattr(csv_file, 'content_type', '')
+        if content_type and content_type not in ALLOWED_CSV_CONTENT_TYPES:
+            raise serializers.ValidationError('Unsupported CSV content type.')
         return csv_file
 
     def save(self):
