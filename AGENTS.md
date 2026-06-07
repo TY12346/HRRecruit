@@ -146,6 +146,22 @@ If the score is below the threshold, mark the application as `screened_not_quali
 
 Do not automatically reject the applicant. The recruiter must make the final shortlist/reject decision.
 
+## Algorithm Implementation Rule
+
+AI-related features must follow `ALGORITHMS.md`.
+
+The implementation should follow these five algorithm groups:
+
+1. spaCy-based resume extraction
+2. Sentence-BERT resume-job semantic matching
+3. Hybrid candidate ranking formula
+4. Interview audio transcription
+5. AI interview summarization
+
+For resume extraction, standard spaCy `en_core_web_sm` may be combined with PhraseMatcher, skill dictionaries, keyword rules, and regex patterns to make the algorithm practical for FYP implementation.
+
+AI must support recruiter/interviewer decision-making. It must not automatically make final hiring decisions.
+
 ## Testing Rules
 
 Add tests for important business flows, not just individual functions.
