@@ -1,7 +1,15 @@
 from rest_framework import serializers
 
 from apps.applications.serializers import JobApplicationSerializer
+from apps.users.models import User
 from .models import HiringDecision, JobOffer
+
+
+ALLOWED_OFFER_LETTER_CONTENT_TYPES = {
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
 
 
 class HiringDecisionSubmitSerializer(serializers.Serializer):
@@ -40,6 +48,23 @@ class HiringDecisionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user.role == User.Role.APPLICANT:
+            for field in (
+                'recruiter',
+                'recruiter_name',
+                'recruiter_email',
+                'recruiter_justification',
+                'hr_head',
+                'hr_head_name',
+                'hr_head_email',
+                'hr_head_justification',
+            ):
+                data.pop(field, None)
+        return data
+
 
 class JobOfferCreateSerializer(serializers.Serializer):
     offer_message = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
@@ -53,6 +78,9 @@ class JobOfferCreateSerializer(serializers.Serializer):
         allowed_extensions = ('.pdf', '.doc', '.docx')
         if not value.name.lower().endswith(allowed_extensions):
             raise serializers.ValidationError('Offer letter file must be a PDF, DOC, or DOCX file.')
+        content_type = getattr(value, 'content_type', '')
+        if content_type and content_type not in ALLOWED_OFFER_LETTER_CONTENT_TYPES:
+            raise serializers.ValidationError('Unsupported offer letter content type.')
         return value
 
 

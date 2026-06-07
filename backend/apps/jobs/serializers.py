@@ -5,6 +5,8 @@ from decimal import Decimal, ROUND_DOWN
 from django.db import transaction
 from rest_framework import serializers
 
+from apps.users.models import User
+
 from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, JobRequirement
 
 
@@ -89,6 +91,14 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user.role == User.Role.APPLICANT:
+            data.pop('recruiter', None)
+            data.pop('recruiter_name', None)
+        return data
 
     def get_is_saved(self, job):
         request = self.context.get('request')

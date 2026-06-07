@@ -16,3 +16,6 @@ urlpatterns = [
     path('api/reports/', include('apps.analytics.report_urls')),
     path('api/billing/', include('apps.billing.urls')),
 ]
+
+
+handler500 = 'config.exceptions.json_server_error'
