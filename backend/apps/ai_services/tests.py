@@ -6,6 +6,15 @@ import fitz
 from django.test import SimpleTestCase
 from docx import Document
 
+from .resume_preprocessor import (
+    cleanup_punctuation,
+    coerce_text,
+    normalize_tokens,
+    normalize_whitespace,
+    preprocess_for_matching,
+    preprocess_for_semantic_matching,
+    safe_lower,
+)
 from .resume_text_extractor import ResumeTextExtractionError, extract_resume_text
 from .resume_screening import (
     calculate_education_score,
@@ -51,6 +60,37 @@ class ResumeTextExtractorTests(SimpleTestCase):
             extract_resume_text('missing-resume.pdf')
 
 
+class ResumePreprocessorTests(SimpleTestCase):
+    def test_coerce_text_handles_none_strings_and_non_string_input(self):
+        self.assertEqual(coerce_text(None), '')
+        self.assertEqual(coerce_text('Resume'), 'Resume')
+        self.assertEqual(coerce_text(2026), '2026')
+
+    def test_normalize_whitespace_collapses_repeated_whitespace(self):
+        self.assertEqual(normalize_whitespace('  Python\n\t  Django   developer  '), 'Python Django developer')
+
+    def test_safe_lower_lowercases_without_other_cleanup(self):
+        self.assertEqual(safe_lower('  React.JS!  '), '  react.js!  ')
+
+    def test_cleanup_punctuation_preserves_common_skill_symbols_by_default(self):
+        self.assertEqual(cleanup_punctuation('C++, C#, React.js, Node.js!'), 'C++ C# React.js Node.js ')
+
+    def test_normalize_tokens_can_remove_skill_symbols_when_requested(self):
+        self.assertEqual(
+            normalize_tokens('C++, C#, React.js', preserve_skill_symbols=False),
+            'c c react js',
+        )
+
+    def test_preprocess_for_matching_returns_safe_normalized_matching_text(self):
+        self.assertEqual(preprocess_for_matching('  Python,   React.js!  '), 'python react.js')
+
+    def test_preprocess_for_semantic_matching_keeps_normalized_copy_only(self):
+        original_text = '  Backend   Engineer: Python/Django  '
+
+        self.assertEqual(preprocess_for_semantic_matching(original_text), 'backend engineer python django')
+        self.assertEqual(original_text, '  Backend   Engineer: Python/Django  ')
+
+
 class SkillExtractorTests(SimpleTestCase):
     def test_normalize_text_lowercases_and_removes_extra_punctuation(self):
         self.assertEqual(normalize_text('  Python,   React.js!  '), 'python react.js')
@@ -79,7 +119,12 @@ class SemanticMatcherTests(SimpleTestCase):
     def test_semantic_similarity_uses_model_embeddings_when_dependency_is_available(self, mock_get_model):
         mock_get_model.return_value.encode.return_value = [_Vector(), _Vector()]
 
-        self.assertEqual(semantic_similarity('Python developer', 'Backend engineer'), 75.0)
+        self.assertEqual(semantic_similarity('  Python,   developer!  ', 'Backend\nengineer'), 75.0)
+        mock_get_model.return_value.encode.assert_called_once_with(
+            ['python developer', 'backend engineer'],
+            convert_to_tensor=True,
+            normalize_embeddings=True,
+        )
 
     def test_semantic_similarity_returns_zero_for_blank_input(self):
         self.assertEqual(semantic_similarity('', 'Backend engineer'), 0.0)
@@ -122,8 +167,14 @@ class ResumeScreeningScoreComponentTests(SimpleTestCase):
     def test_extract_experience_uses_highest_explicit_year_value(self):
         self.assertEqual(extract_experience('2 years support and 5+ yrs development'), {'years': 5.0})
 
+    def test_extract_experience_preprocesses_text_before_matching(self):
+        self.assertEqual(extract_experience('Worked with Python.\n  3+     YRS!!!'), {'years': 3.0})
+
     def test_extract_education_uses_highest_mentioned_level(self):
         self.assertEqual(extract_education("Bachelor's degree and master's degree"), {'level': 'master'})
+
+    def test_extract_education_preprocesses_text_before_matching(self):
+        self.assertEqual(extract_education('Completed B.Sc, then MBA.'), {'level': 'master'})
 
     def test_skill_score_calculates_required_skill_coverage(self):
         self.assertEqual(calculate_skill_score(['django', 'python'], ['django', 'python', 'sql']), 66.67)

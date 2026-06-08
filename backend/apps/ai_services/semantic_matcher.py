@@ -2,6 +2,8 @@
 
 from functools import lru_cache
 
+from .resume_preprocessor import preprocess_for_semantic_matching
+
 
 DEFAULT_FALLBACK_SCORE = 50.0
 DEFAULT_MODEL_NAME = 'all-MiniLM-L6-v2'
@@ -16,7 +18,10 @@ def semantic_similarity(resume_text, job_description, fallback_score=DEFAULT_FAL
     """
     _validate_score(fallback_score, 'fallback_score')
 
-    if not str(resume_text or '').strip() or not str(job_description or '').strip():
+    normalized_resume_text = preprocess_for_semantic_matching(resume_text)
+    normalized_job_description = preprocess_for_semantic_matching(job_description)
+
+    if not normalized_resume_text or not normalized_job_description:
         return 0.0
 
     try:
@@ -25,7 +30,7 @@ def semantic_similarity(resume_text, job_description, fallback_score=DEFAULT_FAL
         return float(fallback_score)
 
     embeddings = model.encode(
-        [resume_text, job_description],
+        [normalized_resume_text, normalized_job_description],
         convert_to_tensor=True,
         normalize_embeddings=True,
     )

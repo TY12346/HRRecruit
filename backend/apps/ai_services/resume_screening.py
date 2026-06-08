@@ -4,6 +4,7 @@ import re
 
 from apps.jobs.models import JobRequirement
 
+from .resume_preprocessor import preprocess_for_matching
 from .resume_text_extractor import extract_resume_text
 from .scoring import calculate_score_breakdown
 from .semantic_matcher import semantic_similarity
@@ -37,21 +38,29 @@ def build_resume_screening(application):
     requirements = list(application.job.requirements.all())
     comparison_text = _build_job_comparison_text(application.job, requirements)
 
-    extracted_skills = extract_skills(resume_text)
-    required_skills = extract_skills(_requirements_text(requirements, JobRequirement.RequirementType.SKILL))
-    if not required_skills:
-        required_skills = extract_skills(comparison_text)
-
-    extracted_experience = extract_experience(resume_text)
-    required_experience = extract_experience(
+    matching_resume_text = preprocess_for_matching(resume_text)
+    matching_comparison_text = preprocess_for_matching(comparison_text)
+    skill_requirements_text = preprocess_for_matching(
+        _requirements_text(requirements, JobRequirement.RequirementType.SKILL)
+    )
+    experience_requirements_text = preprocess_for_matching(
         _requirements_text(requirements, JobRequirement.RequirementType.EXPERIENCE)
     )
-    extracted_education = extract_education(resume_text)
-    required_education = extract_education(
+    education_requirements_text = preprocess_for_matching(
         _requirements_text(requirements, JobRequirement.RequirementType.EDUCATION)
     )
 
-    semantic_score = semantic_similarity(resume_text, comparison_text)
+    extracted_skills = extract_skills(matching_resume_text)
+    required_skills = extract_skills(skill_requirements_text)
+    if not required_skills:
+        required_skills = extract_skills(matching_comparison_text)
+
+    extracted_experience = extract_experience(matching_resume_text)
+    required_experience = extract_experience(experience_requirements_text)
+    extracted_education = extract_education(matching_resume_text)
+    required_education = extract_education(education_requirements_text)
+
+    semantic_score = semantic_similarity(matching_resume_text, matching_comparison_text)
     skill_score = calculate_skill_score(extracted_skills, required_skills)
     experience_score = calculate_experience_score(extracted_experience, required_experience)
     education_score = calculate_education_score(extracted_education, required_education)
@@ -100,13 +109,14 @@ def build_resume_screening(application):
 
 def extract_experience(text):
     """Extract the highest explicitly stated number of years from free text."""
-    years = [float(match.group('years')) for match in YEARS_PATTERN.finditer(str(text or ''))]
+    normalized_text = preprocess_for_matching(text)
+    years = [float(match.group('years')) for match in YEARS_PATTERN.finditer(normalized_text)]
     return {'years': max(years, default=0.0)}
 
 
 def extract_education(text):
     """Extract the highest education level mentioned in free text."""
-    normalized_text = str(text or '').lower()
+    normalized_text = preprocess_for_matching(text)
     found_levels = [
         level
         for level, aliases in EDUCATION_ALIASES.items()
