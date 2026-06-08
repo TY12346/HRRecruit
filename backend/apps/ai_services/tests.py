@@ -205,16 +205,90 @@ class ScoringTests(SimpleTestCase):
 
 class ResumeScreeningScoreComponentTests(SimpleTestCase):
     def test_extract_experience_uses_highest_explicit_year_value(self):
-        self.assertEqual(extract_experience('2 years support and 5+ yrs development'), {'years': 5.0})
+        result = extract_experience('2 years support and 5+ yrs development')
+
+        self.assertEqual(result['years'], 5.0)
+        self.assertIn('years', result)
 
     def test_extract_experience_preprocesses_text_before_matching(self):
-        self.assertEqual(extract_experience('Worked with Python.\n  3+     YRS!!!'), {'years': 3.0})
+        result = extract_experience('Worked with Python.\n  3+     YRS!!!')
+
+        self.assertEqual(result['years'], 3.0)
+        self.assertIn('3+ YRS', result['raw_mentions'])
+
+    def test_extract_experience_detects_roles_companies_and_internships(self):
+        result = extract_experience(
+            'Software engineer at ABC Company. Worked as developer. Internship at Beta Labs.'
+        )
+
+        self.assertEqual(result['years'], 0.0)
+        self.assertIn('software engineer', result['roles'])
+        self.assertIn('developer', result['roles'])
+        self.assertIn('intern', result['roles'])
+        self.assertIn('ABC Company', result['companies'])
+        self.assertIn('Beta Labs', result['companies'])
+        self.assertIn('Internship at Beta Labs', result['internships'])
+        self.assertIn('Software engineer at ABC Company', result['matched_phrases'])
+
+    def test_extract_experience_keeps_old_expected_keys_while_returning_richer_object(self):
+        result = extract_experience('5 yrs as a backend developer')
+
+        self.assertIn('years', result)
+        self.assertIn('roles', result)
+        self.assertIn('companies', result)
+        self.assertIn('internships', result)
+        self.assertIn('matched_phrases', result)
+        self.assertIn('raw_mentions', result)
 
     def test_extract_education_uses_highest_mentioned_level(self):
-        self.assertEqual(extract_education("Bachelor's degree and master's degree"), {'level': 'master'})
+        result = extract_education("Bachelor's degree and master's degree")
+
+        self.assertEqual(result['level'], 'master')
+        self.assertEqual(result['level_label'], 'Master')
 
     def test_extract_education_preprocesses_text_before_matching(self):
-        self.assertEqual(extract_education('Completed B.Sc, then MBA.'), {'level': 'master'})
+        result = extract_education('Completed B.Sc, then MBA.')
+
+        self.assertEqual(result['level'], 'master')
+        self.assertIn('Bachelor', result['matched_keywords'])
+        self.assertIn('Master', result['matched_keywords'])
+
+    def test_extract_education_detects_all_supported_levels(self):
+        examples = {
+            'secondary': 'High School certificate',
+            'diploma': 'Diploma in Information Technology',
+            'associate': 'Associate Degree in Computer Science',
+            'bachelor': 'Bachelor Degree in Software Engineering',
+            'master': 'Master of Computer Science',
+            'doctorate': 'PhD in Software Engineering',
+        }
+
+        for expected_level, text in examples.items():
+            with self.subTest(expected_level=expected_level):
+                self.assertEqual(extract_education(text)['level'], expected_level)
+
+    def test_extract_education_detects_fields_of_study(self):
+        result = extract_education(
+            'Bachelor Degree in Computer Science and Diploma in Information Technology. '
+            'Completed Software Engineering capstone.'
+        )
+
+        self.assertEqual(result['level'], 'bachelor')
+        self.assertEqual(
+            result['fields_of_study'],
+            ['Computer Science', 'Software Engineering', 'Information Technology'],
+        )
+        self.assertIn('Degree', result['matched_keywords'])
+        self.assertIn('Computer Science', result['raw_mentions'])
+
+    def test_extract_education_keeps_old_expected_keys_while_returning_richer_object(self):
+        result = extract_education('Bachelor Degree in Computer Science')
+
+        self.assertIn('level', result)
+        self.assertIn('level_label', result)
+        self.assertIn('fields_of_study', result)
+        self.assertIn('matched_keywords', result)
+        self.assertIn('raw_mentions', result)
 
     def test_skill_score_calculates_required_skill_coverage(self):
         self.assertEqual(calculate_skill_score(['django', 'python'], ['django', 'python', 'sql']), 66.67)

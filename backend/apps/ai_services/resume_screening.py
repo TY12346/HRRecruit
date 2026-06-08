@@ -1,9 +1,9 @@
 """Deterministic local AI-assisted resume screening helpers."""
 
-import re
-
 from apps.jobs.models import JobRequirement
 
+from .education_extractor import EDUCATION_LEVELS, extract_education
+from .experience_extractor import extract_experience
 from .resume_preprocessor import preprocess_for_matching
 from .resume_text_extractor import extract_resume_text
 from .scoring import calculate_score_breakdown
@@ -12,24 +12,6 @@ from .skill_extractor import extract_skills
 
 
 SCREENING_THRESHOLD = 60.0
-EDUCATION_LEVELS = {
-    'secondary': 1,
-    'diploma': 2,
-    'associate': 2,
-    'bachelor': 3,
-    'master': 4,
-    'doctorate': 5,
-}
-EDUCATION_ALIASES = {
-    'doctorate': ('doctorate', 'doctoral', 'phd', 'ph.d'),
-    'master': ('master', "master's", 'msc', 'm.sc', 'mba'),
-    'bachelor': ('bachelor', "bachelor's", 'degree', 'bsc', 'b.sc'),
-    'associate': ('associate degree',),
-    'diploma': ('diploma',),
-    'secondary': ('secondary school', 'high school',),
-}
-YEARS_PATTERN = re.compile(r'(?P<years>\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)', re.IGNORECASE)
-
 
 def build_resume_screening(application):
     """Extract a local resume and return the complete screening result."""
@@ -43,22 +25,20 @@ def build_resume_screening(application):
     skill_requirements_text = preprocess_for_matching(
         _requirements_text(requirements, JobRequirement.RequirementType.SKILL)
     )
-    experience_requirements_text = preprocess_for_matching(
-        _requirements_text(requirements, JobRequirement.RequirementType.EXPERIENCE)
-    )
-    education_requirements_text = preprocess_for_matching(
-        _requirements_text(requirements, JobRequirement.RequirementType.EDUCATION)
-    )
 
     extracted_skills = extract_skills(matching_resume_text)
     required_skills = extract_skills(skill_requirements_text)
     if not required_skills:
         required_skills = extract_skills(matching_comparison_text)
 
-    extracted_experience = extract_experience(matching_resume_text)
-    required_experience = extract_experience(experience_requirements_text)
-    extracted_education = extract_education(matching_resume_text)
-    required_education = extract_education(education_requirements_text)
+    extracted_experience = extract_experience(resume_text)
+    required_experience = extract_experience(
+        _requirements_text(requirements, JobRequirement.RequirementType.EXPERIENCE)
+    )
+    extracted_education = extract_education(resume_text)
+    required_education = extract_education(
+        _requirements_text(requirements, JobRequirement.RequirementType.EDUCATION)
+    )
 
     semantic_score = semantic_similarity(matching_resume_text, matching_comparison_text)
     skill_score = calculate_skill_score(extracted_skills, required_skills)
@@ -105,25 +85,6 @@ def build_resume_screening(application):
         **scores,
         'score_explanation': explanation,
     }
-
-
-def extract_experience(text):
-    """Extract the highest explicitly stated number of years from free text."""
-    normalized_text = preprocess_for_matching(text)
-    years = [float(match.group('years')) for match in YEARS_PATTERN.finditer(normalized_text)]
-    return {'years': max(years, default=0.0)}
-
-
-def extract_education(text):
-    """Extract the highest education level mentioned in free text."""
-    normalized_text = preprocess_for_matching(text)
-    found_levels = [
-        level
-        for level, aliases in EDUCATION_ALIASES.items()
-        if any(alias in normalized_text for alias in aliases)
-    ]
-    level = max(found_levels, key=EDUCATION_LEVELS.get) if found_levels else None
-    return {'level': level}
 
 
 def calculate_skill_score(extracted_skills, required_skills):
