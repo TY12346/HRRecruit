@@ -2,6 +2,8 @@
 
 import re
 
+from .resume_preprocessor import preprocess_for_matching
+
 
 SKILLS_DICTIONARY = {
     'aws': ('amazon web services', 'aws'),
@@ -29,9 +31,7 @@ SKILLS_DICTIONARY = {
 
 def normalize_text(text):
     """Normalize free text while retaining symbols used in common skill names."""
-    normalized_text = str(text or '').lower()
-    normalized_text = re.sub(r'[^a-z0-9+#.]+', ' ', normalized_text)
-    return re.sub(r'\s+', ' ', normalized_text).strip()
+    return preprocess_for_matching(text)
 
 
 def extract_skills(text, skills_dictionary=None):
