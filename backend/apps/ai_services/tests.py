@@ -24,7 +24,7 @@ from .resume_screening import (
     extract_experience,
 )
 from .scoring import calculate_final_score, calculate_score_breakdown
-from .semantic_matcher import semantic_similarity
+from .semantic_matcher import fallback_semantic_similarity, semantic_similarity
 from .skill_extractor import extract_skills, normalize_text
 
 
@@ -112,12 +112,28 @@ class SkillExtractorTests(SimpleTestCase):
 
 class SemanticMatcherTests(SimpleTestCase):
     @patch('apps.ai_services.semantic_matcher._get_model', side_effect=ModuleNotFoundError)
-    def test_semantic_similarity_returns_mock_score_when_dependency_is_unavailable(self, _mock_model):
-        self.assertEqual(semantic_similarity('Python developer', 'Backend engineer', fallback_score=62), 62.0)
+    def test_semantic_similarity_uses_deterministic_fallback_when_dependency_is_unavailable(self, _mock_model):
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer', fallback_score=62), 50.0)
+
+    @patch('apps.ai_services.semantic_matcher._get_model', side_effect=OSError('offline model download failed'))
+    def test_semantic_similarity_uses_deterministic_fallback_when_model_loading_fails(self, _mock_model):
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 50.0)
+
+    @patch('apps.ai_services.semantic_matcher._get_model')
+    def test_semantic_similarity_uses_deterministic_fallback_when_encoding_fails(self, mock_get_model):
+        mock_get_model.return_value.encode.side_effect = RuntimeError('tensor execution failed')
+
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 50.0)
+
+    @patch('apps.ai_services.semantic_matcher._get_model')
+    def test_semantic_similarity_uses_deterministic_fallback_when_tensor_handling_fails(self, mock_get_model):
+        mock_get_model.return_value.encode.return_value = []
+
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 50.0)
 
     @patch('apps.ai_services.semantic_matcher._get_model')
     def test_semantic_similarity_uses_model_embeddings_when_dependency_is_available(self, mock_get_model):
-        mock_get_model.return_value.encode.return_value = [_Vector(), _Vector()]
+        mock_get_model.return_value.encode.return_value = [_Vector(0.75), _Vector(0.75)]
 
         self.assertEqual(semantic_similarity('  Python,   developer!  ', 'Backend\nengineer'), 75.0)
         mock_get_model.return_value.encode.assert_called_once_with(
@@ -126,20 +142,44 @@ class SemanticMatcherTests(SimpleTestCase):
             normalize_embeddings=True,
         )
 
+    @patch('apps.ai_services.semantic_matcher._get_model')
+    def test_semantic_similarity_normalizes_model_scores_to_zero_to_one_hundred(self, mock_get_model):
+        mock_get_model.return_value.encode.return_value = [_Vector(1.5), _Vector(1.5)]
+        self.assertEqual(semantic_similarity('Python', 'Python'), 100.0)
+
+        mock_get_model.return_value.encode.return_value = [_Vector(-0.25), _Vector(-0.25)]
+        self.assertEqual(semantic_similarity('Python', 'Python'), 0.0)
+
     def test_semantic_similarity_returns_zero_for_blank_input(self):
         self.assertEqual(semantic_similarity('', 'Backend engineer'), 0.0)
+        self.assertEqual(semantic_similarity('Python developer', '   '), 0.0)
 
-    def test_semantic_similarity_rejects_out_of_range_fallback_score(self):
+    def test_semantic_similarity_rejects_out_of_range_fallback_score_for_api_compatibility(self):
         with self.assertRaisesMessage(ValueError, 'fallback_score must be between 0 and 100'):
             semantic_similarity('Python', 'Backend engineer', fallback_score=101)
 
+    def test_fallback_semantic_similarity_scores_related_text_higher_than_unrelated_text(self):
+        related_score = fallback_semantic_similarity(
+            'Python Django REST API backend developer',
+            'Backend engineer building Python Django APIs',
+        )
+        unrelated_score = fallback_semantic_similarity(
+            'Python Django REST API backend developer',
+            'Payroll benefits compliance specialist',
+        )
+
+        self.assertGreater(related_score, unrelated_score)
+
 
 class _Vector:
+    def __init__(self, similarity):
+        self.similarity = similarity
+
     def __matmul__(self, _other):
         return self
 
     def item(self):
-        return 0.75
+        return self.similarity
 
 
 class ScoringTests(SimpleTestCase):
