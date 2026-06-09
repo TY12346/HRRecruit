@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.applications.models import JobApplication
+from apps.notifications.email_service import send_job_offer_email
 from apps.notifications.services import create_bulk_notifications, create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
@@ -321,6 +322,7 @@ class JobOfferCreateAPIView(APIView):
             f'{request.user.full_name} sent a job offer to {application.applicant.full_name}.',
             related_entity=offer,
         )
+        send_job_offer_email(offer)
         return Response(JobOfferSerializer(offer, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 

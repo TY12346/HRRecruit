@@ -124,4 +124,6 @@ SIMPLE_JWT = {
 AUTH_USER_MODEL = 'users.User'
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'no-reply@hrrecruit.local'
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
+SENDGRID_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '')
+DEFAULT_FROM_EMAIL = SENDGRID_FROM_EMAIL or 'no-reply@hrrecruit.local'

@@ -3,11 +3,10 @@
 import secrets
 import string
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.db import transaction
 from rest_framework import serializers
 
+from apps.notifications.email_service import send_team_account_created_email
 from apps.users.models import User
 
 from .models import Organization, OrganizationMembership
@@ -33,19 +32,8 @@ def generate_temporary_password(length=14):
 
 
 def send_temporary_password_email(user, temporary_password):
-    """Send credentials through Django's configured backend (console locally)."""
-    send_mail(
-        subject='Your HRRecruit team account',
-        message=(
-            f'Hello {user.full_name},\n\n'
-            'An HRRecruit team account has been created for you.\n'
-            f'Email: {user.email}\n'
-            f'Temporary password: {temporary_password}\n\n'
-            'Please log in and change your password.'
-        ),
-        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@hrrecruit.local'),
-        recipient_list=[user.email],
-    )
+    """Send credentials through the notification email service."""
+    send_team_account_created_email(user, temporary_password)
 
 
 @transaction.atomic
