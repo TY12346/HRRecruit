@@ -1,4 +1,4 @@
-"""Interview evaluation APIs with mock transcription and mock AI summary generation."""
+"""Interview evaluation APIs with AI service-backed transcription and summaries."""
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -122,8 +122,8 @@ class InterviewTranscriptGenerateSummaryAPIView(APIView):
 
     def post(self, request, transcript_id):
         transcript = assigned_transcript_or_404(request.user, transcript_id)
-        mock_summary = generate_interview_summary(transcript)
-        summary = InterviewAISummary.objects.create(transcript=transcript, **mock_summary)
+        summary_payload = generate_interview_summary(transcript)
+        summary = InterviewAISummary.objects.create(transcript=transcript, **summary_payload)
         return Response(InterviewAISummarySerializer(summary, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
