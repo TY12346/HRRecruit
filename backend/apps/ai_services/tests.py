@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
@@ -25,7 +26,13 @@ from .resume_screening import (
 )
 from .scoring import calculate_final_score, calculate_score_breakdown
 from .semantic_matcher import fallback_semantic_similarity, semantic_similarity
-from .skill_extractor import extract_skills, normalize_text
+from .skill_extractor import (
+    extract_skill_labels,
+    extract_skills,
+    get_skill_display_labels,
+    normalize_skill_key,
+    normalize_text,
+)
 
 
 class ResumeTextExtractorTests(SimpleTestCase):
@@ -91,6 +98,45 @@ class ResumePreprocessorTests(SimpleTestCase):
         self.assertEqual(original_text, '  Backend   Engineer: Python/Django  ')
 
 
+class _FakeStrings:
+    def __getitem__(self, match_id):
+        return match_id
+
+
+class _FakeVocab:
+    strings = _FakeStrings()
+
+
+class _FakeNLP:
+    vocab = _FakeVocab()
+
+    def __call__(self, text):
+        return text
+
+    def make_doc(self, text):
+        return text
+
+
+class _FakePhraseMatcher:
+    def __init__(self, _vocab, attr=None):
+        self.patterns_by_skill = {}
+
+    def add(self, skill_key, patterns):
+        self.patterns_by_skill[skill_key] = patterns
+
+    def __call__(self, doc):
+        matches = []
+        for skill_key, patterns in self.patterns_by_skill.items():
+            if any(_fake_contains_alias(doc, pattern) for pattern in patterns):
+                matches.append((skill_key, 0, 1))
+        return matches
+
+
+def _fake_contains_alias(normalized_text, normalized_alias):
+    pattern = rf'(?<![a-z0-9]){re.escape(normalized_alias)}(?![a-z0-9])'
+    return bool(re.search(pattern, normalized_text))
+
+
 class SkillExtractorTests(SimpleTestCase):
     def test_normalize_text_lowercases_and_removes_extra_punctuation(self):
         self.assertEqual(normalize_text('  Python,   React.js!  '), 'python react.js')
@@ -108,6 +154,45 @@ class SkillExtractorTests(SimpleTestCase):
 
     def test_extract_skills_accepts_an_empty_custom_dictionary(self):
         self.assertEqual(extract_skills('Python', {}), [])
+
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=None)
+    def test_extract_skills_uses_deterministic_fallback_when_spacy_unavailable(self, _mock_spacy_model):
+        resume_text = 'Built RESTful APIs with py, js, nodejs, postgres, and reactjs.'
+
+        self.assertEqual(
+            extract_skills(resume_text),
+            ['javascript', 'node.js', 'postgresql', 'python', 'react', 'rest api'],
+        )
+
+    def test_normalize_skill_key_maps_aliases_to_internal_keys(self):
+        self.assertEqual(normalize_skill_key('py'), 'python')
+        self.assertEqual(normalize_skill_key('js'), 'javascript')
+        self.assertEqual(normalize_skill_key('reactjs'), 'react')
+        self.assertEqual(normalize_skill_key('nodejs'), 'node.js')
+        self.assertEqual(normalize_skill_key('postgres'), 'postgresql')
+
+    def test_skill_display_labels_are_additive_and_canonical(self):
+        self.assertEqual(
+            get_skill_display_labels(['python', 'javascript', 'react', 'node.js', 'postgresql']),
+            ['Python', 'JavaScript', 'React', 'Node.js', 'PostgreSQL'],
+        )
+        self.assertEqual(extract_skill_labels('py js reactjs nodejs postgres'), [
+            'JavaScript',
+            'Node.js',
+            'PostgreSQL',
+            'Python',
+            'React',
+        ])
+
+    @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
+    def test_extract_skills_uses_spacy_phrase_matcher_when_available(
+        self, _mock_spacy_model, _mock_phrase_matcher_class
+    ):
+        self.assertEqual(
+            extract_skills('Experience with PY, ReactJS, NodeJS, and Postgres.'),
+            ['node.js', 'postgresql', 'python', 'react'],
+        )
 
 
 class SemanticMatcherTests(SimpleTestCase):
