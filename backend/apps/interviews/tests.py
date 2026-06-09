@@ -357,6 +357,23 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(response.data['transcript_json']['fallback_reason'], 'missing_openai_api_key')
         openai_transcription.assert_not_called()
 
+    def test_real_transcription_provider_failure_falls_back_to_saved_mock_transcript(self):
+        upload_response = self.upload_recording()
+        recording = InterviewRecording.objects.get(id=upload_response.data['id'])
+
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.transcription_service._call_openai_transcription',
+            side_effect=RuntimeError('provider unavailable'),
+        ) as openai_transcription:
+            response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['transcript_text'], 'This is a mock interview transcript for FYP development.')
+        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
+        self.assertEqual(response.data['transcript_json']['fallback_reason'], 'real_transcription_failed: RuntimeError')
+        self.assertTrue(InterviewTranscript.objects.filter(recording=recording).exists())
+        openai_transcription.assert_called_once()
+
     def test_transcription_response_is_saved_for_existing_evaluation_flow(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
@@ -420,6 +437,21 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(response.data['communication_score'], '8.00')
         self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
         openai_summary.assert_not_called()
+
+    def test_real_summary_provider_failure_falls_back_to_required_mock_fields(self):
+        transcript = self.create_mock_transcript()
+
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.summary_service._call_openai_summary',
+            side_effect=RuntimeError('provider unavailable'),
+        ) as openai_summary:
+            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['communication_score'], '8.00')
+        self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
+        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 1)
+        openai_summary.assert_called_once()
 
     def test_summary_response_contains_required_structured_output_fields(self):
         transcript = self.create_mock_transcript()
