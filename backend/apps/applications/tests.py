@@ -7,6 +7,7 @@ from django.db import IntegrityError, transaction
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from docx import Document
@@ -174,6 +175,47 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [high_score_application.id, low_score_application.id])
         self.assertEqual(forbidden_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_ranked_candidates_use_earliest_application_as_equal_score_tie_breaker_and_nulls_last(self):
+        newest_equal_score_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            final_score='80.00',
+        )
+        oldest_equal_score_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.other_applicant,
+            final_score='80.00',
+        )
+        top_score_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.create_user('top-score@example.com', User.Role.APPLICANT),
+            final_score='90.00',
+        )
+        unscored_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.create_user('unscored@example.com', User.Role.APPLICANT),
+            final_score=None,
+        )
+        base_time = timezone.now() - timezone.timedelta(days=4)
+        JobApplication.objects.filter(id=oldest_equal_score_application.id).update(applied_at=base_time)
+        JobApplication.objects.filter(id=newest_equal_score_application.id).update(applied_at=base_time + timezone.timedelta(days=2))
+        JobApplication.objects.filter(id=top_score_application.id).update(applied_at=base_time + timezone.timedelta(days=3))
+        JobApplication.objects.filter(id=unscored_application.id).update(applied_at=base_time - timezone.timedelta(days=1))
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item['id'] for item in response.data],
+            [
+                top_score_application.id,
+                oldest_equal_score_application.id,
+                newest_equal_score_application.id,
+                unscored_application.id,
+            ],
+        )
 
     def test_recruiter_views_candidate_profile_with_resume_info_scores_and_status(self):
         application = JobApplication.objects.create(
