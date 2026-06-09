@@ -5,6 +5,8 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
+from apps.notifications.email_service import send_subscription_reminder_email
+from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 
 from .models import Payment, Subscription
@@ -84,3 +86,31 @@ def enforce_open_job_limit(organization, open_job_count, excluding_job=None):
         raise SubscriptionLimitError(
             f'Your {subscription.plan.name} plan allows a maximum of {max_open_jobs} open job posting(s).'
         )
+
+
+def send_subscription_reminders(days_before_end=7):
+    """Notify HR heads when active subscriptions are approaching their end date."""
+    target_date = timezone.localdate() + timedelta(days=days_before_end)
+    subscriptions = Subscription.objects.filter(
+        status=Subscription.Status.ACTIVE,
+        end_date=target_date,
+    ).select_related('organization', 'plan')
+    sent_count = 0
+    for subscription in subscriptions:
+        hr_heads = OrganizationMembership.objects.filter(
+            organization=subscription.organization,
+            role=OrganizationMembership.Role.HR_HEAD,
+            status=OrganizationMembership.Status.ACTIVE,
+            user__is_active=True,
+        ).select_related('user')
+        for membership in hr_heads:
+            create_notification(
+                membership.user,
+                'subscription_reminder',
+                'Subscription reminder',
+                f'Your {subscription.plan.name} subscription ends on {subscription.end_date}.',
+                related_entity=subscription,
+            )
+            send_subscription_reminder_email(membership.user, subscription)
+            sent_count += 1
+    return sent_count

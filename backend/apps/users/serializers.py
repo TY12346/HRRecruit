@@ -1,12 +1,12 @@
 import random
 
-from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from django.core.mail import send_mail
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from apps.notifications.email_service import send_password_reset_otp_email
 
 from .models import ApplicantProfile, PasswordResetOTP, User
 
@@ -81,12 +81,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         expires_at = timezone.now() + timezone.timedelta(minutes=10)
         PasswordResetOTP.objects.create(user=user, otp_code=otp_code, expires_at=expires_at)
 
-        send_mail(
-            subject='HRRecruit Password Reset OTP',
-            message=f'Your OTP is {otp_code}. It expires in 10 minutes.',
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@hrrecruit.local'),
-            recipient_list=[user.email],
-        )
+        send_password_reset_otp_email(user, otp_code)
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):

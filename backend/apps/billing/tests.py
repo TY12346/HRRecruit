@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.urls import reverse
 from django.utils import timezone
@@ -6,10 +7,12 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.jobs.models import JobPosting
+from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
 from .models import Payment, Subscription, SubscriptionPlan
+from .services import send_subscription_reminders
 
 
 class BillingAPITests(APITestCase):
@@ -123,3 +126,25 @@ class BillingAPITests(APITestCase):
         self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('maximum of 1 open job', second_response.data['status'][0])
+
+    @patch('apps.billing.services.send_subscription_reminder_email')
+    def test_subscription_reminder_keeps_database_notification_and_mocks_email(self, mock_send_email):
+        Subscription.objects.create(
+            organization=self.organization,
+            plan=self.pro_plan,
+            start_date=timezone.localdate() - timedelta(days=23),
+            end_date=timezone.localdate() + timedelta(days=7),
+            status=Subscription.Status.ACTIVE,
+        )
+
+        sent_count = send_subscription_reminders(days_before_end=7)
+
+        self.assertEqual(sent_count, 1)
+        mock_send_email.assert_called_once()
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.hr_head,
+                notification_type='subscription_reminder',
+                title='Subscription reminder',
+            ).exists()
+        )

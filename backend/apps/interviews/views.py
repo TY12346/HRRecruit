@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.applications.models import ApplicationStageHistory, JobApplication
+from apps.notifications.email_service import send_interview_invitation_email
 from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
@@ -238,6 +239,7 @@ class SendInterviewInvitationAPIView(APIView):
             f'You have a new interview invitation for {interview.application.job.title}.',
             related_entity=invitation,
         )
+        send_interview_invitation_email(invitation)
         return Response(InterviewInvitationSerializer(invitation, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
