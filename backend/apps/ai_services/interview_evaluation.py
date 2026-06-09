@@ -1,27 +1,11 @@
-"""Mock interview transcription and summary helpers for FYP development."""
+"""Mock interview summary helpers and transcription compatibility wrappers."""
 
 from decimal import Decimal
 
-MOCK_TRANSCRIPT_TEXT = 'This is a mock transcript for FYP development.'
-
-
-def transcribe_interview_recording(recording):
-    """Return deterministic mock transcript data without calling Whisper or external APIs."""
-    return {
-        'transcript_text': MOCK_TRANSCRIPT_TEXT,
-        'transcript_json': {
-            'provider': 'mock',
-            'recording_id': recording.id,
-            'segments': [
-                {
-                    'speaker': 'candidate',
-                    'start_seconds': 0,
-                    'end_seconds': 5,
-                    'text': MOCK_TRANSCRIPT_TEXT,
-                }
-            ],
-        },
-    }
+from apps.ai_services.transcription_service import (
+    MOCK_TRANSCRIPT_TEXT,
+    transcribe_interview_recording,
+)
 
 
 def generate_interview_summary(transcript):

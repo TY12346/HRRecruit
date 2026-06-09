@@ -112,8 +112,8 @@ class InterviewRecordingTranscribeAPIView(APIView):
 
     def post(self, request, recording_id):
         recording = assigned_recording_or_404(request.user, recording_id)
-        mock_result = transcribe_interview_recording(recording)
-        transcript = InterviewTranscript.objects.create(recording=recording, **mock_result)
+        transcription_result = transcribe_interview_recording(recording)
+        transcript = InterviewTranscript.objects.create(recording=recording, **transcription_result)
         return Response(InterviewTranscriptSerializer(transcript).data, status=status.HTTP_201_CREATED)
 
 
