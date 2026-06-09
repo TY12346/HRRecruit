@@ -225,7 +225,7 @@ class RankedCandidatesAPIView(APIView):
             'applicant',
             'applicant__applicant_profile',
             'assigned_interviewer',
-        ).order_by(F('final_score').desc(nulls_last=True), '-applied_at')
+        ).order_by(F('final_score').desc(nulls_last=True), 'applied_at')
         return Response(JobApplicationSerializer(applications, many=True, context={'request': request}).data)
 
 
