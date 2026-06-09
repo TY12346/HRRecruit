@@ -398,11 +398,78 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertIn('level', application.extracted_education)
         self.assertIn('fields_of_study', application.extracted_education)
         self.assertIn('matched_keywords', application.extracted_education)
-        self.assertEqual(response.data['score_explanation']['skills']['matched'], ['django', 'python'])
+        explanation = response.data['score_explanation']
+        required_top_level_keys = {
+            'formula',
+            'semantic_score',
+            'skill_score',
+            'experience_score',
+            'education_score',
+            'final_score',
+            'matched_skills',
+            'missing_skills',
+            'education_match',
+            'education_gap',
+            'experience_match',
+            'experience_gap',
+            'notes',
+        }
+        self.assertTrue(required_top_level_keys.issubset(explanation.keys()))
+        self.assertEqual(
+            explanation['formula'],
+            '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score',
+        )
+        self.assertEqual(explanation['semantic_score'], 80.0)
+        self.assertEqual(explanation['skill_score'], 100.0)
+        self.assertEqual(explanation['experience_score'], 100.0)
+        self.assertEqual(explanation['education_score'], 100.0)
+        self.assertEqual(explanation['final_score'], 92.0)
+        self.assertEqual(explanation['matched_skills'], ['django', 'python'])
+        self.assertEqual(explanation['missing_skills'], [])
+        self.assertTrue(explanation['education_match'])
+        self.assertTrue(explanation['experience_match'])
+        self.assertIn('semantic', explanation)
+        self.assertIn('skills', explanation)
+        self.assertIn('experience', explanation)
+        self.assertIn('education', explanation)
+        self.assertEqual(explanation['skills']['matched'], ['django', 'python'])
         history = application.stage_history.get()
         self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
         self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_QUALIFIED)
         self.assertEqual(history.changed_by, self.recruiter)
+
+    @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=50.0)
+    def test_screening_uses_weighted_skill_scoring_from_job_requirements(self, _semantic_similarity):
+        self.create_resume('Python developer with 3 years of experience and a Bachelor Degree.')
+        JobRequirement.objects.create(
+            job=self.job,
+            requirement_type=JobRequirement.RequirementType.SKILL,
+            description='Python',
+            weight_score='80.00',
+            minimum_threshold='60.00',
+        )
+        JobRequirement.objects.create(
+            job=self.job,
+            requirement_type=JobRequirement.RequirementType.SKILL,
+            description='React',
+            weight_score='20.00',
+            minimum_threshold='60.00',
+        )
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        application.refresh_from_db()
+        self.assertEqual(float(application.skill_score), 80.0)
+        self.assertEqual(response.data['score_explanation']['skill_score'], 80.0)
+        self.assertEqual(response.data['score_explanation']['matched_skills'], ['python'])
+        self.assertEqual(response.data['score_explanation']['missing_skills'], ['react'])
+        self.assertEqual(
+            response.data['score_explanation']['skills']['weights'],
+            {'python': 80.0, 'react': 20.0},
+        )
 
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0)
     def test_low_score_marks_application_not_qualified_without_rejecting_it(self, _semantic_similarity):

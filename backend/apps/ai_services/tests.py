@@ -271,6 +271,25 @@ class ScoringTests(SimpleTestCase):
     def test_calculate_final_score_uses_required_weights(self):
         self.assertEqual(calculate_final_score(80, 70, 60, 50), 70.0)
 
+    def test_calculate_final_score_matches_exact_required_formula(self):
+        semantic_score = 82.5
+        skill_score = 75.0
+        experience_score = 60.0
+        education_score = 80.0
+
+        expected = round(
+            (0.4 * semantic_score)
+            + (0.3 * skill_score)
+            + (0.2 * experience_score)
+            + (0.1 * education_score),
+            2,
+        )
+
+        self.assertEqual(
+            calculate_final_score(semantic_score, skill_score, experience_score, education_score),
+            expected,
+        )
+
     def test_calculate_score_breakdown_returns_components_and_final_score(self):
         self.assertEqual(
             calculate_score_breakdown(80, 70, 60, 50),
@@ -377,6 +396,14 @@ class ResumeScreeningScoreComponentTests(SimpleTestCase):
 
     def test_skill_score_calculates_required_skill_coverage(self):
         self.assertEqual(calculate_skill_score(['django', 'python'], ['django', 'python', 'sql']), 66.67)
+
+    def test_skill_score_uses_requirement_weight_scores_when_available(self):
+        skill_requirements = [
+            {'skills': ['python'], 'weight_score': 80.0},
+            {'skills': ['react'], 'weight_score': 20.0},
+        ]
+
+        self.assertEqual(calculate_skill_score(['python'], ['python', 'react'], skill_requirements), 80.0)
 
     def test_experience_score_is_capped_at_one_hundred(self):
         self.assertEqual(calculate_experience_score({'years': 5.0}, {'years': 3.0}), 100.0)
