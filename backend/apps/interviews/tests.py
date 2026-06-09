@@ -186,6 +186,7 @@ class InterviewManagementAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+from decimal import Decimal
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from tempfile import TemporaryDirectory
@@ -380,6 +381,101 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['transcript_json']['provider'], 'mock')
         openai_transcription.assert_not_called()
+
+    def create_mock_transcript(self, text='Candidate communicated clearly and discussed Django API experience.'):
+        upload_response = self.upload_recording()
+        recording = InterviewRecording.objects.get(id=upload_response.data['id'])
+        return InterviewTranscript.objects.create(
+            recording=recording,
+            transcript_text=text,
+            transcript_json={'provider': 'mock'},
+        )
+
+    def test_mock_summary_is_default_and_saves_structured_fields(self):
+        transcript = self.create_mock_transcript()
+
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'False'}), patch(
+            'apps.ai_services.summary_service._call_openai_summary'
+        ) as openai_summary:
+            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['strengths'], 'Candidate provided clear examples and showed relevant preparation.')
+        self.assertEqual(response.data['weaknesses'], 'Candidate needs to provide deeper technical detail in future interviews.')
+        self.assertEqual(response.data['communication_score'], '8.00')
+        self.assertIn('continued consideration', response.data['overall_impression'])
+        self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
+        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 1)
+        openai_summary.assert_not_called()
+
+    def test_real_summary_missing_api_key_falls_back_to_mock(self):
+        transcript = self.create_mock_transcript()
+
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': ''}), patch(
+            'apps.ai_services.summary_service._call_openai_summary'
+        ) as openai_summary:
+            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['communication_score'], '8.00')
+        self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
+        openai_summary.assert_not_called()
+
+    def test_summary_response_contains_required_structured_output_fields(self):
+        transcript = self.create_mock_transcript()
+
+        response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        required_fields = {
+            'strengths',
+            'weaknesses',
+            'communication_score',
+            'overall_impression',
+            'editable_summary_text',
+        }
+        self.assertTrue(required_fields.issubset(response.data.keys()))
+        for field in required_fields - {'communication_score'}:
+            self.assertTrue(response.data[field])
+
+    def test_interviewer_can_edit_generated_summary_before_final_evaluation(self):
+        transcript = self.create_mock_transcript()
+        summary_response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+        summary = InterviewAISummary.objects.get(id=summary_response.data['id'])
+
+        response = self.client.patch(
+            reverse('interview-summary-update', args=[summary.id]),
+            {
+                'strengths': 'Edited strengths after interviewer review.',
+                'weaknesses': 'Edited weakness notes.',
+                'communication_score': '9.00',
+                'overall_impression': 'Edited interviewer impression.',
+                'editable_summary_text': 'Edited full summary text.',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        summary.refresh_from_db()
+        self.assertEqual(summary.strengths, 'Edited strengths after interviewer review.')
+        self.assertEqual(summary.weaknesses, 'Edited weakness notes.')
+        self.assertEqual(summary.communication_score, Decimal('9.00'))
+        self.assertEqual(summary.overall_impression, 'Edited interviewer impression.')
+        self.assertEqual(summary.editable_summary_text, 'Edited full summary text.')
+        self.assertEqual(summary.edited_by, self.interviewer)
+
+    def test_external_api_is_not_called_when_real_summary_disabled(self):
+        transcript = self.create_mock_transcript()
+
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'False', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.summary_service._call_openai_summary'
+        ) as openai_summary:
+            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['communication_score'], '8.00')
+        openai_summary.assert_not_called()
+
 
     def test_unassigned_interviewer_cannot_upload_recording(self):
         self.authenticate(self.other_interviewer)
