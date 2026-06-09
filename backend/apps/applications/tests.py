@@ -527,7 +527,35 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertEqual(application.status, JobApplication.Status.SCREENED_NOT_QUALIFIED)
         self.assertNotEqual(application.status, JobApplication.Status.REJECTED)
         self.assertEqual(float(application.final_score), 3.33)
-        self.assertEqual(application.stage_history.get().to_stage, JobApplication.Status.SCREENED_NOT_QUALIFIED)
+        history = application.stage_history.get()
+        self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_NOT_QUALIFIED)
+        self.assertIn('Recruiter review is still required', history.note)
+        self.assertFalse(
+            ApplicationStageHistory.objects.filter(
+                application=application,
+                to_stage=JobApplication.Status.REJECTED,
+            ).exists()
+        )
+
+    def test_score_explanation_contains_nested_required_sections_for_not_qualified_screening(self):
+        self.create_resume('High school graduate with Java experience.')
+        self.create_screening_requirements()
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        with patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0):
+            response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        explanation = response.data['score_explanation']
+        self.assertEqual(explanation['threshold'], 60.0)
+        self.assertEqual(explanation['semantic']['score'], explanation['semantic_score'])
+        self.assertEqual(explanation['skills']['score'], explanation['skill_score'])
+        self.assertEqual(explanation['experience']['score'], explanation['experience_score'])
+        self.assertEqual(explanation['education']['score'], explanation['education_score'])
+        self.assertIn('gap', explanation['experience'])
+        self.assertIn('gap', explanation['education'])
+        self.assertIsInstance(explanation['notes'], list)
 
     def test_screening_requires_an_uploaded_resume(self):
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
