@@ -1,4 +1,4 @@
-"""Business helpers for demo billing and subscription enforcement."""
+"""Business helpers for billing and subscription enforcement."""
 
 from datetime import timedelta
 
@@ -59,7 +59,16 @@ def create_pending_subscription(organization, plan, is_auto_renew=False):
 
 
 @transaction.atomic
-def activate_demo_subscription(subscription, transaction_reference=''):
+def activate_paid_subscription(subscription, gateway, transaction_reference='', amount=None, currency='MYR'):
+    if transaction_reference:
+        existing_payment = Payment.objects.filter(
+            payment_gateway=gateway,
+            transaction_reference=transaction_reference,
+            status=Payment.Status.PAID,
+        ).select_related('subscription').first()
+        if existing_payment:
+            return existing_payment
+
     Subscription.objects.filter(
         organization=subscription.organization,
         status=Subscription.Status.ACTIVE,
@@ -68,12 +77,22 @@ def activate_demo_subscription(subscription, transaction_reference=''):
     subscription.save(update_fields=['status'])
     return Payment.objects.create(
         subscription=subscription,
-        payment_gateway=Payment.PaymentGateway.DEMO,
+        payment_gateway=gateway,
+        transaction_reference=transaction_reference,
+        amount=amount if amount is not None else subscription.plan.price,
+        currency=currency,
+        status=Payment.Status.PAID,
+        paid_at=timezone.now(),
+    )
+
+
+def activate_demo_subscription(subscription, transaction_reference=''):
+    return activate_paid_subscription(
+        subscription=subscription,
+        gateway=Payment.PaymentGateway.DEMO,
         transaction_reference=transaction_reference,
         amount=subscription.plan.price,
         currency='MYR',
-        status=Payment.Status.PAID,
-        paid_at=timezone.now(),
     )
 
 
