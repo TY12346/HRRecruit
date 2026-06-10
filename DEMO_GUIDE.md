@@ -1,19 +1,79 @@
 # HRRecruit Demo Guide
 
-All demo data in this guide is fake and is intended only for the HRRecruit FYP demonstration.
+This guide summarizes how to prepare and present the HRRecruit FYP demo. For the full scripted walkthrough and backup plan, also read [`FINAL_DEMO_SCRIPT.md`](FINAL_DEMO_SCRIPT.md).
 
-## Demo seed command
+All demo data is fake and intended only for project demonstration.
 
-From the backend directory, run:
+## 1. Demo Preparation
+
+### Start PostgreSQL
+
+Ensure PostgreSQL is running and the configured database exists. The default expected database is:
+
+```text
+hrrecruit_db
+```
+
+### Migrate and seed backend data
+
+From the repository root:
 
 ```bash
+cd backend
+source .venv/bin/activate
 python manage.py migrate
 python manage.py seed_demo_data
 ```
 
-The seed command is safe to run multiple times. It uses existing records where possible, updates the known demo records, and does not delete or reset real data.
+The seed command is safe to run multiple times. It creates/updates fake demo accounts, organization data, job postings, application data, AI screening scores, interview transcript/summary data, evaluation data, hiring approval data, notifications, and billing demo records.
 
-## Demo account credentials
+If only the first HR-head account is needed, this command is also available:
+
+```bash
+python manage.py bootstrap_demo_hr_head --email hr-head.demo@hrrecruit.test --password DemoPass123!
+```
+
+### Start backend
+
+```bash
+python manage.py runserver
+```
+
+For a physical mobile device:
+
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
+
+### Start web portal
+
+In a second terminal:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open the Vite URL, normally:
+
+```text
+http://localhost:5173
+```
+
+### Start Flutter app
+
+In a third terminal:
+
+```bash
+cd mobile
+flutter pub get
+flutter run
+```
+
+Use the Android emulator default API URL `http://10.0.2.2:8000/api/`, or set the physical-device LAN URL in the app/API settings.
+
+## 2. Demo Accounts
 
 All seeded demo users use the same default password:
 
@@ -21,62 +81,91 @@ All seeded demo users use the same default password:
 DemoPass123!
 ```
 
-| Role | Email | Purpose |
+| Role | Email | Demo Purpose |
 | --- | --- | --- |
-| HR Head | demo.hrhead@example.com | Organization, subscription, HR approval, offer oversight |
-| Recruiter | demo.recruiter@example.com | Job posting, candidate screening, interview setup, hiring recommendation |
-| Interviewer | demo.interviewer@example.com | Interview assignment, transcript/summary review, interview evaluation |
-| Applicant | demo.applicant@example.com | Application status, interview invitation, job offer acceptance |
+| HR Head | demo.hrhead@example.com | Organization, subscription, HR approval, offer oversight, analytics. |
+| Recruiter | demo.recruiter@example.com | Job posting, candidate screening, candidate ranking, interview setup, hiring recommendation, offer creation. |
+| Interviewer | demo.interviewer@example.com | Assigned interviews, invitation workflow, transcript/summary review, evaluation submission. |
+| Applicant | demo.applicant@example.com | Job search/application, notifications, interview invitation response, job offer response. |
 
-To change the seeded password for all demo users, run:
+To change the seeded password for all demo users:
 
 ```bash
 python manage.py seed_demo_data --password 'AnotherValidPass123!'
 ```
 
-To keep existing demo passwords unchanged while refreshing other demo data, run:
+To refresh demo data without changing existing demo passwords:
 
 ```bash
 python manage.py seed_demo_data --no-update-password
 ```
 
-## Expected demo data
+## 3. Suggested Demo Order
 
-The command creates or updates:
+Follow this order for a clear examiner walkthrough:
 
-- Organization: `TechNova Solutions Sdn Bhd`.
-- Active memberships for the HR head, recruiter, and interviewer.
-- Open jobs:
-  - `Software Engineer` with Python, Django, React, PostgreSQL, REST API, education, and experience requirements.
-  - `Data Analyst` with SQL, dashboard reporting, education, and analytics experience requirements.
-- Applicant profile for the fake demo applicant.
-- A Software Engineer application with mock resume text and stored AI screening scores.
-- Interview data showing assignment, invitation acceptance, mock recording placeholder, transcript, AI summary, and interviewer evaluation.
-- Hiring data showing recruiter recommendation, HR-head approval, accepted fake offer, and hired application status.
-- Notifications for application status, interview invitation, job offer, and hiring decision updates.
-- Demo-mode billing data with a Pro monthly subscription and a paid demo payment record.
+1. HR head overview
+   - Show organization profile, dashboard, team members, subscription/billing area, and analytics overview.
+2. Recruiter job setup
+   - Login as recruiter.
+   - Show job list/detail, job requirements, and evaluation form builder.
+3. Applicant application
+   - Login as applicant in the mobile app.
+   - Show job search, saved jobs if needed, profile/resume, and application status.
+4. AI screening
+   - Return to recruiter.
+   - Open an application and show AI-assisted screening score components.
+   - Explain that AI supports recruiter review and does not automatically reject/hire.
+5. Candidate ranking
+   - Show ranked candidates for a job.
+6. Interview invitation
+   - Assign interviewer and show interview invitation flow.
+   - Show applicant invitation response where appropriate.
+7. Transcript and AI summary
+   - Login as interviewer.
+   - Show recording/transcript page and AI summary page.
+   - Explain mock/fallback behavior for demo mode.
+8. Evaluation submission
+   - Submit or review interviewer evaluation.
+9. Hiring decision and HR approval
+   - Recruiter submits recommendation.
+   - HR head approves or rejects the pending hiring decision.
+10. Job offer and applicant response
+    - Recruiter creates an offer after approval.
+    - Applicant accepts or declines in the mobile app.
+11. Analytics/PDF report
+    - Show role dashboards and PDF report export.
+12. Billing demo
+    - Show plans, current subscription, invoice/demo payment record, and explain demo payment behavior.
 
-## Short demo workflow
+## 4. External Integration Demo Notes
 
-1. Log in as the HR head and confirm the organization and subscription exist.
-2. Log in as the recruiter and review the Software Engineer job and the demo applicant's AI-assisted screening result.
-3. Show that AI scores support human review and do not make the final hiring decision.
-4. Open the interview workflow to show interviewer assignment and the accepted invitation.
-5. Log in as the interviewer and review the transcript, mock AI summary, and evaluation.
-6. Return as the recruiter to show the hiring recommendation.
-7. Return as the HR head to show the approved recommendation.
-8. Log in as the applicant to show application status, notifications, and the accepted fake offer.
+The FYP demo is designed to work without real external services:
 
-## External integration note
+- Email: console email backend/local OTP behavior.
+- AI resume screening: local algorithm with fallback semantic matching.
+- Transcription: mock/demo fallback when no external ASR key is configured.
+- AI summary: mock/demo fallback when no LLM key is configured.
+- Calendar: not enabled by default; treat as optional/future integration unless explicitly configured.
+- Payment: demo payment/subscription flow unless valid Stripe credentials are configured.
 
-The FYP demo seed uses local/mock/demo data only. It does not call SendGrid, Google Calendar, Stripe, PayPal, FPX, OpenAI, Whisper, or any other real external service. Optional real integrations remain disabled unless the project is explicitly configured for them.
+Do not claim SendGrid, Google Calendar, Stripe/PayPal/FPX, OpenAI, Whisper, or similar services are fully enabled unless valid credentials and environment settings are configured and tested.
 
-## Smoke test command
+## 5. Backup Plan
 
-From the backend directory, run:
+Use [`FINAL_DEMO_SCRIPT.md`](FINAL_DEMO_SCRIPT.md) as the primary backup-plan reference. Recommended backup actions:
+
+- If live application creation fails, use seeded Software Engineer demo records.
+- If optional AI services fail, show stored seeded screening/transcript/summary data and explain fallback behavior.
+- If mobile networking fails on a physical device, switch to Android emulator or show API/web-side data.
+- If payment checkout fails, use the demo payment success/subscription records.
+- If PDF export fails due to environment dependency issues, show dashboard analytics and mention ReportLab/backend requirement.
+
+## 6. Quick Smoke Test Before Demo
 
 ```bash
+cd backend
 python manage.py test apps.users.tests_seed_demo_data
 ```
 
-These tests verify that the seed command runs, creates the core demo users, organization, jobs, application, subscription, and remains idempotent for core records.
+Then manually verify login for all four demo accounts before the presentation starts.
