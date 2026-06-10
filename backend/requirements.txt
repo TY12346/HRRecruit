@@ -35,3 +35,6 @@ reportlab>=4.2,<5.0
 
 # Data/import utility for later CSV/Excel upload
 openpyxl>=3.1,<4.0
+
+# Optional real payment gateway support (sandbox mode)
+stripe>=10.0,<11.0
