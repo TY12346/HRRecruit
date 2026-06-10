@@ -15,7 +15,7 @@ from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
-from .models import CalendarEvent, Interview, InterviewInvitation
+from .models import Interview, InterviewInvitation
 from .serializers import (
     AssignInterviewerSerializer,
     DeclineInterviewInvitationSerializer,
@@ -23,7 +23,7 @@ from .serializers import (
     InterviewSerializer,
     SendInterviewInvitationSerializer,
 )
-from .services import build_calendar_link
+from .calendar_service import sync_calendar_event_for_interview
 
 
 def get_active_membership(user, role):
@@ -301,15 +301,7 @@ class AcceptInterviewInvitationAPIView(APIView):
             request.user,
             'Interview invitation accepted.',
         )
-        calendar_link = build_calendar_link(interview)
-        CalendarEvent.objects.update_or_create(
-            interview=interview,
-            provider='local',
-            defaults={
-                'calendar_link': calendar_link,
-                'sync_status': CalendarEvent.SyncStatus.NOT_SYNCED,
-            },
-        )
+        sync_calendar_event_for_interview(interview)
         create_notification(
             interview.interviewer,
             'invitation_response',

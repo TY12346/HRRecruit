@@ -155,7 +155,7 @@ class CalendarEvent(models.Model):
     )
     provider = models.CharField(max_length=100, default='local')
     external_event_id = models.CharField(max_length=255, blank=True)
-    calendar_link = models.URLField(blank=True)
+    calendar_link = models.URLField(max_length=1000, blank=True)
     last_synced_at = models.DateTimeField(blank=True, null=True)
     sync_status = models.CharField(max_length=20, choices=SyncStatus.choices, default=SyncStatus.NOT_SYNCED)
 

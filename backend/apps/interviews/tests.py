@@ -137,7 +137,8 @@ class InterviewManagementAPITests(APITestCase):
 
         self.authenticate(self.applicant)
         list_response = self.client.get(reverse('interview-invitation-list'))
-        accept_response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
+        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'False'}):
+            accept_response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
 
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(list_response.data), 1)
@@ -150,8 +151,90 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(interview.status, Interview.Status.SCHEDULED)
         self.assertEqual(interview.scheduled_datetime, invitation.proposed_datetime)
         self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_ACCEPTED)
-        self.assertTrue(CalendarEvent.objects.filter(interview=interview, calendar_link__startswith='https://calendar.hrrecruit.local/events/').exists())
+        calendar_event = CalendarEvent.objects.get(interview=interview, provider='local')
+        self.assertTrue(calendar_event.calendar_link.startswith('https://calendar.hrrecruit.local/events/'))
+        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.NOT_SYNCED)
+        self.assertIsNone(calendar_event.last_synced_at)
         self.assertTrue(accept_response.data['calendar_link'].startswith('https://calendar.hrrecruit.local/events/'))
+
+    def test_accepting_invitation_creates_google_calendar_link_when_enabled_and_configured(self):
+        self.assign_interviewer()
+        interview = Interview.objects.get(application=self.application)
+        invitation_response = self.send_invitation(interview)
+        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
+        self.authenticate(self.applicant)
+
+        with patch.dict(
+            'os.environ',
+            {
+                'GOOGLE_CALENDAR_ENABLED': 'True',
+                'GOOGLE_CALENDAR_CLIENT_ID': 'demo-client-id',
+                'GOOGLE_CALENDAR_CLIENT_SECRET': 'demo-client-secret',
+            },
+        ), patch(
+            'apps.interviews.calendar_service.build_google_calendar_link',
+            return_value='https://calendar.google.com/calendar/render?action=TEMPLATE&text=Interview',
+        ) as google_link_builder:
+            response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        google_link_builder.assert_called_once()
+        calendar_event = CalendarEvent.objects.get(interview=interview, provider='google_calendar_link')
+        self.assertEqual(calendar_event.calendar_link, 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=Interview')
+        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.SYNCED)
+        self.assertIsNotNone(calendar_event.last_synced_at)
+        self.assertEqual(response.data['calendar_link'], calendar_event.calendar_link)
+
+    def test_accepting_invitation_falls_back_to_local_calendar_event_when_google_credentials_missing(self):
+        self.assign_interviewer()
+        interview = Interview.objects.get(application=self.application)
+        invitation_response = self.send_invitation(interview)
+        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
+        self.authenticate(self.applicant)
+
+        with patch.dict(
+            'os.environ',
+            {
+                'GOOGLE_CALENDAR_ENABLED': 'True',
+                'GOOGLE_CALENDAR_CLIENT_ID': '',
+                'GOOGLE_CALENDAR_CLIENT_SECRET': '',
+            },
+        ), patch('apps.interviews.calendar_service.build_google_calendar_link') as google_link_builder:
+            response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        google_link_builder.assert_not_called()
+        calendar_event = CalendarEvent.objects.get(interview=interview, provider='local')
+        self.assertTrue(calendar_event.calendar_link.startswith('https://calendar.hrrecruit.local/events/'))
+        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.NOT_SYNCED)
+        self.assertFalse(CalendarEvent.objects.filter(interview=interview, provider='google_calendar_link').exists())
+
+    def test_google_calendar_link_failure_marks_sync_failed_without_blocking_acceptance(self):
+        self.assign_interviewer()
+        interview = Interview.objects.get(application=self.application)
+        invitation_response = self.send_invitation(interview)
+        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
+        self.authenticate(self.applicant)
+
+        with patch.dict(
+            'os.environ',
+            {
+                'GOOGLE_CALENDAR_ENABLED': 'True',
+                'GOOGLE_CALENDAR_CLIENT_ID': 'demo-client-id',
+                'GOOGLE_CALENDAR_CLIENT_SECRET': 'demo-client-secret',
+            },
+        ), patch(
+            'apps.interviews.calendar_service.build_google_calendar_link',
+            side_effect=RuntimeError('calendar provider unavailable'),
+        ) as google_link_builder:
+            response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        google_link_builder.assert_called_once()
+        calendar_event = CalendarEvent.objects.get(interview=interview, provider='google_calendar_link')
+        self.assertEqual(calendar_event.calendar_link, '')
+        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.FAILED)
+        self.assertIsNotNone(calendar_event.last_synced_at)
 
     def test_applicant_declines_invitation_with_reason(self):
         self.assign_interviewer()
