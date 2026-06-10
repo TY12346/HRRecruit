@@ -62,6 +62,8 @@ class BillingAPITests(APITestCase):
                 'is_active': True,
             },
         )
+        self.basic_plan.refresh_from_db()
+        self.pro_plan.refresh_from_db()
         self.job_payload = {
             'title': 'Backend Engineer',
             'description': 'Build recruitment APIs with Django.',
