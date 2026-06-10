@@ -50,3 +50,14 @@ The written FYP requirements are the main source of truth.
 Do **not** follow Chapter 4 ERD, UML, use case, sequence, or process diagrams because they are considered incorrect.
 
 Only Chapter 4 UI design screens may be used as visual reference.
+
+## Demo HR-head bootstrap
+
+For the FYP demo, bootstrap the first HR Department Head account with a management command instead of using a public HR-head registration page:
+
+```bash
+cd backend
+python manage.py bootstrap_demo_hr_head --email hr-head.demo@hrrecruit.test --password DemoPass123!
+```
+
+Then log in to the web portal with that HR-head account, create the demo organization, and add recruiter/interviewer team members through the normal organization flow. A later seed-data prompt can extend this into a complete one-command demo dataset with jobs, candidates, interviews, evaluations, offers, and analytics-ready hired applications.
