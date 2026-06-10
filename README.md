@@ -51,13 +51,34 @@ Do **not** follow Chapter 4 ERD, UML, use case, sequence, or process diagrams be
 
 Only Chapter 4 UI design screens may be used as visual reference.
 
+## FYP demo seed data
+
+For a complete fake demo dataset, run the demo seed command after migrations:
+
+```bash
+cd backend
+python manage.py migrate
+python manage.py seed_demo_data
+```
+
+The command creates safe fake accounts for the HR head, recruiter, interviewer, and applicant; a demo organization; two open jobs; a Software Engineer application with mock AI screening scores; interview transcript/summary/evaluation records; hiring approval and accepted offer records; notifications; and demo-mode subscription billing records. It is idempotent and does not delete or reset existing data.
+
+Default demo credentials:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| HR Head | demo.hrhead@example.com | DemoPass123! |
+| Recruiter | demo.recruiter@example.com | DemoPass123! |
+| Interviewer | demo.interviewer@example.com | DemoPass123! |
+| Applicant | demo.applicant@example.com | DemoPass123! |
+
+See [DEMO_GUIDE.md](DEMO_GUIDE.md) for the full demo setup order, expected records, workflow, and external integration notes. All seeded demo data is fake, and external integrations use local/mock/demo mode unless explicitly configured.
+
 ## Demo HR-head bootstrap
 
-For the FYP demo, bootstrap the first HR Department Head account with a management command instead of using a public HR-head registration page:
+If you only need the first HR Department Head account instead of the full dataset, bootstrap it with:
 
 ```bash
 cd backend
 python manage.py bootstrap_demo_hr_head --email hr-head.demo@hrrecruit.test --password DemoPass123!
 ```
-
-Then log in to the web portal with that HR-head account, create the demo organization, and add recruiter/interviewer team members through the normal organization flow. A later seed-data prompt can extend this into a complete one-command demo dataset with jobs, candidates, interviews, evaluations, offers, and analytics-ready hired applications.
