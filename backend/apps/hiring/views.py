@@ -138,6 +138,11 @@ def applicant_offer_for_update_or_404(user, offer_id):
 def change_application_status(application, new_status, changed_by, note):
     return application.change_status(new_status, changed_by=changed_by, note=note)
 
+# Recruiters may only request HR approval after an interviewer has submitted
+# the interview evaluation. This keeps the FYP demo workflow in the required
+# interview -> evaluation -> hiring-decision order.
+HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES = (JobApplication.Status.EVALUATION_SUBMITTED,)
+
 
 class HiringDecisionSubmitAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -145,15 +150,13 @@ class HiringDecisionSubmitAPIView(APIView):
     @transaction.atomic
     def post(self, request, application_id):
         application = recruiter_application_or_404(request.user, application_id)
-        if application.status in (
-            JobApplication.Status.WITHDRAWN,
-            JobApplication.Status.REJECTED,
-            JobApplication.Status.OFFER_SENT,
-            JobApplication.Status.OFFER_ACCEPTED,
-            JobApplication.Status.OFFER_DECLINED,
-            JobApplication.Status.HIRED,
-        ):
-            raise ValidationError({'status': 'This application cannot be submitted for a hiring decision.'})
+        if application.status not in HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES:
+            raise ValidationError({
+                'status': (
+                    'Hiring decisions can only be submitted after the interview evaluation is completed. '
+                    f'Current status: {application.status}.'
+                )
+            })
         if HiringDecision.objects.filter(
             application=application,
             status=HiringDecision.Status.PENDING_HR_APPROVAL,
@@ -353,7 +356,12 @@ class JobOfferAcceptAPIView(APIView):
         offer.responded_at = timezone.now()
         offer.save(update_fields=['offer_status', 'responded_at'])
         application = offer.application
-        change_application_status(application, JobApplication.Status.OFFER_ACCEPTED, request.user, 'Applicant accepted job offer.')
+        change_application_status(
+            application,
+            JobApplication.Status.HIRED,
+            request.user,
+            'Applicant accepted job offer; application marked as hired for final lifecycle and analytics.',
+        )
         create_notification(
             application.job.recruiter,
             'offer_response',

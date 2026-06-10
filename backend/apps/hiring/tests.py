@@ -128,7 +128,9 @@ class HiringWorkflowAPITests(APITestCase):
         offer.refresh_from_db()
         self.application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.ACCEPTED)
-        self.assertEqual(self.application.status, JobApplication.Status.OFFER_ACCEPTED)
+        self.assertEqual(self.application.status, JobApplication.Status.HIRED)
+        latest_history = self.application.stage_history.first()
+        self.assertEqual(latest_history.to_stage, JobApplication.Status.HIRED)
         self.assertTrue(Notification.objects.filter(recipient=self.recruiter, title='Job offer accepted').exists())
         self.assertEqual(ApplicationStageHistory.objects.filter(application=self.application).count(), 4)
 

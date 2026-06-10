@@ -190,6 +190,61 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         return JobApplication.objects.get(id=response.data['id'])
 
+    def test_hiring_decision_requires_completed_interview_evaluation(self):
+        _, _, recruiter, recruiter_client, _, _ = self.create_organization_and_team()
+        job, _ = self.create_job_with_evaluation_form(recruiter_client)
+        blocked_statuses = (
+            JobApplication.Status.SUBMITTED,
+            JobApplication.Status.SCREENED,
+            JobApplication.Status.SHORTLISTED,
+            JobApplication.Status.INTERVIEW_INVITED,
+        )
+
+        for index, blocked_status in enumerate(blocked_statuses, start=1):
+            _, applicant_client = self.register_applicant(
+                f'blocked-{blocked_status}@example.com',
+                f'Blocked {index}',
+            )
+            self.upload_resume(applicant_client)
+            application = self.apply_for_job(applicant_client, job)
+            if blocked_status != JobApplication.Status.SUBMITTED:
+                application.change_status(
+                    blocked_status,
+                    changed_by=recruiter,
+                    note='Set status for hiring gate regression test.',
+                )
+
+            response = recruiter_client.post(
+                reverse('application-hiring-decision', args=[application.id]),
+                {'decision': HiringDecision.Decision.HIRE, 'justification': 'Trying too early.'},
+                format='json',
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.data)
+            self.assertIn('interview evaluation is completed', str(response.data))
+            self.assertFalse(HiringDecision.objects.filter(application=application).exists())
+            application.refresh_from_db()
+            self.assertEqual(application.status, blocked_status)
+
+        _, eligible_client = self.register_applicant('eligible-evaluated@example.com', 'Eligible Evaluated')
+        self.upload_resume(eligible_client)
+        eligible_application = self.apply_for_job(eligible_client, job)
+        eligible_application.change_status(
+            JobApplication.Status.EVALUATION_SUBMITTED,
+            changed_by=recruiter,
+            note='Completed interview evaluation for hiring decision.',
+        )
+
+        response = recruiter_client.post(
+            reverse('application-hiring-decision', args=[eligible_application.id]),
+            {'decision': HiringDecision.Decision.HIRE, 'justification': 'Evaluation is complete.'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        eligible_application.refresh_from_db()
+        self.assertEqual(eligible_application.status, JobApplication.Status.DECISION_PENDING)
+
     def mock_screening(self, application, changed_by):
         final_score = Decimal('91.00') if application.applicant.email == 'applicant@example.com' else Decimal('70.00')
         application.extracted_resume_text = 'Mock extracted resume text for Django and PostgreSQL.'
@@ -360,7 +415,16 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         accept_offer_response = applicant_client.post(reverse('job-offer-accept', args=[offer.id]), {}, format='json')
         self.assertEqual(accept_offer_response.status_code, status.HTTP_200_OK, accept_offer_response.data)
         offer.refresh_from_db()
+        application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.ACCEPTED)
+        self.assertEqual(application.status, JobApplication.Status.HIRED)
+        self.assertTrue(
+            application.stage_history.filter(to_stage=JobApplication.Status.HIRED).exists(),
+            'Accepted offers should create a hired lifecycle history entry.',
+        )
+        analytics_response = recruiter_client.get(reverse('analytics-recruiter-dashboard'))
+        self.assertEqual(analytics_response.status_code, status.HTTP_200_OK, analytics_response.data)
+        self.assertEqual(analytics_response.data['metrics']['hired_count'], 1)
 
         count_response = applicant_client.get(reverse('notification-unread-count'))
         self.assertEqual(count_response.status_code, status.HTTP_200_OK, count_response.data)
@@ -397,6 +461,11 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         )
         self.assertEqual(decline_invitation_response.status_code, status.HTTP_200_OK, decline_invitation_response.data)
         self.assertEqual(decline_invitation_response.data['status'], InterviewInvitation.Status.DECLINED)
+        declining_application.change_status(
+            JobApplication.Status.EVALUATION_SUBMITTED,
+            changed_by=interviewer,
+            note='Offline evaluation completed for alternate offer path.',
+        )
 
         declining_decision_response = recruiter_client.post(
             reverse('application-hiring-decision', args=[declining_application.id]),
@@ -431,6 +500,11 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         rejected_applicant, rejected_applicant_client = self.register_applicant('hr-rejected@example.com', 'HR Rejected')
         self.upload_resume(rejected_applicant_client)
         rejected_application = self.apply_for_job(rejected_applicant_client, job)
+        rejected_application.change_status(
+            JobApplication.Status.EVALUATION_SUBMITTED,
+            changed_by=interviewer,
+            note='Evaluation completed before HR rejection path.',
+        )
         rejected_decision_response = recruiter_client.post(
             reverse('application-hiring-decision', args=[rejected_application.id]),
             {'decision': HiringDecision.Decision.HIRE, 'justification': 'Request approval for final check.'},
