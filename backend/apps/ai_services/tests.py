@@ -27,6 +27,7 @@ from .resume_screening import (
 from .scoring import calculate_final_score, calculate_score_breakdown
 from .semantic_matcher import fallback_semantic_similarity, semantic_similarity
 from .skill_extractor import (
+    _load_spacy_model,
     extract_skill_labels,
     extract_skills,
     get_skill_display_labels,
@@ -163,6 +164,21 @@ class SkillExtractorTests(SimpleTestCase):
             extract_skills(resume_text),
             ['javascript', 'node.js', 'postgresql', 'python', 'react', 'rest api'],
         )
+
+    def test_load_spacy_model_returns_none_when_spacy_dependency_import_fails(self):
+        _load_spacy_model.cache_clear()
+        self.addCleanup(_load_spacy_model.cache_clear)
+
+        with (
+            patch('apps.ai_services.skill_extractor.importlib.util.find_spec', return_value=object()),
+            patch(
+                'apps.ai_services.skill_extractor.importlib.import_module',
+                side_effect=ModuleNotFoundError('click'),
+            ) as mock_import_module,
+        ):
+            self.assertIsNone(_load_spacy_model())
+
+        mock_import_module.assert_called_once_with('spacy')
 
     def test_normalize_skill_key_maps_aliases_to_internal_keys(self):
         self.assertEqual(normalize_skill_key('py'), 'python')
