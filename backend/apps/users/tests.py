@@ -2,6 +2,9 @@ from types import SimpleNamespace
 
 from django.contrib.auth.models import AnonymousUser
 from django.test import SimpleTestCase
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
 
 from .models import User
 from .permissions import (
@@ -64,3 +67,25 @@ class RolePermissionTests(SimpleTestCase):
         for permission_class in permission_classes:
             with self.subTest(permission=permission_class.__name__):
                 self.assertFalse(permission_class().has_permission(request, view=None))
+
+
+class RegistrationAPITests(APITestCase):
+    def test_public_registration_creates_hr_head_account_only(self):
+        response = self.client.post(
+            reverse('auth-register'),
+            {
+                'email': 'head@example.com',
+                'full_name': 'HR Department Head',
+                'phone_number': '+60123456789',
+                'password': 'StrongPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['user']['role'], User.Role.HR_HEAD)
+
+        user = User.objects.get(email='head@example.com')
+        self.assertEqual(user.role, User.Role.HR_HEAD)
+        self.assertTrue(hasattr(user, 'hr_head_profile'))
+        self.assertFalse(hasattr(user, 'applicant_profile'))
