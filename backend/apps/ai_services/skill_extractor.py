@@ -151,7 +151,11 @@ def _load_spacy_model():
     try:
         spacy = importlib.import_module('spacy')
         return spacy.load(SPACY_MODEL_NAME)
-    except (ImportError, OSError):
+    except Exception:
+        # spaCy is optional for deterministic test/demo environments. Treat
+        # broken spaCy installs, missing language models, and missing
+        # transitive dependencies (for example click) as unavailable so the
+        # regex fallback can still extract skills.
         return None
 
 

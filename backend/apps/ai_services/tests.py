@@ -180,6 +180,25 @@ class SkillExtractorTests(SimpleTestCase):
 
         mock_import_module.assert_called_once_with('spacy')
 
+    def test_extract_skill_labels_uses_fallback_when_spacy_install_is_broken(self):
+        _load_spacy_model.cache_clear()
+        self.addCleanup(_load_spacy_model.cache_clear)
+
+        with (
+            patch('apps.ai_services.skill_extractor.importlib.util.find_spec', return_value=object()),
+            patch(
+                'apps.ai_services.skill_extractor.importlib.import_module',
+                side_effect=ModuleNotFoundError('click'),
+            ),
+        ):
+            self.assertEqual(extract_skill_labels('py js reactjs nodejs postgres'), [
+                'JavaScript',
+                'Node.js',
+                'PostgreSQL',
+                'Python',
+                'React',
+            ])
+
     def test_normalize_skill_key_maps_aliases_to_internal_keys(self):
         self.assertEqual(normalize_skill_key('py'), 'python')
         self.assertEqual(normalize_skill_key('js'), 'javascript')
