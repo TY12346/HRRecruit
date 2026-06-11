@@ -148,10 +148,10 @@ def _load_spacy_model():
     if importlib.util.find_spec('spacy') is None:
         return None
 
-    spacy = importlib.import_module('spacy')
     try:
+        spacy = importlib.import_module('spacy')
         return spacy.load(SPACY_MODEL_NAME)
-    except OSError:
+    except (ImportError, OSError):
         return None
 
 
