@@ -25,7 +25,7 @@ export const login = async ({ email, password }) => {
   return response.data;
 };
 
-export const registerApplicant = async ({ email, fullName, phoneNumber, password }) => {
+export const registerHRHead = async ({ email, fullName, phoneNumber, password }) => {
   const response = await apiClient.post('/auth/register/', {
     email,
     full_name: fullName,
@@ -62,6 +62,11 @@ export const createOrganization = async (organization) => {
 
 export const updateOrganization = async (organization) => {
   const response = await apiClient.patch('/org/', organization);
+  return response.data;
+};
+
+export const deleteOrganization = async () => {
+  const response = await apiClient.delete('/org/');
   return response.data;
 };
 
@@ -250,6 +255,15 @@ export const getApplications = async () => {
 export const getApplication = async (applicationId) => {
   const response = await apiClient.get(`/applications/${applicationId}/`);
   return response.data;
+};
+
+
+export const openApplicationResume = async (applicationId) => {
+  const response = await apiClient.get(`/applications/${applicationId}/resume/`, { responseType: 'blob' });
+  const resumeBlob = new Blob([response.data], { type: response.headers['content-type'] });
+  const resumeUrl = window.URL.createObjectURL(resumeBlob);
+  window.open(resumeUrl, '_blank', 'noopener,noreferrer');
+  window.setTimeout(() => window.URL.revokeObjectURL(resumeUrl), 60000);
 };
 
 export const screenApplication = async (applicationId) => {
