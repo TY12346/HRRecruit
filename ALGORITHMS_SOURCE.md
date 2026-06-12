@@ -462,7 +462,7 @@ Example:
 
 ## Required Application Status Behavior
 
-The AI screening result must not automatically reject the applicant.
+The AI screening result automatically rejects underqualified applicants and keeps qualified applicants available for recruiter review.
 
 Use this behavior:
 
@@ -470,15 +470,14 @@ Use this behavior:
 If final_score >= threshold:
     status = screened_qualified
 else:
-    status = screened_not_qualified
+    status = rejected
 ```
 
-The recruiter must manually decide whether to:
+Underqualified applicants are rejected automatically by the screening threshold. The recruiter must manually decide whether qualified applicants should be:
 
 ```text
-shortlist
-reject
 assign interviewer
+reject
 add remark
 ```
 

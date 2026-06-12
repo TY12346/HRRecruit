@@ -20,7 +20,7 @@ HRRecruit addresses this by providing one role-based platform where:
 | Role | Main Responsibilities |
 | --- | --- |
 | HR head | Manage organization profile, team members, pending hiring approvals, analytics, reports, and billing/subscription status. |
-| Recruiter | Create and manage jobs, configure requirements and evaluation forms, review applications, run AI screening, rank candidates, assign interviewers, submit hiring recommendations, and create job offers. |
+| Recruiter | Create and manage jobs, configure requirements and evaluation forms, review automatically screened applications, rank candidates, assign interviewers, submit hiring recommendations, and create job offers. |
 | Interviewer | View assigned interviews/candidates, send or review invitations, upload interview recordings, generate/review transcripts and AI summaries, and submit evaluations. |
 | Applicant | Register/login through the mobile workflow, manage profile/resume, browse and save jobs, apply, track application status, view notifications/interview invitations/offers, and accept or decline offers. |
 
@@ -32,7 +32,7 @@ HRRecruit addresses this by providing one role-based platform where:
 - User profile and applicant resume upload.
 - Organization profile and organization member management.
 - Job posting, job detail, duplication, requirements, evaluation form, saved jobs, and job application flow.
-- Application management with status history, remarks, shortlisting, rejection, candidate profile, and recruiter-controlled AI screening.
+- Application management with status history, remarks, shortlisting, rejection, candidate profile, and automatic AI screening on application submission.
 - Candidate ranking by job.
 - Interview assignment, interview invitation, invitation response, and assigned-interview views.
 - Interview recording upload, transcript generation, AI summary generation, and summary editing.
@@ -134,6 +134,6 @@ All seeded records are fake and intended only for FYP demonstration.
 ## Important Notes for Examiners
 
 - HRRecruit is an FYP prototype, not a production SaaS deployment.
-- The implemented AI assists screening, ranking, transcription, and summaries; it does not automatically make final hiring decisions.
+- The implemented AI assists screening, ranking, transcription, and summaries; underqualified applicants are rejected by the screening threshold, while qualified applicants still require recruiter and HR review before hiring.
 - Demo/fallback behavior is intentional so the project can be reviewed without real SendGrid, Google Calendar, payment gateway, OpenAI, Whisper, or other external-service credentials.
 - Optional integrations should remain disabled unless valid credentials and a suitable deployment environment are configured.

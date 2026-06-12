@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from apps.users.permissions import IsHRHead
 
 from .models import Organization, OrganizationMembership
+from .services import delete_organization_account, get_organization_deletion_blockers
 from .serializers import (
     OrganizationMemberBulkImportSerializer,
     OrganizationMemberSerializer,
@@ -58,17 +59,20 @@ class OrganizationAPIView(ManagedOrganizationMixin, APIView):
         serializer.save()
         return Response({'message': 'Organization updated successfully.', 'organization': serializer.data})
 
-    @transaction.atomic
     def delete(self, request):
         organization = self.get_organization(request)
         if not organization:
             return self.organization_not_found_response()
 
-        # TODO: Require a dedicated organization-deletion OTP confirmation flow before production.
-        organization.status = Organization.Status.DELETED
-        organization.save(update_fields=['status', 'updated_at'])
-        organization.memberships.update(status=OrganizationMembership.Status.INACTIVE)
-        return Response({'message': 'Organization deactivated successfully.'})
+        blockers = get_organization_deletion_blockers(organization)
+        if blockers:
+            return Response(
+                {'detail': 'Organization cannot be deleted yet.', 'blockers': blockers},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        delete_organization_account(organization)
+        return Response({'message': 'Organization account deleted successfully.'})
 
 
 class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):

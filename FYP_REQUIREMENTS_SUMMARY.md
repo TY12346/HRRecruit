@@ -155,9 +155,7 @@ The system should store:
 
 The system should rank candidates by final score.
 
-AI must not automatically make final rejection/hiring decisions.
-
-Low scoring candidates should be marked as `screened_not_qualified`, not permanently rejected.
+AI must not automatically hire applicants. Low scoring candidates are rejected automatically due to underqualification, while qualified candidates require recruiter and HR review before hiring.
 
 ## 8. Candidate Ranking and Shortlisting Requirements
 

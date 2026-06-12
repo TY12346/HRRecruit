@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 from .serializers import (
+    ApplicantRegisterSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
@@ -26,6 +27,27 @@ class RegisterAPIView(APIView):
         return Response(
             {
                 'message': 'Registration successful.',
+                'user': UserProfileSerializer(user).data,
+                'tokens': {
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ApplicantRegisterAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = ApplicantRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                'message': 'Applicant registration successful.',
                 'user': UserProfileSerializer(user).data,
                 'tokens': {
                     'access': str(refresh.access_token),

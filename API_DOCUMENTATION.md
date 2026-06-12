@@ -24,7 +24,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Main roles:**
 
-- Public: register, login, password reset request/confirm.
+- Public: HR department head registration, mobile applicant registration, login, password reset request/confirm.
 - Authenticated users: logout and profile.
 - Applicant: resume upload.
 
@@ -32,13 +32,16 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 | Method | Endpoint | Notes |
 | --- | --- | --- |
-| `POST` | `/api/auth/register/` | Register account. |
+| `POST` | `/api/auth/register/` | Register an HR department head account. |
+| `POST` | `/api/auth/register-applicant/` | Register a mobile job applicant account. |
 | `POST` | `/api/auth/login/` | Returns JWT tokens and user data. |
 | `POST` | `/api/auth/logout/` | Authenticated logout/token blacklist flow. |
 | `GET/PATCH` | `/api/auth/profile/` | Authenticated profile view/update. |
 | `POST` | `/api/auth/password-reset/request/` | Demo/local email reset request. |
 | `POST` | `/api/auth/password-reset/confirm/` | Confirm password reset. |
 | `POST` | `/api/auth/resume/upload/` | Applicant resume upload. |
+| `GET` | `/api/applications/{id}/resume/` | Authenticated resume file view for the applicant, job-owning recruiter, HR head, or assigned interviewer. |
+| `DELETE` | `/api/org/` | HR head soft-deletes their organization account after system validations confirm no active jobs, applications, interviews, hiring approvals/offers, subscriptions, or pending payments remain. |
 
 **Permission notes:** Protected account endpoints require authentication. Resume upload is limited to applicants.
 
@@ -78,7 +81,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Main roles:**
 
-- Recruiter: create/update jobs, requirements, evaluation forms, duplicate jobs, view ranked candidates.
+- Recruiter: create/update jobs, requirements, evaluation forms, duplicate jobs, view qualified candidate rankings.
 - Applicant: browse jobs, save jobs, apply.
 - HR head/interviewer: may view organization/assigned job-related data where allowed by the views.
 
@@ -110,7 +113,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | --- | --- |
 | `/api/applications/` | Application list scoped by role. |
 | `/api/applications/<application_id>/` | Application detail scoped by role. |
-| `/api/applications/<application_id>/screen/` | Recruiter-controlled AI resume screening. |
+| `/api/applications/<application_id>/screen/` | Automatic AI resume screening runs when an applicant applies; this endpoint is retained for recruiter-authorized re-screening when needed. |
 | `/api/applications/<application_id>/candidate-profile/` | Candidate profile for review. |
 | `/api/applications/<application_id>/shortlist/` | Recruiter shortlist action. |
 | `/api/applications/<application_id>/assign-interviewer/` | Assign interviewer. |
@@ -132,10 +135,10 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 | Endpoint | Notes |
 | --- | --- |
-| `/api/applications/<application_id>/screen/` | Extracts resume information and calculates screening scores. |
-| `/api/jobs/<job_id>/ranked-candidates/` | Lists ranked candidates for a job. |
+| `/api/applications/<application_id>/screen/` | Extracts resume information and calculates screening scores; application submission runs this automatically. |
+| `/api/jobs/<job_id>/ranked-candidates/` | Lists only AI-qualified candidates for a job, ranked by final score. |
 
-**Algorithm notes:** Screening uses the documented score formula from `ALGORITHMS.md`: semantic score, skill score, experience score, and education score are combined into a final score. If optional semantic dependencies are unavailable, fallback lexical matching may be used. AI supports recruiter decisions; it does not automatically make the final hiring decision.
+**Algorithm notes:** Screening uses the documented score formula from `ALGORITHMS.md`: semantic score, skill score, experience score, and education score are combined into a final score. If optional semantic dependencies are unavailable, fallback lexical matching may be used. AI automatically rejects applicants below the screening threshold, but qualified applicants still require recruiter and HR review before hiring.
 
 ## Interviews APIs
 

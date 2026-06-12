@@ -124,13 +124,13 @@ flutter run
 | Safe fallback when Sentence-BERT/model is unavailable | Complete | Disable dependency/model and run screening. | `backend/apps/ai_services/semantic_matcher.py`, `AI_ALGORITHM_VALIDATION_REPORT.md` | Fallback prevents crash but is less semantically rich. |
 | Hybrid formula is implemented | Complete | Run scoring tests or inspect scoring service. | `backend/apps/ai_services/scoring.py` | Formula: `0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score`. |
 | Score explanation is stored | Complete | Screen application and inspect serialized fields/model. | `backend/apps/applications/models.py`, `backend/apps/ai_services/resume_screening.py` | Component scores and explanation metadata are persisted. |
-| AI does not automatically make final hiring decisions | Complete | Screen low-score application and confirm it is not rejected automatically. | `POST /api/applications/<id>/screen/`, `ALGORITHMS.md` | Low score can become `screened_not_qualified`; recruiter must reject/shortlist manually. |
+| AI does not automatically make final hiring decisions | Complete | Screen low-score application and confirm it is rejected due to underqualification, while qualified candidates still require recruiter/HR review. | `POST /api/applications/<id>/screen/`, `ALGORITHMS.md` | Low score becomes `rejected`; qualified applicants remain available for recruiter actions such as assign interviewer or reject. |
 
 ## 8. Candidate Ranking
 
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
-| Recruiter can view ranked candidates | Complete | Call ranking endpoint as owning recruiter. | `GET /api/jobs/<job_id>/ranked-candidates/` | Role and organization scoped. |
+| Recruiter can view qualified candidate rankings | Complete | Call ranking endpoint as owning recruiter. | `GET /api/jobs/<job_id>/ranked-candidates/` | Role and organization scoped, and only `screened_qualified` applications are ranked. |
 | Ranking uses `final_score` descending | Complete | Create multiple screened applications and compare order. | `backend/apps/applications/views.py` | Uses descending `final_score`, nulls last. |
 | Equal score ordering is stable | Complete | Create equal-score applications and confirm earlier application first. | `backend/apps/applications/views.py` | Tie-breaker uses `applied_at`. |
 | Candidate ranking page displays AI scores | Complete | Open recruiter ranking page after screening. | React recruiter ranking page | Display should be manually checked with seeded/screened data. |
