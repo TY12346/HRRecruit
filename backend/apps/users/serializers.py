@@ -26,7 +26,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = User.objects.create_user(
             password=password,
-            role=User.Role.APPLICANT,
+            role=User.Role.HR_HEAD,
             **validated_data,
         )
         return user
