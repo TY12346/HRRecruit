@@ -96,7 +96,7 @@ Use seeded demo data for a fast end-to-end smoke test:
 3. Applicant application
    - Applicant browses jobs, saves a job if desired, uploads/resuses a resume, and applies.
 4. AI screening
-   - Recruiter runs AI screening for the application.
+   - Confirm AI screening ran automatically immediately after application submission.
    - Confirm final score and score components are shown.
    - Confirm AI does not automatically make the final hiring decision.
 5. Ranking
