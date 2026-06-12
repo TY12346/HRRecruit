@@ -1,6 +1,7 @@
 """Role-protected and organization-isolated job application APIs."""
 
 from django.db import transaction
+from django.http import FileResponse
 from django.db.models import F
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -71,6 +72,14 @@ def recruiter_application_or_404(user, application_id):
     if user.role != User.Role.RECRUITER:
         raise PermissionDenied('Only recruiters can manage candidate ranking and shortlisting.')
     return get_object_or_404(visible_applications_for(user), id=application_id)
+
+
+def resume_application_or_404(user, application_id):
+    if user.role in (User.Role.RECRUITER, User.Role.INTERVIEWER):
+        return candidate_profile_application_or_404(user, application_id)
+    if user.role in (User.Role.APPLICANT, User.Role.HR_HEAD):
+        return get_object_or_404(visible_applications_for(user), id=application_id)
+    raise PermissionDenied('Your role cannot view application resumes.')
 
 
 def candidate_profile_application_or_404(user, application_id):
@@ -235,6 +244,19 @@ class CandidateProfileAPIView(APIView):
     def get(self, request, application_id):
         application = candidate_profile_application_or_404(request.user, application_id)
         return Response(CandidateProfileSerializer(application, context={'request': request}).data)
+
+
+class ApplicationResumeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, application_id):
+        application = resume_application_or_404(request.user, application_id)
+        applicant_profile = getattr(application.applicant, 'applicant_profile', None)
+        resume_file = getattr(applicant_profile, 'resume_file', None)
+        if not resume_file:
+            return Response({'detail': 'Resume file not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return FileResponse(resume_file.open('rb'), as_attachment=False, filename=resume_file.name.split('/')[-1])
 
 
 class ApplicationShortlistAPIView(APIView):
