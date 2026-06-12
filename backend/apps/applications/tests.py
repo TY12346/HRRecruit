@@ -391,6 +391,26 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             SimpleUploadedFile(filename, output.getvalue()),
         )
 
+    def test_recruiter_downloads_candidate_resume_through_authenticated_endpoint(self):
+        self.create_resume('Python and Django developer resume.')
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('application-resume', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('resume.docx', response.headers['Content-Disposition'])
+        self.assertGreater(len(b''.join(response.streaming_content)), 0)
+
+    def test_non_owner_recruiter_cannot_download_candidate_resume(self):
+        self.create_resume('Python and Django developer resume.')
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.other_recruiter)
+
+        response = self.client.get(reverse('application-resume', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def create_screening_requirements(self):
         JobRequirement.objects.create(
             job=self.job,
