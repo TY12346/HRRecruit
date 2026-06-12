@@ -112,7 +112,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | --- | --- |
 | `/api/applications/` | Application list scoped by role. |
 | `/api/applications/<application_id>/` | Application detail scoped by role. |
-| `/api/applications/<application_id>/screen/` | Recruiter-controlled AI resume screening. |
+| `/api/applications/<application_id>/screen/` | Automatic AI resume screening runs when an applicant applies; this endpoint is retained for recruiter-authorized re-screening when needed. |
 | `/api/applications/<application_id>/candidate-profile/` | Candidate profile for review. |
 | `/api/applications/<application_id>/shortlist/` | Recruiter shortlist action. |
 | `/api/applications/<application_id>/assign-interviewer/` | Assign interviewer. |
@@ -134,7 +134,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 | Endpoint | Notes |
 | --- | --- |
-| `/api/applications/<application_id>/screen/` | Extracts resume information and calculates screening scores. |
+| `/api/applications/<application_id>/screen/` | Extracts resume information and calculates screening scores; application submission runs this automatically. |
 | `/api/jobs/<job_id>/ranked-candidates/` | Lists ranked candidates for a job. |
 
 **Algorithm notes:** Screening uses the documented score formula from `ALGORITHMS.md`: semantic score, skill score, experience score, and education score are combined into a final score. If optional semantic dependencies are unavailable, fallback lexical matching may be used. AI supports recruiter decisions; it does not automatically make the final hiring decision.

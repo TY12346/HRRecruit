@@ -68,19 +68,40 @@ class JobApplicationAPITests(APITestCase):
     def authenticate(self, user):
         self.client.force_authenticate(user)
 
-    @patch('apps.applications.views.schedule_resume_screening')
-    def test_applicant_applies_once_to_open_job_without_running_screening(self, screening_placeholder):
+    def attach_resume(self, user=None, filename='resume.pdf'):
+        profile = (user or self.applicant).applicant_profile
+        profile.resume_file.save(filename, SimpleUploadedFile(filename, b'%PDF-1.4 test resume'))
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_applies_once_to_open_job_and_runs_screening_immediately(self, screen_job_application):
+        self.attach_resume()
         self.authenticate(self.applicant)
 
+        def mark_screened(application, changed_by):
+            application.status = JobApplication.Status.SCREENED_QUALIFIED
+            application.final_score = '88.00'
+            application.save(update_fields=['status', 'final_score', 'updated_at'])
+            return application
+
+        screen_job_application.side_effect = mark_screened
         response = self.client.post(reverse('job-apply', args=[self.job.id]))
         duplicate_response = self.client.post(reverse('job-apply', args=[self.job.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+        self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(response.data['final_score'], '88.00')
         self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
         application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
-        screening_placeholder.assert_called_once_with(application)
-        self.assertEqual(application.stage_history.count(), 0)
+        screen_job_application.assert_called_once_with(application, changed_by=None)
+
+    def test_apply_requires_resume_for_immediate_screening(self):
+        self.authenticate(self.applicant)
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['resume_file'], 'Upload a resume before applying so AI screening can run immediately.')
+        self.assertFalse(JobApplication.objects.filter(job=self.job, applicant=self.applicant).exists())
 
     def test_applicant_cannot_apply_to_non_open_job(self):
         draft_job = self.create_job(self.recruiter, status=JobPosting.Status.DRAFT)
@@ -433,6 +454,20 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             weight_score='10.00',
             minimum_threshold='60.00',
         )
+
+    @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
+    def test_applying_to_job_runs_resume_screening_immediately(self, _semantic_similarity):
+        self.create_resume("Bachelor's degree. Python and Django developer with 5 years of experience.")
+        self.create_screening_requirements()
+        self.authenticate(self.applicant)
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(response.data['final_score'], '92.00')
+        application = JobApplication.objects.get(id=response.data['id'])
+        self.assertEqual(application.stage_history.get().to_stage, JobApplication.Status.SCREENED_QUALIFIED)
 
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
     def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity):

@@ -25,7 +25,7 @@ from .serializers import (
     CandidateProfileSerializer,
     JobApplicationSerializer,
 )
-from .services import schedule_resume_screening, screen_job_application
+from .services import screen_job_application
 
 
 def get_active_membership(user, role):
@@ -144,19 +144,31 @@ class JobApplyAPIView(APIView):
             status=JobPosting.Status.OPEN,
             organization__status=Organization.Status.ACTIVE,
         )
-        application, created = JobApplication.objects.get_or_create(job=job, applicant=request.user)
-        if not created:
-            raise ValidationError({'job': 'You have already applied for this job.'})
+        resume_file = request.user.applicant_profile.resume_file
+        if not resume_file:
+            raise ValidationError({'resume_file': 'Upload a resume before applying so AI screening can run immediately.'})
 
-        # Screening remains recruiter-triggered; submission must not make an automated decision.
-        schedule_resume_screening(application)
+        try:
+            with transaction.atomic():
+                application, created = JobApplication.objects.get_or_create(job=job, applicant=request.user)
+                if not created:
+                    raise ValidationError({'job': 'You have already applied for this job.'})
+                application = screen_job_application(application, changed_by=None)
+        except ResumeTextExtractionError as exc:
+            raise ValidationError({'resume_file': str(exc)}) from exc
+
         return Response(JobApplicationSerializer(application, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, job_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can withdraw job applications.')
         application = get_object_or_404(JobApplication, job_id=job_id, applicant=request.user)
-        if application.status not in (JobApplication.Status.SUBMITTED, JobApplication.Status.SCREENED):
+        if application.status not in (
+            JobApplication.Status.SUBMITTED,
+            JobApplication.Status.SCREENED,
+            JobApplication.Status.SCREENED_QUALIFIED,
+            JobApplication.Status.SCREENED_NOT_QUALIFIED,
+        ):
             raise ValidationError({'status': 'Applications can be withdrawn only while submitted or screened.'})
         application.change_status(
             JobApplication.Status.WITHDRAWN,
