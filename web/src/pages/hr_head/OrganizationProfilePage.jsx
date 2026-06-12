@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Paper, Stack, TextField, Typography } from '@mui/material';
-import { createOrganization, getOrganization, updateOrganization } from '../../api/client.js';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  List,
+  ListItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { createOrganization, deleteOrganization, getOrganization, updateOrganization } from '../../api/client.js';
 import HRHeadNav from './HRHeadNav.jsx';
 import { getApiErrorMessage } from './hrHeadUtils.js';
 
@@ -29,6 +44,9 @@ export default function OrganizationProfilePage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -64,6 +82,14 @@ export default function OrganizationProfilePage() {
     setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
 
+  const closeDeleteDialog = () => {
+    if (isDeleting) {
+      return;
+    }
+    setIsDeleteDialogOpen(false);
+    setDeleteConfirmation('');
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
@@ -80,6 +106,25 @@ export default function OrganizationProfilePage() {
       setError(getApiErrorMessage(submitError, 'Unable to save organization profile.'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteOrganization = async () => {
+    setError('');
+    setSuccessMessage('');
+    setIsDeleting(true);
+
+    try {
+      const response = await deleteOrganization();
+      setOrganization(null);
+      setFormData(emptyForm);
+      setSuccessMessage(response.message ?? 'Organization account deleted successfully.');
+      setIsDeleteDialogOpen(false);
+      setDeleteConfirmation('');
+    } catch (deleteError) {
+      setError(getApiErrorMessage(deleteError, 'Unable to delete organization account.'));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -111,6 +156,60 @@ export default function OrganizationProfilePage() {
           </Stack>
         </Box>
       </Paper>
+
+      {organization ? (
+        <Paper sx={{ p: 3, mt: 3, border: '1px solid', borderColor: 'error.light' }}>
+          <Typography component="h3" variant="h6" color="error" sx={{ fontWeight: 700, mb: 1 }}>
+            Delete organization account
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            This soft-deletes the organization account, deactivates its memberships, and disables recruiter and interviewer team accounts.
+          </Typography>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Deletion is only allowed after draft/open jobs are closed, active applications are resolved, interviews are completed or cancelled, pending hiring decisions and offers are cleared, and active billing items are resolved.
+          </Alert>
+          <Button color="error" disabled={isLoading || isSubmitting || isDeleting} onClick={() => setIsDeleteDialogOpen(true)} variant="outlined">
+            Delete organization account
+          </Button>
+        </Paper>
+      ) : null}
+
+      <Dialog fullWidth maxWidth="sm" onClose={closeDeleteDialog} open={isDeleteDialogOpen}>
+        <DialogTitle>Delete organization account?</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="error">
+              This action removes active access to the organization workspace. The system will block deletion if unresolved recruitment or billing records still exist.
+            </Alert>
+            <Box>
+              <Typography sx={{ fontWeight: 700, mb: 1 }}>Before deletion is permitted, make sure:</Typography>
+              <List dense sx={{ listStyleType: 'disc', pl: 3 }}>
+                <ListItem sx={{ display: 'list-item', p: 0 }}>Draft and open job postings are closed.</ListItem>
+                <ListItem sx={{ display: 'list-item', p: 0 }}>Active applications, interviews, hiring decisions, and sent offers are resolved.</ListItem>
+                <ListItem sx={{ display: 'list-item', p: 0 }}>Active subscriptions and pending payments are resolved.</ListItem>
+              </List>
+            </Box>
+            <TextField
+              disabled={isDeleting}
+              helperText={`Type ${organization?.name ?? 'the organization name'} to confirm.`}
+              label="Organization name"
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              value={deleteConfirmation}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={isDeleting} onClick={closeDeleteDialog}>Cancel</Button>
+          <Button
+            color="error"
+            disabled={isDeleting || deleteConfirmation !== organization?.name}
+            onClick={handleDeleteOrganization}
+            variant="contained"
+          >
+            {isDeleting ? 'Deleting…' : 'Delete organization'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
