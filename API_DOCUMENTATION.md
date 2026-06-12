@@ -24,7 +24,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Main roles:**
 
-- Public: HR department head registration, login, password reset request/confirm.
+- Public: HR department head registration, mobile applicant registration, login, password reset request/confirm.
 - Authenticated users: logout and profile.
 - Applicant: resume upload.
 
@@ -33,6 +33,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | Method | Endpoint | Notes |
 | --- | --- | --- |
 | `POST` | `/api/auth/register/` | Register an HR department head account. |
+| `POST` | `/api/auth/register-applicant/` | Register a mobile job applicant account. |
 | `POST` | `/api/auth/login/` | Returns JWT tokens and user data. |
 | `POST` | `/api/auth/logout/` | Authenticated logout/token blacklist flow. |
 | `GET/PATCH` | `/api/auth/profile/` | Authenticated profile view/update. |

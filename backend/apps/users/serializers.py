@@ -8,10 +8,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.notifications.email_service import send_password_reset_otp_email
 
-from .models import ApplicantProfile, PasswordResetOTP, User
+from .models import ApplicantProfile, PasswordResetOTP, User, create_profile_for_user
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
@@ -22,6 +23,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         validate_password(value)
         return value
 
+    def validate(self, attrs):
+        if User.objects.filter(email__iexact=attrs['email']).exists():
+            raise serializers.ValidationError({'email': 'A user with this email already exists.'})
+        return attrs
+
     def create(self, validated_data):
         password = validated_data.pop('password')
         user = User.objects.create_user(
@@ -30,6 +36,42 @@ class RegisterSerializer(serializers.ModelSerializer):
             **validated_data,
         )
         return user
+
+
+class ApplicantRegisterSerializer(RegisterSerializer):
+    def validate(self, attrs):
+        existing_user = User.objects.filter(email__iexact=attrs['email']).first()
+        if existing_user:
+            can_convert = (
+                existing_user.role != User.Role.APPLICANT
+                and existing_user.check_password(attrs['password'])
+                and not existing_user.created_organizations.exists()
+                and not existing_user.organization_memberships.exists()
+            )
+            if not can_convert:
+                raise serializers.ValidationError({'email': 'A user with this email already exists.'})
+            attrs['_convert_user'] = existing_user
+        return attrs
+
+    def create(self, validated_data):
+        user_to_convert = validated_data.pop('_convert_user', None)
+        password = validated_data.pop('password')
+        if user_to_convert:
+            user_to_convert.full_name = validated_data['full_name']
+            user_to_convert.phone_number = validated_data.get('phone_number', '')
+            user_to_convert.role = User.Role.APPLICANT
+            user_to_convert.set_password(password)
+            user_to_convert.save(update_fields=['full_name', 'phone_number', 'role', 'password'])
+            if hasattr(user_to_convert, 'hr_head_profile'):
+                user_to_convert.hr_head_profile.delete()
+            create_profile_for_user(user_to_convert)
+            return user_to_convert
+
+        return User.objects.create_user(
+            password=password,
+            role=User.Role.APPLICANT,
+            **validated_data,
+        )
 
 
 class LoginSerializer(serializers.Serializer):

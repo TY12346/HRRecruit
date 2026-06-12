@@ -89,3 +89,51 @@ class RegistrationAPITests(APITestCase):
         self.assertEqual(user.role, User.Role.HR_HEAD)
         self.assertTrue(hasattr(user, 'hr_head_profile'))
         self.assertFalse(hasattr(user, 'applicant_profile'))
+
+    def test_applicant_registration_endpoint_creates_applicant_for_mobile_app(self):
+        response = self.client.post(
+            reverse('auth-register-applicant'),
+            {
+                'email': 'applicant@example.com',
+                'full_name': 'Job Applicant',
+                'phone_number': '+60123456789',
+                'password': 'StrongPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['user']['role'], User.Role.APPLICANT)
+
+        user = User.objects.get(email='applicant@example.com')
+        self.assertEqual(user.role, User.Role.APPLICANT)
+        self.assertTrue(hasattr(user, 'applicant_profile'))
+        self.assertFalse(hasattr(user, 'hr_head_profile'))
+
+    def test_applicant_registration_can_recover_mobile_created_hr_head_without_organization(self):
+        mistaken_user = User.objects.create_user(
+            email='mistaken-mobile@example.com',
+            password='StrongPass123!',
+            full_name='Mistaken HR Head',
+            role=User.Role.HR_HEAD,
+        )
+        self.assertTrue(hasattr(mistaken_user, 'hr_head_profile'))
+
+        response = self.client.post(
+            reverse('auth-register-applicant'),
+            {
+                'email': 'mistaken-mobile@example.com',
+                'full_name': 'Recovered Applicant',
+                'phone_number': '+60999999999',
+                'password': 'StrongPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        mistaken_user.refresh_from_db()
+        self.assertEqual(mistaken_user.role, User.Role.APPLICANT)
+        self.assertEqual(mistaken_user.full_name, 'Recovered Applicant')
+        self.assertTrue(hasattr(mistaken_user, 'applicant_profile'))
+        self.assertFalse(hasattr(mistaken_user, 'hr_head_profile'))
+        self.assertEqual(response.data['user']['role'], User.Role.APPLICANT)
