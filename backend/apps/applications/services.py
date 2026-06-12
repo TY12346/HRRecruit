@@ -10,10 +10,12 @@ from .models import JobApplication
 def screen_job_application(application, changed_by):
     """Run local resume screening, persist its result, and record the stage change."""
     screening_result = build_resume_screening(application)
-    new_status = (
-        JobApplication.Status.SCREENED_QUALIFIED
-        if screening_result['final_score'] >= SCREENING_THRESHOLD
-        else JobApplication.Status.SCREENED_NOT_QUALIFIED
+    is_qualified = screening_result['final_score'] >= SCREENING_THRESHOLD
+    new_status = JobApplication.Status.SCREENED_QUALIFIED if is_qualified else JobApplication.Status.REJECTED
+    history_note = (
+        'AI-assisted resume screening completed. Recruiter review is still required.'
+        if is_qualified
+        else 'AI-assisted resume screening rejected this applicant due to underqualification.'
     )
 
     with transaction.atomic():
@@ -24,7 +26,7 @@ def screen_job_application(application, changed_by):
         application.change_status(
             new_status,
             changed_by=changed_by,
-            note='AI-assisted resume screening completed. Recruiter review is still required.',
+            note=history_note,
         )
 
     application.refresh_from_db()

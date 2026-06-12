@@ -243,23 +243,20 @@ Example structure:
 
 ### Application Status Requirement
 
-AI screening must not automatically reject an applicant.
-
-Use AI screening status only as a support signal:
+AI screening automatically separates qualified and underqualified applicants. Qualified applicants remain in recruiter review, while underqualified applicants are rejected due to the screening threshold.
 
 ```text
 If final_score >= threshold:
     status = screened_qualified
 else:
-    status = screened_not_qualified
+    status = rejected
 ```
 
-The recruiter must still manually decide whether to:
+The recruiter must still manually decide whether qualified applicants should be:
 
-- shortlist
-- reject
-- assign interviewer
-- add remark
+- assigned to an interviewer
+- rejected
+- given an additional recruiter remark
 
 ---
 

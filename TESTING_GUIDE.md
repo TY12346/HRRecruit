@@ -97,10 +97,10 @@ Use seeded demo data for a fast end-to-end smoke test:
    - Applicant browses jobs, saves a job if desired, uploads/resuses a resume, and applies.
 4. AI screening
    - Confirm AI screening ran automatically immediately after application submission.
-   - Confirm final score and score components are shown.
-   - Confirm AI does not automatically make the final hiring decision.
+   - Confirm underqualified applicants are automatically rejected and qualified applicants appear in the qualified candidate ranking with score components.
+   - Confirm AI does not automatically hire qualified applicants; qualified applicants still require recruiter and HR review.
 5. Ranking
-   - Recruiter opens ranked candidates for the job.
+   - Recruiter opens the qualified candidate ranking for the job.
 6. Interview invitation
    - Recruiter assigns an interviewer.
    - Interviewer sends or reviews invitation.

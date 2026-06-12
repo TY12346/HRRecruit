@@ -134,6 +134,6 @@ All seeded records are fake and intended only for FYP demonstration.
 ## Important Notes for Examiners
 
 - HRRecruit is an FYP prototype, not a production SaaS deployment.
-- The implemented AI assists screening, ranking, transcription, and summaries; it does not automatically make final hiring decisions.
+- The implemented AI assists screening, ranking, transcription, and summaries; underqualified applicants are rejected by the screening threshold, while qualified applicants still require recruiter and HR review before hiring.
 - Demo/fallback behavior is intentional so the project can be reviewed without real SendGrid, Google Calendar, payment gateway, OpenAI, Whisper, or other external-service credentials.
 - Optional integrations should remain disabled unless valid credentials and a suitable deployment environment are configured.

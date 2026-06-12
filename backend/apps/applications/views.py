@@ -240,7 +240,9 @@ class RankedCandidatesAPIView(APIView):
 
     def get(self, request, job_id):
         job = recruiter_job_or_404(request.user, job_id)
-        applications = job.applications.select_related(
+        applications = job.applications.filter(
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+        ).select_related(
             'job',
             'job__organization',
             'applicant',

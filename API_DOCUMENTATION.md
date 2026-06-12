@@ -81,7 +81,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Main roles:**
 
-- Recruiter: create/update jobs, requirements, evaluation forms, duplicate jobs, view ranked candidates.
+- Recruiter: create/update jobs, requirements, evaluation forms, duplicate jobs, view qualified candidate rankings.
 - Applicant: browse jobs, save jobs, apply.
 - HR head/interviewer: may view organization/assigned job-related data where allowed by the views.
 
@@ -136,9 +136,9 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | Endpoint | Notes |
 | --- | --- |
 | `/api/applications/<application_id>/screen/` | Extracts resume information and calculates screening scores; application submission runs this automatically. |
-| `/api/jobs/<job_id>/ranked-candidates/` | Lists ranked candidates for a job. |
+| `/api/jobs/<job_id>/ranked-candidates/` | Lists only AI-qualified candidates for a job, ranked by final score. |
 
-**Algorithm notes:** Screening uses the documented score formula from `ALGORITHMS.md`: semantic score, skill score, experience score, and education score are combined into a final score. If optional semantic dependencies are unavailable, fallback lexical matching may be used. AI supports recruiter decisions; it does not automatically make the final hiring decision.
+**Algorithm notes:** Screening uses the documented score formula from `ALGORITHMS.md`: semantic score, skill score, experience score, and education score are combined into a final score. If optional semantic dependencies are unavailable, fallback lexical matching may be used. AI automatically rejects applicants below the screening threshold, but qualified applicants still require recruiter and HR review before hiring.
 
 ## Interviews APIs
 
