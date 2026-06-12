@@ -39,6 +39,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `POST` | `/api/auth/password-reset/request/` | Demo/local email reset request. |
 | `POST` | `/api/auth/password-reset/confirm/` | Confirm password reset. |
 | `POST` | `/api/auth/resume/upload/` | Applicant resume upload. |
+| `DELETE` | `/api/org/` | HR head soft-deletes their organization account after system validations confirm no active jobs, applications, interviews, hiring approvals/offers, subscriptions, or pending payments remain. |
 
 **Permission notes:** Protected account endpoints require authentication. Resume upload is limited to applicants.
 

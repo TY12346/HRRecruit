@@ -6,6 +6,9 @@ export function getApiErrorMessage(error, fallback = 'Something went wrong. Plea
   }
 
   if (typeof data.detail === 'string') {
+    if (Array.isArray(data.blockers) && data.blockers.length > 0) {
+      return `${data.detail} ${data.blockers.join(' ')}`;
+    }
     return data.detail;
   }
 

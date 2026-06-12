@@ -65,6 +65,11 @@ export const updateOrganization = async (organization) => {
   return response.data;
 };
 
+export const deleteOrganization = async () => {
+  const response = await apiClient.delete('/org/');
+  return response.data;
+};
+
 export const getOrganizationMembers = async (search = '') => {
   const response = await apiClient.get('/org/members/', { params: search ? { search } : {} });
   return response.data;
