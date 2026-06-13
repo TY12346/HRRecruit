@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { registerApplicant } from '../../api/client.js';
+import { registerHRHead } from '../../api/client.js';
 import { useAuthStore } from '../../store/authStore.js';
 
 function collectApiErrors(error) {
@@ -24,7 +24,7 @@ function collectApiErrors(error) {
     .join(' ');
 }
 
-export default function RegisterApplicantPage() {
+export default function RegisterHRHeadPage() {
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
   const [formData, setFormData] = useState({
@@ -46,13 +46,13 @@ export default function RegisterApplicantPage() {
     setIsSubmitting(true);
 
     try {
-      const data = await registerApplicant(formData);
+      const data = await registerHRHead(formData);
       setSession({
         accessToken: data.tokens.access,
         refreshToken: data.tokens.refresh,
         user: data.user,
       });
-      navigate('/profile', { replace: true });
+      navigate('/hr-head', { replace: true });
     } catch (submitError) {
       setError(collectApiErrors(submitError));
     } finally {
@@ -63,10 +63,10 @@ export default function RegisterApplicantPage() {
   return (
     <Paper sx={{ p: 3, maxWidth: 560, mx: 'auto' }}>
       <Typography component="h2" variant="h5" sx={{ mb: 1 }}>
-        Applicant Registration
+        HR Department Head Registration
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Create a job applicant account. Staff accounts are created by HR department heads.
+        Create the HR department head account for your organization. Recruiter and interviewer accounts are created later from the HR head workspace.
       </Typography>
 
       {error ? (
@@ -112,7 +112,7 @@ export default function RegisterApplicantPage() {
             value={formData.password}
           />
           <Button disabled={isSubmitting} type="submit" variant="contained">
-            {isSubmitting ? 'Creating account…' : 'Create applicant account'}
+            {isSubmitting ? 'Creating account…' : 'Create HR head account'}
           </Button>
         </Stack>
       </Box>

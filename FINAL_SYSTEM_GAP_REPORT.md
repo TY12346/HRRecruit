@@ -308,7 +308,7 @@ However, several gaps can block or weaken a final FYP demonstration:
 - **Organization isolation:** Major recruiter, interviewer, HR-head, billing, analytics, application, interview, and hiring flows filter by active organization membership.
 - **Job posting:** Recruiters can create, update, duplicate, configure requirements, and configure evaluation forms for their organization jobs. Applicants can search/open/save/apply to open jobs.
 - **Application workflow:** Applicants can apply/withdraw; recruiters can screen, rank, shortlist, assign interviewers, reject, and add remarks.
-- **AI resume screening:** Screening logic remains in `ai_services`, uses the required formula, records component scores/explanations, and marks low scores as `screened_not_qualified` rather than auto-rejecting.
+- **AI resume screening:** Screening logic remains in `ai_services`, uses the required formula, records component scores/explanations, and auto-rejects low scores due to underqualification while leaving qualified applicants for recruiter review.
 - **Candidate ranking:** Recruiter ranking sorts by final score descending with nulls last and earlier application as tie breaker.
 - **Interview workflow:** Interviewer assignment, invitation send, applicant accept/decline, mock calendar placeholder, recording upload, transcript generation, AI summary generation/edit, and evaluation submission are implemented.
 - **Hiring/approval:** Recruiter decision submission, HR approval/rejection, and post-approval job offer sending are implemented.

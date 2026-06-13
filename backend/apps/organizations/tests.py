@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 
+from apps.jobs.models import JobPosting
 from apps.users.models import User
 
 from .models import Organization, OrganizationMembership
@@ -181,12 +182,62 @@ class OrganizationAPITests(APITestCase):
         self.assertEqual(other_membership.status, OrganizationMembership.Status.ACTIVE)
         self.assertTrue(other_recruiter.is_active)
 
-    def test_delete_soft_deactivates_organization_and_memberships(self):
+    def test_delete_soft_deactivates_organization_memberships_and_team_users(self):
         self.create_organization()
+        organization = Organization.objects.get(created_by=self.hr_head)
+        recruiter = User.objects.create_user(
+            email='delete-recruiter@example.com',
+            password='StrongPass123!',
+            full_name='Delete Recruiter',
+            role=User.Role.RECRUITER,
+        )
+        OrganizationMembership.objects.create(
+            organization=organization,
+            user=recruiter,
+            role=OrganizationMembership.Role.RECRUITER,
+        )
 
         response = self.client.delete(reverse('organization-detail'))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        organization = Organization.objects.get(created_by=self.hr_head)
+        organization.refresh_from_db()
+        recruiter.refresh_from_db()
         self.assertEqual(organization.status, Organization.Status.DELETED)
         self.assertFalse(organization.memberships.filter(status=OrganizationMembership.Status.ACTIVE).exists())
+        self.assertFalse(recruiter.is_active)
+        self.hr_head.refresh_from_db()
+        self.assertTrue(self.hr_head.is_active)
+
+    def test_delete_is_blocked_when_active_job_postings_exist(self):
+        self.create_organization()
+        organization = Organization.objects.get(created_by=self.hr_head)
+        recruiter = User.objects.create_user(
+            email='job-recruiter@example.com',
+            password='StrongPass123!',
+            full_name='Job Recruiter',
+            role=User.Role.RECRUITER,
+        )
+        OrganizationMembership.objects.create(
+            organization=organization,
+            user=recruiter,
+            role=OrganizationMembership.Role.RECRUITER,
+        )
+        JobPosting.objects.create(
+            organization=organization,
+            recruiter=recruiter,
+            title='Software Engineer',
+            description='Build recruitment software.',
+            employment_type='Full time',
+            approximate_salary='5000.00',
+            location='Remote',
+            status=JobPosting.Status.OPEN,
+        )
+
+        response = self.client.delete(reverse('organization-detail'))
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data['detail'], 'Organization cannot be deleted yet.')
+        self.assertIn('Close all draft or open job postings before deleting the organization.', response.data['blockers'])
+        organization.refresh_from_db()
+        self.assertEqual(organization.status, Organization.Status.ACTIVE)
+        self.assertTrue(organization.memberships.filter(status=OrganizationMembership.Status.ACTIVE).exists())

@@ -68,19 +68,40 @@ class JobApplicationAPITests(APITestCase):
     def authenticate(self, user):
         self.client.force_authenticate(user)
 
-    @patch('apps.applications.views.schedule_resume_screening')
-    def test_applicant_applies_once_to_open_job_without_running_screening(self, screening_placeholder):
+    def attach_resume(self, user=None, filename='resume.pdf'):
+        profile = (user or self.applicant).applicant_profile
+        profile.resume_file.save(filename, SimpleUploadedFile(filename, b'%PDF-1.4 test resume'))
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_applies_once_to_open_job_and_runs_screening_immediately(self, screen_job_application):
+        self.attach_resume()
         self.authenticate(self.applicant)
 
+        def mark_screened(application, changed_by):
+            application.status = JobApplication.Status.SCREENED_QUALIFIED
+            application.final_score = '88.00'
+            application.save(update_fields=['status', 'final_score', 'updated_at'])
+            return application
+
+        screen_job_application.side_effect = mark_screened
         response = self.client.post(reverse('job-apply', args=[self.job.id]))
         duplicate_response = self.client.post(reverse('job-apply', args=[self.job.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+        self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(response.data['final_score'], '88.00')
         self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
         application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
-        screening_placeholder.assert_called_once_with(application)
-        self.assertEqual(application.stage_history.count(), 0)
+        screen_job_application.assert_called_once_with(application, changed_by=None)
+
+    def test_apply_requires_resume_for_immediate_screening(self):
+        self.authenticate(self.applicant)
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['resume_file'], 'Upload a resume before applying so AI screening can run immediately.')
+        self.assertFalse(JobApplication.objects.filter(job=self.job, applicant=self.applicant).exists())
 
     def test_applicant_cannot_apply_to_non_open_job(self):
         draft_job = self.create_job(self.recruiter, status=JobPosting.Status.DRAFT)
@@ -158,15 +179,22 @@ class JobApplicationAPITests(APITestCase):
         high_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
             final_score='91.25',
         )
         low_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.other_applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
             final_score='64.50',
         )
         colleague_job = self.create_job(self.other_recruiter, title='Designer')
-        JobApplication.objects.create(job=colleague_job, applicant=self.create_user('third@example.com', User.Role.APPLICANT), final_score='99.00')
+        JobApplication.objects.create(
+            job=colleague_job,
+            applicant=self.create_user('third@example.com', User.Role.APPLICANT),
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+            final_score='99.00',
+        )
         self.authenticate(self.recruiter)
 
         response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]))
@@ -176,25 +204,49 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual([item['id'] for item in response.data], [high_score_application.id, low_score_application.id])
         self.assertEqual(forbidden_response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_ranked_candidates_excludes_ai_rejected_underqualified_applications(self):
+        qualified_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+            final_score='91.25',
+        )
+        JobApplication.objects.create(
+            job=self.job,
+            applicant=self.other_applicant,
+            status=JobApplication.Status.REJECTED,
+            final_score='20.00',
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [qualified_application.id])
+
     def test_ranked_candidates_use_earliest_application_as_equal_score_tie_breaker_and_nulls_last(self):
         newest_equal_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
             final_score='80.00',
         )
         oldest_equal_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.other_applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
             final_score='80.00',
         )
         top_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.create_user('top-score@example.com', User.Role.APPLICANT),
+            status=JobApplication.Status.SCREENED_QUALIFIED,
             final_score='90.00',
         )
         unscored_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.create_user('unscored@example.com', User.Role.APPLICANT),
+            status=JobApplication.Status.SCREENED_QUALIFIED,
             final_score=None,
         )
         base_time = timezone.now() - timezone.timedelta(days=4)
@@ -391,6 +443,26 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             SimpleUploadedFile(filename, output.getvalue()),
         )
 
+    def test_recruiter_downloads_candidate_resume_through_authenticated_endpoint(self):
+        self.create_resume('Python and Django developer resume.')
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('application-resume', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('resume.docx', response.headers['Content-Disposition'])
+        self.assertGreater(len(b''.join(response.streaming_content)), 0)
+
+    def test_non_owner_recruiter_cannot_download_candidate_resume(self):
+        self.create_resume('Python and Django developer resume.')
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.other_recruiter)
+
+        response = self.client.get(reverse('application-resume', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def create_screening_requirements(self):
         JobRequirement.objects.create(
             job=self.job,
@@ -413,6 +485,20 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             weight_score='10.00',
             minimum_threshold='60.00',
         )
+
+    @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
+    def test_applying_to_job_runs_resume_screening_immediately(self, _semantic_similarity):
+        self.create_resume("Bachelor's degree. Python and Django developer with 5 years of experience.")
+        self.create_screening_requirements()
+        self.authenticate(self.applicant)
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(response.data['final_score'], '92.00')
+        application = JobApplication.objects.get(id=response.data['id'])
+        self.assertEqual(application.stage_history.get().to_stage, JobApplication.Status.SCREENED_QUALIFIED)
 
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
     def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity):
@@ -514,7 +600,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         )
 
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0)
-    def test_low_score_marks_application_not_qualified_without_rejecting_it(self, _semantic_similarity):
+    def test_low_score_rejects_application_due_to_underqualification(self, _semantic_similarity):
         self.create_resume('High school graduate with Java experience.')
         self.create_screening_requirements()
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
@@ -524,18 +610,11 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.SCREENED_NOT_QUALIFIED)
-        self.assertNotEqual(application.status, JobApplication.Status.REJECTED)
+        self.assertEqual(application.status, JobApplication.Status.REJECTED)
         self.assertEqual(float(application.final_score), 3.33)
         history = application.stage_history.get()
-        self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_NOT_QUALIFIED)
-        self.assertIn('Recruiter review is still required', history.note)
-        self.assertFalse(
-            ApplicationStageHistory.objects.filter(
-                application=application,
-                to_stage=JobApplication.Status.REJECTED,
-            ).exists()
-        )
+        self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
+        self.assertIn('underqualification', history.note)
 
     def test_score_explanation_contains_nested_required_sections_for_not_qualified_screening(self):
         self.create_resume('High school graduate with Java experience.')

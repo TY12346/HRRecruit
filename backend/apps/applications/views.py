@@ -1,6 +1,7 @@
 """Role-protected and organization-isolated job application APIs."""
 
 from django.db import transaction
+from django.http import FileResponse
 from django.db.models import F
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -24,7 +25,7 @@ from .serializers import (
     CandidateProfileSerializer,
     JobApplicationSerializer,
 )
-from .services import schedule_resume_screening, screen_job_application
+from .services import screen_job_application
 
 
 def get_active_membership(user, role):
@@ -71,6 +72,14 @@ def recruiter_application_or_404(user, application_id):
     if user.role != User.Role.RECRUITER:
         raise PermissionDenied('Only recruiters can manage candidate ranking and shortlisting.')
     return get_object_or_404(visible_applications_for(user), id=application_id)
+
+
+def resume_application_or_404(user, application_id):
+    if user.role in (User.Role.RECRUITER, User.Role.INTERVIEWER):
+        return candidate_profile_application_or_404(user, application_id)
+    if user.role in (User.Role.APPLICANT, User.Role.HR_HEAD):
+        return get_object_or_404(visible_applications_for(user), id=application_id)
+    raise PermissionDenied('Your role cannot view application resumes.')
 
 
 def candidate_profile_application_or_404(user, application_id):
@@ -135,19 +144,31 @@ class JobApplyAPIView(APIView):
             status=JobPosting.Status.OPEN,
             organization__status=Organization.Status.ACTIVE,
         )
-        application, created = JobApplication.objects.get_or_create(job=job, applicant=request.user)
-        if not created:
-            raise ValidationError({'job': 'You have already applied for this job.'})
+        resume_file = request.user.applicant_profile.resume_file
+        if not resume_file:
+            raise ValidationError({'resume_file': 'Upload a resume before applying so AI screening can run immediately.'})
 
-        # Screening remains recruiter-triggered; submission must not make an automated decision.
-        schedule_resume_screening(application)
+        try:
+            with transaction.atomic():
+                application, created = JobApplication.objects.get_or_create(job=job, applicant=request.user)
+                if not created:
+                    raise ValidationError({'job': 'You have already applied for this job.'})
+                application = screen_job_application(application, changed_by=None)
+        except ResumeTextExtractionError as exc:
+            raise ValidationError({'resume_file': str(exc)}) from exc
+
         return Response(JobApplicationSerializer(application, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, job_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can withdraw job applications.')
         application = get_object_or_404(JobApplication, job_id=job_id, applicant=request.user)
-        if application.status not in (JobApplication.Status.SUBMITTED, JobApplication.Status.SCREENED):
+        if application.status not in (
+            JobApplication.Status.SUBMITTED,
+            JobApplication.Status.SCREENED,
+            JobApplication.Status.SCREENED_QUALIFIED,
+            JobApplication.Status.SCREENED_NOT_QUALIFIED,
+        ):
             raise ValidationError({'status': 'Applications can be withdrawn only while submitted or screened.'})
         application.change_status(
             JobApplication.Status.WITHDRAWN,
@@ -219,7 +240,9 @@ class RankedCandidatesAPIView(APIView):
 
     def get(self, request, job_id):
         job = recruiter_job_or_404(request.user, job_id)
-        applications = job.applications.select_related(
+        applications = job.applications.filter(
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+        ).select_related(
             'job',
             'job__organization',
             'applicant',
@@ -235,6 +258,19 @@ class CandidateProfileAPIView(APIView):
     def get(self, request, application_id):
         application = candidate_profile_application_or_404(request.user, application_id)
         return Response(CandidateProfileSerializer(application, context={'request': request}).data)
+
+
+class ApplicationResumeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, application_id):
+        application = resume_application_or_404(request.user, application_id)
+        applicant_profile = getattr(application.applicant, 'applicant_profile', None)
+        resume_file = getattr(applicant_profile, 'resume_file', None)
+        if not resume_file:
+            return Response({'detail': 'Resume file not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return FileResponse(resume_file.open('rb'), as_attachment=False, filename=resume_file.name.split('/')[-1])
 
 
 class ApplicationShortlistAPIView(APIView):

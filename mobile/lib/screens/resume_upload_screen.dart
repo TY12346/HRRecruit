@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../controllers/auth_controller.dart';
 import 'auth_form_helpers.dart';
+import '../widgets/app_navigation.dart';
 
 class ResumeUploadScreen extends StatefulWidget {
   const ResumeUploadScreen({super.key});
@@ -69,9 +70,10 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
     final auth = context.watch<AuthController>();
     final currentResume = auth.profile?.resumeFile;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Resume upload')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Resume upload'),
+        body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
@@ -132,6 +134,7 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../services/applicant_workflow_service.dart';
 import '../auth_form_helpers.dart';
 import 'applicant_workflow_widgets.dart';
 import 'job_cards.dart';
+import '../../widgets/app_navigation.dart';
 
 class InterviewInvitationDetailScreen extends StatefulWidget {
   const InterviewInvitationDetailScreen({super.key, required this.invitationId});
@@ -119,9 +120,10 @@ class _InterviewInvitationDetailScreenState extends State<InterviewInvitationDet
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Invitation details')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Invitation details'),
+        body: SafeArea(
         child: FutureBuilder<InterviewInvitation>(
           future: _invitationFuture,
           builder: (context, snapshot) {
@@ -200,6 +202,7 @@ class _InterviewInvitationDetailScreenState extends State<InterviewInvitationDet
             );
           },
         ),
+      ),
       ),
     );
   }
