@@ -6,6 +6,7 @@ import '../../models/job_application.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
 import 'job_cards.dart';
+import '../../widgets/app_navigation.dart';
 
 class MyApplicationsScreen extends StatefulWidget {
   const MyApplicationsScreen({super.key});
@@ -35,9 +36,10 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My applications')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'My applications'),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _refresh();
@@ -64,7 +66,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                   title: 'No applications yet',
                   message: 'Apply to open jobs to track your application progress here.',
                   action: FilledButton(
-                    onPressed: () => context.go('/jobs'),
+                    onPressed: () => context.push('/jobs'),
                     child: const Text('Find jobs'),
                   ),
                 );
@@ -76,13 +78,14 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                   final application = applications[index];
                   return ApplicationSummaryCard(
                     application: application,
-                    onTap: () => context.go('/applications/${application.id}'),
+                    onTap: () => context.push('/applications/${application.id}'),
                   );
                 },
               );
             },
           ),
         ),
+      ),
       ),
     );
   }

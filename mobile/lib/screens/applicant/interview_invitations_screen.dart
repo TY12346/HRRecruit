@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/applicant_interview.dart';
 import '../../services/applicant_workflow_service.dart';
 import 'applicant_workflow_widgets.dart';
+import '../../widgets/app_navigation.dart';
 
 class InterviewInvitationsScreen extends StatefulWidget {
   const InterviewInvitationsScreen({super.key});
@@ -34,9 +35,10 @@ class _InterviewInvitationsScreenState extends State<InterviewInvitationsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Interview invitations')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Interview invitations'),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _refresh();
@@ -66,13 +68,14 @@ class _InterviewInvitationsScreenState extends State<InterviewInvitationsScreen>
                   final invitation = invitations[index];
                   return InterviewInvitationCard(
                     invitation: invitation,
-                    onTap: () => context.go('/interview-invitations/${invitation.id}'),
+                    onTap: () => context.push('/interview-invitations/${invitation.id}'),
                   );
                 },
               );
             },
           ),
         ),
+      ),
       ),
     );
   }

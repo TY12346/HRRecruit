@@ -5,6 +5,7 @@ import '../../models/job_offer.dart';
 import '../../services/applicant_workflow_service.dart';
 import '../auth_form_helpers.dart';
 import 'applicant_workflow_widgets.dart';
+import '../../widgets/app_navigation.dart';
 
 class JobOffersScreen extends StatefulWidget {
   const JobOffersScreen({super.key});
@@ -114,9 +115,10 @@ class _JobOffersScreenState extends State<JobOffersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Job offers')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Job offers'),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _refresh();
@@ -155,6 +157,7 @@ class _JobOffersScreenState extends State<JobOffersScreen> {
             },
           ),
         ),
+      ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../models/job_application.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
 import 'job_cards.dart';
+import '../../widgets/app_navigation.dart';
 
 class ApplicationDetailScreen extends StatefulWidget {
   const ApplicationDetailScreen({super.key, required this.applicationId});
@@ -71,9 +72,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Application details')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Application details'),
+        body: SafeArea(
         child: FutureBuilder<_ApplicationDetailData>(
           future: _detailFuture,
           builder: (context, snapshot) {
@@ -107,7 +109,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => context.go('/jobs/${application.jobId}'),
+                        onPressed: () => context.push('/jobs/${application.jobId}'),
                         icon: const Icon(Icons.work_outline),
                         label: const Text('View job'),
                       ),
@@ -143,6 +145,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
             );
           },
         ),
+      ),
       ),
     );
   }
