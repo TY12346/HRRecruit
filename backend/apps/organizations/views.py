@@ -6,7 +6,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.users.permissions import IsHRHead
+from apps.users.models import User
+from apps.users.permissions import IsHRHead, IsRecruiterOrHRHead
 
 from .models import Organization, OrganizationMembership
 from .services import delete_organization_account, get_organization_deletion_blockers
@@ -15,6 +16,16 @@ from .serializers import (
     OrganizationMemberSerializer,
     OrganizationSerializer,
 )
+
+
+def get_active_membership_organization(user, role):
+    membership = OrganizationMembership.objects.filter(
+        user=user,
+        role=role,
+        status=OrganizationMembership.Status.ACTIVE,
+        organization__status=Organization.Status.ACTIVE,
+    ).select_related('organization').first()
+    return membership.organization if membership else None
 
 
 def get_managed_organization(hr_head):
@@ -76,7 +87,18 @@ class OrganizationAPIView(ManagedOrganizationMixin, APIView):
 
 
 class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
+    permission_classes = [IsRecruiterOrHRHead]
+
+    def get_organization(self, request):
+        if request.user.role == User.Role.HR_HEAD:
+            return get_managed_organization(request.user)
+        if request.user.role == User.Role.RECRUITER:
+            return get_active_membership_organization(request.user, OrganizationMembership.Role.RECRUITER)
+        return None
+
     def post(self, request):
+        if request.user.role != User.Role.HR_HEAD:
+            return Response({'detail': 'Only HR heads can create organization team members.'}, status=status.HTTP_403_FORBIDDEN)
         organization = self.get_organization(request)
         if not organization:
             return self.organization_not_found_response()

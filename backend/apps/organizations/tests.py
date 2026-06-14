@@ -130,6 +130,51 @@ class OrganizationAPITests(APITestCase):
         self.assertEqual(membership.status, OrganizationMembership.Status.INACTIVE)
         self.assertFalse(membership.user.is_active)
 
+    def test_recruiter_can_list_organization_interviewers_but_cannot_create_members(self):
+        self.create_organization()
+        organization = Organization.objects.get(created_by=self.hr_head)
+        recruiter = User.objects.create_user(
+            email='list-recruiter@example.com',
+            password='StrongPass123!',
+            full_name='List Recruiter',
+            role=User.Role.RECRUITER,
+        )
+        interviewer = User.objects.create_user(
+            email='list-interviewer@example.com',
+            password='StrongPass123!',
+            full_name='List Interviewer',
+            role=User.Role.INTERVIEWER,
+        )
+        OrganizationMembership.objects.create(
+            organization=organization,
+            user=recruiter,
+            role=OrganizationMembership.Role.RECRUITER,
+        )
+        OrganizationMembership.objects.create(
+            organization=organization,
+            user=interviewer,
+            role=OrganizationMembership.Role.INTERVIEWER,
+        )
+        self.client.force_authenticate(recruiter)
+
+        list_response = self.client.get(reverse('organization-member-list-create'))
+        create_response = self.client.post(
+            reverse('organization-member-list-create'),
+            {
+                'email': 'new-interviewer@example.com',
+                'full_name': 'New Interviewer',
+                'role': User.Role.INTERVIEWER,
+            },
+            format='json',
+        )
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(create_response.status_code, status.HTTP_403_FORBIDDEN)
+        interviewer_rows = [member for member in list_response.data if member['role'] == User.Role.INTERVIEWER]
+        self.assertEqual(len(interviewer_rows), 1)
+        self.assertEqual(interviewer_rows[0]['user_id'], interviewer.id)
+        self.assertEqual(interviewer_rows[0]['email'], interviewer.email)
+
     def test_hr_head_can_bulk_import_csv_and_receive_row_errors(self):
         self.create_organization()
         csv_file = SimpleUploadedFile(
