@@ -269,10 +269,8 @@ class HRRecruitBusinessFlowAPITests(TestCase):
     @patch('apps.evaluations.views.generate_interview_summary')
     @patch('apps.evaluations.views.transcribe_interview_recording')
     @patch('apps.applications.views.screen_job_application')
-    @patch('apps.applications.views.schedule_resume_screening')
     def test_full_recruitment_business_flow_and_subscription_limit(
         self,
-        schedule_resume_screening,
         screen_job_application,
         transcribe_interview_recording,
         generate_interview_summary,
@@ -322,12 +320,9 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.assertEqual([job_data['id'] for job_data in jobs_response.data], [job.id])
 
         application = self.apply_for_job(applicant_client, job)
-        schedule_resume_screening.assert_called()
-
-        screen_response = recruiter_client.post(reverse('application-screen', args=[application.id]), {}, format='json')
-        self.assertEqual(screen_response.status_code, status.HTTP_200_OK, screen_response.data)
-        self.assertEqual(screen_response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
-        self.assertEqual(screen_response.data['final_score'], '91.00')
+        application.refresh_from_db()
+        self.assertEqual(application.status, JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(application.final_score, Decimal('91.00'))
 
         ranked_response = recruiter_client.get(reverse('job-ranked-candidates', args=[job.id]))
         self.assertEqual(ranked_response.status_code, status.HTTP_200_OK, ranked_response.data)
@@ -436,7 +431,6 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         )
         self.upload_resume(declining_applicant_client)
         declining_application = self.apply_for_job(declining_applicant_client, job)
-        recruiter_client.post(reverse('application-screen', args=[declining_application.id]), {}, format='json')
         declining_assign_response = recruiter_client.post(
             reverse('application-assign-interviewer', args=[declining_application.id]),
             {'interviewer_id': interviewer.id},

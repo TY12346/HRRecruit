@@ -16,7 +16,7 @@ class ApplicantAuthService {
     required String password,
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'auth/register/',
+      'auth/register-applicant/',
       data: {
         'full_name': fullName,
         'email': email,

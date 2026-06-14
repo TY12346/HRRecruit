@@ -6,6 +6,7 @@ import '../../models/job_posting.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
 import 'job_cards.dart';
+import '../../widgets/app_navigation.dart';
 
 class SavedJobsScreen extends StatefulWidget {
   const SavedJobsScreen({super.key});
@@ -45,9 +46,10 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Saved jobs')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Saved jobs'),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _refresh();
@@ -82,7 +84,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
                   final job = jobs[index];
                   return JobSummaryCard(
                     job: job,
-                    onTap: () => context.go('/jobs/${job.id}'),
+                    onTap: () => context.push('/jobs/${job.id}'),
                     onSaveToggle: () => _unsave(job),
                   );
                 },
@@ -90,6 +92,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
             },
           ),
         ),
+      ),
       ),
     );
   }

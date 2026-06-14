@@ -25,7 +25,7 @@ This report validates the current HRRecruit AI-assisted implementation against `
 | Weighted skill scoring | `ResumeScreeningScoreComponentTests.test_skill_score_uses_requirement_weight_scores_when_available` and application endpoint weighted scoring test |
 | Required `score_explanation` fields | `test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown` and `test_score_explanation_contains_nested_required_sections_for_not_qualified_screening` |
 | Candidate ranking order | `test_recruiter_views_ranked_candidates_for_own_job_only` and `test_ranked_candidates_use_earliest_application_as_equal_score_tie_breaker_and_nulls_last` |
-| `screened_qualified` vs `screened_not_qualified` behavior | Qualified and low-score screening endpoint tests in `backend/apps/applications/tests.py` |
+| `screened_qualified` vs auto-rejected underqualified behavior | Qualified and low-score screening endpoint tests in `backend/apps/applications/tests.py` |
 | No automatic rejection by AI | `test_low_score_marks_application_not_qualified_without_rejecting_it` |
 | Mock transcription | `test_mock_transcription_is_default_and_saves_metadata` |
 | Transcription fallback behavior | Missing API-key and provider-failure transcription fallback tests |
@@ -175,8 +175,8 @@ This report validates the current HRRecruit AI-assisted implementation against `
   - Exact formula `0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score` is covered in `ScoringTests`.
   - Weighted skill scoring is covered at service level and endpoint level.
   - Candidate ranking order is covered, including null scores last and earliest application as equal-score tie breaker.
-  - `screened_qualified` and `screened_not_qualified` behavior is covered through recruiter endpoint tests.
-  - No automatic AI rejection is covered by ensuring low scores become `screened_not_qualified`, not `rejected`, and the stage history says recruiter review remains required.
+  - `screened_qualified` and auto-rejected underqualified behavior is covered through recruiter endpoint tests.
+  - Underqualified AI rejection is covered by ensuring low scores become `rejected`, while qualified applicants remain in recruiter review.
 - **Current limitations**
   - Requirement weights currently influence skill scoring where configured; other score component weighting is fixed by `ALGORITHMS.md`.
   - Candidate ranking is score-first and does not include fairness/bias audit metrics.

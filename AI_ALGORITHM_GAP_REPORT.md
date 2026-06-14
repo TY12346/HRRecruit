@@ -280,7 +280,7 @@ If `sentence-transformers` is installed but the model cannot download or encode,
 - It validates component scores are numeric and between 0 and 100.
 - `backend/apps/ai_services/resume_screening.py` computes component scores and final score.
 - The final score and explanation are stored on `JobApplication`.
-- Application status is set to `screened_qualified` or `screened_not_qualified` based on `SCREENING_THRESHOLD = 60.0`; it does not automatically reject.
+- Application status is set to `screened_qualified` or `rejected` based on `SCREENING_THRESHOLD = 60.0`; underqualified applicants are auto-rejected while qualified applicants remain available for recruiter processing.
 - `score_explanation` uses nested keys (`semantic`, `skills`, `experience`, `education`) rather than the example structure in `ALGORITHMS.md`.
 - The explanation lacks top-level `semantic_score`, `skill_score`, `experience_score`, `education_score`, `final_score`, `matched_skills`, `missing_skills`, `education_match`, `experience_match`, `education_gap`, `experience_gap`, and human-readable `notes`.
 - Skill score ignores `JobRequirement.weight_score`; all required skills are weighted equally.
@@ -291,7 +291,7 @@ If `sentence-transformers` is installed but the model cannot download or encode,
 - All scores must use a 0-100 scale.
 - Skill score should compare candidate extracted skills with job requirements and any requirement weights.
 - Store `final_score` and `score_explanation` JSON including formula, component scores, matched/missing skills, education match details, experience match details, and notes.
-- AI screening status should support recruiter decision-making and must not automatically reject.
+- AI screening should auto-reject underqualified applicants while keeping qualified applicants available for recruiter decision-making.
 
 **Affected files**
 

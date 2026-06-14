@@ -122,7 +122,7 @@ export default function RecruiterAnalyticsPage() {
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2} sx={{ mb: 2 }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>Recruiter analytics</Typography>
-            <Typography color="text.secondary">Track applications, candidate funnel, hiring speed, offers, and recruiter performance.</Typography>
+
           </Box>
           <Button variant="outlined" onClick={handleExportPdf} disabled={isExporting || isLoading}>
             {isExporting ? 'Exporting…' : 'Export PDF'}

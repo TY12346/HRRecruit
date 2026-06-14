@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../controllers/auth_controller.dart';
 import 'api_settings_button.dart';
 import 'auth_form_helpers.dart';
+import '../widgets/app_navigation.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -53,9 +54,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final isLoading = context.watch<AuthController>().isLoading;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Applicant registration')),
-      body: SafeArea(
+    return AppBackScope(
+      fallbackLocation: '/login',
+      child: Scaffold(
+        appBar: appScreenAppBar(
+          context,
+          title: 'Applicant registration',
+          fallbackLocation: '/login',
+        ),
+        body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Center(
@@ -156,7 +163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           : const Text('Register'),
                     ),
                     TextButton(
-                      onPressed: isLoading ? null : () => context.go('/login'),
+                      onPressed: isLoading ? null : () => context.push('/login'),
                       child: const Text('Already have an account? Login'),
                     ),
                     const ApiSettingsButton(),
@@ -166,6 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

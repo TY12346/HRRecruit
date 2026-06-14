@@ -170,7 +170,7 @@ export default function HRAnalyticsPage() {
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
           <Box>
             <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>HR Analytics</Typography>
-            <Typography color="text.secondary">Organization-level hiring metrics, candidate funnel totals, offer outcomes, and team performance.</Typography>
+
           </Box>
           <Button variant="outlined" onClick={handleExportPdf} disabled={isExporting || isLoading}>
             {isExporting ? 'Exporting…' : 'Export PDF'}
