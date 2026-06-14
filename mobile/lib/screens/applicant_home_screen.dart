@@ -45,7 +45,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('Find jobs'),
                 subtitle: const Text('Search and filter open job postings'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/jobs'),
+                onTap: () => context.push('/jobs'),
               ),
             ),
             Card(
@@ -54,7 +54,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('Saved jobs'),
                 subtitle: const Text('Review jobs you saved for later'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/saved-jobs'),
+                onTap: () => context.push('/saved-jobs'),
               ),
             ),
             Card(
@@ -63,7 +63,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('My applications'),
                 subtitle: const Text('Track application status and history'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/applications'),
+                onTap: () => context.push('/applications'),
               ),
             ),
             Card(
@@ -72,7 +72,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('Interview invitations'),
                 subtitle: const Text('Accept or decline interview invitations'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/interview-invitations'),
+                onTap: () => context.push('/interview-invitations'),
               ),
             ),
             Card(
@@ -81,7 +81,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('My interviews'),
                 subtitle: const Text('View upcoming and completed interviews'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/interviews'),
+                onTap: () => context.push('/interviews'),
               ),
             ),
             Card(
@@ -90,7 +90,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('Job offers'),
                 subtitle: const Text('Review and respond to job offers'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/job-offers'),
+                onTap: () => context.push('/job-offers'),
               ),
             ),
             Card(
@@ -99,7 +99,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('Notifications'),
                 subtitle: const Text('Read application, interview, and offer updates'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/notifications'),
+                onTap: () => context.push('/notifications'),
               ),
             ),
             Card(
@@ -108,7 +108,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                 title: const Text('Profile'),
                 subtitle: const Text('View and edit your applicant information'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/profile'),
+                onTap: () => context.push('/profile'),
               ),
             ),
             Card(
@@ -121,7 +121,7 @@ class ApplicantHomeScreen extends StatelessWidget {
                       : 'Resume on file. Tap to replace it.',
                 ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/resume'),
+                onTap: () => context.push('/resume'),
               ),
             ),
           ],

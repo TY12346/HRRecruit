@@ -1,7 +1,7 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom';
 import PortalLayout from '../layouts/PortalLayout.jsx';
 import LoginPage from '../pages/auth/LoginPage.jsx';
-import RegisterApplicantPage from '../pages/auth/RegisterApplicantPage.jsx';
+import RegisterHRHeadPage from '../pages/auth/RegisterHRHeadPage.jsx';
 import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.jsx';
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
 import CandidateProfilePage from '../pages/recruiter/CandidateProfilePage.jsx';
@@ -50,7 +50,8 @@ export const router = createBrowserRouter([
         element: <GuestOnlyRoute />,
         children: [
           { path: 'login', element: <LoginPage /> },
-          { path: 'register-applicant', element: <RegisterApplicantPage /> },
+          { path: 'register', element: <RegisterHRHeadPage /> },
+          { path: 'register-applicant', element: <Navigate to="/register" replace /> },
         ],
       },
       {

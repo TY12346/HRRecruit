@@ -13,6 +13,25 @@ export const titleize = (value) => {
   return String(value).replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
+const EMPTY_EXTRACTION_VALUE = '—';
+
+export const formatExtractedValue = (value) => {
+  if (value === null || value === undefined || value === '') return EMPTY_EXTRACTION_VALUE;
+  if (Array.isArray(value)) {
+    const items = value.map(formatExtractedValue).filter((item) => item !== EMPTY_EXTRACTION_VALUE);
+    return items.length ? items.join(', ') : EMPTY_EXTRACTION_VALUE;
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value)
+      .map(([key, nestedValue]) => [key, formatExtractedValue(nestedValue)])
+      .filter(([, formattedValue]) => formattedValue !== EMPTY_EXTRACTION_VALUE);
+    return entries.length
+      ? entries.map(([key, formattedValue]) => `${titleize(key)}: ${formattedValue}`).join('; ')
+      : EMPTY_EXTRACTION_VALUE;
+  }
+  return String(value);
+};
+
 export const getApiErrorMessage = (error, fallback = 'Something went wrong.') => {
   const data = error?.response?.data;
   if (!data) return error?.message ?? fallback;

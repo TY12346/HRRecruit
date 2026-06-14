@@ -6,6 +6,7 @@ import '../../models/job_posting.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
 import 'job_cards.dart';
+import '../../widgets/app_navigation.dart';
 
 class JobDetailScreen extends StatefulWidget {
   const JobDetailScreen({super.key, required this.jobId});
@@ -63,7 +64,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Application submitted successfully.')),
       );
-      context.go('/applications/${application.id}');
+      context.push('/applications/${application.id}');
     } catch (error) {
       if (!mounted) return;
       showErrorSnackBar(context, error);
@@ -74,9 +75,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Job details')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Job details'),
+        body: SafeArea(
         child: FutureBuilder<JobPosting>(
           future: _jobFuture,
           builder: (context, snapshot) {
@@ -152,6 +154,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             );
           },
         ),
+      ),
       ),
     );
   }

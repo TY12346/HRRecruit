@@ -6,6 +6,7 @@ import '../../models/job_posting.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
 import 'job_cards.dart';
+import '../../widgets/app_navigation.dart';
 
 class JobSearchScreen extends StatefulWidget {
   const JobSearchScreen({super.key});
@@ -72,9 +73,10 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Find jobs')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'Find jobs'),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _search();
@@ -157,7 +159,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
                         .map(
                           (job) => JobSummaryCard(
                             job: job,
-                            onTap: () => context.go('/jobs/${job.id}'),
+                            onTap: () => context.push('/jobs/${job.id}'),
                             onSaveToggle: () => _toggleSaved(job),
                           ),
                         )
@@ -168,6 +170,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

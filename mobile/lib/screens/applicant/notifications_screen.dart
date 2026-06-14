@@ -6,6 +6,7 @@ import '../../services/applicant_workflow_service.dart';
 import '../auth_form_helpers.dart';
 import 'applicant_workflow_widgets.dart';
 import 'job_cards.dart';
+import '../../widgets/app_navigation.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -69,17 +70,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        actions: [
-          TextButton(
-            onPressed: _isMarkingAll ? null : _markAllRead,
-            child: Text(_isMarkingAll ? 'Marking...' : 'Read all'),
-          ),
-        ],
-      ),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(
+          context,
+          title: 'Notifications',
+          actions: [
+            TextButton(
+              onPressed: _isMarkingAll ? null : _markAllRead,
+              child: Text(_isMarkingAll ? 'Marking...' : 'Read all'),
+            ),
+          ],
+        ),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _refresh();
@@ -136,6 +139,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             },
           ),
         ),
+      ),
       ),
     );
   }

@@ -56,11 +56,12 @@ class OrganizationMemberSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     full_name = serializers.CharField(source='user.full_name')
     phone_number = serializers.CharField(source='user.phone_number', required=False, allow_blank=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     is_active = serializers.BooleanField(source='user.is_active', read_only=True)
 
     class Meta:
         model = OrganizationMembership
-        fields = ['id', 'email', 'full_name', 'phone_number', 'role', 'status', 'is_active', 'joined_at']
+        fields = ['id', 'user_id', 'email', 'full_name', 'phone_number', 'role', 'status', 'is_active', 'joined_at']
         read_only_fields = ['id', 'status', 'is_active', 'joined_at']
 
     def validate_role(self, value):

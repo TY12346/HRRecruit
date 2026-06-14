@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/applicant_interview.dart';
 import '../../services/applicant_workflow_service.dart';
 import 'applicant_workflow_widgets.dart';
+import '../../widgets/app_navigation.dart';
 
 class MyInterviewsScreen extends StatefulWidget {
   const MyInterviewsScreen({super.key});
@@ -33,9 +34,10 @@ class _MyInterviewsScreenState extends State<MyInterviewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My interviews')),
-      body: SafeArea(
+    return AppBackScope(
+      child: Scaffold(
+        appBar: appScreenAppBar(context, title: 'My interviews'),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _refresh();
@@ -80,6 +82,7 @@ class _MyInterviewsScreenState extends State<MyInterviewsScreen> {
             },
           ),
         ),
+      ),
       ),
     );
   }
