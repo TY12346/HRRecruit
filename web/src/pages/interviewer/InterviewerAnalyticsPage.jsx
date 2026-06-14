@@ -115,7 +115,7 @@ export default function InterviewerAnalyticsPage() {
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2} sx={{ mb: 2 }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>Interviewer Analytics</Typography>
-            <Typography color="text.secondary">Review assigned candidates, interview progress, funnel movement, offer outcomes, and evaluation performance.</Typography>
+
           </Box>
           <Button variant="outlined" onClick={handleExportPdf} disabled={isExporting || isLoading}>
             {isExporting ? 'Exporting…' : 'Export PDF'}

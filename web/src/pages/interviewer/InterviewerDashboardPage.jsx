@@ -29,7 +29,7 @@ export default function InterviewerDashboardPage() {
       <InterviewerNav />
       <Paper sx={{ p: 3 }}>
         <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>Interviewer Dashboard</Typography>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>Review assigned candidates, manage interview invitations, upload recordings, and submit evaluations.</Typography>
+
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? <CircularProgress /> : null}
         <Grid container spacing={2} sx={{ mb: 3 }}>

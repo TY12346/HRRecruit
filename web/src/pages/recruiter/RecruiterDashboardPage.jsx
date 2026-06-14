@@ -41,7 +41,7 @@ export default function RecruiterDashboardPage() {
       <Stack spacing={3}>
         <Box>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>Recruiter Dashboard</Typography>
-          <Typography color="text.secondary">Manage jobs, automatic AI screening results, interviews, hiring decisions, offers, and notifications.</Typography>
+
         </Box>
         {error ? <Alert severity="error">{error}</Alert> : null}
         {isLoading ? <CircularProgress aria-label="Loading recruiter dashboard" /> : null}
