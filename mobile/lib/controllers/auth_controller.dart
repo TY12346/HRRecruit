@@ -81,6 +81,36 @@ class AuthController extends ChangeNotifier {
     });
   }
 
+  Future<void> requestPasswordReset({required String email}) async {
+    await _runAuthAction(() => _authService.requestPasswordReset(email: email));
+  }
+
+  Future<void> confirmPasswordReset({
+    required String email,
+    required String otpCode,
+    required String newPassword,
+  }) async {
+    await _runAuthAction(
+      () => _authService.confirmPasswordReset(
+        email: email,
+        otpCode: otpCode,
+        newPassword: newPassword,
+      ),
+    );
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _runAuthAction(
+      () => _authService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      ),
+    );
+  }
+
   Future<void> refreshProfile() async {
     final profile = await _authService.getProfile();
     _ensureApplicant(profile);

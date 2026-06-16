@@ -115,7 +115,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     def save(self):
         email = self.validated_data['email']
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email__iexact=email).first()
         if not user:
             return
 
@@ -136,7 +136,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        user = User.objects.filter(email=attrs['email']).first()
+        user = User.objects.filter(email__iexact=attrs['email']).first()
         if not user:
             raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
 
@@ -162,6 +162,29 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.save(update_fields=['password'])
         otp.is_used = True
         otp.save(update_fields=['is_used'])
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_new_password(self, value):
+        validate_password(value, self.context['request'].user)
+        return value
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        if not user.check_password(attrs['current_password']):
+            raise serializers.ValidationError({'current_password': 'Current password is incorrect.'})
+        if attrs['current_password'] == attrs['new_password']:
+            raise serializers.ValidationError({'new_password': 'New password must be different from the current password.'})
+        return attrs
+
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return user
 
 
 ALLOWED_RESUME_CONTENT_TYPES = {
