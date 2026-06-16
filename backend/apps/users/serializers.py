@@ -164,6 +164,29 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         otp.save(update_fields=['is_used'])
 
 
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_new_password(self, value):
+        validate_password(value, self.context['request'].user)
+        return value
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        if not user.check_password(attrs['current_password']):
+            raise serializers.ValidationError({'current_password': 'Current password is incorrect.'})
+        if attrs['current_password'] == attrs['new_password']:
+            raise serializers.ValidationError({'new_password': 'New password must be different from the current password.'})
+        return attrs
+
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return user
+
+
 ALLOWED_RESUME_CONTENT_TYPES = {
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

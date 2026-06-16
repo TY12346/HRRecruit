@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 import '../../models/applicant_interview.dart';
 import '../../models/job_offer.dart';
 import '../auth_form_helpers.dart';
+import 'calendar_link_launcher.dart';
 import 'job_cards.dart';
 
 class ApplicantWorkflowMessage extends StatelessWidget {
@@ -127,7 +128,7 @@ class InterviewCard extends StatelessWidget {
                     ),
                   if (interview.calendarLink.isNotEmpty)
                     OutlinedButton.icon(
-                      onPressed: () => launchUrlString(interview.calendarLink),
+                      onPressed: () => openInterviewCalendarLink(context, interview),
                       icon: const Icon(Icons.calendar_month_outlined),
                       label: const Text('Calendar'),
                     ),
