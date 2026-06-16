@@ -182,7 +182,7 @@ class PasswordManagementAPITests(APITestCase):
     def test_password_reset_otp_flow_sets_new_password(self):
         request_response = self.client.post(
             reverse('auth-password-reset-request'),
-            {'email': self.user.email},
+            {'email': self.user.email.upper()},
             format='json',
         )
         self.assertEqual(request_response.status_code, status.HTTP_200_OK)
@@ -191,7 +191,7 @@ class PasswordManagementAPITests(APITestCase):
         confirm_response = self.client.post(
             reverse('auth-password-reset-confirm'),
             {
-                'email': self.user.email,
+                'email': self.user.email.upper(),
                 'otp_code': otp.otp_code,
                 'new_password': 'ResetPass123!',
             },

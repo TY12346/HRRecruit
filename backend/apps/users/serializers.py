@@ -115,7 +115,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     def save(self):
         email = self.validated_data['email']
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email__iexact=email).first()
         if not user:
             return
 
@@ -136,7 +136,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        user = User.objects.filter(email=attrs['email']).first()
+        user = User.objects.filter(email__iexact=attrs['email']).first()
         if not user:
             raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
 

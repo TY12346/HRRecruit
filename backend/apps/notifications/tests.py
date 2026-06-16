@@ -176,11 +176,15 @@ class EmailServiceTests(SimpleTestCase):
         send_job_offer_email(offer)
         send_subscription_reminder_email(user, subscription)
 
+        password_reset_call = mock_send_email.call_args_list[0]
+        self.assertIn('http://localhost:5173/forgot-password?email=user%40example.com&otp=123456', password_reset_call.kwargs['message'])
+        self.assertIn('enter this reset code manually: 123456', password_reset_call.kwargs['message'])
+
         subjects = [call.kwargs['subject'] for call in mock_send_email.call_args_list]
         self.assertEqual(
             subjects,
             [
-                'HRRecruit Password Reset OTP',
+                'HRRecruit Password Reset',
                 'Your HRRecruit team account',
                 'Interview invitation for Backend Engineer',
                 'Job offer for Backend Engineer',
