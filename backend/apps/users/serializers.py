@@ -1,5 +1,6 @@
 import random
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
@@ -115,15 +116,27 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     def save(self):
         email = self.validated_data['email']
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email__iexact=email).first()
         if not user:
-            return
+            return {}
 
         otp_code = f"{random.randint(0, 999999):06d}"
         expires_at = timezone.now() + timezone.timedelta(minutes=10)
         PasswordResetOTP.objects.create(user=user, otp_code=otp_code, expires_at=expires_at)
 
-        send_password_reset_otp_email(user, otp_code)
+        delivery = send_password_reset_otp_email(user, otp_code)
+        result = {'email_delivery': delivery.get('provider', 'unknown')}
+        if _should_return_development_reset_code():
+            result['reset_code'] = otp_code
+        return result
+
+
+def _should_return_development_reset_code():
+    email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+    return bool(
+        getattr(settings, 'DEBUG', False)
+        or email_backend == 'django.core.mail.backends.console.EmailBackend'
+    )
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
@@ -136,7 +149,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        user = User.objects.filter(email=attrs['email']).first()
+        user = User.objects.filter(email__iexact=attrs['email']).first()
         if not user:
             raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
 
@@ -162,6 +175,29 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.save(update_fields=['password'])
         otp.is_used = True
         otp.save(update_fields=['is_used'])
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_new_password(self, value):
+        validate_password(value, self.context['request'].user)
+        return value
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        if not user.check_password(attrs['current_password']):
+            raise serializers.ValidationError({'current_password': 'Current password is incorrect.'})
+        if attrs['current_password'] == attrs['new_password']:
+            raise serializers.ValidationError({'new_password': 'New password must be different from the current password.'})
+        return attrs
+
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return user
 
 
 ALLOWED_RESUME_CONTENT_TYPES = {

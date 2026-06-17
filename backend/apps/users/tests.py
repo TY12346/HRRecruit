@@ -137,3 +137,71 @@ class RegistrationAPITests(APITestCase):
         self.assertTrue(hasattr(mistaken_user, 'applicant_profile'))
         self.assertFalse(hasattr(mistaken_user, 'hr_head_profile'))
         self.assertEqual(response.data['user']['role'], User.Role.APPLICANT)
+
+class PasswordManagementAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='password-user@example.com',
+            password='OldPass123!',
+            full_name='Password User',
+            role=User.Role.APPLICANT,
+        )
+
+    def test_authenticated_user_can_change_password(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse('auth-password-change'),
+            {
+                'current_password': 'OldPass123!',
+                'new_password': 'NewPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('NewPass123!'))
+
+    def test_change_password_requires_correct_current_password(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse('auth-password-change'),
+            {
+                'current_password': 'WrongPass123!',
+                'new_password': 'NewPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('OldPass123!'))
+
+    def test_password_reset_otp_flow_sets_new_password(self):
+        request_response = self.client.post(
+            reverse('auth-password-reset-request'),
+            {'email': self.user.email.upper()},
+            format='json',
+        )
+        self.assertEqual(request_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(request_response.data['email_delivery'], 'console')
+        self.assertRegex(request_response.data['reset_code'], r'^\d{6}$')
+        otp = self.user.password_reset_otps.first()
+
+        confirm_response = self.client.post(
+            reverse('auth-password-reset-confirm'),
+            {
+                'email': self.user.email.upper(),
+                'otp_code': otp.otp_code,
+                'new_password': 'ResetPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        otp.refresh_from_db()
+        self.assertTrue(self.user.check_password('ResetPass123!'))
+        self.assertTrue(otp.is_used)
