@@ -115,8 +115,10 @@ class PasswordResetRequestAPIView(APIView):
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({'message': 'If the email exists, OTP has been sent.'})
+        result = serializer.save() or {}
+        response_data = {'message': 'If the email exists, password reset instructions have been sent.'}
+        response_data.update(result)
+        return Response(response_data)
 
 
 class PasswordResetConfirmAPIView(APIView):

@@ -21,6 +21,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [developmentResetCode, setDevelopmentResetCode] = useState('');
 
   useEffect(() => {
     if (searchParams.get('email') && searchParams.get('otp')) {
@@ -35,7 +36,14 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     try {
       const data = await requestPasswordReset({ email });
-      setSuccess(data.message ?? 'If the email exists, reset instructions were sent.');
+      if (data.reset_code) {
+        setDevelopmentResetCode(data.reset_code);
+        setOtpCode(data.reset_code);
+        setSuccess(`${data.message ?? 'If the email exists, reset instructions were sent.'} Development reset code: ${data.reset_code}`);
+      } else {
+        setDevelopmentResetCode('');
+        setSuccess(data.message ?? 'If the email exists, reset instructions were sent.');
+      }
       setStep('confirm');
     } catch (requestError) {
       setError(getErrorMessage(requestError));
@@ -76,6 +84,11 @@ export default function ForgotPasswordPage() {
       </Typography>
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
+      {developmentResetCode ? (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Development mode detected. The reset code has been prefilled from the API response because emails may be printed to the backend console instead of delivered to an inbox.
+        </Alert>
+      ) : null}
 
       {step === 'request' ? (
         <Box component="form" onSubmit={submitRequest}>

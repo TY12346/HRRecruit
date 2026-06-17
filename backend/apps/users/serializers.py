@@ -1,5 +1,6 @@
 import random
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
@@ -117,13 +118,25 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         email = self.validated_data['email']
         user = User.objects.filter(email__iexact=email).first()
         if not user:
-            return
+            return {}
 
         otp_code = f"{random.randint(0, 999999):06d}"
         expires_at = timezone.now() + timezone.timedelta(minutes=10)
         PasswordResetOTP.objects.create(user=user, otp_code=otp_code, expires_at=expires_at)
 
-        send_password_reset_otp_email(user, otp_code)
+        delivery = send_password_reset_otp_email(user, otp_code)
+        result = {'email_delivery': delivery.get('provider', 'unknown')}
+        if _should_return_development_reset_code():
+            result['reset_code'] = otp_code
+        return result
+
+
+def _should_return_development_reset_code():
+    email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+    return bool(
+        getattr(settings, 'DEBUG', False)
+        or email_backend == 'django.core.mail.backends.console.EmailBackend'
+    )
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):

@@ -20,6 +20,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _codeRequested = false;
+  String? _developmentResetCode;
 
   @override
   void dispose() {
@@ -33,11 +34,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _requestReset() async {
     if (!_requestFormKey.currentState!.validate()) return;
     try {
-      await context.read<AuthController>().requestPasswordReset(email: _emailController.text.trim());
+      final resetCode = await context.read<AuthController>().requestPasswordReset(email: _emailController.text.trim());
       if (!mounted) return;
-      setState(() => _codeRequested = true);
+      setState(() {
+        _codeRequested = true;
+        _developmentResetCode = resetCode;
+        if (resetCode != null && resetCode.isNotEmpty) {
+          _otpController.text = resetCode;
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('If the email exists, a reset code has been sent.')),
+        SnackBar(
+          content: Text(
+            resetCode == null || resetCode.isEmpty
+                ? 'If the email exists, a reset code has been sent.'
+                : 'Development reset code received and prefilled.',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -116,6 +129,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
               if (_codeRequested) ...[
+                if (_developmentResetCode != null && _developmentResetCode!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        'Development mode: reset code $_developmentResetCode has been prefilled because emails may be printed in the backend console instead of delivered to an inbox.',
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 Form(
                   key: _confirmFormKey,
@@ -158,7 +182,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         child: Text(isLoading ? 'Resetting...' : 'Reset password'),
                       ),
                       TextButton(
-                        onPressed: isLoading ? null : () => setState(() => _codeRequested = false),
+                        onPressed: isLoading ? null : () => setState(() { _codeRequested = false; _developmentResetCode = null; }),
                         child: const Text('Use a different email'),
                       ),
                     ],

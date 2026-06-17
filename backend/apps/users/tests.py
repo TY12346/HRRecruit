@@ -186,6 +186,8 @@ class PasswordManagementAPITests(APITestCase):
             format='json',
         )
         self.assertEqual(request_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(request_response.data['email_delivery'], 'console')
+        self.assertRegex(request_response.data['reset_code'], r'^\d{6}$')
         otp = self.user.password_reset_otps.first()
 
         confirm_response = self.client.post(
