@@ -86,13 +86,17 @@ def send_email(subject, message, recipient_list):
         return _send_via_console(subject, message, recipients)
 
 
-def send_password_reset_otp_email(user, otp_code, client_app='mobile'):
+def build_password_reset_link(user, otp_code, client_app='mobile'):
     if client_app == 'web':
         reset_base_url = getattr(settings, 'FRONTEND_PASSWORD_RESET_URL', '') or 'http://localhost:5173/reset-password'
     else:
         reset_base_url = getattr(settings, 'MOBILE_PASSWORD_RESET_URL', '') or 'http://localhost:5173/forgot-password'
     query_param = 'token' if client_app == 'web' else 'otp'
-    reset_link = f'{reset_base_url}?{urlencode({"email": user.email, query_param: otp_code})}'
+    return f'{reset_base_url}?{urlencode({"email": user.email, query_param: otp_code})}'
+
+
+def send_password_reset_otp_email(user, otp_code, client_app='mobile'):
+    reset_link = build_password_reset_link(user, otp_code, client_app)
 
     if client_app == 'web':
         message = (

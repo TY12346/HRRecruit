@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.notifications.email_service import send_password_reset_otp_email
+from apps.notifications.email_service import build_password_reset_link, send_password_reset_otp_email
 
 from .models import ApplicantProfile, PasswordResetOTP, User, create_profile_for_user
 
@@ -131,8 +131,12 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
         delivery = send_password_reset_otp_email(user, otp_code, self.validated_data['client_app'])
         result = {'email_delivery': delivery.get('provider', 'unknown')}
-        if self.validated_data['client_app'] == self.CLIENT_MOBILE and _should_return_development_reset_code():
-            result['reset_code'] = otp_code
+        if _should_return_development_reset_code():
+            if self.validated_data['client_app'] == self.CLIENT_MOBILE:
+                result['reset_code'] = otp_code
+            elif self.validated_data['client_app'] == self.CLIENT_WEB:
+                result['reset_link'] = build_password_reset_link(user, otp_code, self.CLIENT_WEB)
+                result['email_delivery_note'] = 'Development email mode detected. The email was printed to the backend console instead of being delivered to an inbox.'
         return result
 
 

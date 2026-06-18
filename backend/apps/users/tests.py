@@ -244,6 +244,8 @@ class PasswordManagementAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotIn('reset_code', response.data)
+        self.assertIn('/reset-password?', response.data['reset_link'])
+        self.assertIn('token=', response.data['reset_link'])
         self.assertTrue(self.staff_user.password_reset_otps.exists())
 
     def test_web_password_reset_confirm_accepts_reset_token_from_email_link(self):
