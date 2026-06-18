@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
-import { getProfile, updateProfile } from '../../api/client.js';
+import { changePassword, getProfile, updateProfile } from '../../api/client.js';
 import { useAuthStore } from '../../store/authStore.js';
 
 function buildProfileForm(user) {
@@ -31,6 +31,9 @@ export default function ProfilePage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -67,6 +70,10 @@ export default function ProfilePage() {
     setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
 
+  const handlePasswordChange = (event) => {
+    setPasswordData((current) => ({ ...current, [event.target.name]: event.target.value }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
@@ -82,6 +89,26 @@ export default function ProfilePage() {
       setError(collectProfileErrors(submitError));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setPasswordMessage('');
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('New password and confirmation do not match.');
+      return;
+    }
+    setIsPasswordSubmitting(true);
+    try {
+      const data = await changePassword(passwordData);
+      setPasswordMessage(data.message ?? 'Password changed successfully.');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (passwordError) {
+      setError(collectProfileErrors(passwordError));
+    } finally {
+      setIsPasswordSubmitting(false);
     }
   };
 
@@ -152,6 +179,21 @@ export default function ProfilePage() {
           ) : null}
           <Button disabled={isLoading || isSubmitting} type="submit" variant="contained">
             {isSubmitting ? 'Saving…' : 'Save profile'}
+          </Button>
+        </Stack>
+      </Box>
+
+      <Box component="form" onSubmit={handlePasswordSubmit} sx={{ mt: 4 }}>
+        <Stack spacing={2}>
+          <Typography component="h3" variant="h6">
+            Change password
+          </Typography>
+          {passwordMessage ? <Alert severity="success">{passwordMessage}</Alert> : null}
+          <TextField autoComplete="current-password" label="Current password" name="currentPassword" onChange={handlePasswordChange} required type="password" value={passwordData.currentPassword} />
+          <TextField autoComplete="new-password" label="New password" name="newPassword" onChange={handlePasswordChange} required type="password" value={passwordData.newPassword} />
+          <TextField autoComplete="new-password" label="Confirm new password" name="confirmPassword" onChange={handlePasswordChange} required type="password" value={passwordData.confirmPassword} />
+          <Button disabled={isPasswordSubmitting} type="submit" variant="outlined">
+            {isPasswordSubmitting ? 'Changing…' : 'Change password'}
           </Button>
         </Stack>
       </Box>
