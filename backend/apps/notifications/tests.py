@@ -102,12 +102,12 @@ class EmailServiceTests(SimpleTestCase):
         DEFAULT_FROM_EMAIL='no-reply@hrrecruit.local',
     )
     @patch('apps.notifications.email_service.send_mail')
-    def test_send_email_falls_back_to_console_when_sendgrid_from_email_missing(self, mock_send_mail):
+    def test_send_email_falls_back_to_django_backend_when_sendgrid_from_email_missing(self, mock_send_mail):
         mock_send_mail.return_value = 1
 
         result = send_email('Subject', 'Message', ['recipient@example.com'])
 
-        self.assertEqual(result['provider'], 'console')
+        self.assertEqual(result['provider'], 'locmem')
         mock_send_mail.assert_called_once_with(
             subject='Subject',
             message='Message',
@@ -115,6 +115,21 @@ class EmailServiceTests(SimpleTestCase):
             recipient_list=['recipient@example.com'],
             fail_silently=False,
         )
+
+    @override_settings(
+        EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
+        SENDGRID_API_KEY='',
+        SENDGRID_FROM_EMAIL='',
+        DEFAULT_FROM_EMAIL='sender@example.com',
+    )
+    @patch('apps.notifications.email_service.send_mail')
+    def test_send_email_reports_smtp_provider_when_smtp_backend_is_configured(self, mock_send_mail):
+        mock_send_mail.return_value = 1
+
+        result = send_email('Subject', 'Message', ['recipient@example.com'])
+
+        self.assertEqual(result['provider'], 'smtp')
+        self.assertEqual(result['sent_count'], 1)
 
     @override_settings(
         SENDGRID_API_KEY='SG.test-key',

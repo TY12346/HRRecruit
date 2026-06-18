@@ -133,7 +133,7 @@ EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'false').lower() in ('1', 'true', 'ye
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@hrrecruit.local')
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
 SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', DEFAULT_FROM_EMAIL)
-FRONTEND_PASSWORD_RESET_URL = os.getenv('FRONTEND_PASSWORD_RESET_URL', 'http://localhost:5173/forgot-password')
+FRONTEND_PASSWORD_RESET_URL = os.getenv('FRONTEND_PASSWORD_RESET_URL', 'http://localhost:5173/reset-password')
 
 
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')

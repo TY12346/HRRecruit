@@ -7,7 +7,11 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.notifications.email_service import build_password_reset_link, send_password_reset_otp_email
+from apps.notifications.email_service import (
+    build_password_reset_link,
+    is_development_email_backend,
+    send_password_reset_otp_email,
+)
 
 from .models import ApplicantProfile, PasswordResetOTP, User, create_profile_for_user
 
@@ -136,7 +140,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
                 result['reset_code'] = otp_code
             elif self.validated_data['client_app'] == self.CLIENT_WEB:
                 result['reset_link'] = build_password_reset_link(user, otp_code, self.CLIENT_WEB)
-                result['email_delivery_note'] = 'Development email mode detected. The email was printed to the backend console instead of being delivered to an inbox.'
+                result['email_delivery_note'] = 'Development email mode detected. Configure SMTP or SendGrid in backend/.env to deliver this email to an inbox; for now, the reset email was printed to the backend console.'
         return result
 
 
@@ -149,11 +153,7 @@ def _user_can_reset_from_client(user, client_app):
 
 
 def _should_return_development_reset_code():
-    email_backend = getattr(settings, 'EMAIL_BACKEND', '')
-    return bool(
-        getattr(settings, 'DEBUG', False)
-        or email_backend == 'django.core.mail.backends.console.EmailBackend'
-    )
+    return is_development_email_backend()
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):

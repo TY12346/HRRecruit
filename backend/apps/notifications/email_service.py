@@ -1,8 +1,8 @@
 """Email delivery helpers for HRRecruit notifications.
 
 SendGrid is optional for FYP development. When SendGrid credentials are not
-configured, the service falls back to Django's configured email backend, which is
-console email by default in local development.
+configured, the service falls back to Django's configured email backend.
+The default local backend prints emails to the console instead of delivering them.
 """
 
 import json
@@ -34,7 +34,34 @@ def _sendgrid_configured():
     return bool(_sendgrid_api_key() and getattr(settings, 'SENDGRID_FROM_EMAIL', ''))
 
 
-def _send_via_console(subject, message, recipient_list):
+DEVELOPMENT_EMAIL_BACKENDS = {
+    'django.core.mail.backends.console.EmailBackend',
+    'django.core.mail.backends.locmem.EmailBackend',
+    'django.core.mail.backends.filebased.EmailBackend',
+    'django.core.mail.backends.dummy.EmailBackend',
+}
+
+
+def is_development_email_backend():
+    return getattr(settings, 'EMAIL_BACKEND', '') in DEVELOPMENT_EMAIL_BACKENDS
+
+
+def _django_email_provider():
+    email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+    if email_backend == 'django.core.mail.backends.smtp.EmailBackend':
+        return 'smtp'
+    if email_backend == 'django.core.mail.backends.console.EmailBackend':
+        return 'console'
+    if email_backend == 'django.core.mail.backends.locmem.EmailBackend':
+        return 'locmem'
+    if email_backend == 'django.core.mail.backends.filebased.EmailBackend':
+        return 'file'
+    if email_backend == 'django.core.mail.backends.dummy.EmailBackend':
+        return 'dummy'
+    return 'django'
+
+
+def _send_via_django_email_backend(subject, message, recipient_list):
     sent_count = send_mail(
         subject=subject,
         message=message,
@@ -42,7 +69,7 @@ def _send_via_console(subject, message, recipient_list):
         recipient_list=recipient_list,
         fail_silently=False,
     )
-    return {'provider': 'console', 'sent_count': sent_count}
+    return {'provider': _django_email_provider(), 'sent_count': sent_count}
 
 
 def _send_via_sendgrid(subject, message, recipient_list):
@@ -70,20 +97,20 @@ def send_email(subject, message, recipient_list):
     """Send a plain-text email through SendGrid or the console fallback.
 
     Tests mock the SendGrid transport and this function never requires SendGrid
-    settings for local development. Provider errors also fall back to the console
-    backend so application flows can continue without external email delivery.
+    settings for local development. Provider errors also fall back to Django's
+    configured email backend so application flows can continue.
     """
     recipients = [email for email in recipient_list if email]
     if not recipients:
         return {'provider': 'none', 'sent_count': 0}
 
     if not _sendgrid_configured():
-        return _send_via_console(subject, message, recipients)
+        return _send_via_django_email_backend(subject, message, recipients)
 
     try:
         return _send_via_sendgrid(subject, message, recipients)
     except (HTTPError, URLError, TimeoutError, OSError):
-        return _send_via_console(subject, message, recipients)
+        return _send_via_django_email_backend(subject, message, recipients)
 
 
 def build_password_reset_link(user, otp_code, client_app='mobile'):

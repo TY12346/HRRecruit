@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
       {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
       {developmentResetLink ? (
         <Alert severity="info" sx={{ mb: 2 }}>
-          {emailDeliveryNote || 'Development email mode detected. Use this reset link to continue.'}{' '}
+          {emailDeliveryNote || 'Development email mode detected. Configure SMTP or SendGrid to deliver reset emails to an inbox; use this reset link to continue locally.'}{' '}
           <MuiLink href={developmentResetLink}>
             Open reset password page
           </MuiLink>
