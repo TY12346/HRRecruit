@@ -112,12 +112,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
+    CLIENT_WEB = 'web'
+    CLIENT_MOBILE = 'mobile'
+    STAFF_ROLES = {User.Role.HR_HEAD, User.Role.RECRUITER, User.Role.INTERVIEWER}
+
     email = serializers.EmailField()
+    client_app = serializers.ChoiceField(choices=(CLIENT_WEB, CLIENT_MOBILE))
 
     def save(self):
         email = self.validated_data['email']
         user = User.objects.filter(email__iexact=email).first()
-        if not user:
+        if not user or not _user_can_reset_from_client(user, self.validated_data['client_app']):
             return {}
 
         otp_code = f"{random.randint(0, 999999):06d}"
@@ -131,6 +136,14 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         return result
 
 
+def _user_can_reset_from_client(user, client_app):
+    if client_app == PasswordResetRequestSerializer.CLIENT_MOBILE:
+        return user.role == User.Role.APPLICANT
+    if client_app == PasswordResetRequestSerializer.CLIENT_WEB:
+        return user.role in PasswordResetRequestSerializer.STAFF_ROLES
+    return False
+
+
 def _should_return_development_reset_code():
     email_backend = getattr(settings, 'EMAIL_BACKEND', '')
     return bool(
@@ -141,6 +154,9 @@ def _should_return_development_reset_code():
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     email = serializers.EmailField()
+    client_app = serializers.ChoiceField(
+        choices=(PasswordResetRequestSerializer.CLIENT_WEB, PasswordResetRequestSerializer.CLIENT_MOBILE)
+    )
     otp_code = serializers.CharField(max_length=6, min_length=6)
     new_password = serializers.CharField(write_only=True, min_length=8)
 
@@ -150,7 +166,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         user = User.objects.filter(email__iexact=attrs['email']).first()
-        if not user:
+        if not user or not _user_can_reset_from_client(user, attrs['client_app']):
             raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
 
         otp = PasswordResetOTP.objects.filter(

@@ -46,13 +46,14 @@ export const updateProfile = async (profile) => {
 };
 
 export const requestPasswordReset = async ({ email }) => {
-  const response = await apiClient.post('/auth/password-reset/request/', { email });
+  const response = await apiClient.post('/auth/password-reset/request/', { email, client_app: 'web' });
   return response.data;
 };
 
 export const confirmPasswordReset = async ({ email, otpCode, newPassword }) => {
   const response = await apiClient.post('/auth/password-reset/confirm/', {
     email,
+    client_app: 'web',
     otp_code: otpCode,
     new_password: newPassword,
   });
