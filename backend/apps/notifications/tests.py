@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.notifications.email_service import (
+    build_password_reset_link,
     send_email,
     send_interview_invitation_email,
     send_job_offer_email,
@@ -102,18 +103,44 @@ class EmailServiceTests(SimpleTestCase):
         DEFAULT_FROM_EMAIL='no-reply@hrrecruit.local',
     )
     @patch('apps.notifications.email_service.send_mail')
-    def test_send_email_falls_back_to_console_when_sendgrid_from_email_missing(self, mock_send_mail):
+    def test_send_email_falls_back_to_django_backend_when_sendgrid_from_email_missing(self, mock_send_mail):
         mock_send_mail.return_value = 1
 
         result = send_email('Subject', 'Message', ['recipient@example.com'])
 
-        self.assertEqual(result['provider'], 'console')
+        self.assertEqual(result['provider'], 'locmem')
         mock_send_mail.assert_called_once_with(
             subject='Subject',
             message='Message',
             from_email='no-reply@hrrecruit.local',
             recipient_list=['recipient@example.com'],
             fail_silently=False,
+        )
+
+    @override_settings(
+        EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
+        SENDGRID_API_KEY='',
+        SENDGRID_FROM_EMAIL='',
+        DEFAULT_FROM_EMAIL='sender@example.com',
+    )
+    @patch('apps.notifications.email_service.send_mail')
+    def test_send_email_reports_smtp_provider_when_smtp_backend_is_configured(self, mock_send_mail):
+        mock_send_mail.return_value = 1
+
+        result = send_email('Subject', 'Message', ['recipient@example.com'])
+
+        self.assertEqual(result['provider'], 'smtp')
+        self.assertEqual(result['sent_count'], 1)
+
+    @override_settings(FRONTEND_PASSWORD_RESET_URL='http://localhost:5173/forgot-password')
+    def test_web_password_reset_link_uses_reset_password_page_even_with_old_env_value(self):
+        user = SimpleNamespace(email='user@example.com')
+
+        reset_link = build_password_reset_link(user, '123456', client_app='web')
+
+        self.assertEqual(
+            reset_link,
+            'http://localhost:5173/reset-password?email=user%40example.com&token=123456',
         )
 
     @override_settings(
@@ -170,17 +197,21 @@ class EmailServiceTests(SimpleTestCase):
             end_date='2026-06-30',
         )
 
-        send_password_reset_otp_email(user, '123456')
+        send_password_reset_otp_email(user, '123456', client_app='web')
         send_team_account_created_email(user, 'TempPass123!')
         send_interview_invitation_email(invitation)
         send_job_offer_email(offer)
         send_subscription_reminder_email(user, subscription)
 
+        password_reset_call = mock_send_email.call_args_list[0]
+        self.assertIn('http://localhost:5173/reset-password?email=user%40example.com&token=123456', password_reset_call.kwargs['message'])
+        self.assertNotIn('enter this reset code manually', password_reset_call.kwargs['message'])
+
         subjects = [call.kwargs['subject'] for call in mock_send_email.call_args_list]
         self.assertEqual(
             subjects,
             [
-                'HRRecruit Password Reset OTP',
+                'HRRecruit Password Reset',
                 'Your HRRecruit team account',
                 'Interview invitation for Backend Engineer',
                 'Job offer for Backend Engineer',

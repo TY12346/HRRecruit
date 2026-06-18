@@ -43,6 +43,43 @@ class ApplicantAuthService {
     return AuthResult.fromJson(response.data!);
   }
 
+  Future<String?> requestPasswordReset({required String email}) async {
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      'auth/password-reset/request/',
+      data: {'email': email, 'client_app': 'mobile'},
+    );
+    return response.data?['reset_code'] as String?;
+  }
+
+  Future<void> confirmPasswordReset({
+    required String email,
+    required String otpCode,
+    required String newPassword,
+  }) async {
+    await _apiClient.dio.post<Map<String, dynamic>>(
+      'auth/password-reset/confirm/',
+      data: {
+        'email': email,
+        'client_app': 'mobile',
+        'otp_code': otpCode,
+        'new_password': newPassword,
+      },
+    );
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _apiClient.dio.post<Map<String, dynamic>>(
+      'auth/password/change/',
+      data: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      },
+    );
+  }
+
   Future<void> logout({required String refreshToken}) async {
     await _apiClient.dio.post<Map<String, dynamic>>(
       'auth/logout/',

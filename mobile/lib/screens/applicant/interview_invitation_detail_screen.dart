@@ -6,6 +6,7 @@ import '../../models/applicant_interview.dart';
 import '../../services/applicant_workflow_service.dart';
 import '../auth_form_helpers.dart';
 import 'applicant_workflow_widgets.dart';
+import 'calendar_link_launcher.dart';
 import 'job_cards.dart';
 import '../../widgets/app_navigation.dart';
 
@@ -172,7 +173,7 @@ class _InterviewInvitationDetailScreenState extends State<InterviewInvitationDet
                   ),
                 if (invitation.calendarLink.isNotEmpty)
                   OutlinedButton.icon(
-                    onPressed: () => launchUrlString(invitation.calendarLink),
+                    onPressed: () => openInvitationCalendarLink(context, invitation),
                     icon: const Icon(Icons.calendar_month_outlined),
                     label: const Text('Open calendar link'),
                   ),
