@@ -7,7 +7,7 @@ The default local backend prints emails to the console instead of delivering the
 
 import json
 from urllib import request as urlrequest
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit
 from urllib.error import HTTPError, URLError
 
 from django.conf import settings
@@ -113,6 +113,15 @@ def send_email(subject, message, recipient_list):
         return _send_via_django_email_backend(subject, message, recipients)
 
 
+def _web_password_reset_base_url():
+    reset_base_url = getattr(settings, 'FRONTEND_PASSWORD_RESET_URL', '') or 'http://localhost:5173/reset-password'
+    parsed_url = urlsplit(reset_base_url)
+    normalized_path = parsed_url.path.rstrip('/')
+    if normalized_path.endswith('/forgot-password'):
+        reset_path = f'{normalized_path.removesuffix("/forgot-password")}/reset-password'
+        return urlunsplit((parsed_url.scheme, parsed_url.netloc, reset_path, '', ''))
+    return reset_base_url
+
 def build_password_reset_link(user, otp_code, client_app='mobile'):
     if client_app == 'web':
         reset_base_url = getattr(settings, 'FRONTEND_PASSWORD_RESET_URL', '') or 'http://localhost:5173/reset-password'
@@ -120,6 +129,35 @@ def build_password_reset_link(user, otp_code, client_app='mobile'):
         reset_base_url = getattr(settings, 'MOBILE_PASSWORD_RESET_URL', '') or 'http://localhost:5173/forgot-password'
     query_param = 'token' if client_app == 'web' else 'otp'
     return f'{reset_base_url}?{urlencode({"email": user.email, query_param: otp_code})}'
+
+
+def send_password_reset_otp_email(user, otp_code, client_app='mobile'):
+    reset_link = build_password_reset_link(user, otp_code, client_app)
+
+    if client_app == 'web':
+        message = (
+            f'Hello {user.full_name},\n\n'
+            'Use the secure link below to reset your HRRecruit password:\n'
+            f'{reset_link}\n\n'
+            'This reset link expires in 10 minutes. If you did not request a password reset, you can ignore this email.'
+        )
+    else:
+        message = (
+            f'Hello {user.full_name},\n\n'
+            'Use the link below to reset your HRRecruit password:\n'
+            f'{reset_link}\n\n'
+            f'If the link does not open the app, enter this reset code manually: {otp_code}.\n'
+            'This reset code expires in 10 minutes.'
+        )
+
+def build_password_reset_link(user, otp_code, client_app='mobile'):
+    if client_app == 'web':
+        reset_base_url = _web_password_reset_base_url()
+    else:
+        reset_base_url = getattr(settings, 'MOBILE_PASSWORD_RESET_URL', '') or 'http://localhost:5173/forgot-password'
+    query_param = 'token' if client_app == 'web' else 'otp'
+    separator = '&' if '?' in reset_base_url else '?'
+    return f'{reset_base_url}{separator}{urlencode({"email": user.email, query_param: otp_code})}'
 
 
 def send_password_reset_otp_email(user, otp_code, client_app='mobile'):

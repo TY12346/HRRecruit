@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.notifications.email_service import (
+    build_password_reset_link,
     send_email,
     send_interview_invitation_email,
     send_job_offer_email,
@@ -130,6 +131,17 @@ class EmailServiceTests(SimpleTestCase):
 
         self.assertEqual(result['provider'], 'smtp')
         self.assertEqual(result['sent_count'], 1)
+
+    @override_settings(FRONTEND_PASSWORD_RESET_URL='http://localhost:5173/forgot-password')
+    def test_web_password_reset_link_uses_reset_password_page_even_with_old_env_value(self):
+        user = SimpleNamespace(email='user@example.com')
+
+        reset_link = build_password_reset_link(user, '123456', client_app='web')
+
+        self.assertEqual(
+            reset_link,
+            'http://localhost:5173/reset-password?email=user%40example.com&token=123456',
+        )
 
     @override_settings(
         SENDGRID_API_KEY='SG.test-key',
