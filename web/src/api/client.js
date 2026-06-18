@@ -50,11 +50,11 @@ export const requestPasswordReset = async ({ email }) => {
   return response.data;
 };
 
-export const confirmPasswordReset = async ({ email, otpCode, newPassword }) => {
+export const confirmPasswordReset = async ({ email, resetToken, newPassword }) => {
   const response = await apiClient.post('/auth/password-reset/confirm/', {
     email,
     client_app: 'web',
-    otp_code: otpCode,
+    reset_token: resetToken,
     new_password: newPassword,
   });
   return response.data;

@@ -129,9 +129,9 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         expires_at = timezone.now() + timezone.timedelta(minutes=10)
         PasswordResetOTP.objects.create(user=user, otp_code=otp_code, expires_at=expires_at)
 
-        delivery = send_password_reset_otp_email(user, otp_code)
+        delivery = send_password_reset_otp_email(user, otp_code, self.validated_data['client_app'])
         result = {'email_delivery': delivery.get('provider', 'unknown')}
-        if _should_return_development_reset_code():
+        if self.validated_data['client_app'] == self.CLIENT_MOBILE and _should_return_development_reset_code():
             result['reset_code'] = otp_code
         return result
 
@@ -157,7 +157,8 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     client_app = serializers.ChoiceField(
         choices=(PasswordResetRequestSerializer.CLIENT_WEB, PasswordResetRequestSerializer.CLIENT_MOBILE)
     )
-    otp_code = serializers.CharField(max_length=6, min_length=6)
+    otp_code = serializers.CharField(max_length=6, min_length=6, required=False)
+    reset_token = serializers.CharField(max_length=6, min_length=6, required=False)
     new_password = serializers.CharField(write_only=True, min_length=8)
 
     def validate_new_password(self, value):
@@ -169,9 +170,13 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if not user or not _user_can_reset_from_client(user, attrs['client_app']):
             raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
 
+        reset_secret = attrs.get('otp_code') or attrs.get('reset_token')
+        if not reset_secret:
+            raise serializers.ValidationError({'detail': 'Invalid reset link or email.'})
+
         otp = PasswordResetOTP.objects.filter(
             user=user,
-            otp_code=attrs['otp_code'],
+            otp_code=reset_secret,
             is_used=False,
             expires_at__gt=timezone.now(),
         ).order_by('-created_at').first()

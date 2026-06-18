@@ -235,7 +235,7 @@ class PasswordManagementAPITests(APITestCase):
         self.assertNotIn('reset_code', response.data)
         self.assertFalse(self.staff_user.password_reset_otps.exists())
 
-    def test_web_password_reset_allows_staff_accounts(self):
+    def test_web_password_reset_allows_staff_accounts_without_returning_reset_code(self):
         response = self.client.post(
             reverse('auth-password-reset-request'),
             {'email': self.staff_user.email, 'client_app': 'web'},
@@ -243,5 +243,28 @@ class PasswordManagementAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertRegex(response.data['reset_code'], r'^\d{6}$')
+        self.assertNotIn('reset_code', response.data)
         self.assertTrue(self.staff_user.password_reset_otps.exists())
+
+    def test_web_password_reset_confirm_accepts_reset_token_from_email_link(self):
+        self.client.post(
+            reverse('auth-password-reset-request'),
+            {'email': self.staff_user.email, 'client_app': 'web'},
+            format='json',
+        )
+        otp = self.staff_user.password_reset_otps.first()
+
+        response = self.client.post(
+            reverse('auth-password-reset-confirm'),
+            {
+                'email': self.staff_user.email,
+                'client_app': 'web',
+                'reset_token': otp.otp_code,
+                'new_password': 'ResetPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.staff_user.refresh_from_db()
+        self.assertTrue(self.staff_user.check_password('ResetPass123!'))
