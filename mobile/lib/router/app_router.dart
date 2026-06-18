@@ -13,6 +13,7 @@ import '../screens/applicant/my_interviews_screen.dart';
 import '../screens/applicant/notifications_screen.dart';
 import '../screens/applicant/saved_jobs_screen.dart';
 import '../screens/applicant_home_screen.dart';
+import '../screens/forgot_password_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/register_screen.dart';
@@ -28,7 +29,8 @@ GoRouter createAppRouter(AuthController authController) {
       }
 
       final isAuthRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register';
+          state.matchedLocation == '/register' ||
+          state.matchedLocation == '/forgot-password';
       if (!authController.isAuthenticated && !isAuthRoute) {
         return '/login';
       }
@@ -52,6 +54,10 @@ GoRouter createAppRouter(AuthController authController) {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/home',
