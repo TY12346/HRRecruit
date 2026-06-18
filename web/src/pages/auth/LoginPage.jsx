@@ -97,6 +97,9 @@ export default function LoginPage() {
           <Button disabled={isSubmitting} type="submit" variant="contained">
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </Button>
+          <MuiLink component={RouterLink} to="/forgot-password" sx={{ alignSelf: 'flex-start' }}>
+            Forgot password?
+          </MuiLink>
         </Stack>
       </Box>
 

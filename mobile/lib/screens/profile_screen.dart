@@ -18,6 +18,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _phoneController = TextEditingController();
   final _linkedinController = TextEditingController();
   final _summaryController = TextEditingController();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _didPopulate = false;
 
   @override
@@ -26,6 +29,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.dispose();
     _linkedinController.dispose();
     _summaryController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -56,6 +62,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      showErrorSnackBar(context, error);
+    }
+  }
+
+  Future<void> _changePassword() async {
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New password and confirmation do not match.')),
+      );
+      return;
+    }
+
+    try {
+      await context.read<AuthController>().changePassword(
+            currentPassword: _currentPasswordController.text,
+            newPassword: _newPasswordController.text,
+          );
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password changed successfully.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -143,6 +175,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   label: auth.isLoading
                       ? const Text('Saving...')
                       : const Text('Save profile'),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Change password',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _currentPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Current password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _newPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'New password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm new password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: auth.isLoading ? null : _changePassword,
+                  icon: const Icon(Icons.lock_reset_outlined),
+                  label: auth.isLoading
+                      ? const Text('Changing...')
+                      : const Text('Change password'),
                 ),
               ],
             ),
