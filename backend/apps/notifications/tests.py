@@ -170,17 +170,21 @@ class EmailServiceTests(SimpleTestCase):
             end_date='2026-06-30',
         )
 
-        send_password_reset_otp_email(user, '123456')
+        send_password_reset_otp_email(user, '123456', client_app='web')
         send_team_account_created_email(user, 'TempPass123!')
         send_interview_invitation_email(invitation)
         send_job_offer_email(offer)
         send_subscription_reminder_email(user, subscription)
 
+        password_reset_call = mock_send_email.call_args_list[0]
+        self.assertIn('http://localhost:5173/reset-password?email=user%40example.com&token=123456', password_reset_call.kwargs['message'])
+        self.assertNotIn('enter this reset code manually', password_reset_call.kwargs['message'])
+
         subjects = [call.kwargs['subject'] for call in mock_send_email.call_args_list]
         self.assertEqual(
             subjects,
             [
-                'HRRecruit Password Reset OTP',
+                'HRRecruit Password Reset',
                 'Your HRRecruit team account',
                 'Interview invitation for Backend Engineer',
                 'Job offer for Backend Engineer',
