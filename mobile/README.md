@@ -12,10 +12,14 @@ flutter run
 
 ## Backend API URL
 
-The mobile app defaults to `http://10.0.2.2:8000/api/`, which is only valid
-for the Android emulator.
+The app now chooses the safest local default for the current Flutter target:
 
-When running on a physical phone:
+- Android emulator: `http://10.0.2.2:8000/api/`
+- iOS simulator, desktop, or Flutter web: `http://localhost:8000/api/`
+
+`10.0.2.2` is only valid for the Android emulator.
+
+When running on a physical phone or tablet:
 
 1. Connect the phone and development computer to the same Wi-Fi network.
 2. Start Django so it listens on your LAN interface:
@@ -62,45 +66,21 @@ If you already have an untracked/generated `android/` folder locally, make sure
 `mobile/android/app/src/main/AndroidManifest.xml` contains the same
 `uses-permission`, `usesCleartextTraffic`, and `networkSecurityConfig` entries.
 
-## LinkedIn OAuth profile import
+## LinkedIn PDF profile import
 
-The applicant profile screen can import LinkedIn identity data through LinkedIn
-OAuth 2.0 / OpenID Connect. Create a LinkedIn Developer app, enable **Sign In
-with LinkedIn using OpenID Connect**, and register this redirect URL in the
-LinkedIn app settings:
-
-```text
-hrrecruit://linkedin-oauth
-```
-
-You can enter the LinkedIn Client ID in the app the first time you tap **Import LinkedIn profile**. HRRecruit saves that public Client ID on the device for future imports.
-
-Alternatively, run the Flutter app with your LinkedIn Client ID so the setup dialog is skipped:
-
-```bash
-flutter run --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID
-```
-
-If you change the redirect URI or scheme in LinkedIn Developer settings, pass the
-matching Dart defines as well:
-
-```bash
-flutter run \
-  --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID \
-  --dart-define=LINKEDIN_REDIRECT_URI=hrrecruit://linkedin-oauth \
-  --dart-define=LINKEDIN_CALLBACK_SCHEME=hrrecruit
-```
-
-Do not put a LinkedIn Client Secret in the Flutter app. The mobile flow uses PKCE
-with the public Client ID.
+The applicant profile screen imports LinkedIn data from a PDF copy of the
+applicant's LinkedIn profile. This flow does not use LinkedIn OAuth and does not
+ask the applicant for a LinkedIn Client ID, Client Secret, or LinkedIn password.
 
 Applicant flow:
 
-1. Tap **Import from LinkedIn**.
-2. HRRecruit shows **Sign in to LinkedIn and allow access** and explains that
-   LinkedIn OAuth 2.0 will open next.
-3. Tap **Allow access**, sign in on LinkedIn with the LinkedIn account email and
-   password, approve access, and return to HRRecruit.
+1. Open your LinkedIn profile in LinkedIn.
+2. Save or download the profile as a PDF.
+3. In HRRecruit mobile, open **Profile** and tap **Import LinkedIn PDF**.
+4. Select the LinkedIn profile PDF.
+5. HRRecruit uploads the PDF to the API, extracts text from the PDF, extracts
+   profile details such as name, headline, skills, experience, education, and
+   certifications, then fills the candidate profile automatically.
 
-HRRecruit never asks for or stores the user's LinkedIn password; credentials are
-entered only on LinkedIn's OAuth screen.
+The backend uses deterministic local PDF/text extraction for this early FYP
+implementation. No real LinkedIn API or external AI API call is required.

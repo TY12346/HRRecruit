@@ -1,8 +1,8 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/auth_controller.dart';
-import '../services/linkedin_oauth_service.dart';
 import 'auth_form_helpers.dart';
 import '../widgets/app_navigation.dart';
 
@@ -72,40 +72,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _importLinkedInProfile() async {
-    final linkedInOAuthService = context.read<LinkedInOAuthService>();
-
     try {
-      final configuredClientId =
-          await linkedInOAuthService.readConfiguredClientId();
-      if (!mounted) return;
-
-      final clientId = configuredClientId ??
-          await _requestLinkedInClientId(linkedInOAuthService);
-      if (clientId == null || clientId.isEmpty) {
-        return;
-      }
-
-      final shouldContinue = await _confirmLinkedInOAuthSignIn();
+      final shouldContinue = await _confirmLinkedInPdfImport();
       if (!mounted || !shouldContinue) {
         return;
       }
 
-      setState(() => _isImportingLinkedIn = true);
-      final importedProfile = await linkedInOAuthService.importProfile(
-        clientIdOverride: clientId,
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        withData: false,
       );
-      _linkedinController.text = importedProfile.profileUrl;
-      _summaryController.text = importedProfile.summary;
+      final selectedFile = result?.files.single;
+      final selectedPath = selectedFile?.path;
+      if (selectedFile == null || selectedPath == null) {
+        return;
+      }
 
-      await context.read<AuthController>().updateProfile(
-            fullName: _fullNameController.text.trim(),
-            phoneNumber: _phoneController.text.trim(),
-            linkedinUrl: importedProfile.profileUrl,
-            personalSummary: importedProfile.summary,
+      setState(() => _isImportingLinkedIn = true);
+      await context.read<AuthController>().importLinkedInProfilePdf(
+            path: selectedPath,
+            fileName: selectedFile.name,
           );
       if (!mounted) return;
+
+      final profile = context.read<AuthController>().profile;
+      if (profile != null) {
+        _fullNameController.text = profile.fullName;
+        _linkedinController.text = profile.linkedinUrl;
+        _summaryController.text = profile.personalSummary;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('LinkedIn profile imported successfully.')),
+        const SnackBar(content: Text('LinkedIn PDF imported successfully.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -117,15 +115,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<bool> _confirmLinkedInOAuthSignIn() async {
+  Future<bool> _confirmLinkedInPdfImport() async {
     final shouldContinue = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign in to LinkedIn and allow access'),
+        title: const Text('Import LinkedIn profile PDF'),
         content: const Text(
-          'HRRecruit will open LinkedIn OAuth 2.0 next. Sign in with your '
-          'LinkedIn account email and password on LinkedIn, then choose '
-          'Allow access to return and import your profile details.',
+          'Open your LinkedIn profile, save or download it as a PDF, then '
+          'upload that PDF here. HRRecruit will extract the text and fill '
+          'your candidate profile automatically.',
         ),
         actions: [
           TextButton(
@@ -134,84 +132,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           FilledButton.icon(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            icon: const Icon(Icons.open_in_new_outlined),
-            label: const Text('Allow access'),
+            icon: const Icon(Icons.upload_file_outlined),
+            label: const Text('Choose PDF'),
           ),
         ],
       ),
     );
 
     return shouldContinue ?? false;
-  }
-
-  Future<String?> _requestLinkedInClientId(
-    LinkedInOAuthService linkedInOAuthService,
-  ) async {
-    final controller = TextEditingController();
-    final clientId = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('LinkedIn OAuth setup'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter the LinkedIn Client ID from your LinkedIn Developer app. '
-                'HRRecruit saves this public Client ID on this device and uses '
-                'OAuth 2.0 with PKCE; do not enter a Client Secret.',
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'LinkedIn Client ID',
-                  border: OutlineInputBorder(),
-                ),
-                onSubmitted: (_) {
-                  final value = controller.text.trim();
-                  if (value.isNotEmpty) {
-                    Navigator.of(dialogContext).pop(value);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Enter your LinkedIn Client ID.'),
-                  ),
-                );
-                return;
-              }
-              Navigator.of(dialogContext).pop(value);
-            },
-            child: const Text('Save and continue'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-
-    if (clientId == null || clientId.trim().isEmpty) {
-      return null;
-    }
-
-    final trimmedClientId = clientId.trim();
-    await linkedInOAuthService.saveClientId(trimmedClientId);
-    return trimmedClientId;
   }
 
   Future<void> _changePassword() async {
@@ -252,11 +180,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
                   initialValue: auth.profile?.email ?? '',
                   enabled: false,
                   decoration: const InputDecoration(
@@ -307,10 +235,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: auth.isLoading || _isImportingLinkedIn
                       ? null
                       : _importLinkedInProfile,
-                  icon: const Icon(Icons.business_center_outlined),
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
                   label: _isImportingLinkedIn
-                      ? const Text('Importing LinkedIn...')
-                      : const Text('Import from LinkedIn'),
+                      ? const Text('Importing LinkedIn PDF...')
+                      : const Text('Import LinkedIn PDF'),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -371,11 +299,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ? const Text('Changing...')
                       : const Text('Change password'),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

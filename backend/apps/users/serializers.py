@@ -256,6 +256,23 @@ ALLOWED_RESUME_CONTENT_TYPES = {
 }
 
 
+class LinkedInProfilePdfUploadSerializer(serializers.Serializer):
+    linkedin_pdf = serializers.FileField(write_only=True)
+
+    def validate_linkedin_pdf(self, file):
+        max_size = 5 * 1024 * 1024
+        if file.size > max_size:
+            raise serializers.ValidationError('LinkedIn profile PDF must not exceed 5MB.')
+
+        if not file.name.lower().endswith('.pdf'):
+            raise serializers.ValidationError('Only LinkedIn profile PDF files are allowed.')
+
+        content_type = getattr(file, 'content_type', '')
+        if content_type and content_type != 'application/pdf':
+            raise serializers.ValidationError('Unsupported LinkedIn profile PDF content type.')
+        return file
+
+
 class ResumeUploadSerializer(serializers.ModelSerializer):
     resume_file = serializers.FileField(write_only=True)
 
