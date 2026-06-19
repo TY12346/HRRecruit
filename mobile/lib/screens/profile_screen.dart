@@ -123,9 +123,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Sign in to LinkedIn and allow access'),
         content: const Text(
-          'HRRecruit will open LinkedIn OAuth 2.0 next. Sign in with your '
-          'LinkedIn account email and password on LinkedIn, then choose '
-          'Allow access to return and import your profile details.',
+          'HRRecruit will open LinkedIn OAuth 2.0 next and ask LinkedIn to '
+          'show its login prompt. Enter your LinkedIn account email and '
+          'password on LinkedIn, then choose Allow access to return and '
+          'import your profile details.',
         ),
         actions: [
           TextButton(

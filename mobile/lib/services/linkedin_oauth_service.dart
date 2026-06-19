@@ -84,6 +84,10 @@ class LinkedInOAuthService {
         'redirect_uri': redirectUri,
         'state': state,
         'scope': 'openid profile email',
+        // Force LinkedIn to show its sign-in prompt for each import so the
+        // applicant explicitly enters or confirms their LinkedIn credentials
+        // on LinkedIn instead of silently reusing a browser session.
+        'prompt': 'login',
         'code_challenge': codeChallenge,
         'code_challenge_method': 'S256',
       },

@@ -103,8 +103,11 @@ Applicant flow:
 1. Tap **Import from LinkedIn**.
 2. HRRecruit shows **Sign in to LinkedIn and allow access** and explains that
    LinkedIn OAuth 2.0 will open next.
-3. Tap **Allow access**, sign in on LinkedIn with the LinkedIn account email and
-   password, approve access, and return to HRRecruit.
+3. Tap **Allow access**. HRRecruit adds LinkedIn's `prompt=login` OAuth
+   parameter so LinkedIn prompts the applicant to enter or confirm their
+   LinkedIn login credentials for the import. Sign in on LinkedIn with the
+   LinkedIn account email and password, approve access, and return to
+   HRRecruit.
 
 HRRecruit never asks for or stores the user's LinkedIn password; credentials are
 entered only on LinkedIn's OAuth screen.
