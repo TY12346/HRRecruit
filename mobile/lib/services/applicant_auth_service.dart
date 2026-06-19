@@ -126,6 +126,23 @@ class ApplicantAuthService {
     return ApplicantProfile.fromJson(data['user'] as Map<String, dynamic>);
   }
 
+  Future<ApplicantProfile> importLinkedInProfilePdf({
+    required String path,
+    required String fileName,
+  }) async {
+    final formData = FormData.fromMap({
+      'linkedin_pdf': await MultipartFile.fromFile(path, filename: fileName),
+    });
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      'auth/linkedin-profile/import/',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+
+    final data = response.data!;
+    return ApplicantProfile.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
   Future<String?> uploadResume({
     required String path,
     required String fileName,

@@ -66,8 +66,23 @@ If you already have an untracked/generated `android/` folder locally, make sure
 `mobile/android/app/src/main/AndroidManifest.xml` contains the same
 `uses-permission`, `usesCleartextTraffic`, and `networkSecurityConfig` entries.
 
-## LinkedIn OAuth profile import
+## LinkedIn PDF profile import
 
+<<<<<<< HEAD
+The applicant profile screen imports LinkedIn data from a PDF copy of the
+applicant's LinkedIn profile. This flow does not use LinkedIn OAuth and does not
+ask the applicant for a LinkedIn Client ID, Client Secret, or LinkedIn password.
+
+Applicant flow:
+
+1. Open your LinkedIn profile in LinkedIn.
+2. Save or download the profile as a PDF.
+3. In HRRecruit mobile, open **Profile** and tap **Import LinkedIn PDF**.
+4. Select the LinkedIn profile PDF.
+5. HRRecruit uploads the PDF to the API, extracts text from the PDF, extracts
+   profile details such as name, headline, skills, experience, education, and
+   certifications, then fills the candidate profile automatically.
+=======
 The applicant profile screen can import LinkedIn identity data through LinkedIn
 OAuth 2.0 / OpenID Connect. Create a LinkedIn Developer app, enable **Sign In
 with LinkedIn using OpenID Connect**, and register this redirect URL in the
@@ -106,6 +121,7 @@ Applicant flow:
    LinkedIn login credentials for the import. Sign in on LinkedIn with the
    LinkedIn account email and password, approve access, and return to
    HRRecruit.
+>>>>>>> origin/main
 
-HRRecruit never asks for or stores the user's LinkedIn password; credentials are
-entered only on LinkedIn's OAuth screen.
+The backend uses deterministic local PDF/text extraction for this early FYP
+implementation. No real LinkedIn API or external AI API call is required.
