@@ -61,3 +61,33 @@ tracked Android manifest enables cleartext traffic for local FYP development via
 If you already have an untracked/generated `android/` folder locally, make sure
 `mobile/android/app/src/main/AndroidManifest.xml` contains the same
 `uses-permission`, `usesCleartextTraffic`, and `networkSecurityConfig` entries.
+
+## LinkedIn OAuth profile import
+
+The applicant profile screen can import LinkedIn identity data through LinkedIn
+OAuth 2.0 / OpenID Connect. Create a LinkedIn Developer app, enable **Sign In
+with LinkedIn using OpenID Connect**, and register this redirect URL in the
+LinkedIn app settings:
+
+```text
+hrrecruit://linkedin-oauth
+```
+
+Run the Flutter app with your LinkedIn Client ID:
+
+```bash
+flutter run --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID
+```
+
+If you change the redirect URI or scheme in LinkedIn Developer settings, pass the
+matching Dart defines as well:
+
+```bash
+flutter run \
+  --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID \
+  --dart-define=LINKEDIN_REDIRECT_URI=hrrecruit://linkedin-oauth \
+  --dart-define=LINKEDIN_CALLBACK_SCHEME=hrrecruit
+```
+
+Do not put a LinkedIn Client Secret in the Flutter app. The mobile flow uses PKCE
+with the public Client ID.

@@ -2,18 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/auth_controller.dart';
+import '../services/linkedin_oauth_service.dart';
 import 'auth_form_helpers.dart';
 import '../widgets/app_navigation.dart';
-
-class _LinkedInProfileImport {
-  const _LinkedInProfileImport({
-    required this.url,
-    required this.summary,
-  });
-
-  final String url;
-  final String summary;
-}
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -81,108 +72,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _importLinkedInProfile() async {
-    final importedUrlController = TextEditingController(
-      text: _linkedinController.text.trim(),
-    );
-    final importedSummaryController = TextEditingController(
-      text: _summaryController.text.trim(),
-    );
-
-    final importedProfile = await showDialog<_LinkedInProfileImport>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Import LinkedIn profile'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Paste your public LinkedIn profile URL. HRRecruit will save the URL and prepare a profile summary '
-                'for recruiter review. No LinkedIn OAuth or external API call is used in this demo import.',
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: importedUrlController,
-                keyboardType: TextInputType.url,
-                decoration: const InputDecoration(
-                  labelText: 'LinkedIn profile URL',
-                  hintText: 'https://www.linkedin.com/in/your-name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: importedSummaryController,
-                minLines: 3,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'Imported summary',
-                  helperText: 'Optional. Edit or add a summary from your LinkedIn profile.',
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              final url = importedUrlController.text.trim();
-              final summary = importedSummaryController.text.trim();
-              final uri = Uri.tryParse(url);
-              final isLinkedInUrl = uri != null &&
-                  (uri.scheme == 'http' || uri.scheme == 'https') &&
-                  uri.host.toLowerCase().contains('linkedin.com');
-
-              if (!isLinkedInUrl) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Enter a valid LinkedIn profile URL.'),
-                  ),
-                );
-                return;
-              }
-
-              Navigator.of(dialogContext).pop(
-                _LinkedInProfileImport(
-                  url: url,
-                  summary: summary.isNotEmpty
-                      ? summary
-                      : _buildLinkedInSummary(url),
-                ),
-              );
-            },
-            icon: const Icon(Icons.download_outlined),
-            label: const Text('Import'),
-          ),
-        ],
-      ),
-    );
-
-    importedUrlController.dispose();
-    importedSummaryController.dispose();
-
-    if (importedProfile == null) {
-      return;
-    }
-
-    setState(() {
-      _isImportingLinkedIn = true;
-      _linkedinController.text = importedProfile.url;
-      _summaryController.text = importedProfile.summary;
-    });
+    setState(() => _isImportingLinkedIn = true);
 
     try {
+      final importedProfile =
+          await context.read<LinkedInOAuthService>().importProfile();
+      _linkedinController.text = importedProfile.profileUrl;
+      _summaryController.text = importedProfile.summary;
+
       await context.read<AuthController>().updateProfile(
             fullName: _fullNameController.text.trim(),
             phoneNumber: _phoneController.text.trim(),
-            linkedinUrl: importedProfile.url,
+            linkedinUrl: importedProfile.profileUrl,
             personalSummary: importedProfile.summary,
           );
       if (!mounted) return;
@@ -197,21 +98,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isImportingLinkedIn = false);
       }
     }
-  }
-
-  static String _buildLinkedInSummary(String url) {
-    final uri = Uri.parse(url);
-    final slug = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
-    final displayName = slug
-        .split(RegExp(r'[-_]'))
-        .where((part) => part.isNotEmpty)
-        .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
-        .join(' ');
-
-    if (displayName.isEmpty) {
-      return 'Imported from LinkedIn profile: $url';
-    }
-    return '$displayName imported their public LinkedIn profile for recruiter review.';
   }
 
   Future<void> _changePassword() async {
