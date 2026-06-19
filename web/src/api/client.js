@@ -45,6 +45,29 @@ export const updateProfile = async (profile) => {
   return response.data;
 };
 
+export const requestPasswordReset = async ({ email }) => {
+  const response = await apiClient.post('/auth/password-reset/request/', { email, client_app: 'web' });
+  return response.data;
+};
+
+export const confirmPasswordReset = async ({ email, resetToken, newPassword }) => {
+  const response = await apiClient.post('/auth/password-reset/confirm/', {
+    email,
+    client_app: 'web',
+    reset_token: resetToken,
+    new_password: newPassword,
+  });
+  return response.data;
+};
+
+export const changePassword = async ({ currentPassword, newPassword }) => {
+  const response = await apiClient.post('/auth/password/change/', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+  return response.data;
+};
+
 export const logout = async (refreshToken) => {
   const response = await apiClient.post('/auth/logout/', { refresh: refreshToken });
   return response.data;

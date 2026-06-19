@@ -6,7 +6,11 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.notifications.email_service import send_password_reset_otp_email
+from apps.notifications.email_service import (
+    build_password_reset_link,
+    is_development_email_backend,
+    send_password_reset_otp_email,
+)
 
 from .models import ApplicantProfile, PasswordResetOTP, User, create_profile_for_user
 
@@ -111,24 +115,87 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
+    CLIENT_WEB = 'web'
+    CLIENT_MOBILE = 'mobile'
+    STAFF_ROLES = {User.Role.HR_HEAD, User.Role.RECRUITER, User.Role.INTERVIEWER}
+
     email = serializers.EmailField()
+    client_app = serializers.ChoiceField(choices=(CLIENT_WEB, CLIENT_MOBILE))
 
     def save(self):
         email = self.validated_data['email']
-        user = User.objects.filter(email=email).first()
-        if not user:
-            return
+        user = User.objects.filter(email__iexact=email).first()
+        if not user or not _user_can_reset_from_client(user, self.validated_data['client_app']):
+            return {}
 
         otp_code = f"{random.randint(0, 999999):06d}"
         expires_at = timezone.now() + timezone.timedelta(minutes=10)
         PasswordResetOTP.objects.create(user=user, otp_code=otp_code, expires_at=expires_at)
 
-        send_password_reset_otp_email(user, otp_code)
+        delivery = send_password_reset_otp_email(user, otp_code, self.validated_data['client_app'])
+        result = {'email_delivery': delivery.get('provider', 'unknown')}
+        if _should_return_development_reset_code():
+            if self.validated_data['client_app'] == self.CLIENT_MOBILE:
+                result['reset_code'] = otp_code
+            elif self.validated_data['client_app'] == self.CLIENT_WEB:
+                result['reset_link'] = build_password_reset_link(user, otp_code, self.CLIENT_WEB)
+                result['email_delivery_note'] = 'Development email mode detected. Configure SMTP or SendGrid in backend/.env to deliver this email to an inbox; for now, the reset email was printed to the backend console.'
+        return result
+
+
+def _user_can_reset_from_client(user, client_app):
+    if client_app == PasswordResetRequestSerializer.CLIENT_MOBILE:
+        return user.role == User.Role.APPLICANT
+    if client_app == PasswordResetRequestSerializer.CLIENT_WEB:
+        return user.role in PasswordResetRequestSerializer.STAFF_ROLES
+    return False
+
+
+def _should_return_development_reset_code():
+    return is_development_email_backend()
+
+
+def _get_valid_password_reset_otp(email, client_app, reset_secret):
+    user = User.objects.filter(email__iexact=email).first()
+    if not user or not _user_can_reset_from_client(user, client_app):
+        raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
+
+    otp = PasswordResetOTP.objects.filter(
+        user=user,
+        otp_code=reset_secret,
+        is_used=False,
+        expires_at__gt=timezone.now(),
+    ).order_by('-created_at').first()
+
+    if not otp:
+        raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
+
+    return user, otp
+
+
+class PasswordResetVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    client_app = serializers.ChoiceField(choices=(PasswordResetRequestSerializer.CLIENT_MOBILE,))
+    otp_code = serializers.CharField(max_length=6, min_length=6)
+
+    def validate(self, attrs):
+        user, otp = _get_valid_password_reset_otp(
+            attrs['email'],
+            attrs['client_app'],
+            attrs['otp_code'],
+        )
+        attrs['user'] = user
+        attrs['otp'] = otp
+        return attrs
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    otp_code = serializers.CharField(max_length=6, min_length=6)
+    client_app = serializers.ChoiceField(
+        choices=(PasswordResetRequestSerializer.CLIENT_WEB, PasswordResetRequestSerializer.CLIENT_MOBILE)
+    )
+    otp_code = serializers.CharField(max_length=6, min_length=6, required=False)
+    reset_token = serializers.CharField(max_length=6, min_length=6, required=False)
     new_password = serializers.CharField(write_only=True, min_length=8)
 
     def validate_new_password(self, value):
@@ -136,20 +203,15 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        user = User.objects.filter(email=attrs['email']).first()
-        if not user:
-            raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
+        reset_secret = attrs.get('otp_code') or attrs.get('reset_token')
+        if not reset_secret:
+            raise serializers.ValidationError({'detail': 'Invalid reset link or email.'})
 
-        otp = PasswordResetOTP.objects.filter(
-            user=user,
-            otp_code=attrs['otp_code'],
-            is_used=False,
-            expires_at__gt=timezone.now(),
-        ).order_by('-created_at').first()
-
-        if not otp:
-            raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
-
+        user, otp = _get_valid_password_reset_otp(
+            attrs['email'],
+            attrs['client_app'],
+            reset_secret,
+        )
         attrs['user'] = user
         attrs['otp'] = otp
         return attrs
@@ -162,6 +224,29 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.save(update_fields=['password'])
         otp.is_used = True
         otp.save(update_fields=['is_used'])
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_new_password(self, value):
+        validate_password(value, self.context['request'].user)
+        return value
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        if not user.check_password(attrs['current_password']):
+            raise serializers.ValidationError({'current_password': 'Current password is incorrect.'})
+        if attrs['current_password'] == attrs['new_password']:
+            raise serializers.ValidationError({'new_password': 'New password must be different from the current password.'})
+        return attrs
+
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return user
 
 
 ALLOWED_RESUME_CONTENT_TYPES = {

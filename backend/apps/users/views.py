@@ -6,10 +6,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 from .serializers import (
     ApplicantRegisterSerializer,
+    ChangePasswordSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    PasswordResetVerifySerializer,
     RegisterSerializer,
     ResumeUploadSerializer,
     UserProfileSerializer,
@@ -98,14 +100,35 @@ class ProfileAPIView(APIView):
         return Response({'message': 'Profile updated successfully.', 'user': serializer.data})
 
 
+class ChangePasswordAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'message': 'Password changed successfully.'})
+
+
 class PasswordResetRequestAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({'message': 'If the email exists, OTP has been sent.'})
+        result = serializer.save() or {}
+        response_data = {'message': 'If the email exists, password reset instructions have been sent.'}
+        response_data.update(result)
+        return Response(response_data)
+
+
+class PasswordResetVerifyAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({'message': 'OTP verified successfully.'})
 
 
 class PasswordResetConfirmAPIView(APIView):
