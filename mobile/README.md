@@ -12,10 +12,14 @@ flutter run
 
 ## Backend API URL
 
-The mobile app defaults to `http://10.0.2.2:8000/api/`, which is only valid
-for the Android emulator.
+The app now chooses the safest local default for the current Flutter target:
 
-When running on a physical phone:
+- Android emulator: `http://10.0.2.2:8000/api/`
+- iOS simulator, desktop, or Flutter web: `http://localhost:8000/api/`
+
+`10.0.2.2` is only valid for the Android emulator.
+
+When running on a physical phone or tablet:
 
 1. Connect the phone and development computer to the same Wi-Fi network.
 2. Start Django so it listens on your LAN interface:
