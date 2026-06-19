@@ -68,6 +68,7 @@ If you already have an untracked/generated `android/` folder locally, make sure
 
 ## LinkedIn PDF profile import
 
+<<<<<<< HEAD
 The applicant profile screen imports LinkedIn data from a PDF copy of the
 applicant's LinkedIn profile. This flow does not use LinkedIn OAuth and does not
 ask the applicant for a LinkedIn Client ID, Client Secret, or LinkedIn password.
@@ -81,6 +82,46 @@ Applicant flow:
 5. HRRecruit uploads the PDF to the API, extracts text from the PDF, extracts
    profile details such as name, headline, skills, experience, education, and
    certifications, then fills the candidate profile automatically.
+=======
+The applicant profile screen can import LinkedIn identity data through LinkedIn
+OAuth 2.0 / OpenID Connect. Create a LinkedIn Developer app, enable **Sign In
+with LinkedIn using OpenID Connect**, and register this redirect URL in the
+LinkedIn app settings:
+
+```text
+hrrecruit://linkedin-oauth
+```
+
+Configure the LinkedIn Client ID at build/run time. Applicants should never be asked to enter developer credentials such as a LinkedIn Client ID inside the app:
+
+```bash
+flutter run --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID
+```
+
+If you change the redirect URI or scheme in LinkedIn Developer settings, pass the
+matching Dart defines as well:
+
+```bash
+flutter run \
+  --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID \
+  --dart-define=LINKEDIN_REDIRECT_URI=hrrecruit://linkedin-oauth \
+  --dart-define=LINKEDIN_CALLBACK_SCHEME=hrrecruit
+```
+
+Do not put a LinkedIn Client Secret in the Flutter app. The mobile flow uses PKCE
+with the public Client ID.
+
+Applicant flow:
+
+1. Tap **Import from LinkedIn**.
+2. HRRecruit shows **Sign in to LinkedIn and allow access** and explains that
+   LinkedIn OAuth 2.0 will open next.
+3. Tap **Allow access**. HRRecruit adds LinkedIn's `prompt=login` OAuth
+   parameter so LinkedIn prompts the applicant to enter or confirm their
+   LinkedIn login credentials for the import. Sign in on LinkedIn with the
+   LinkedIn account email and password, approve access, and return to
+   HRRecruit.
+>>>>>>> origin/main
 
 The backend uses deterministic local PDF/text extraction for this early FYP
 implementation. No real LinkedIn API or external AI API call is required.
