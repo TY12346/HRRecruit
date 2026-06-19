@@ -6,11 +6,11 @@ import '../services/token_storage.dart';
 class ApiClient {
   ApiClient({
     required TokenStorage tokenStorage,
-    String baseUrl = defaultBaseUrl,
+    String? baseUrl,
   })  : _tokenStorage = tokenStorage,
         dio = Dio(
           BaseOptions(
-            baseUrl: normalizeBaseUrl(baseUrl),
+            baseUrl: normalizeBaseUrl(baseUrl ?? defaultBaseUrl),
             connectTimeout: const Duration(seconds: 8),
             sendTimeout: const Duration(seconds: 8),
             receiveTimeout: const Duration(seconds: 8),
@@ -24,7 +24,9 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final configuredBaseUrl = await _tokenStorage.readApiBaseUrl();
-          options.baseUrl = normalizeBaseUrl(configuredBaseUrl ?? dio.options.baseUrl);
+          options.baseUrl = normalizeBaseUrl(
+            _resolveConfiguredBaseUrl(configuredBaseUrl) ?? dio.options.baseUrl,
+          );
 
           final accessToken = await _tokenStorage.readAccessToken();
           if (accessToken != null && accessToken.isNotEmpty) {
@@ -46,10 +48,48 @@ class ApiClient {
     );
   }
 
-  static const defaultBaseUrl = String.fromEnvironment(
+  static const _configuredBaseUrl = String.fromEnvironment(
     'HRRECRUIT_API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api/',
   );
+
+  static String get defaultBaseUrl {
+    if (_configuredBaseUrl.isNotEmpty) {
+      return _configuredBaseUrl;
+    }
+
+    if (kIsWeb) {
+      return 'http://localhost:8000/api/';
+    }
+
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS ||
+      TargetPlatform.macOS ||
+      TargetPlatform.linux ||
+      TargetPlatform.windows =>
+        'http://localhost:8000/api/',
+      TargetPlatform.android || TargetPlatform.fuchsia =>
+        'http://10.0.2.2:8000/api/',
+    };
+  }
+
+  static String? _resolveConfiguredBaseUrl(String? storedBaseUrl) {
+    if (storedBaseUrl == null || storedBaseUrl.trim().isEmpty) {
+      return null;
+    }
+
+    final normalizedStoredBaseUrl = normalizeBaseUrl(storedBaseUrl);
+    final normalizedDefaultBaseUrl = normalizeBaseUrl(defaultBaseUrl);
+    final isLegacyAndroidEmulatorDefault =
+        normalizedStoredBaseUrl == 'http://10.0.2.2:8000/api/';
+    final defaultChangedForCurrentTarget =
+        normalizedDefaultBaseUrl != normalizedStoredBaseUrl;
+
+    if (isLegacyAndroidEmulatorDefault && defaultChangedForCurrentTarget) {
+      return normalizedDefaultBaseUrl;
+    }
+
+    return normalizedStoredBaseUrl;
+  }
 
   static String normalizeBaseUrl(String baseUrl) {
     final trimmed = baseUrl.trim();
@@ -108,7 +148,9 @@ class ApiClient {
 
   Future<String> currentBaseUrl() async {
     final storedBaseUrl = await _tokenStorage.readApiBaseUrl();
-    return normalizeBaseUrl(storedBaseUrl ?? dio.options.baseUrl);
+    return normalizeBaseUrl(
+      _resolveConfiguredBaseUrl(storedBaseUrl) ?? dio.options.baseUrl,
+    );
   }
 
   final TokenStorage _tokenStorage;
