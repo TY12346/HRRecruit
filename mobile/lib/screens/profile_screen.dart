@@ -85,6 +85,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
+      final shouldContinue = await _confirmLinkedInOAuthSignIn();
+      if (!mounted || !shouldContinue) {
+        return;
+      }
+
       setState(() => _isImportingLinkedIn = true);
       final importedProfile = await linkedInOAuthService.importProfile(
         clientIdOverride: clientId,
@@ -110,6 +115,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isImportingLinkedIn = false);
       }
     }
+  }
+
+  Future<bool> _confirmLinkedInOAuthSignIn() async {
+    final shouldContinue = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign in to LinkedIn and allow access'),
+        content: const Text(
+          'HRRecruit will open LinkedIn OAuth 2.0 next. Sign in with your '
+          'LinkedIn account email and password on LinkedIn, then choose '
+          'Allow access to return and import your profile details.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            icon: const Icon(Icons.open_in_new_outlined),
+            label: const Text('Allow access'),
+          ),
+        ],
+      ),
+    );
+
+    return shouldContinue ?? false;
   }
 
   Future<String?> _requestLinkedInClientId(
@@ -278,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: const Icon(Icons.business_center_outlined),
                   label: _isImportingLinkedIn
                       ? const Text('Importing LinkedIn...')
-                      : const Text('Import LinkedIn profile'),
+                      : const Text('Import from LinkedIn'),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

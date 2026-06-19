@@ -93,3 +93,14 @@ flutter run \
 
 Do not put a LinkedIn Client Secret in the Flutter app. The mobile flow uses PKCE
 with the public Client ID.
+
+Applicant flow:
+
+1. Tap **Import from LinkedIn**.
+2. HRRecruit shows **Sign in to LinkedIn and allow access** and explains that
+   LinkedIn OAuth 2.0 will open next.
+3. Tap **Allow access**, sign in on LinkedIn with the LinkedIn account email and
+   password, approve access, and return to HRRecruit.
+
+HRRecruit never asks for or stores the user's LinkedIn password; credentials are
+entered only on LinkedIn's OAuth screen.
