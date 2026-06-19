@@ -5,6 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
+import 'token_storage.dart';
+
 class LinkedInImportedProfile {
   const LinkedInImportedProfile({
     required this.profileUrl,
@@ -16,7 +18,11 @@ class LinkedInImportedProfile {
 }
 
 class LinkedInOAuthService {
-  LinkedInOAuthService({Dio? dio}) : _dio = dio ?? Dio();
+  LinkedInOAuthService({
+    required TokenStorage tokenStorage,
+    Dio? dio,
+  })  : _tokenStorage = tokenStorage,
+        _dio = dio ?? Dio();
 
   static const clientId = String.fromEnvironment('LINKEDIN_CLIENT_ID');
   static const redirectUri = String.fromEnvironment(
@@ -38,14 +44,34 @@ class LinkedInOAuthService {
     'https://api.linkedin.com/v2/userinfo',
   );
 
+  final TokenStorage _tokenStorage;
   final Dio _dio;
 
-  Future<LinkedInImportedProfile> importProfile() async {
-    if (clientId.isEmpty) {
-      throw Exception(
-        'LinkedIn OAuth is not configured. Build the app with '
-        '--dart-define=LINKEDIN_CLIENT_ID=your_linkedin_client_id.',
-      );
+  Future<String?> readConfiguredClientId() async {
+    if (clientId.isNotEmpty) {
+      return clientId;
+    }
+
+    final storedClientId = await _tokenStorage.readLinkedInClientId();
+    final trimmedClientId = storedClientId?.trim();
+    return trimmedClientId == null || trimmedClientId.isEmpty
+        ? null
+        : trimmedClientId;
+  }
+
+  Future<void> saveClientId(String clientId) {
+    return _tokenStorage.saveLinkedInClientId(clientId.trim());
+  }
+
+  Future<LinkedInImportedProfile> importProfile({
+    String? clientIdOverride,
+  }) async {
+    final resolvedClientId = clientIdOverride?.trim().isNotEmpty == true
+        ? clientIdOverride!.trim()
+        : await readConfiguredClientId();
+
+    if (resolvedClientId == null || resolvedClientId.isEmpty) {
+      throw Exception('LinkedIn OAuth needs a Client ID before importing.');
     }
 
     final state = _randomUrlSafeString(32);
@@ -54,7 +80,7 @@ class LinkedInOAuthService {
     final authorizationUrl = _authorizationEndpoint.replace(
       queryParameters: {
         'response_type': 'code',
-        'client_id': clientId,
+        'client_id': resolvedClientId,
         'redirect_uri': redirectUri,
         'state': state,
         'scope': 'openid profile email',
@@ -76,7 +102,9 @@ class LinkedInOAuthService {
     }
 
     if (callbackUri.queryParameters['state'] != state) {
-      throw Exception('LinkedIn sign-in failed because the OAuth state did not match.');
+      throw Exception(
+        'LinkedIn sign-in failed because the OAuth state did not match.',
+      );
     }
 
     final authorizationCode = callbackUri.queryParameters['code'];
@@ -90,7 +118,7 @@ class LinkedInOAuthService {
         'grant_type': 'authorization_code',
         'code': authorizationCode,
         'redirect_uri': redirectUri,
-        'client_id': clientId,
+        'client_id': resolvedClientId,
         'code_verifier': codeVerifier,
       },
       options: Options(contentType: Headers.formUrlEncodedContentType),
@@ -131,7 +159,8 @@ class LinkedInOAuthService {
 
     return LinkedInImportedProfile(
       profileUrl: profileUrl,
-      summary: '$importedIdentity imported their LinkedIn profile via OAuth 2.0 for recruiter review.',
+      summary: '$importedIdentity imported their LinkedIn profile via OAuth '
+          '2.0 for recruiter review.',
     );
   }
 

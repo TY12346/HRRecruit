@@ -72,11 +72,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _importLinkedInProfile() async {
-    setState(() => _isImportingLinkedIn = true);
+    final linkedInOAuthService = context.read<LinkedInOAuthService>();
 
     try {
-      final importedProfile =
-          await context.read<LinkedInOAuthService>().importProfile();
+      final configuredClientId =
+          await linkedInOAuthService.readConfiguredClientId();
+      if (!mounted) return;
+
+      final clientId = configuredClientId ??
+          await _requestLinkedInClientId(linkedInOAuthService);
+      if (clientId == null || clientId.isEmpty) {
+        return;
+      }
+
+      setState(() => _isImportingLinkedIn = true);
+      final importedProfile = await linkedInOAuthService.importProfile(
+        clientIdOverride: clientId,
+      );
       _linkedinController.text = importedProfile.profileUrl;
       _summaryController.text = importedProfile.summary;
 
@@ -98,6 +110,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isImportingLinkedIn = false);
       }
     }
+  }
+
+  Future<String?> _requestLinkedInClientId(
+    LinkedInOAuthService linkedInOAuthService,
+  ) async {
+    final controller = TextEditingController();
+    final clientId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('LinkedIn OAuth setup'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter the LinkedIn Client ID from your LinkedIn Developer app. '
+                'HRRecruit saves this public Client ID on this device and uses '
+                'OAuth 2.0 with PKCE; do not enter a Client Secret.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  labelText: 'LinkedIn Client ID',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) {
+                  final value = controller.text.trim();
+                  if (value.isNotEmpty) {
+                    Navigator.of(dialogContext).pop(value);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter your LinkedIn Client ID.'),
+                  ),
+                );
+                return;
+              }
+              Navigator.of(dialogContext).pop(value);
+            },
+            child: const Text('Save and continue'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (clientId == null || clientId.trim().isEmpty) {
+      return null;
+    }
+
+    final trimmedClientId = clientId.trim();
+    await linkedInOAuthService.saveClientId(trimmedClientId);
+    return trimmedClientId;
   }
 
   Future<void> _changePassword() async {

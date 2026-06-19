@@ -7,6 +7,7 @@ class TokenStorage {
   static const _accessTokenKey = 'hrrecruit_access_token';
   static const _refreshTokenKey = 'hrrecruit_refresh_token';
   static const _apiBaseUrlKey = 'hrrecruit_api_base_url';
+  static const _linkedInClientIdKey = 'hrrecruit_linkedin_client_id';
 
   final FlutterSecureStorage _secureStorage;
 
@@ -32,6 +33,17 @@ class TokenStorage {
 
   Future<String?> readApiBaseUrl() {
     return _secureStorage.read(key: _apiBaseUrlKey);
+  }
+
+  Future<void> saveLinkedInClientId(String clientId) {
+    return _secureStorage.write(
+      key: _linkedInClientIdKey,
+      value: clientId,
+    );
+  }
+
+  Future<String?> readLinkedInClientId() {
+    return _secureStorage.read(key: _linkedInClientIdKey);
   }
 
   Future<void> clearTokens() async {

@@ -73,7 +73,9 @@ LinkedIn app settings:
 hrrecruit://linkedin-oauth
 ```
 
-Run the Flutter app with your LinkedIn Client ID:
+You can enter the LinkedIn Client ID in the app the first time you tap **Import LinkedIn profile**. HRRecruit saves that public Client ID on the device for future imports.
+
+Alternatively, run the Flutter app with your LinkedIn Client ID so the setup dialog is skipped:
 
 ```bash
 flutter run --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID
