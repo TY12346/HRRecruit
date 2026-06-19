@@ -61,3 +61,46 @@ tracked Android manifest enables cleartext traffic for local FYP development via
 If you already have an untracked/generated `android/` folder locally, make sure
 `mobile/android/app/src/main/AndroidManifest.xml` contains the same
 `uses-permission`, `usesCleartextTraffic`, and `networkSecurityConfig` entries.
+
+## LinkedIn OAuth profile import
+
+The applicant profile screen can import LinkedIn identity data through LinkedIn
+OAuth 2.0 / OpenID Connect. Create a LinkedIn Developer app, enable **Sign In
+with LinkedIn using OpenID Connect**, and register this redirect URL in the
+LinkedIn app settings:
+
+```text
+hrrecruit://linkedin-oauth
+```
+
+You can enter the LinkedIn Client ID in the app the first time you tap **Import LinkedIn profile**. HRRecruit saves that public Client ID on the device for future imports.
+
+Alternatively, run the Flutter app with your LinkedIn Client ID so the setup dialog is skipped:
+
+```bash
+flutter run --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID
+```
+
+If you change the redirect URI or scheme in LinkedIn Developer settings, pass the
+matching Dart defines as well:
+
+```bash
+flutter run \
+  --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID \
+  --dart-define=LINKEDIN_REDIRECT_URI=hrrecruit://linkedin-oauth \
+  --dart-define=LINKEDIN_CALLBACK_SCHEME=hrrecruit
+```
+
+Do not put a LinkedIn Client Secret in the Flutter app. The mobile flow uses PKCE
+with the public Client ID.
+
+Applicant flow:
+
+1. Tap **Import from LinkedIn**.
+2. HRRecruit shows **Sign in to LinkedIn and allow access** and explains that
+   LinkedIn OAuth 2.0 will open next.
+3. Tap **Allow access**, sign in on LinkedIn with the LinkedIn account email and
+   password, approve access, and return to HRRecruit.
+
+HRRecruit never asks for or stores the user's LinkedIn password; credentials are
+entered only on LinkedIn's OAuth screen.
