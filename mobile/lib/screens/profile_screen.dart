@@ -75,25 +75,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final linkedInOAuthService = context.read<LinkedInOAuthService>();
 
     try {
-      final configuredClientId =
-          await linkedInOAuthService.readConfiguredClientId();
-      if (!mounted) return;
-
-      final clientId = configuredClientId ??
-          await _requestLinkedInClientId(linkedInOAuthService);
-      if (clientId == null || clientId.isEmpty) {
-        return;
-      }
-
       final shouldContinue = await _confirmLinkedInOAuthSignIn();
       if (!mounted || !shouldContinue) {
         return;
       }
 
       setState(() => _isImportingLinkedIn = true);
-      final importedProfile = await linkedInOAuthService.importProfile(
-        clientIdOverride: clientId,
-      );
+      final importedProfile = await linkedInOAuthService.importProfile();
       _linkedinController.text = importedProfile.profileUrl;
       _summaryController.text = importedProfile.summary;
 
@@ -123,9 +111,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Sign in to LinkedIn and allow access'),
         content: const Text(
-          'HRRecruit will open LinkedIn OAuth 2.0 next. Sign in with your '
-          'LinkedIn account email and password on LinkedIn, then choose '
-          'Allow access to return and import your profile details.',
+          'HRRecruit will open LinkedIn OAuth 2.0 next and ask LinkedIn to '
+          'show its login prompt. Enter your LinkedIn account email and '
+          'password on LinkedIn, then choose Allow access to return and '
+          'import your profile details.',
         ),
         actions: [
           TextButton(
@@ -142,76 +131,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     return shouldContinue ?? false;
-  }
-
-  Future<String?> _requestLinkedInClientId(
-    LinkedInOAuthService linkedInOAuthService,
-  ) async {
-    final controller = TextEditingController();
-    final clientId = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('LinkedIn OAuth setup'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter the LinkedIn Client ID from your LinkedIn Developer app. '
-                'HRRecruit saves this public Client ID on this device and uses '
-                'OAuth 2.0 with PKCE; do not enter a Client Secret.',
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'LinkedIn Client ID',
-                  border: OutlineInputBorder(),
-                ),
-                onSubmitted: (_) {
-                  final value = controller.text.trim();
-                  if (value.isNotEmpty) {
-                    Navigator.of(dialogContext).pop(value);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Enter your LinkedIn Client ID.'),
-                  ),
-                );
-                return;
-              }
-              Navigator.of(dialogContext).pop(value);
-            },
-            child: const Text('Save and continue'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-
-    if (clientId == null || clientId.trim().isEmpty) {
-      return null;
-    }
-
-    final trimmedClientId = clientId.trim();
-    await linkedInOAuthService.saveClientId(trimmedClientId);
-    return trimmedClientId;
   }
 
   Future<void> _changePassword() async {

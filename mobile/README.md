@@ -12,10 +12,14 @@ flutter run
 
 ## Backend API URL
 
-The mobile app defaults to `http://10.0.2.2:8000/api/`, which is only valid
-for the Android emulator.
+The app now chooses the safest local default for the current Flutter target:
 
-When running on a physical phone:
+- Android emulator: `http://10.0.2.2:8000/api/`
+- iOS simulator, desktop, or Flutter web: `http://localhost:8000/api/`
+
+`10.0.2.2` is only valid for the Android emulator.
+
+When running on a physical phone or tablet:
 
 1. Connect the phone and development computer to the same Wi-Fi network.
 2. Start Django so it listens on your LAN interface:
@@ -73,9 +77,7 @@ LinkedIn app settings:
 hrrecruit://linkedin-oauth
 ```
 
-You can enter the LinkedIn Client ID in the app the first time you tap **Import LinkedIn profile**. HRRecruit saves that public Client ID on the device for future imports.
-
-Alternatively, run the Flutter app with your LinkedIn Client ID so the setup dialog is skipped:
+Configure the LinkedIn Client ID at build/run time. Applicants should never be asked to enter developer credentials such as a LinkedIn Client ID inside the app:
 
 ```bash
 flutter run --dart-define=LINKEDIN_CLIENT_ID=YOUR_LINKEDIN_CLIENT_ID
@@ -99,8 +101,11 @@ Applicant flow:
 1. Tap **Import from LinkedIn**.
 2. HRRecruit shows **Sign in to LinkedIn and allow access** and explains that
    LinkedIn OAuth 2.0 will open next.
-3. Tap **Allow access**, sign in on LinkedIn with the LinkedIn account email and
-   password, approve access, and return to HRRecruit.
+3. Tap **Allow access**. HRRecruit adds LinkedIn's `prompt=login` OAuth
+   parameter so LinkedIn prompts the applicant to enter or confirm their
+   LinkedIn login credentials for the import. Sign in on LinkedIn with the
+   LinkedIn account email and password, approve access, and return to
+   HRRecruit.
 
 HRRecruit never asks for or stores the user's LinkedIn password; credentials are
 entered only on LinkedIn's OAuth screen.

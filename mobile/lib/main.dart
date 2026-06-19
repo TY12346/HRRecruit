@@ -60,7 +60,7 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
           create: (_) => JobDiscoveryService(_apiClient),
         ),
         Provider<LinkedInOAuthService>(
-          create: (_) => LinkedInOAuthService(tokenStorage: _tokenStorage),
+          create: (_) => LinkedInOAuthService(),
         ),
         Provider<ApplicantWorkflowService>(
           create: (_) => ApplicantWorkflowService(_apiClient),
