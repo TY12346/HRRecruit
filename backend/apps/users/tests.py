@@ -196,6 +196,17 @@ class PasswordManagementAPITests(APITestCase):
         self.assertRegex(request_response.data['reset_code'], r'^\d{6}$')
         otp = self.user.password_reset_otps.first()
 
+        verify_response = self.client.post(
+            reverse('auth-password-reset-verify'),
+            {
+                'email': self.user.email.upper(),
+                'client_app': 'mobile',
+                'otp_code': otp.otp_code,
+            },
+            format='json',
+        )
+        self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
+
         confirm_response = self.client.post(
             reverse('auth-password-reset-confirm'),
             {
@@ -212,6 +223,28 @@ class PasswordManagementAPITests(APITestCase):
         otp.refresh_from_db()
         self.assertTrue(self.user.check_password('ResetPass123!'))
         self.assertTrue(otp.is_used)
+
+
+    def test_password_reset_verify_rejects_wrong_mobile_otp(self):
+        self.client.post(
+            reverse('auth-password-reset-request'),
+            {'email': self.user.email, 'client_app': 'mobile'},
+            format='json',
+        )
+
+        response = self.client.post(
+            reverse('auth-password-reset-verify'),
+            {
+                'email': self.user.email,
+                'client_app': 'mobile',
+                'otp_code': '000000',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('OldPass123!'))
 
     def test_web_password_reset_does_not_send_for_applicant_accounts(self):
         response = self.client.post(

@@ -89,6 +89,18 @@ class AuthController extends ChangeNotifier {
     return resetCode;
   }
 
+  Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String otpCode,
+  }) async {
+    await _runAuthAction(
+      () => _authService.verifyPasswordResetOtp(
+        email: email,
+        otpCode: otpCode,
+      ),
+    );
+  }
+
   Future<void> confirmPasswordReset({
     required String email,
     required String otpCode,

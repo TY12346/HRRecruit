@@ -156,6 +156,40 @@ def _should_return_development_reset_code():
     return is_development_email_backend()
 
 
+def _get_valid_password_reset_otp(email, client_app, reset_secret):
+    user = User.objects.filter(email__iexact=email).first()
+    if not user or not _user_can_reset_from_client(user, client_app):
+        raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
+
+    otp = PasswordResetOTP.objects.filter(
+        user=user,
+        otp_code=reset_secret,
+        is_used=False,
+        expires_at__gt=timezone.now(),
+    ).order_by('-created_at').first()
+
+    if not otp:
+        raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
+
+    return user, otp
+
+
+class PasswordResetVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    client_app = serializers.ChoiceField(choices=(PasswordResetRequestSerializer.CLIENT_MOBILE,))
+    otp_code = serializers.CharField(max_length=6, min_length=6)
+
+    def validate(self, attrs):
+        user, otp = _get_valid_password_reset_otp(
+            attrs['email'],
+            attrs['client_app'],
+            attrs['otp_code'],
+        )
+        attrs['user'] = user
+        attrs['otp'] = otp
+        return attrs
+
+
 class PasswordResetConfirmSerializer(serializers.Serializer):
     email = serializers.EmailField()
     client_app = serializers.ChoiceField(
@@ -170,24 +204,15 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        user = User.objects.filter(email__iexact=attrs['email']).first()
-        if not user or not _user_can_reset_from_client(user, attrs['client_app']):
-            raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
-
         reset_secret = attrs.get('otp_code') or attrs.get('reset_token')
         if not reset_secret:
             raise serializers.ValidationError({'detail': 'Invalid reset link or email.'})
 
-        otp = PasswordResetOTP.objects.filter(
-            user=user,
-            otp_code=reset_secret,
-            is_used=False,
-            expires_at__gt=timezone.now(),
-        ).order_by('-created_at').first()
-
-        if not otp:
-            raise serializers.ValidationError({'detail': 'Invalid OTP or email.'})
-
+        user, otp = _get_valid_password_reset_otp(
+            attrs['email'],
+            attrs['client_app'],
+            reset_secret,
+        )
         attrs['user'] = user
         attrs['otp'] = otp
         return attrs

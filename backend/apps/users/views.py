@@ -11,6 +11,7 @@ from .serializers import (
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    PasswordResetVerifySerializer,
     RegisterSerializer,
     ResumeUploadSerializer,
     UserProfileSerializer,
@@ -119,6 +120,15 @@ class PasswordResetRequestAPIView(APIView):
         response_data = {'message': 'If the email exists, password reset instructions have been sent.'}
         response_data.update(result)
         return Response(response_data)
+
+
+class PasswordResetVerifyAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({'message': 'OTP verified successfully.'})
 
 
 class PasswordResetConfirmAPIView(APIView):

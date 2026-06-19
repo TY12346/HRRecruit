@@ -51,6 +51,20 @@ class ApplicantAuthService {
     return response.data?['reset_code'] as String?;
   }
 
+  Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String otpCode,
+  }) async {
+    await _apiClient.dio.post<Map<String, dynamic>>(
+      'auth/password-reset/verify/',
+      data: {
+        'email': email,
+        'client_app': 'mobile',
+        'otp_code': otpCode,
+      },
+    );
+  }
+
   Future<void> confirmPasswordReset({
     required String email,
     required String otpCode,

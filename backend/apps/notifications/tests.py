@@ -162,6 +162,19 @@ class EmailServiceTests(SimpleTestCase):
         self.assertEqual(request.headers['Authorization'], 'Bearer SG.test-key')
         self.assertEqual(request.headers['Content-type'], 'application/json')
 
+
+    @patch('apps.notifications.email_service.send_email')
+    def test_mobile_password_reset_email_contains_otp_without_link(self, mock_send_email):
+        user = SimpleNamespace(email='applicant@example.com', full_name='Applicant One')
+
+        send_password_reset_otp_email(user, '654321', client_app='mobile')
+
+        password_reset_call = mock_send_email.call_args
+        self.assertIn('Use the OTP below', password_reset_call.kwargs['message'])
+        self.assertIn('654321', password_reset_call.kwargs['message'])
+        self.assertNotIn('http://', password_reset_call.kwargs['message'])
+        self.assertNotIn('https://', password_reset_call.kwargs['message'])
+
     @override_settings(
         SENDGRID_API_KEY='',
         SENDGRID_FROM_EMAIL='',

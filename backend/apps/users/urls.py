@@ -7,6 +7,7 @@ from .views import (
     LogoutAPIView,
     PasswordResetConfirmAPIView,
     PasswordResetRequestAPIView,
+    PasswordResetVerifyAPIView,
     ProfileAPIView,
     RegisterAPIView,
     ResumeUploadAPIView,
@@ -20,6 +21,7 @@ urlpatterns = [
     path('auth/profile/', ProfileAPIView.as_view(), name='auth-profile'),
     path('auth/password/change/', ChangePasswordAPIView.as_view(), name='auth-password-change'),
     path('auth/password-reset/request/', PasswordResetRequestAPIView.as_view(), name='auth-password-reset-request'),
+    path('auth/password-reset/verify/', PasswordResetVerifyAPIView.as_view(), name='auth-password-reset-verify'),
     path('auth/password-reset/confirm/', PasswordResetConfirmAPIView.as_view(), name='auth-password-reset-confirm'),
     path('auth/resume/upload/', ResumeUploadAPIView.as_view(), name='auth-resume-upload'),
 ]

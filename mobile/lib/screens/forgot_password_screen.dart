@@ -63,9 +63,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-  void _submitOtp() {
+  Future<void> _submitOtp() async {
     if (!_otpFormKey.currentState!.validate()) return;
-    setState(() => _step = _ForgotPasswordStep.enterNewPassword);
+    try {
+      await context.read<AuthController>().verifyPasswordResetOtp(
+            email: _emailController.text.trim(),
+            otpCode: _otpController.text.trim(),
+          );
+      if (!mounted) return;
+      setState(() => _step = _ForgotPasswordStep.enterNewPassword);
+    } catch (error) {
+      if (!mounted) return;
+      showErrorSnackBar(context, error);
+    }
   }
 
   Future<void> _confirmReset() async {
@@ -256,12 +266,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           FilledButton(
             onPressed: isLoading ? null : _confirmReset,
             child: Text(isLoading ? 'Resetting...' : 'Reset password'),
-          ),
-          TextButton(
-            onPressed: isLoading
-                ? null
-                : () => setState(() => _step = _ForgotPasswordStep.enterOtp),
-            child: const Text('Back to OTP'),
           ),
         ],
       ),
