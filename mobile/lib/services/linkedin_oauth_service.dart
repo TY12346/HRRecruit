@@ -5,8 +5,6 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
-import 'token_storage.dart';
-
 class LinkedInImportedProfile {
   const LinkedInImportedProfile({
     required this.profileUrl,
@@ -19,10 +17,8 @@ class LinkedInImportedProfile {
 
 class LinkedInOAuthService {
   LinkedInOAuthService({
-    required TokenStorage tokenStorage,
     Dio? dio,
-  })  : _tokenStorage = tokenStorage,
-        _dio = dio ?? Dio();
+  }) : _dio = dio ?? Dio();
 
   static const clientId = String.fromEnvironment('LINKEDIN_CLIENT_ID');
   static const redirectUri = String.fromEnvironment(
@@ -44,34 +40,16 @@ class LinkedInOAuthService {
     'https://api.linkedin.com/v2/userinfo',
   );
 
-  final TokenStorage _tokenStorage;
   final Dio _dio;
 
-  Future<String?> readConfiguredClientId() async {
-    if (clientId.isNotEmpty) {
-      return clientId;
-    }
+  Future<LinkedInImportedProfile> importProfile() async {
+    final resolvedClientId = clientId.trim();
 
-    final storedClientId = await _tokenStorage.readLinkedInClientId();
-    final trimmedClientId = storedClientId?.trim();
-    return trimmedClientId == null || trimmedClientId.isEmpty
-        ? null
-        : trimmedClientId;
-  }
-
-  Future<void> saveClientId(String clientId) {
-    return _tokenStorage.saveLinkedInClientId(clientId.trim());
-  }
-
-  Future<LinkedInImportedProfile> importProfile({
-    String? clientIdOverride,
-  }) async {
-    final resolvedClientId = clientIdOverride?.trim().isNotEmpty == true
-        ? clientIdOverride!.trim()
-        : await readConfiguredClientId();
-
-    if (resolvedClientId == null || resolvedClientId.isEmpty) {
-      throw Exception('LinkedIn OAuth needs a Client ID before importing.');
+    if (resolvedClientId.isEmpty) {
+      throw Exception(
+        'LinkedIn import is not configured. Ask the app administrator to set '
+        'LINKEDIN_CLIENT_ID before using LinkedIn profile import.',
+      );
     }
 
     final state = _randomUrlSafeString(32);
