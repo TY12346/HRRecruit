@@ -1,3 +1,4 @@
+import os
 from tempfile import NamedTemporaryFile
 
 from rest_framework import permissions, status
@@ -161,14 +162,23 @@ class LinkedInProfilePdfImportAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         linkedin_pdf = serializer.validated_data['linkedin_pdf']
 
+        temporary_pdf_path = None
         try:
-            with NamedTemporaryFile(suffix='.pdf') as temporary_pdf:
+            with NamedTemporaryFile(suffix='.pdf', delete=False) as temporary_pdf:
+                temporary_pdf_path = temporary_pdf.name
                 for chunk in linkedin_pdf.chunks():
                     temporary_pdf.write(chunk)
                 temporary_pdf.flush()
-                extracted_text = extract_resume_text(temporary_pdf.name)
+
+            extracted_text = extract_resume_text(temporary_pdf_path)
         except ResumeTextExtractionError as exc:
             return Response({'linkedin_pdf': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        finally:
+            if temporary_pdf_path:
+                try:
+                    os.remove(temporary_pdf_path)
+                except FileNotFoundError:
+                    pass
 
         imported_profile = build_linkedin_profile_import(extracted_text)
         user = request.user

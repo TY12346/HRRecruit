@@ -1,3 +1,4 @@
+import os
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -324,14 +325,21 @@ class LinkedInProfilePdfImportAPITests(APITestCase):
 
     @patch('apps.users.views.extract_resume_text')
     def test_applicant_imports_linkedin_pdf_and_profile_is_filled(self, mock_extract_text):
-        mock_extract_text.return_value = (
-            'Jane Candidate\nSenior Django Developer\n'
-            'https://www.linkedin.com/in/jane-candidate\n'
-            'Experience\n5 years as Software Engineer at ExampleCo\n'
-            'Education\nBachelor of Computer Science\n'
-            'Skills\nPython Django PostgreSQL REST API\n'
-            'Licenses & Certifications\nAWS Certified Cloud Practitioner\n'
-        )
+        temporary_paths_seen_by_extractor = []
+
+        def extract_from_closed_temporary_file(path):
+            self.assertTrue(os.path.exists(path))
+            temporary_paths_seen_by_extractor.append(path)
+            return (
+                'Jane Candidate\nSenior Django Developer\n'
+                'https://www.linkedin.com/in/jane-candidate\n'
+                'Experience\n5 years as Software Engineer at ExampleCo\n'
+                'Education\nBachelor of Computer Science\n'
+                'Skills\nPython Django PostgreSQL REST API\n'
+                'Licenses & Certifications\nAWS Certified Cloud Practitioner\n'
+            )
+
+        mock_extract_text.side_effect = extract_from_closed_temporary_file
         self.client.force_authenticate(user=self.applicant)
 
         response = self.client.post(
@@ -358,6 +366,8 @@ class LinkedInProfilePdfImportAPITests(APITestCase):
         )
         self.assertIn('Django', response.data['extracted_profile']['skills'])
         self.assertEqual(response.data['user']['full_name'], 'Jane Candidate')
+        self.assertEqual(len(temporary_paths_seen_by_extractor), 1)
+        self.assertFalse(os.path.exists(temporary_paths_seen_by_extractor[0]))
 
     def test_non_applicant_cannot_import_linkedin_pdf(self):
         self.client.force_authenticate(user=self.recruiter)
