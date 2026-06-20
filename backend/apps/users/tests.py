@@ -1,6 +1,9 @@
+import os
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 from django.urls import reverse
 from rest_framework import status
@@ -303,3 +306,98 @@ class PasswordManagementAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.staff_user.refresh_from_db()
         self.assertTrue(self.staff_user.check_password('ResetPass123!'))
+
+
+class LinkedInProfilePdfImportAPITests(APITestCase):
+    def setUp(self):
+        self.applicant = User.objects.create_user(
+            email='linkedin-applicant@example.com',
+            password='StrongPass123!',
+            full_name='Old Name',
+            role=User.Role.APPLICANT,
+        )
+        self.recruiter = User.objects.create_user(
+            email='linkedin-recruiter@example.com',
+            password='StrongPass123!',
+            full_name='Recruiter User',
+            role=User.Role.RECRUITER,
+        )
+
+    @patch('apps.users.views.extract_resume_text')
+    def test_applicant_imports_linkedin_pdf_and_profile_is_filled(self, mock_extract_text):
+        temporary_paths_seen_by_extractor = []
+
+        def extract_from_closed_temporary_file(path):
+            self.assertTrue(os.path.exists(path))
+            temporary_paths_seen_by_extractor.append(path)
+            return (
+                'Jane Candidate\nSenior Django Developer\n'
+                'https://www.linkedin.com/in/jane-candidate\n'
+                'Experience\n5 years as Software Engineer at ExampleCo\n'
+                'Education\nBachelor of Computer Science\n'
+                'Skills\nPython Django PostgreSQL REST API\n'
+                'Licenses & Certifications\nAWS Certified Cloud Practitioner\n'
+            )
+
+        mock_extract_text.side_effect = extract_from_closed_temporary_file
+        self.client.force_authenticate(user=self.applicant)
+
+        response = self.client.post(
+            reverse('auth-linkedin-profile-import'),
+            {
+                'linkedin_pdf': SimpleUploadedFile(
+                    'linkedin-profile.pdf',
+                    b'%PDF-1.4 linked in profile',
+                    content_type='application/pdf',
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.applicant.refresh_from_db()
+        self.assertEqual(self.applicant.full_name, 'Jane Candidate')
+        self.assertEqual(
+            self.applicant.applicant_profile.linkedin_url,
+            'https://www.linkedin.com/in/jane-candidate',
+        )
+        self.assertIn(
+            'Senior Django Developer',
+            self.applicant.applicant_profile.personal_summary,
+        )
+        self.assertIn('Django', response.data['extracted_profile']['skills'])
+        self.assertEqual(response.data['user']['full_name'], 'Jane Candidate')
+        self.assertEqual(len(temporary_paths_seen_by_extractor), 1)
+        self.assertFalse(os.path.exists(temporary_paths_seen_by_extractor[0]))
+
+    def test_non_applicant_cannot_import_linkedin_pdf(self):
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.client.post(
+            reverse('auth-linkedin-profile-import'),
+            {
+                'linkedin_pdf': SimpleUploadedFile(
+                    'linkedin-profile.pdf',
+                    b'%PDF-1.4 linked in profile',
+                    content_type='application/pdf',
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_linkedin_import_requires_pdf(self):
+        self.client.force_authenticate(user=self.applicant)
+
+        response = self.client.post(
+            reverse('auth-linkedin-profile-import'),
+            {
+                'linkedin_pdf': SimpleUploadedFile(
+                    'linkedin-profile.txt',
+                    b'not a pdf',
+                    content_type='text/plain',
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('linkedin_pdf', response.data)
