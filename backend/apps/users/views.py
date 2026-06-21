@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 from rest_framework import permissions, status
@@ -203,26 +204,35 @@ class LinkedInProfilePdfImportAPIView(APIView):
                 for skill in imported_skills
             )
 
-        imported_experience = imported_profile.get('experience') or {}
-        roles = imported_experience.get('roles') or []
-        companies = imported_experience.get('companies') or []
-        if roles or companies:
+        imported_experience = imported_profile.get('experience') or []
+        if imported_experience:
             user.experiences.all().delete()
-            ApplicantExperience.objects.create(
-                applicant=user,
-                job_title=roles[0] if roles else imported_profile.get('headline', 'LinkedIn experience'),
-                company_name=companies[0] if companies else '',
+            ApplicantExperience.objects.bulk_create(
+                ApplicantExperience(
+                    applicant=user,
+                    job_title=experience.get('job_title') or imported_profile.get('headline', 'LinkedIn experience'),
+                    company_name=experience.get('company_name', ''),
+                    employment_type=experience.get('employment_type', ''),
+                    start_date=_parse_linkedin_month_date(experience.get('start_date')),
+                    location=experience.get('location', ''),
+                )
+                for experience in imported_experience
             )
 
-        imported_education = imported_profile.get('education') or {}
-        fields_of_study = imported_education.get('fields_of_study') or []
-        if imported_education.get('level_label') or fields_of_study:
+        imported_education = imported_profile.get('education') or []
+        if imported_education:
             user.educations.all().delete()
-            ApplicantEducation.objects.create(
-                applicant=user,
-                school_name='Imported from LinkedIn',
-                degree_name=imported_education.get('level_label') or '',
-                field_of_study=fields_of_study[0] if fields_of_study else '',
+            ApplicantEducation.objects.bulk_create(
+                ApplicantEducation(
+                    applicant=user,
+                    school_name=education.get('school_name', 'Imported from LinkedIn'),
+                    degree_name=education.get('degree_name', ''),
+                    field_of_study=education.get('field_of_study', ''),
+                    start_date=_parse_linkedin_month_date(education.get('start_date')),
+                    end_date=_parse_linkedin_month_date(education.get('end_date')),
+                    grade=education.get('grade', ''),
+                )
+                for education in imported_education
             )
 
         return Response(
@@ -245,3 +255,12 @@ class ResumeUploadAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'message': 'Resume uploaded successfully.', 'resume_file': request.user.applicant_profile.resume_file.url})
+
+
+def _parse_linkedin_month_date(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%B %Y').date().replace(day=1)
+    except ValueError:
+        return None
