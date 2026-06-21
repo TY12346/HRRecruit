@@ -1,8 +1,9 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/auth_controller.dart';
-import '../services/linkedin_oauth_service.dart';
+import '../models/applicant_profile.dart';
 import 'auth_form_helpers.dart';
 import '../widgets/app_navigation.dart';
 
@@ -24,6 +25,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _didPopulate = false;
   bool _isImportingLinkedIn = false;
+  List<ApplicantExperience> _experiences = [];
+  List<ApplicantEducation> _educations = [];
+  List<ApplicantSkill> _skills = [];
 
   @override
   void dispose() {
@@ -46,6 +50,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.text = profile.phoneNumber;
     _linkedinController.text = profile.linkedinUrl;
     _summaryController.text = profile.personalSummary;
+    _experiences = List.of(profile.experiences);
+    _educations = List.of(profile.educations);
+    _skills = List.of(profile.skills);
     _didPopulate = true;
   }
 
@@ -60,6 +67,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             phoneNumber: _phoneController.text.trim(),
             linkedinUrl: _linkedinController.text.trim(),
             personalSummary: _summaryController.text.trim(),
+            experiences: _experiences,
+            educations: _educations,
+            skills: _skills,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -72,40 +82,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _importLinkedInProfile() async {
-    final linkedInOAuthService = context.read<LinkedInOAuthService>();
-
     try {
-      final configuredClientId =
-          await linkedInOAuthService.readConfiguredClientId();
-      if (!mounted) return;
-
-      final clientId = configuredClientId ??
-          await _requestLinkedInClientId(linkedInOAuthService);
-      if (clientId == null || clientId.isEmpty) {
-        return;
-      }
-
-      final shouldContinue = await _confirmLinkedInOAuthSignIn();
+      final shouldContinue = await _confirmLinkedInPdfImport();
       if (!mounted || !shouldContinue) {
         return;
       }
 
-      setState(() => _isImportingLinkedIn = true);
-      final importedProfile = await linkedInOAuthService.importProfile(
-        clientIdOverride: clientId,
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        withData: false,
       );
-      _linkedinController.text = importedProfile.profileUrl;
-      _summaryController.text = importedProfile.summary;
+      final selectedFile = result?.files.single;
+      final selectedPath = selectedFile?.path;
+      if (selectedFile == null || selectedPath == null) {
+        return;
+      }
 
-      await context.read<AuthController>().updateProfile(
-            fullName: _fullNameController.text.trim(),
-            phoneNumber: _phoneController.text.trim(),
-            linkedinUrl: importedProfile.profileUrl,
-            personalSummary: importedProfile.summary,
+      setState(() => _isImportingLinkedIn = true);
+      await context.read<AuthController>().importLinkedInProfilePdf(
+            path: selectedPath,
+            fileName: selectedFile.name,
           );
       if (!mounted) return;
+
+      final profile = context.read<AuthController>().profile;
+      if (profile != null) {
+        _fullNameController.text = profile.fullName;
+        _linkedinController.text = profile.linkedinUrl;
+        _summaryController.text = profile.personalSummary;
+        setState(() {
+          _experiences = List.of(profile.experiences);
+          _educations = List.of(profile.educations);
+          _skills = List.of(profile.skills);
+        });
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('LinkedIn profile imported successfully.')),
+        const SnackBar(content: Text('LinkedIn PDF imported successfully.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -117,15 +130,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<bool> _confirmLinkedInOAuthSignIn() async {
+  Future<bool> _confirmLinkedInPdfImport() async {
     final shouldContinue = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign in to LinkedIn and allow access'),
+        title: const Text('Import LinkedIn profile PDF'),
         content: const Text(
-          'HRRecruit will open LinkedIn OAuth 2.0 next. Sign in with your '
-          'LinkedIn account email and password on LinkedIn, then choose '
-          'Allow access to return and import your profile details.',
+          'Open your LinkedIn profile, save or download it as a PDF, then '
+          'upload that PDF here. HRRecruit will extract the text and fill '
+          'your candidate profile automatically.',
         ),
         actions: [
           TextButton(
@@ -134,84 +147,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           FilledButton.icon(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            icon: const Icon(Icons.open_in_new_outlined),
-            label: const Text('Allow access'),
+            icon: const Icon(Icons.upload_file_outlined),
+            label: const Text('Choose PDF'),
           ),
         ],
       ),
     );
 
     return shouldContinue ?? false;
-  }
-
-  Future<String?> _requestLinkedInClientId(
-    LinkedInOAuthService linkedInOAuthService,
-  ) async {
-    final controller = TextEditingController();
-    final clientId = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('LinkedIn OAuth setup'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter the LinkedIn Client ID from your LinkedIn Developer app. '
-                'HRRecruit saves this public Client ID on this device and uses '
-                'OAuth 2.0 with PKCE; do not enter a Client Secret.',
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'LinkedIn Client ID',
-                  border: OutlineInputBorder(),
-                ),
-                onSubmitted: (_) {
-                  final value = controller.text.trim();
-                  if (value.isNotEmpty) {
-                    Navigator.of(dialogContext).pop(value);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Enter your LinkedIn Client ID.'),
-                  ),
-                );
-                return;
-              }
-              Navigator.of(dialogContext).pop(value);
-            },
-            child: const Text('Save and continue'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-
-    if (clientId == null || clientId.trim().isEmpty) {
-      return null;
-    }
-
-    final trimmedClientId = clientId.trim();
-    await linkedInOAuthService.saveClientId(trimmedClientId);
-    return trimmedClientId;
   }
 
   Future<void> _changePassword() async {
@@ -240,6 +183,220 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _addExperience() async {
+    final jobTitle = TextEditingController();
+    final companyName = TextEditingController();
+    final employmentType = TextEditingController();
+    final startDate = TextEditingController();
+    final location = TextEditingController();
+    final experience = await showDialog<ApplicantExperience>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add experience'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _dialogField(jobTitle, 'Job title'),
+              _dialogField(companyName, 'Company name'),
+              _dialogField(employmentType, 'Employment type'),
+              _dialogField(startDate, 'Start date (YYYY-MM-DD)'),
+              _dialogField(location, 'Location'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (jobTitle.text.trim().isEmpty) return;
+              Navigator.of(dialogContext).pop(ApplicantExperience(
+                jobTitle: jobTitle.text.trim(),
+                companyName: companyName.text.trim(),
+                employmentType: employmentType.text.trim(),
+                startDate: startDate.text.trim(),
+                location: location.text.trim(),
+              ));
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in [jobTitle, companyName, employmentType, startDate, location]) {
+      controller.dispose();
+    }
+    if (experience != null) setState(() => _experiences.add(experience));
+  }
+
+  Future<void> _addEducation() async {
+    final schoolName = TextEditingController();
+    final degreeName = TextEditingController();
+    final fieldOfStudy = TextEditingController();
+    final startDate = TextEditingController();
+    final endDate = TextEditingController();
+    final grade = TextEditingController();
+    final education = await showDialog<ApplicantEducation>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add education'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _dialogField(schoolName, 'School name'),
+              _dialogField(degreeName, 'Degree name'),
+              _dialogField(fieldOfStudy, 'Field of study'),
+              _dialogField(startDate, 'Start date (YYYY-MM-DD)'),
+              _dialogField(endDate, 'End date (YYYY-MM-DD)'),
+              _dialogField(grade, 'Grade'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (schoolName.text.trim().isEmpty) return;
+              Navigator.of(dialogContext).pop(ApplicantEducation(
+                schoolName: schoolName.text.trim(),
+                degreeName: degreeName.text.trim(),
+                fieldOfStudy: fieldOfStudy.text.trim(),
+                startDate: startDate.text.trim(),
+                endDate: endDate.text.trim(),
+                grade: grade.text.trim(),
+              ));
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in [schoolName, degreeName, fieldOfStudy, startDate, endDate, grade]) {
+      controller.dispose();
+    }
+    if (education != null) setState(() => _educations.add(education));
+  }
+
+  Future<void> _addSkill() async {
+    final skillName = TextEditingController();
+    final skill = await showDialog<ApplicantSkill>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add skill'),
+        content: _dialogField(skillName, 'Skill name'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (skillName.text.trim().isEmpty) return;
+              Navigator.of(dialogContext).pop(ApplicantSkill(skillName: skillName.text.trim()));
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    skillName.dispose();
+    if (skill != null) setState(() => _skills.add(skill));
+  }
+
+  Widget _dialogField(TextEditingController controller, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      ),
+    );
+  }
+
+  Widget _profileSection({
+    required String title,
+    required String emptyText,
+    required VoidCallback onAdd,
+    required List<Widget> children,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+                IconButton(onPressed: onAdd, icon: const Icon(Icons.add_circle_outline)),
+              ],
+            ),
+            if (children.isEmpty) Text(emptyText) else ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _experienceSections() {
+    return _profileSection(
+      title: 'Experience',
+      emptyText: 'Add your work experience.',
+      onAdd: _addExperience,
+      children: [
+        for (final entry in _experiences.indexed)
+          ListTile(
+            title: Text(entry.$2.jobTitle),
+            subtitle: Text([entry.$2.companyName, entry.$2.employmentType, entry.$2.location].where((value) => value.isNotEmpty).join(' • ')),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => setState(() => _experiences.removeAt(entry.$1)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _educationSection() {
+    return _profileSection(
+      title: 'Education',
+      emptyText: 'Add your education.',
+      onAdd: _addEducation,
+      children: [
+        for (final entry in _educations.indexed)
+          ListTile(
+            title: Text(entry.$2.schoolName),
+            subtitle: Text([entry.$2.degreeName, entry.$2.fieldOfStudy, entry.$2.grade].where((value) => value.isNotEmpty).join(' • ')),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => setState(() => _educations.removeAt(entry.$1)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _skillsSection() {
+    return _profileSection(
+      title: 'Skills',
+      emptyText: 'Add your skills.',
+      onAdd: _addSkill,
+      children: _skills.isEmpty
+          ? []
+          : [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final entry in _skills.indexed)
+                    InputChip(
+                      label: Text(entry.$2.skillName),
+                      onDeleted: () => setState(() => _skills.removeAt(entry.$1)),
+                    ),
+                ],
+              ),
+            ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
@@ -252,11 +409,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
                   initialValue: auth.profile?.email ?? '',
                   enabled: false,
                   decoration: const InputDecoration(
@@ -307,10 +464,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: auth.isLoading || _isImportingLinkedIn
                       ? null
                       : _importLinkedInProfile,
-                  icon: const Icon(Icons.business_center_outlined),
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
                   label: _isImportingLinkedIn
-                      ? const Text('Importing LinkedIn...')
-                      : const Text('Import from LinkedIn'),
+                      ? const Text('Importing LinkedIn PDF...')
+                      : const Text('Import LinkedIn PDF'),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -323,6 +480,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 24),
+                _experienceSections(),
+                const SizedBox(height: 12),
+                _educationSection(),
+                const SizedBox(height: 12),
+                _skillsSection(),
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: auth.isLoading ? null : _save,
@@ -371,11 +534,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ? const Text('Changing...')
                       : const Text('Change password'),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

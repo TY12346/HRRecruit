@@ -1,12 +1,19 @@
+import os
+from tempfile import NamedTemporaryFile
+
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User
+from apps.ai_services.linkedin_profile_importer import build_linkedin_profile_import
+from apps.ai_services.resume_text_extractor import ResumeTextExtractionError, extract_resume_text
+
+from .models import ApplicantEducation, ApplicantExperience, ApplicantSkill, User
 from .serializers import (
     ApplicantRegisterSerializer,
     ChangePasswordSerializer,
+    LinkedInProfilePdfUploadSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
@@ -139,6 +146,92 @@ class PasswordResetConfirmAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'message': 'Password reset successful.'})
+
+
+class LinkedInProfilePdfImportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != User.Role.APPLICANT:
+            return Response(
+                {'detail': 'Only applicants can import LinkedIn profile PDFs.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = LinkedInProfilePdfUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        linkedin_pdf = serializer.validated_data['linkedin_pdf']
+
+        temporary_pdf_path = None
+        try:
+            with NamedTemporaryFile(suffix='.pdf', delete=False) as temporary_pdf:
+                temporary_pdf_path = temporary_pdf.name
+                for chunk in linkedin_pdf.chunks():
+                    temporary_pdf.write(chunk)
+                temporary_pdf.flush()
+
+            extracted_text = extract_resume_text(temporary_pdf_path)
+        except ResumeTextExtractionError as exc:
+            return Response({'linkedin_pdf': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        finally:
+            if temporary_pdf_path:
+                try:
+                    os.remove(temporary_pdf_path)
+                except FileNotFoundError:
+                    pass
+
+        imported_profile = build_linkedin_profile_import(extracted_text)
+        user = request.user
+        profile = user.applicant_profile
+
+        if imported_profile['name']:
+            user.full_name = imported_profile['name']
+            user.save(update_fields=['full_name'])
+
+        profile.personal_summary = imported_profile['summary']
+        update_profile_fields = ['personal_summary']
+        if imported_profile['linkedin_url']:
+            profile.linkedin_url = imported_profile['linkedin_url']
+            update_profile_fields.append('linkedin_url')
+        profile.save(update_fields=update_profile_fields)
+
+        imported_skills = imported_profile.get('skills') or []
+        if imported_skills:
+            user.skills.all().delete()
+            ApplicantSkill.objects.bulk_create(
+                ApplicantSkill(applicant=user, skill_name=skill)
+                for skill in imported_skills
+            )
+
+        imported_experience = imported_profile.get('experience') or {}
+        roles = imported_experience.get('roles') or []
+        companies = imported_experience.get('companies') or []
+        if roles or companies:
+            user.experiences.all().delete()
+            ApplicantExperience.objects.create(
+                applicant=user,
+                job_title=roles[0] if roles else imported_profile.get('headline', 'LinkedIn experience'),
+                company_name=companies[0] if companies else '',
+            )
+
+        imported_education = imported_profile.get('education') or {}
+        fields_of_study = imported_education.get('fields_of_study') or []
+        if imported_education.get('level_label') or fields_of_study:
+            user.educations.all().delete()
+            ApplicantEducation.objects.create(
+                applicant=user,
+                school_name='Imported from LinkedIn',
+                degree_name=imported_education.get('level_label') or '',
+                field_of_study=fields_of_study[0] if fields_of_study else '',
+            )
+
+        return Response(
+            {
+                'message': 'LinkedIn profile PDF imported successfully.',
+                'user': UserProfileSerializer(user).data,
+                'extracted_profile': imported_profile,
+            }
+        )
 
 
 class ResumeUploadAPIView(APIView):

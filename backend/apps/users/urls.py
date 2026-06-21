@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ApplicantRegisterAPIView,
     ChangePasswordAPIView,
+    LinkedInProfilePdfImportAPIView,
     LoginAPIView,
     LogoutAPIView,
     PasswordResetConfirmAPIView,
@@ -24,4 +25,5 @@ urlpatterns = [
     path('auth/password-reset/verify/', PasswordResetVerifyAPIView.as_view(), name='auth-password-reset-verify'),
     path('auth/password-reset/confirm/', PasswordResetConfirmAPIView.as_view(), name='auth-password-reset-confirm'),
     path('auth/resume/upload/', ResumeUploadAPIView.as_view(), name='auth-resume-upload'),
+    path('auth/linkedin-profile/import/', LinkedInProfilePdfImportAPIView.as_view(), name='auth-linkedin-profile-import'),
 ]
