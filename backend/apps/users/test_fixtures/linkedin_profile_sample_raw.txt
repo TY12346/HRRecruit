@@ -1,0 +1,76 @@
+Contact
+www.linkedin.com/in/samplecandidate
+(LinkedIn)
+Top Skills
+Technical Standards
+Project Engineering
+Android Studio
+Certifications
+Manage Access to AWS Resources
+PLC Fundamentals
+VMware VSP-HCI Accreditation Certification
+Crowdstrike Sales Certified
+Sample Candidate
+Software Engineer | Java • C++ • Python • Kubernetes • AWS |
+Secret Clearance
+United States
+Summary
+Software engineer with hands-on experience building safety-critical
+control systems. At a major entertainment company, I developed
+real-time software for ride control systems using PLCs, VFDs - including
+hardware integration on a large attraction project. Currently building
+distributed simulation infrastructure for defense programs. Interested in
+autonomous systems, robotics, and mission-critical software.
+Experience
+Apex Defense Systems
+Software Engineer
+October 2024 - Present (1 year 9 months)
+• Architected hardware-in-the-loop (HWIL) simulation software in Java/C++
+for cyber range environments, enabling real-time emulation of distributed
+networked systems with strict timing constraints; directly analogous to
+functional model development for silicon architecture evaluation.
+• Applied OOP design principles to build modular, extensible simulation
+components; designed RESTful APIs for resource allocation and built GitLab
+CI/CD pipelines with automated testing and compliance validation.
+• Produced detailed software specifications, design documents, and test plans
+to defense standards, supporting system integration reviews across a large-scale
+distributed codebase.
+Orlando Entertainment Company
+1 year 1 month
+Controls System Engineering Intern
+January 2024 - June 2024 (6 months)
+Orlando, Florida, United States
+- Developed safety-critical control system software for theme park attractions,
+ensuring strict reliability and fault tolerance under real-time operating
+constraints
+Page 1 of 2
+- Programmed and tested PLC logic using Allen Bradley controllers and
+RSLogix 5000 for ride sequencing, safety interlocks, and E-stop handling
+- Integrated VFD motor controls and configured communication protocols
+between PLCs and field devices
+- Performed hands-on hardware integration and commissioning work on
+a large attraction project, including wiring, I/O verification, and system
+checkout
+Software Engineer Intern
+June 2023 - December 2023 (7 months)
+Orlando, Florida, United States
+Blue Harbor Labs
+Software Engineer
+May 2023 - December 2023 (8 months)
+Tempe, Arizona, United States
+Catalyst AI
+Software Engineer
+January 2023 - June 2023 (6 months)
+Edupoint Learning Systems, LLC
+Software Engineer Intern
+January 2022 - July 2022 (7 months)
+Mesa, Arizona, United States
+Matrix Health Network
+Software Engineer Intern
+April 2020 - December 2021 (1 year 9 months)
+Scottsdale, Arizona, United States
+Education
+Arizona State University
+Bachelor of Science - BS, Computer Science Engineering · (August
+2021 - May 2024)
+Page 2 of 2

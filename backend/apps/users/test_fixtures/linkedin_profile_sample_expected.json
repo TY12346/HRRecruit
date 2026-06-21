@@ -1,0 +1,100 @@
+{
+  "full_name": "Sample Candidate",
+  "headline": "Software Engineer | Java • C++ • Python • Kubernetes • AWS | Secret Clearance",
+  "location": "United States",
+  "linkedin_url": "www.linkedin.com/in/samplecandidate",
+  "summary": "Software engineer with hands-on experience building safety-critical control systems. At a major entertainment company, I developed real-time software for ride control systems using PLCs, VFDs - including hardware integration on a large attraction project. Currently building distributed simulation infrastructure for defense programs. Interested in autonomous systems, robotics, and mission-critical software.",
+  "skills": [
+    "Technical Standards",
+    "Project Engineering",
+    "Android Studio"
+  ],
+  "certifications": [
+    "Manage Access to AWS Resources",
+    "PLC Fundamentals",
+    "VMware VSP-HCI Accreditation Certification",
+    "Crowdstrike Sales Certified"
+  ],
+  "experience": [
+    {
+      "company_name": "Apex Defense Systems",
+      "job_title": "Software Engineer",
+      "employment_type": "",
+      "start_date": "October 2024",
+      "end_date": "Present",
+      "duration": "1 year 9 months",
+      "location": "",
+      "description": "Architected hardware-in-the-loop (HWIL) simulation software in Java/C++ for cyber range environments, enabling real-time emulation of distributed networked systems with strict timing constraints; directly analogous to functional model development for silicon architecture evaluation. Applied OOP design principles to build modular, extensible simulation components; designed RESTful APIs for resource allocation and built GitLab CI/CD pipelines with automated testing and compliance validation. Produced detailed software specifications, design documents, and test plans to defense standards, supporting system integration reviews across a large-scale distributed codebase."
+    },
+    {
+      "company_name": "Orlando Entertainment Company",
+      "job_title": "Controls System Engineering Intern",
+      "employment_type": "",
+      "start_date": "January 2024",
+      "end_date": "June 2024",
+      "duration": "6 months",
+      "location": "Orlando, Florida, United States",
+      "description": "Developed safety-critical control system software for theme park attractions, ensuring strict reliability and fault tolerance under real-time operating constraints. Programmed and tested PLC logic using Allen Bradley controllers and RSLogix 5000 for ride sequencing, safety interlocks, and E-stop handling. Integrated VFD motor controls and configured communication protocols between PLCs and field devices. Performed hands-on hardware integration and commissioning work on a large attraction project, including wiring, I/O verification, and system checkout."
+    },
+    {
+      "company_name": "Orlando Entertainment Company",
+      "job_title": "Software Engineer Intern",
+      "employment_type": "",
+      "start_date": "June 2023",
+      "end_date": "December 2023",
+      "duration": "7 months",
+      "location": "Orlando, Florida, United States",
+      "description": ""
+    },
+    {
+      "company_name": "Blue Harbor Labs",
+      "job_title": "Software Engineer",
+      "employment_type": "",
+      "start_date": "May 2023",
+      "end_date": "December 2023",
+      "duration": "8 months",
+      "location": "Tempe, Arizona, United States",
+      "description": ""
+    },
+    {
+      "company_name": "Catalyst AI",
+      "job_title": "Software Engineer",
+      "employment_type": "",
+      "start_date": "January 2023",
+      "end_date": "June 2023",
+      "duration": "6 months",
+      "location": "",
+      "description": ""
+    },
+    {
+      "company_name": "Edupoint Learning Systems, LLC",
+      "job_title": "Software Engineer Intern",
+      "employment_type": "",
+      "start_date": "January 2022",
+      "end_date": "July 2022",
+      "duration": "7 months",
+      "location": "Mesa, Arizona, United States",
+      "description": ""
+    },
+    {
+      "company_name": "Matrix Health Network",
+      "job_title": "Software Engineer Intern",
+      "employment_type": "",
+      "start_date": "April 2020",
+      "end_date": "December 2021",
+      "duration": "1 year 9 months",
+      "location": "Scottsdale, Arizona, United States",
+      "description": ""
+    }
+  ],
+  "education": [
+    {
+      "school_name": "Arizona State University",
+      "degree_name": "Bachelor of Science - BS",
+      "field_of_study": "Computer Science Engineering",
+      "start_date": "August 2021",
+      "end_date": "May 2024",
+      "grade": ""
+    }
+  ]
+}
