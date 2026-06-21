@@ -139,6 +139,9 @@ class AuthController extends ChangeNotifier {
     required String phoneNumber,
     required String linkedinUrl,
     required String personalSummary,
+    required List<ApplicantExperience> experiences,
+    required List<ApplicantEducation> educations,
+    required List<ApplicantSkill> skills,
   }) async {
     await _runAuthAction(() async {
       final profile = await _authService.updateProfile(
@@ -146,6 +149,23 @@ class AuthController extends ChangeNotifier {
         phoneNumber: phoneNumber,
         linkedinUrl: linkedinUrl,
         personalSummary: personalSummary,
+        experiences: experiences,
+        educations: educations,
+        skills: skills,
+      );
+      _ensureApplicant(profile);
+      _profile = profile;
+    });
+  }
+
+  Future<void> importLinkedInProfilePdf({
+    required String path,
+    required String fileName,
+  }) async {
+    await _runAuthAction(() async {
+      final profile = await _authService.importLinkedInProfilePdf(
+        path: path,
+        fileName: fileName,
       );
       _ensureApplicant(profile);
       _profile = profile;

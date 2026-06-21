@@ -111,6 +111,9 @@ class ApplicantAuthService {
     required String phoneNumber,
     required String linkedinUrl,
     required String personalSummary,
+    required List<ApplicantExperience> experiences,
+    required List<ApplicantEducation> educations,
+    required List<ApplicantSkill> skills,
   }) async {
     final response = await _apiClient.dio.patch<Map<String, dynamic>>(
       'auth/profile/',
@@ -119,7 +122,27 @@ class ApplicantAuthService {
         'phone_number': phoneNumber,
         'linkedin_url': linkedinUrl,
         'personal_summary': personalSummary,
+        'experiences': experiences.map((item) => item.toJson()).toList(),
+        'educations': educations.map((item) => item.toJson()).toList(),
+        'skills': skills.map((item) => item.toJson()).toList(),
       },
+    );
+
+    final data = response.data!;
+    return ApplicantProfile.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
+  Future<ApplicantProfile> importLinkedInProfilePdf({
+    required String path,
+    required String fileName,
+  }) async {
+    final formData = FormData.fromMap({
+      'linkedin_pdf': await MultipartFile.fromFile(path, filename: fileName),
+    });
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      'auth/linkedin-profile/import/',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
     );
 
     final data = response.data!;

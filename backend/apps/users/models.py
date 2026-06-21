@@ -63,6 +63,43 @@ class ApplicantProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class ApplicantExperience(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='experiences')
+    job_title = models.CharField(max_length=255)
+    employment_type = models.CharField(max_length=100, blank=True)
+    company_name = models.CharField(max_length=255, blank=True)
+    start_date = models.DateField(blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['-start_date', '-id']
+
+
+class ApplicantEducation(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='educations')
+    school_name = models.CharField(max_length=255)
+    degree_name = models.CharField(max_length=255, blank=True)
+    field_of_study = models.CharField(max_length=255, blank=True)
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
+    grade = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ['-start_date', '-id']
+
+
+class ApplicantSkill(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='skills')
+    skill_name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['skill_name']
+        unique_together = ('applicant', 'skill_name')
+
+
 class RecruiterProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='recruiter_profile')
     created_at = models.DateTimeField(auto_now_add=True)
