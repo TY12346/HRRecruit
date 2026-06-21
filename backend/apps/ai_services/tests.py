@@ -463,10 +463,28 @@ class LinkedInProfileImporterTests(SimpleTestCase):
         self.assertEqual(parsed['location'], expected['location'])
         self.assertEqual(parsed['linkedin_url'], expected['linkedin_url'])
         self.assertEqual(parsed['summary'], expected['summary'])
-        self.assertEqual(parsed['skills'], expected['skills'])
+        self.assertEqual(parsed['skills'][:len(expected['skills'])], expected['skills'])
+        for expected_skill in ['Java', 'Kubernetes', 'AWS']:
+            self.assertIn(expected_skill, parsed['skills'])
         self.assertEqual(parsed['certifications'], expected['certifications'])
         self.assertEqual(parsed['experience'], expected['experience'])
         self.assertEqual(parsed['education'], expected['education'])
+
+
+    def test_linkedin_profile_parser_merges_sidebar_and_headline_skills(self):
+        from .linkedin_profile_importer import build_linkedin_profile_import
+
+        parsed = build_linkedin_profile_import(
+            'Contact\nwww.linkedin.com/in/dev-profile\nTop Skills\nTechnical Standards\n'
+            'Dev Candidate\nSoftware Engineer | Java • Kubernetes • AWS |\nMalaysia\nSummary\n'
+            'Building backend services.\nExperience\nExample Co\nEngineer\n'
+            'January 2024 - Present (6 months)'
+        )
+
+        self.assertEqual(parsed['skills'][0], 'Technical Standards')
+        self.assertIn('Java', parsed['skills'])
+        self.assertIn('Kubernetes', parsed['skills'])
+        self.assertIn('AWS', parsed['skills'])
 
     def test_linkedin_profile_parser_handles_missing_optional_sections(self):
         from .linkedin_profile_importer import build_linkedin_profile_import

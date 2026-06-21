@@ -31,7 +31,7 @@ def build_linkedin_profile_import(text):
     headline = _extract_headline(header_lines, full_name)
     location = _extract_location(header_lines, full_name, headline)
     linkedin_url = _extract_linkedin_url(lines)
-    skills = _extract_sidebar_list(sections, "top skills") or _extract_skills(lines)
+    skills = _merge_skills(_extract_sidebar_list(sections, "top skills"), _extract_skills(lines))
     certifications = _extract_sidebar_list(sections, "certifications") or _extract_sidebar_list(sections, "licenses & certifications")
     summary = _extract_paragraph_section(sections, ("summary", "about"))
     experience = _extract_experience(sections.get("experience", []))
@@ -154,6 +154,17 @@ def _extract_sidebar_list(sections, name):
 
 def _extract_skills(lines):
     return extract_skill_labels(normalize_whitespace(" ".join(lines)))
+
+
+def _merge_skills(sidebar_skills, detected_skills):
+    merged = []
+    seen = set()
+    for skill in [*sidebar_skills, *detected_skills]:
+        normalized = skill.strip().lower()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            merged.append(skill)
+    return merged
 
 
 def _extract_paragraph_section(sections, names):
