@@ -13,7 +13,15 @@ from apps.notifications.email_service import (
     send_password_reset_otp_email,
 )
 
-from .models import ApplicantProfile, PasswordResetOTP, User, create_profile_for_user
+from .models import (
+    ApplicantEducation,
+    ApplicantExperience,
+    ApplicantProfile,
+    ApplicantSkill,
+    PasswordResetOTP,
+    User,
+    create_profile_for_user,
+)
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -91,18 +99,51 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+class ApplicantExperienceSerializer(serializers.ModelSerializer):
+    experience_id = serializers.IntegerField(source='id', read_only=True)
+
+    class Meta:
+        model = ApplicantExperience
+        fields = ['experience_id', 'job_title', 'employment_type', 'company_name', 'start_date', 'location']
+
+
+class ApplicantEducationSerializer(serializers.ModelSerializer):
+    education_id = serializers.IntegerField(source='id', read_only=True)
+
+    class Meta:
+        model = ApplicantEducation
+        fields = ['education_id', 'school_name', 'degree_name', 'field_of_study', 'start_date', 'end_date', 'grade']
+
+
+class ApplicantSkillSerializer(serializers.ModelSerializer):
+    skill_id = serializers.IntegerField(source='id', read_only=True)
+
+    class Meta:
+        model = ApplicantSkill
+        fields = ['skill_id', 'skill_name']
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     linkedin_url = serializers.URLField(source='applicant_profile.linkedin_url', required=False, allow_blank=True)
     personal_summary = serializers.CharField(source='applicant_profile.personal_summary', required=False, allow_blank=True)
     resume_file = serializers.FileField(source='applicant_profile.resume_file', read_only=True)
+    experiences = ApplicantExperienceSerializer(many=True, required=False)
+    educations = ApplicantEducationSerializer(many=True, required=False)
+    skills = ApplicantSkillSerializer(many=True, required=False)
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'phone_number', 'role', 'linkedin_url', 'personal_summary', 'resume_file']
+        fields = [
+            'id', 'email', 'full_name', 'phone_number', 'role', 'linkedin_url',
+            'personal_summary', 'resume_file', 'experiences', 'educations', 'skills',
+        ]
         read_only_fields = ['id', 'email', 'role', 'resume_file']
 
     def update(self, instance, validated_data):
         applicant_data = validated_data.pop('applicant_profile', {})
+        experiences_data = validated_data.pop('experiences', None)
+        educations_data = validated_data.pop('educations', None)
+        skills_data = validated_data.pop('skills', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save(update_fields=list(validated_data.keys()) if validated_data else None)
@@ -112,6 +153,28 @@ class UserProfileSerializer(serializers.ModelSerializer):
             for attr, value in applicant_data.items():
                 setattr(profile, attr, value)
             profile.save(update_fields=list(applicant_data.keys()))
+        if instance.role == User.Role.APPLICANT:
+            if experiences_data is not None:
+                instance.experiences.all().delete()
+                ApplicantExperience.objects.bulk_create(
+                    ApplicantExperience(applicant=instance, **item)
+                    for item in experiences_data
+                    if item.get('job_title')
+                )
+            if educations_data is not None:
+                instance.educations.all().delete()
+                ApplicantEducation.objects.bulk_create(
+                    ApplicantEducation(applicant=instance, **item)
+                    for item in educations_data
+                    if item.get('school_name')
+                )
+            if skills_data is not None:
+                instance.skills.all().delete()
+                ApplicantSkill.objects.bulk_create(
+                    ApplicantSkill(applicant=instance, skill_name=item['skill_name'])
+                    for item in skills_data
+                    if item.get('skill_name')
+                )
         return instance
 
 

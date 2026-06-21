@@ -67,19 +67,6 @@ If you already have an untracked/generated `android/` folder locally, make sure
 `uses-permission`, `usesCleartextTraffic`, and `networkSecurityConfig` entries.
 
 ## LinkedIn PDF profile import
-The applicant profile screen imports LinkedIn data from a PDF copy of the
-applicant's LinkedIn profile. This flow does not use LinkedIn OAuth and does not
-ask the applicant for a LinkedIn Client ID, Client Secret, or LinkedIn password.
-
-Applicant flow:
-
-1. Open your LinkedIn profile in LinkedIn.
-2. Save or download the profile as a PDF.
-3. In HRRecruit mobile, open **Profile** and tap **Import LinkedIn PDF**.
-4. Select the LinkedIn profile PDF.
-5. HRRecruit uploads the PDF to the API, extracts text from the PDF, extracts
-   profile details such as name, headline, skills, experience, education, and
-   certifications, then fills the candidate profile automatically.
 
 The applicant profile screen imports LinkedIn data from a PDF copy of the
 applicant's LinkedIn profile. This flow does not use LinkedIn OAuth and does not

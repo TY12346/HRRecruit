@@ -401,3 +401,58 @@ class LinkedInProfilePdfImportAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('linkedin_pdf', response.data)
+
+
+class ApplicantProfileSectionAPITests(APITestCase):
+    def setUp(self):
+        self.applicant = User.objects.create_user(
+            email='section-applicant@example.com',
+            password='StrongPass123!',
+            full_name='Section Applicant',
+            role=User.Role.APPLICANT,
+        )
+
+    def test_applicant_can_save_linkedin_style_profile_sections(self):
+        self.client.force_authenticate(user=self.applicant)
+
+        response = self.client.patch(
+            reverse('auth-profile'),
+            {
+                'full_name': 'Section Applicant',
+                'phone_number': '+60123456789',
+                'linkedin_url': 'https://www.linkedin.com/in/section-applicant',
+                'personal_summary': 'Backend developer.',
+                'experiences': [
+                    {
+                        'job_title': 'Software Engineer',
+                        'employment_type': 'Full-time',
+                        'company_name': 'ExampleCo',
+                        'start_date': '2024-01-01',
+                        'location': 'Kuala Lumpur',
+                    }
+                ],
+                'educations': [
+                    {
+                        'school_name': 'Example University',
+                        'degree_name': 'Bachelor',
+                        'field_of_study': 'Computer Science',
+                        'start_date': '2020-01-01',
+                        'end_date': '2023-12-31',
+                        'grade': '3.80',
+                    }
+                ],
+                'skills': [{'skill_name': 'Django'}, {'skill_name': 'Flutter'}],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['user']['experiences'][0]['job_title'], 'Software Engineer')
+        self.assertEqual(response.data['user']['educations'][0]['school_name'], 'Example University')
+        self.assertEqual(
+            sorted(skill['skill_name'] for skill in response.data['user']['skills']),
+            ['Django', 'Flutter'],
+        )
+        self.assertEqual(self.applicant.experiences.count(), 1)
+        self.assertEqual(self.applicant.educations.count(), 1)
+        self.assertEqual(self.applicant.skills.count(), 2)

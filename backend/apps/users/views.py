@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.ai_services.linkedin_profile_importer import build_linkedin_profile_import
 from apps.ai_services.resume_text_extractor import ResumeTextExtractionError, extract_resume_text
 
-from .models import User
+from .models import ApplicantEducation, ApplicantExperience, ApplicantSkill, User
 from .serializers import (
     ApplicantRegisterSerializer,
     ChangePasswordSerializer,
@@ -194,6 +194,36 @@ class LinkedInProfilePdfImportAPIView(APIView):
             profile.linkedin_url = imported_profile['linkedin_url']
             update_profile_fields.append('linkedin_url')
         profile.save(update_fields=update_profile_fields)
+
+        imported_skills = imported_profile.get('skills') or []
+        if imported_skills:
+            user.skills.all().delete()
+            ApplicantSkill.objects.bulk_create(
+                ApplicantSkill(applicant=user, skill_name=skill)
+                for skill in imported_skills
+            )
+
+        imported_experience = imported_profile.get('experience') or {}
+        roles = imported_experience.get('roles') or []
+        companies = imported_experience.get('companies') or []
+        if roles or companies:
+            user.experiences.all().delete()
+            ApplicantExperience.objects.create(
+                applicant=user,
+                job_title=roles[0] if roles else imported_profile.get('headline', 'LinkedIn experience'),
+                company_name=companies[0] if companies else '',
+            )
+
+        imported_education = imported_profile.get('education') or {}
+        fields_of_study = imported_education.get('fields_of_study') or []
+        if imported_education.get('level_label') or fields_of_study:
+            user.educations.all().delete()
+            ApplicantEducation.objects.create(
+                applicant=user,
+                school_name='Imported from LinkedIn',
+                degree_name=imported_education.get('level_label') or '',
+                field_of_study=fields_of_study[0] if fields_of_study else '',
+            )
 
         return Response(
             {
