@@ -172,6 +172,20 @@ class AuthController extends ChangeNotifier {
     });
   }
 
+  Future<void> importLinkedInProfilePdf({
+    required String path,
+    required String fileName,
+  }) async {
+    await _runAuthAction(() async {
+      final profile = await _authService.importLinkedInProfilePdf(
+        path: path,
+        fileName: fileName,
+      );
+      _ensureApplicant(profile);
+      _profile = profile;
+    });
+  }
+
   Future<void> uploadResume({
     required String path,
     required String fileName,
