@@ -223,9 +223,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
-    for (final controller in [jobTitle, companyName, employmentType, startDate, location]) {
-      controller.dispose();
-    }
     if (experience != null) setState(() => _experiences.add(experience));
   }
 
@@ -272,9 +269,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
-    for (final controller in [schoolName, degreeName, fieldOfStudy, startDate, endDate, grade]) {
-      controller.dispose();
-    }
     if (education != null) setState(() => _educations.add(education));
   }
 
@@ -297,7 +291,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
-    skillName.dispose();
     if (skill != null) setState(() => _skills.add(skill));
   }
 
