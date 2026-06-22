@@ -309,6 +309,11 @@ export const assignInterviewer = async (applicationId, payload) => {
   return response.data;
 };
 
+export const createInterviewSchedulingRequest = async (applicationId, payload) => {
+  const response = await apiClient.post(`/applications/${applicationId}/scheduling-request/`, payload);
+  return response.data;
+};
+
 export const rejectApplication = async (applicationId, payload) => {
   const response = await apiClient.post(`/applications/${applicationId}/reject/`, payload);
   return response.data;
@@ -375,6 +380,21 @@ export const sendJobOffer = async (applicationId, payload) => {
 
 export const getAssignedInterviews = async () => {
   const response = await apiClient.get('/interviews/assigned/');
+  return response.data;
+};
+
+export const getInterviewerAvailabilitySlots = async () => {
+  const response = await apiClient.get('/interviews/availability/');
+  return response.data;
+};
+
+export const createInterviewerAvailabilitySlot = async (payload) => {
+  const response = await apiClient.post('/interviews/availability/', payload);
+  return response.data;
+};
+
+export const cancelInterviewerAvailabilitySlot = async (slotId) => {
+  const response = await apiClient.delete(`/interviews/availability/${slotId}/`);
   return response.data;
 };
 

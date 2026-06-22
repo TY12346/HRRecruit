@@ -1,7 +1,7 @@
 from django.urls import path
 
 from apps.hiring.views import HiringDecisionSubmitAPIView, JobOfferCreateAPIView
-from apps.interviews.views import AssignInterviewerAPIView
+from apps.interviews.views import AssignInterviewerAPIView, CreateSchedulingRequestAPIView
 
 from .views import (
     ApplicationDetailAPIView,
@@ -23,6 +23,7 @@ urlpatterns = [
     path('<int:application_id>/resume/', ApplicationResumeAPIView.as_view(), name='application-resume'),
     path('<int:application_id>/shortlist/', ApplicationShortlistAPIView.as_view(), name='application-shortlist'),
     path('<int:application_id>/assign-interviewer/', AssignInterviewerAPIView.as_view(), name='application-assign-interviewer'),
+    path('<int:application_id>/scheduling-request/', CreateSchedulingRequestAPIView.as_view(), name='application-create-scheduling-request'),
     path('<int:application_id>/reject/', ApplicationRejectAPIView.as_view(), name='application-reject'),
     path('<int:application_id>/remark/', ApplicationRemarkAPIView.as_view(), name='application-remark'),
     path('<int:application_id>/status-history/', ApplicationStatusHistoryAPIView.as_view(), name='application-status-history'),
