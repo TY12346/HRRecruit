@@ -7,6 +7,15 @@ import '../models/applicant_profile.dart';
 import 'auth_form_helpers.dart';
 import '../widgets/app_navigation.dart';
 
+const _employmentTypeOptions = [
+  '',
+  'Full-time',
+  'Part-time',
+  'Contract',
+  'Internship',
+  'Temporary',
+];
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -186,41 +195,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _addExperience() async {
     final jobTitle = TextEditingController();
     final companyName = TextEditingController();
-    final employmentType = TextEditingController();
+    String employmentType = '';
     final startDate = TextEditingController();
     final location = TextEditingController();
     final experience = await showDialog<ApplicantExperience>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add experience'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _dialogField(jobTitle, 'Job title'),
-              _dialogField(companyName, 'Company name'),
-              _dialogField(employmentType, 'Employment type'),
-              _dialogField(startDate, 'Start date (YYYY-MM-DD)'),
-              _dialogField(location, 'Location'),
-            ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add experience'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogField(jobTitle, 'Job title'),
+                _dialogField(companyName, 'Company name'),
+                _employmentTypeDropdown(
+                  value: employmentType,
+                  onChanged: (value) => setDialogState(() => employmentType = value ?? ''),
+                ),
+                _dialogField(startDate, 'Start date (YYYY-MM-DD)'),
+                _dialogField(location, 'Location'),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (jobTitle.text.trim().isEmpty) return;
+                Navigator.of(dialogContext).pop(ApplicantExperience(
+                  jobTitle: jobTitle.text.trim(),
+                  companyName: companyName.text.trim(),
+                  employmentType: employmentType,
+                  startDate: startDate.text.trim(),
+                  location: location.text.trim(),
+                ));
+              },
+              child: const Text('Add'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (jobTitle.text.trim().isEmpty) return;
-              Navigator.of(dialogContext).pop(ApplicantExperience(
-                jobTitle: jobTitle.text.trim(),
-                companyName: companyName.text.trim(),
-                employmentType: employmentType.text.trim(),
-                startDate: startDate.text.trim(),
-                location: location.text.trim(),
-              ));
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
     if (experience != null) setState(() => _experiences.add(experience));
@@ -292,6 +306,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (skill != null) setState(() => _skills.add(skill));
+  }
+
+  Widget _employmentTypeDropdown({
+    required String value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        initialValue: value,
+        decoration: const InputDecoration(labelText: 'Employment type', border: OutlineInputBorder()),
+        items: _employmentTypeOptions
+            .map((option) => DropdownMenuItem(value: option, child: Text(option.isEmpty ? 'Not specified' : option)))
+            .toList(),
+        onChanged: onChanged,
+      ),
+    );
   }
 
   Widget _dialogField(TextEditingController controller, String label) {

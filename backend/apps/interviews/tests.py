@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import ApplicationStageHistory, JobApplication
-from apps.interviews.models import CalendarEvent, Interview, InterviewInvitation, InterviewStatusHistory
+from apps.interviews.models import CalendarEvent, Interview, InterviewInvitation, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
 from apps.jobs.models import JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
@@ -81,6 +81,127 @@ class InterviewManagementAPITests(APITestCase):
             },
             format='json',
         )
+
+
+    def test_interviewer_creates_availability_slot(self):
+        self.authenticate(self.interviewer)
+
+        response = self.client.post(
+            reverse('interviewer-availability-list-create'),
+            {
+                'start_datetime': '2026-07-02T09:00:00Z',
+                'end_datetime': '2026-07-02T10:00:00Z',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        slot = InterviewerAvailabilitySlot.objects.get(id=response.data['id'])
+        self.assertEqual(slot.organization, self.organization)
+        self.assertEqual(slot.interviewer, self.interviewer)
+        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.AVAILABLE)
+
+
+    def test_interviewer_duplicate_availability_returns_validation_error(self):
+        self.authenticate(self.interviewer)
+        payload = {
+            'start_datetime': '2026-07-02T09:00:00Z',
+            'end_datetime': '2026-07-02T10:00:00Z',
+        }
+
+        first_response = self.client.post(reverse('interviewer-availability-list-create'), payload, format='json')
+        duplicate_response = self.client.post(reverse('interviewer-availability-list-create'), payload, format='json')
+
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('start_datetime', duplicate_response.data)
+
+    def test_recruiter_creates_scheduling_request_for_applicant(self):
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('application-create-scheduling-request', args=[self.application.id]),
+            {'interviewer_id': self.interviewer.id, 'remark': 'Please choose a technical interview slot.'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        scheduling_request = InterviewSchedulingRequest.objects.get(id=response.data['id'])
+        self.assertEqual(scheduling_request.application, self.application)
+        self.assertEqual(scheduling_request.organization, self.organization)
+        self.assertEqual(scheduling_request.recruiter, self.recruiter)
+        self.assertEqual(scheduling_request.interviewer, self.interviewer)
+        self.assertEqual(scheduling_request.remark, 'Please choose a technical interview slot.')
+
+    def test_applicant_books_available_slot_from_scheduling_request(self):
+        slot = InterviewerAvailabilitySlot.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            start_datetime='2026-07-03T09:00:00Z',
+            end_datetime='2026-07-03T10:00:00Z',
+        )
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            remark='Choose one slot.',
+        )
+        self.authenticate(self.applicant)
+
+        response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_request.id]),
+            {
+                'slot_id': slot.id,
+                'mode': Interview.Mode.ONLINE,
+                'meeting_link': 'https://meet.example.com/self-scheduled',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        scheduling_request.refresh_from_db()
+        slot.refresh_from_db()
+        interview = Interview.objects.get(application=self.application)
+        self.assertEqual(scheduling_request.status, InterviewSchedulingRequest.Status.SCHEDULED)
+        self.assertEqual(scheduling_request.selected_slot, slot)
+        self.assertEqual(scheduling_request.interview, interview)
+        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.BOOKED)
+        self.assertEqual(interview.status, Interview.Status.SCHEDULED)
+        self.assertEqual(interview.availability_slot, slot)
+        self.assertEqual(interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
+        self.assertEqual(interview.meeting_link, 'https://meet.example.com/self-scheduled')
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_ACCEPTED)
+
+    def test_applicant_cannot_book_unavailable_slot(self):
+        slot = InterviewerAvailabilitySlot.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            start_datetime='2026-07-04T09:00:00Z',
+            end_datetime='2026-07-04T10:00:00Z',
+            status=InterviewerAvailabilitySlot.Status.BOOKED,
+        )
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+        )
+        self.authenticate(self.applicant)
+
+        response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_request.id]),
+            {
+                'slot_id': slot.id,
+                'mode': Interview.Mode.ONLINE,
+                'meeting_link': 'https://meet.example.com/unavailable',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Interview.objects.filter(application=self.application).exists())
 
     def test_recruiter_assigns_interviewer_from_same_organization(self):
         self.authenticate(self.recruiter)
