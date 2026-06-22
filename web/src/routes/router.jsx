@@ -20,6 +20,7 @@ import JobRequirementsPage from '../pages/recruiter/JobRequirementsPage.jsx';
 import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.jsx';
 import RecruiterNotificationsPage from '../pages/recruiter/NotificationsPage.jsx';
 import InterviewerDashboardPage from '../pages/interviewer/InterviewerDashboardPage.jsx';
+import AvailabilityPage from '../pages/interviewer/AvailabilityPage.jsx';
 import AssignedCandidatesPage from '../pages/interviewer/AssignedCandidatesPage.jsx';
 import CandidateDetailPage from '../pages/interviewer/CandidateDetailPage.jsx';
 import InterviewerInterviewDetailPage from '../pages/interviewer/InterviewDetailPage.jsx';
@@ -96,6 +97,7 @@ export const router = createBrowserRouter([
           { path: 'interviewer/interviews/:interviewId/recording', element: <UploadRecordingPage /> },
           { path: 'interviewer/interviews/:interviewId/transcript-summary', element: <TranscriptSummaryPage /> },
           { path: 'interviewer/interviews/:interviewId/evaluation', element: <SubmitEvaluationPage /> },
+          { path: 'interviewer/availability', element: <AvailabilityPage /> },
           { path: 'interviewer/analytics', element: <InterviewerAnalyticsPage /> },
           { path: 'interviewer/notifications', element: <InterviewerNotificationsPage /> },
         ],
