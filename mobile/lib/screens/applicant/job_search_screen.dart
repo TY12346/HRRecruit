@@ -8,6 +8,15 @@ import '../auth_form_helpers.dart';
 import 'job_cards.dart';
 import '../../widgets/app_navigation.dart';
 
+const _employmentTypeOptions = [
+  {'value': '', 'label': 'Any employment type'},
+  {'value': 'full_time', 'label': 'Full-time'},
+  {'value': 'part_time', 'label': 'Part-time'},
+  {'value': 'contract', 'label': 'Contract'},
+  {'value': 'internship', 'label': 'Internship'},
+  {'value': 'temporary', 'label': 'Temporary'},
+];
+
 class JobSearchScreen extends StatefulWidget {
   const JobSearchScreen({super.key});
 
@@ -18,7 +27,7 @@ class JobSearchScreen extends StatefulWidget {
 class _JobSearchScreenState extends State<JobSearchScreen> {
   final _searchController = TextEditingController();
   final _locationController = TextEditingController();
-  final _employmentTypeController = TextEditingController();
+  String _employmentType = '';
   late Future<List<JobPosting>> _jobsFuture;
 
   @override
@@ -31,7 +40,6 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
   void dispose() {
     _searchController.dispose();
     _locationController.dispose();
-    _employmentTypeController.dispose();
     super.dispose();
   }
 
@@ -39,7 +47,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
     return context.read<JobDiscoveryService>().searchJobs(
           search: _searchController.text,
           location: _locationController.text,
-          employmentType: _employmentTypeController.text,
+          employmentType: _employmentType,
         );
   }
 
@@ -52,7 +60,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
   void _clearFilters() {
     _searchController.clear();
     _locationController.clear();
-    _employmentTypeController.clear();
+    _employmentType = '';
     _search();
   }
 
@@ -109,12 +117,19 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
-                      controller: _employmentTypeController,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _employmentType,
                       decoration: const InputDecoration(
                         labelText: 'Employment type',
                         border: OutlineInputBorder(),
                       ),
+                      items: _employmentTypeOptions
+                          .map((option) => DropdownMenuItem(
+                                value: option['value'],
+                                child: Text(option['label']!),
+                              ))
+                          .toList(),
+                      onChanged: (value) => setState(() => _employmentType = value ?? ''),
                     ),
                   ),
                 ],

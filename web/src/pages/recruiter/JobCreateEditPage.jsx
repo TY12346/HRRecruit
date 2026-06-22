@@ -49,6 +49,14 @@ const blankCriterion = {
   max_score: '10.00',
   weight_score: '0.25',
 };
+const employmentTypeOptions = [
+  { value: 'full_time', label: 'Full-time' },
+  { value: 'part_time', label: 'Part-time' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'internship', label: 'Internship' },
+  { value: 'temporary', label: 'Temporary' },
+];
+
 const createSteps = ['Job details', 'Requirements', 'Evaluation form'];
 
 function cloneRequirement() {
@@ -176,7 +184,11 @@ export default function JobCreateEditPage() {
       <TextField label="Job title" required value={form.title} onChange={setField('title')} />
       <TextField label="Description" required multiline minRows={5} value={form.description} onChange={setField('description')} />
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-        <TextField label="Employment type" required value={form.employment_type} onChange={setField('employment_type')} />
+        <TextField label="Employment type" required select value={form.employment_type} onChange={setField('employment_type')}>
+          {employmentTypeOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+          ))}
+        </TextField>
         <TextField label="Approximate salary" required type="number" value={form.approximate_salary} onChange={setField('approximate_salary')} />
         <TextField label="Location" required value={form.location} onChange={setField('location')} />
         <FormControl>
