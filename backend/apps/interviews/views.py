@@ -1,6 +1,6 @@
 """Role-protected and organization-isolated interview management APIs."""
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -167,11 +167,14 @@ class InterviewerAvailabilitySlotListCreateAPIView(APIView):
             raise PermissionDenied('Interviewer must belong to an active organization.')
         serializer = InterviewerAvailabilitySlotSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        slot = InterviewerAvailabilitySlot.objects.create(
-            organization=membership.organization,
-            interviewer=request.user,
-            **serializer.validated_data,
-        )
+        try:
+            slot = InterviewerAvailabilitySlot.objects.create(
+                organization=membership.organization,
+                interviewer=request.user,
+                **serializer.validated_data,
+            )
+        except IntegrityError as exc:
+            raise ValidationError({'start_datetime': 'This availability slot could not be saved. Please check for duplicate or invalid times.'}) from exc
         return Response(InterviewerAvailabilitySlotSerializer(slot, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -279,6 +282,9 @@ class BookSchedulingRequestAPIView(APIView):
         )
         if slot.status != InterviewerAvailabilitySlot.Status.AVAILABLE:
             raise ValidationError({'slot_id': 'Selected interview slot is no longer available.'})
+
+        if Interview.objects.filter(availability_slot=slot).exists():
+            raise ValidationError({'slot_id': 'Selected interview slot is already linked to another interview.'})
 
         interview, created = Interview.objects.get_or_create(
             application=scheduling_request.application,

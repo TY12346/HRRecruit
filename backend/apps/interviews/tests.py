@@ -101,6 +101,21 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(slot.interviewer, self.interviewer)
         self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.AVAILABLE)
 
+
+    def test_interviewer_duplicate_availability_returns_validation_error(self):
+        self.authenticate(self.interviewer)
+        payload = {
+            'start_datetime': '2026-07-02T09:00:00Z',
+            'end_datetime': '2026-07-02T10:00:00Z',
+        }
+
+        first_response = self.client.post(reverse('interviewer-availability-list-create'), payload, format='json')
+        duplicate_response = self.client.post(reverse('interviewer-availability-list-create'), payload, format='json')
+
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('start_datetime', duplicate_response.data)
+
     def test_recruiter_creates_scheduling_request_for_applicant(self):
         self.authenticate(self.recruiter)
 

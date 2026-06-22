@@ -131,6 +131,15 @@ class InterviewerAvailabilitySlotSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['end_datetime'] <= attrs['start_datetime']:
             raise serializers.ValidationError({'end_datetime': 'End time must be after start time.'})
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            duplicate_exists = InterviewerAvailabilitySlot.objects.filter(
+                interviewer=request.user,
+                start_datetime=attrs['start_datetime'],
+                end_datetime=attrs['end_datetime'],
+            ).exists()
+            if duplicate_exists:
+                raise serializers.ValidationError({'start_datetime': 'This availability slot already exists.'})
         return attrs
 
 

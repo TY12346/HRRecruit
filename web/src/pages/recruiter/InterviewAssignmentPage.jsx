@@ -18,6 +18,7 @@ export default function InterviewAssignmentPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([getApplication(applicationId), getOrganizationMembers('')])
@@ -34,6 +35,7 @@ export default function InterviewAssignmentPage() {
     event.preventDefault();
     setError('');
     setSuccess('');
+    setIsSaving(true);
     try {
       if (assignmentMode === 'self_scheduling') {
         const request = await createInterviewSchedulingRequest(applicationId, { interviewer_id: Number(interviewerId), remark });
@@ -46,8 +48,18 @@ export default function InterviewAssignmentPage() {
       setSuccess('Interviewer assigned successfully. The interviewer can now continue from their portal.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to assign interviewer.'));
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  const nextStepMessage = schedulingRequest
+    ? `Scheduling request #${schedulingRequest.id} has been created. The interview will be created after the applicant chooses a slot.`
+    : `Interview record ${createdInterview ? `#${createdInterview.id}` : 'will be created after assignment'}.`;
+
+  const nextStepHelp = schedulingRequest
+    ? ''
+    : ' In this backend, only the assigned interviewer can send interview invitations from their portal.';
 
   return (
     <Box>
@@ -70,15 +82,15 @@ export default function InterviewAssignmentPage() {
                     {interviewers.map((member) => <MenuItem key={member.id} value={member.user_id}>{member.full_name} ({member.email})</MenuItem>)}
                   </TextField>
                   <TextField label="Optional remark" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText={assignmentMode === 'self_scheduling' ? 'This remark is shown on the scheduling request.' : 'This remark is stored with the assignment workflow.'} />
-                  <Button type="submit" variant="contained">{assignmentMode === 'self_scheduling' ? 'Create self-scheduling request' : 'Assign interviewer'}</Button>
+                  <Button type="submit" variant="contained" disabled={isSaving}>{isSaving ? 'Saving…' : assignmentMode === 'self_scheduling' ? 'Create self-scheduling request' : 'Assign interviewer'}</Button>
                 </Stack>
               </Box>
             ) : null}
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Typography variant="h6">Next step</Typography>
               <Typography color="text.secondary">
-                {schedulingRequest ? `Scheduling request #${schedulingRequest.id} has been created. The interview will be created after the applicant chooses a slot.` : `Interview record ${createdInterview ? `#${createdInterview.id}` : 'will be created after assignment'}.`}
-                {!schedulingRequest ? ' In this backend, only the assigned interviewer can send interview invitations from their portal.' : ''}
+                {nextStepMessage}
+                {nextStepHelp}
               </Typography>
               <Button disabled={!createdInterview && !schedulingRequest} onClick={() => navigate('/recruiter/interviews')} sx={{ mt: 2 }} variant="outlined">View interviews</Button>
             </Paper>
