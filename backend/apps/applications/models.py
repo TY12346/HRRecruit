@@ -113,6 +113,8 @@ class ApplicationStageHistory(models.Model):
 
     class Meta:
         ordering = ['-changed_at']
+        verbose_name = 'Application stage history'
+        verbose_name_plural = 'Application stage histories'
 
     def __str__(self):
         return f'{self.application} - {self.from_stage} to {self.to_stage}'

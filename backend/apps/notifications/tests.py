@@ -9,7 +9,6 @@ from rest_framework.test import APITestCase
 from apps.notifications.email_service import (
     build_password_reset_link,
     send_email,
-    send_interview_invitation_email,
     send_job_offer_email,
     send_password_reset_otp_email,
     send_subscription_reminder_email,
@@ -56,14 +55,14 @@ class NotificationAPITests(APITestCase):
     def test_user_can_list_and_mark_only_own_notifications_as_read(self):
         own_notification = create_notification(
             self.user,
-            'interview_invitation',
-            'Interview invitation received',
-            'You have a new invitation.',
+            'interview_scheduled',
+            'Interview scheduled',
+            'You have a scheduled interview.',
         )
         other_notification = create_notification(
             self.other_user,
-            'interview_invitation',
-            'Other invitation',
+            'interview_scheduled',
+            'Other interview update',
             'This belongs to another user.',
         )
         self.authenticate(self.user)
@@ -191,14 +190,6 @@ class EmailServiceTests(SimpleTestCase):
         job = SimpleNamespace(title='Backend Engineer')
         applicant = SimpleNamespace(email='applicant@example.com', full_name='Applicant One')
         application = SimpleNamespace(applicant=applicant, job=job)
-        interview = SimpleNamespace(application=application)
-        invitation = SimpleNamespace(
-            interview=interview,
-            proposed_datetime='2026-06-16 09:00:00+00:00',
-            meeting_link='https://meet.example.com/hrrecruit',
-            location='',
-            get_mode_display=lambda: 'Online',
-        )
         offer = SimpleNamespace(
             application=application,
             respond_deadline='2026-06-23 09:00:00+00:00',
@@ -212,7 +203,6 @@ class EmailServiceTests(SimpleTestCase):
 
         send_password_reset_otp_email(user, '123456', client_app='web')
         send_team_account_created_email(user, 'TempPass123!')
-        send_interview_invitation_email(invitation)
         send_job_offer_email(offer)
         send_subscription_reminder_email(user, subscription)
 
@@ -226,7 +216,6 @@ class EmailServiceTests(SimpleTestCase):
             [
                 'HRRecruit Password Reset',
                 'Your HRRecruit team account',
-                'Interview invitation for Backend Engineer',
                 'Job offer for Backend Engineer',
                 'HRRecruit subscription reminder',
             ],

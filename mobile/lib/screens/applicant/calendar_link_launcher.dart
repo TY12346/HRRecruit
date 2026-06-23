@@ -6,24 +6,6 @@ import '../../models/applicant_interview.dart';
 const _googleCalendarRenderUrl = 'https://calendar.google.com/calendar/render';
 const _localCalendarHost = 'calendar.hrrecruit.local';
 
-Future<void> openInvitationCalendarLink(
-  BuildContext context,
-  InterviewInvitation invitation,
-) {
-  final application = invitation.application;
-  return _openCalendarLink(
-    context,
-    storedCalendarLink: invitation.calendarLink,
-    title: application?.jobTitle.isNotEmpty == true
-        ? 'Interview: ${application!.jobTitle}'
-        : 'Interview invitation',
-    start: invitation.proposedDatetime,
-    mode: invitation.mode,
-    meetingLink: invitation.meetingLink,
-    location: invitation.location,
-  );
-}
-
 Future<void> openInterviewCalendarLink(
   BuildContext context,
   ApplicantInterview interview,
@@ -35,7 +17,7 @@ Future<void> openInterviewCalendarLink(
     title: application?.jobTitle.isNotEmpty == true
         ? 'Interview: ${application!.jobTitle}'
         : 'Interview',
-    start: interview.scheduledDatetime ?? interview.latestInvitation?.proposedDatetime,
+    start: interview.scheduledDatetime,
     mode: interview.mode,
     meetingLink: interview.meetingLink,
     location: interview.location,
@@ -103,7 +85,7 @@ String _buildGoogleCalendarTemplateLink({
     'action': 'TEMPLATE',
     'text': title,
     'details': [
-      'HRRecruit interview invitation.',
+      'HRRecruit interview.',
       if (mode.isNotEmpty) 'Mode: $mode.',
       if (meetingLink.isNotEmpty) 'Meeting link: $meetingLink',
     ].join('\n'),
