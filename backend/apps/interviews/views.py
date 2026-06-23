@@ -222,11 +222,44 @@ class CreateSchedulingRequestAPIView(APIView):
         else:
             application.save(update_fields=['assigned_interviewer', 'updated_at'])
 
+        interview, interview_created = Interview.objects.get_or_create(
+            application=application,
+            defaults={
+                'organization': application.job.organization,
+                'recruiter': request.user,
+                'interviewer': interviewer,
+                'status': Interview.Status.ASSIGNED,
+                'scheduling_method': Interview.SchedulingMethod.SELF_SCHEDULED,
+            },
+        )
+        previous_interviewer = interview.interviewer
+        if not interview_created:
+            interview.organization = application.job.organization
+            interview.recruiter = request.user
+            interview.interviewer = interviewer
+            interview.scheduling_method = Interview.SchedulingMethod.SELF_SCHEDULED
+            interview.save(update_fields=['organization', 'recruiter', 'interviewer', 'scheduling_method', 'updated_at'])
+        if interview_created:
+            interview.status_history.create(
+                from_status=Interview.Status.ASSIGNED,
+                to_status=Interview.Status.ASSIGNED,
+                changed_by=request.user,
+                note='Interview assigned through self-scheduling request.',
+            )
+        elif previous_interviewer != interviewer:
+            interview.status_history.create(
+                from_status=interview.status,
+                to_status=interview.status,
+                changed_by=request.user,
+                note=f'Interviewer reassigned to {interviewer.full_name} through self-scheduling request.',
+            )
+
         scheduling_request = InterviewSchedulingRequest.objects.create(
             application=application,
             organization=application.job.organization,
             recruiter=request.user,
             interviewer=interviewer,
+            interview=interview,
             remark=serializer.validated_data.get('remark', ''),
             expires_at=serializer.validated_data.get('expires_at'),
         )

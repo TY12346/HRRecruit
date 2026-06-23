@@ -132,6 +132,16 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(scheduling_request.recruiter, self.recruiter)
         self.assertEqual(scheduling_request.interviewer, self.interviewer)
         self.assertEqual(scheduling_request.remark, 'Please choose a technical interview slot.')
+        self.assertIsNotNone(scheduling_request.interview)
+        self.assertEqual(scheduling_request.interview.interviewer, self.interviewer)
+        self.assertEqual(scheduling_request.interview.status, Interview.Status.ASSIGNED)
+        self.assertEqual(scheduling_request.interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
+
+        self.authenticate(self.interviewer)
+        assigned_response = self.client.get(reverse('interview-assigned-list'))
+
+        self.assertEqual(assigned_response.status_code, status.HTTP_200_OK)
+        self.assertIn(scheduling_request.interview.id, {interview['id'] for interview in assigned_response.data})
 
     def test_applicant_books_available_slot_from_scheduling_request(self):
         slot = InterviewerAvailabilitySlot.objects.create(
