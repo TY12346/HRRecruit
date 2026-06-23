@@ -1,6 +1,6 @@
 """Role-protected and organization-isolated interview management APIs."""
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -15,12 +15,16 @@ from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
-from .models import Interview, InterviewInvitation
+from .models import Interview, InterviewInvitation, InterviewSchedulingRequest, InterviewerAvailabilitySlot
 from .serializers import (
     AssignInterviewerSerializer,
+    BookSchedulingRequestSerializer,
+    CreateSchedulingRequestSerializer,
     DeclineInterviewInvitationSerializer,
     InterviewInvitationSerializer,
+    InterviewSchedulingRequestSerializer,
     InterviewSerializer,
+    InterviewerAvailabilitySlotSerializer,
     SendInterviewInvitationSerializer,
 )
 from .calendar_service import sync_calendar_event_for_interview
@@ -67,6 +71,43 @@ def visible_interviews_for(user):
     return interviews.none()
 
 
+
+def visible_scheduling_requests_for(user):
+    requests = InterviewSchedulingRequest.objects.select_related(
+        'application',
+        'application__job',
+        'application__job__organization',
+        'application__applicant',
+        'application__applicant__applicant_profile',
+        'organization',
+        'recruiter',
+        'interviewer',
+        'selected_slot',
+        'interview',
+    )
+    if user.role == User.Role.RECRUITER:
+        membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
+        if membership:
+            return requests.filter(organization=membership.organization, recruiter=user)
+    if user.role == User.Role.INTERVIEWER:
+        membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
+        if membership:
+            return requests.filter(organization=membership.organization, interviewer=user)
+    if user.role == User.Role.APPLICANT:
+        return requests.filter(application__applicant=user)
+    if user.role == User.Role.HR_HEAD:
+        membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
+        if membership:
+            return requests.filter(organization=membership.organization)
+    return requests.none()
+
+
+def available_slots_for_interviewer(user):
+    membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
+    if not membership:
+        raise PermissionDenied('Interviewer must belong to an active organization.')
+    return InterviewerAvailabilitySlot.objects.filter(organization=membership.organization, interviewer=user)
+
 def active_interviewer_for_organization_or_404(interviewer_id, organization):
     membership = get_object_or_404(
         OrganizationMembership.objects.select_related('user'),
@@ -107,6 +148,199 @@ def change_application_status(application, new_status, changed_by, note):
         changed_by=changed_by,
         note=note,
     )
+
+
+class InterviewerAvailabilitySlotListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage availability slots.')
+        slots = available_slots_for_interviewer(request.user)
+        return Response(InterviewerAvailabilitySlotSerializer(slots, many=True, context={'request': request}).data)
+
+    def post(self, request):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage availability slots.')
+        membership = get_active_membership(request.user, OrganizationMembership.Role.INTERVIEWER)
+        if not membership:
+            raise PermissionDenied('Interviewer must belong to an active organization.')
+        serializer = InterviewerAvailabilitySlotSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            slot = InterviewerAvailabilitySlot.objects.create(
+                organization=membership.organization,
+                interviewer=request.user,
+                **serializer.validated_data,
+            )
+        except IntegrityError as exc:
+            raise ValidationError({'start_datetime': 'This availability slot could not be saved. Please check for duplicate or invalid times.'}) from exc
+        return Response(InterviewerAvailabilitySlotSerializer(slot, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class InterviewerAvailabilitySlotDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, slot_id):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can cancel availability slots.')
+        slot = get_object_or_404(available_slots_for_interviewer(request.user), id=slot_id)
+        if slot.status == InterviewerAvailabilitySlot.Status.BOOKED:
+            raise ValidationError({'status': 'Booked availability slots cannot be cancelled.'})
+        slot.status = InterviewerAvailabilitySlot.Status.CANCELLED
+        slot.save(update_fields=['status', 'updated_at'])
+        return Response(InterviewerAvailabilitySlotSerializer(slot, context={'request': request}).data)
+
+
+class CreateSchedulingRequestAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, application_id):
+        application = recruiter_application_or_404(request.user, application_id)
+        if application.status in (JobApplication.Status.WITHDRAWN, JobApplication.Status.REJECTED):
+            raise ValidationError({'status': 'Withdrawn or rejected applications cannot be scheduled for interview.'})
+        serializer = CreateSchedulingRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        interviewer = active_interviewer_for_organization_or_404(
+            serializer.validated_data['interviewer_id'],
+            application.job.organization,
+        )
+
+        application.assigned_interviewer = interviewer
+        if application.status != JobApplication.Status.SHORTLISTED:
+            previous_status = application.status
+            application.status = JobApplication.Status.SHORTLISTED
+            application.save(update_fields=['assigned_interviewer', 'status', 'updated_at'])
+            ApplicationStageHistory.objects.create(
+                application=application,
+                from_stage=previous_status,
+                to_stage=application.status,
+                changed_by=request.user,
+                note='Shortlisted during interview scheduling request.',
+            )
+        else:
+            application.save(update_fields=['assigned_interviewer', 'updated_at'])
+
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=application,
+            organization=application.job.organization,
+            recruiter=request.user,
+            interviewer=interviewer,
+            remark=serializer.validated_data.get('remark', ''),
+            expires_at=serializer.validated_data.get('expires_at'),
+        )
+        create_notification(
+            application.applicant,
+            'interview_self_scheduling',
+            'Interview scheduling request',
+            f'Please choose an interview slot for {application.job.title}.',
+            related_entity=scheduling_request,
+        )
+        create_notification(
+            interviewer,
+            'interview_self_scheduling',
+            'Interview scheduling request created',
+            f'{request.user.full_name} invited {application.applicant.full_name} to choose one of your available interview slots.',
+            related_entity=scheduling_request,
+        )
+        return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class InterviewSchedulingRequestListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        scheduling_requests = visible_scheduling_requests_for(request.user)
+        return Response(InterviewSchedulingRequestSerializer(scheduling_requests, many=True, context={'request': request}).data)
+
+
+class BookSchedulingRequestAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, scheduling_request_id):
+        if request.user.role != User.Role.APPLICANT:
+            raise PermissionDenied('Only applicants can choose interview slots.')
+        scheduling_request = get_object_or_404(
+            visible_scheduling_requests_for(request.user).select_for_update(),
+            id=scheduling_request_id,
+        )
+        if scheduling_request.status != InterviewSchedulingRequest.Status.PENDING:
+            raise ValidationError({'status': 'Only pending scheduling requests can be booked.'})
+        if scheduling_request.expires_at and scheduling_request.expires_at <= timezone.now():
+            scheduling_request.status = InterviewSchedulingRequest.Status.EXPIRED
+            scheduling_request.save(update_fields=['status', 'updated_at'])
+            raise ValidationError({'expires_at': 'This scheduling request has expired.'})
+        serializer = BookSchedulingRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        slot = get_object_or_404(
+            InterviewerAvailabilitySlot.objects.select_for_update(),
+            id=serializer.validated_data['slot_id'],
+            organization=scheduling_request.organization,
+            interviewer=scheduling_request.interviewer,
+        )
+        if slot.status != InterviewerAvailabilitySlot.Status.AVAILABLE:
+            raise ValidationError({'slot_id': 'Selected interview slot is no longer available.'})
+
+        if Interview.objects.filter(availability_slot=slot).exists():
+            raise ValidationError({'slot_id': 'Selected interview slot is already linked to another interview.'})
+
+        interview, created = Interview.objects.get_or_create(
+            application=scheduling_request.application,
+            defaults={
+                'organization': scheduling_request.organization,
+                'recruiter': scheduling_request.recruiter,
+                'interviewer': scheduling_request.interviewer,
+                'status': Interview.Status.ASSIGNED,
+            },
+        )
+        interview.organization = scheduling_request.organization
+        interview.recruiter = scheduling_request.recruiter
+        interview.interviewer = scheduling_request.interviewer
+        interview.scheduled_datetime = slot.start_datetime
+        interview.availability_slot = slot
+        interview.scheduling_method = Interview.SchedulingMethod.SELF_SCHEDULED
+        interview.mode = serializer.validated_data.get('mode', Interview.Mode.ONLINE)
+        interview.meeting_link = serializer.validated_data.get('meeting_link', '')
+        interview.location = serializer.validated_data.get('location', '')
+        interview.save(update_fields=[
+            'organization', 'recruiter', 'interviewer', 'scheduled_datetime', 'availability_slot',
+            'scheduling_method', 'mode', 'meeting_link', 'location', 'updated_at',
+        ])
+        if created:
+            interview.change_status(Interview.Status.SCHEDULED, changed_by=request.user, note='Applicant self-scheduled the interview.')
+        else:
+            interview.change_status(Interview.Status.SCHEDULED, changed_by=request.user, note='Applicant self-scheduled the interview.')
+
+        slot.status = InterviewerAvailabilitySlot.Status.BOOKED
+        slot.save(update_fields=['status', 'updated_at'])
+        scheduling_request.status = InterviewSchedulingRequest.Status.SCHEDULED
+        scheduling_request.selected_slot = slot
+        scheduling_request.interview = interview
+        scheduling_request.save(update_fields=['status', 'selected_slot', 'interview', 'updated_at'])
+        change_application_status(
+            scheduling_request.application,
+            JobApplication.Status.INTERVIEW_ACCEPTED,
+            request.user,
+            'Applicant selected an interview slot.',
+        )
+        sync_calendar_event_for_interview(interview)
+        create_notification(
+            scheduling_request.recruiter,
+            'interview_self_scheduled',
+            'Interview slot selected',
+            f'{request.user.full_name} selected an interview slot for {scheduling_request.application.job.title}.',
+            related_entity=interview,
+        )
+        create_notification(
+            scheduling_request.interviewer,
+            'interview_self_scheduled',
+            'Interview slot selected',
+            f'{request.user.full_name} selected your available interview slot.',
+            related_entity=interview,
+        )
+        return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data)
 
 
 class InterviewListAPIView(APIView):

@@ -42,6 +42,41 @@ class ApplicantWorkflowService {
     return InterviewInvitation.fromJson(response.data!);
   }
 
+  Future<List<InterviewSchedulingRequest>> getInterviewSchedulingRequests() async {
+    final response = await _apiClient.dio.get<List<dynamic>>('interviews/scheduling-requests/');
+    return (response.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(InterviewSchedulingRequest.fromJson)
+        .toList();
+  }
+
+  Future<InterviewSchedulingRequest> getInterviewSchedulingRequest(int requestId) async {
+    final requests = await getInterviewSchedulingRequests();
+    return requests.firstWhere(
+      (request) => request.id == requestId,
+      orElse: () => throw Exception('Interview scheduling request not found.'),
+    );
+  }
+
+  Future<InterviewSchedulingRequest> bookInterviewSchedulingRequest({
+    required int requestId,
+    required int slotId,
+    String mode = 'online',
+    String meetingLink = 'https://meet.example.com/hrrecruit-interview',
+    String location = '',
+  }) async {
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      'interviews/scheduling-requests/$requestId/book/',
+      data: {
+        'slot_id': slotId,
+        'mode': mode,
+        'meeting_link': meetingLink,
+        'location': location,
+      },
+    );
+    return InterviewSchedulingRequest.fromJson(response.data!);
+  }
+
   Future<List<ApplicantInterview>> getInterviews() async {
     final response = await _apiClient.dio.get<List<dynamic>>('interviews/');
     return (response.data ?? [])
