@@ -68,11 +68,11 @@ class ApplicantHomeScreen extends StatelessWidget {
             ),
             Card(
               child: ListTile(
-                leading: const Icon(Icons.event_available_outlined),
-                title: const Text('Interview invitations'),
-                subtitle: const Text('Accept or decline interview invitations'),
+                leading: const Icon(Icons.schedule_outlined),
+                title: const Text('Schedule interviews'),
+                subtitle: const Text('Choose interview times from recruiter requests'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/interview-invitations'),
+                onTap: () => context.push('/interview-scheduling'),
               ),
             ),
             Card(

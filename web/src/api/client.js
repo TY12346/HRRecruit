@@ -339,11 +339,6 @@ export const getInterviews = async () => {
   return response.data;
 };
 
-export const sendInterviewInvitation = async (interviewId, payload) => {
-  const response = await apiClient.post(`/interviews/${interviewId}/send-invitation/`, payload);
-  return response.data;
-};
-
 export const getInterviewEvaluationDetail = async (interviewId) => {
   const response = await apiClient.get(`/interviews/${interviewId}/evaluation-detail/`);
   return response.data;

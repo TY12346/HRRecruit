@@ -201,23 +201,6 @@ def send_team_account_created_email(user, temporary_password):
     )
 
 
-def send_interview_invitation_email(invitation):
-    interview = invitation.interview
-    application = interview.application
-    return send_email(
-        subject=f'Interview invitation for {application.job.title}',
-        message=(
-            f'Hello {application.applicant.full_name},\n\n'
-            f'You have a new interview invitation for {application.job.title}.\n'
-            f'Proposed time: {invitation.proposed_datetime}\n'
-            f'Mode: {invitation.get_mode_display()}\n'
-            f'Meeting link: {invitation.meeting_link or "N/A"}\n'
-            f'Location: {invitation.location or "N/A"}\n\n'
-            'Please review and respond in HRRecruit.'
-        ),
-        recipient_list=[application.applicant.email],
-    )
-
 
 def send_job_offer_email(offer):
     application = offer.application

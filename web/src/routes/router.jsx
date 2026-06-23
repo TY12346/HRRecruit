@@ -27,7 +27,6 @@ import InterviewerInterviewDetailPage from '../pages/interviewer/InterviewDetail
 import InterviewListPage from '../pages/interviewer/InterviewListPage.jsx';
 import InterviewerAnalyticsPage from '../pages/interviewer/InterviewerAnalyticsPage.jsx';
 import InterviewerNotificationsPage from '../pages/interviewer/NotificationsPage.jsx';
-import SendInvitationPage from '../pages/interviewer/SendInvitationPage.jsx';
 import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx';
 import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
 import UploadRecordingPage from '../pages/interviewer/UploadRecordingPage.jsx';
@@ -93,7 +92,6 @@ export const router = createBrowserRouter([
           { path: 'interviewer/candidates/:applicationId', element: <CandidateDetailPage /> },
           { path: 'interviewer/interviews', element: <InterviewListPage /> },
           { path: 'interviewer/interviews/:interviewId', element: <InterviewerInterviewDetailPage /> },
-          { path: 'interviewer/interviews/:interviewId/invitation', element: <SendInvitationPage /> },
           { path: 'interviewer/interviews/:interviewId/recording', element: <UploadRecordingPage /> },
           { path: 'interviewer/interviews/:interviewId/transcript-summary', element: <TranscriptSummaryPage /> },
           { path: 'interviewer/interviews/:interviewId/evaluation', element: <SubmitEvaluationPage /> },

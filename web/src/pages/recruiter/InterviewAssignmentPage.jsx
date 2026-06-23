@@ -59,7 +59,7 @@ export default function InterviewAssignmentPage() {
 
   const nextStepHelp = schedulingRequest
     ? ''
-    : ' In this backend, only the assigned interviewer can send interview invitations from their portal.';
+    : ' The applicant should use the mobile Schedule interviews page to choose a slot from the interviewer availability.';
 
   return (
     <Box>

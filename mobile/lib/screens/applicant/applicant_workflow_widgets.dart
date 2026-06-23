@@ -40,42 +40,6 @@ class ApplicantWorkflowMessage extends StatelessWidget {
   }
 }
 
-class InterviewInvitationCard extends StatelessWidget {
-  const InterviewInvitationCard({
-    super.key,
-    required this.invitation,
-    required this.onTap,
-  });
-
-  final InterviewInvitation invitation;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final application = invitation.application;
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.event_available_outlined),
-        title: Text(application?.jobTitle.isNotEmpty == true ? application!.jobTitle : 'Interview invitation'),
-        subtitle: Text(
-          '${application?.organizationName.isNotEmpty == true ? application!.organizationName : 'Organization not available'}\n'
-          '${formatDateTime(invitation.proposedDatetime)} • ${titleCaseStatus(invitation.mode)}',
-        ),
-        isThreeLine: true,
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(titleCaseStatus(invitation.status)),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
 class InterviewCard extends StatelessWidget {
   const InterviewCard({super.key, required this.interview});
 
@@ -84,7 +48,7 @@ class InterviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final application = interview.application;
-    final when = interview.scheduledDatetime ?? interview.latestInvitation?.proposedDatetime;
+    final when = interview.scheduledDatetime;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),

@@ -1,6 +1,5 @@
-from decimal import Decimal
 from unittest.mock import patch
-
+from decimal import Decimal
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -12,7 +11,7 @@ from apps.applications.models import JobApplication
 from apps.billing.models import SubscriptionPlan
 from apps.evaluations.models import InterviewRecording
 from apps.hiring.models import HiringDecision, JobOffer
-from apps.interviews.models import Interview, InterviewInvitation
+from apps.interviews.models import Interview
 from apps.jobs.models import EvaluationCriterion, JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
@@ -328,30 +327,33 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.assertEqual(ranked_response.status_code, status.HTTP_200_OK, ranked_response.data)
         self.assertEqual(ranked_response.data[0]['id'], application.id)
 
-        assign_response = recruiter_client.post(
-            reverse('application-assign-interviewer', args=[application.id]),
-            {'interviewer_id': interviewer.id, 'note': 'Please interview this candidate.'},
+        availability_response = interviewer_client.post(
+            reverse('interviewer-availability-list-create'),
+            {
+                'start_datetime': (timezone.now() + timezone.timedelta(days=2)).isoformat(),
+                'end_datetime': (timezone.now() + timezone.timedelta(days=2, hours=1)).isoformat(),
+            },
             format='json',
         )
-        self.assertEqual(assign_response.status_code, status.HTTP_201_CREATED, assign_response.data)
-        interview = Interview.objects.get(id=assign_response.data['id'])
+        self.assertEqual(availability_response.status_code, status.HTTP_201_CREATED, availability_response.data)
+        scheduling_response = recruiter_client.post(
+            reverse('application-create-scheduling-request', args=[application.id]),
+            {'interviewer_id': interviewer.id, 'remark': 'Please interview this candidate.'},
+            format='json',
+        )
+        self.assertEqual(scheduling_response.status_code, status.HTTP_201_CREATED, scheduling_response.data)
+        interview = Interview.objects.get(id=scheduling_response.data['interview'])
 
-        invitation_response = interviewer_client.post(
-            reverse('interview-send-invitation', args=[interview.id]),
+        booking_response = applicant_client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_response.data['id']]),
             {
-                'proposed_datetime': (timezone.now() + timezone.timedelta(days=2)).isoformat(),
+                'slot_id': availability_response.data['id'],
                 'mode': Interview.Mode.ONLINE,
                 'meeting_link': 'https://meet.example.com/backend-dev',
             },
             format='json',
         )
-        self.assertEqual(invitation_response.status_code, status.HTTP_201_CREATED, invitation_response.data)
-        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
-
-        accept_response = applicant_client.post(reverse('interview-invitation-accept', args=[invitation.id]), {}, format='json')
-        self.assertEqual(accept_response.status_code, status.HTTP_200_OK, accept_response.data)
-        invitation.refresh_from_db()
-        self.assertEqual(invitation.status, InterviewInvitation.Status.ACCEPTED)
+        self.assertEqual(booking_response.status_code, status.HTTP_200_OK, booking_response.data)
 
         recording_response = interviewer_client.post(
             reverse('interview-recording-upload', args=[interview.id]),
@@ -432,29 +434,11 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.upload_resume(declining_applicant_client)
         declining_application = self.apply_for_job(declining_applicant_client, job)
         declining_assign_response = recruiter_client.post(
-            reverse('application-assign-interviewer', args=[declining_application.id]),
-            {'interviewer_id': interviewer.id},
+            reverse('application-create-scheduling-request', args=[declining_application.id]),
+            {'interviewer_id': interviewer.id, 'remark': 'Proceed with self-scheduling.'},
             format='json',
         )
-        self.assertIn(declining_assign_response.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED), declining_assign_response.data)
-        declining_interview = Interview.objects.get(id=declining_assign_response.data['id'])
-        declining_invitation_response = interviewer_client.post(
-            reverse('interview-send-invitation', args=[declining_interview.id]),
-            {
-                'proposed_datetime': (timezone.now() + timezone.timedelta(days=3)).isoformat(),
-                'mode': Interview.Mode.ONLINE,
-                'meeting_link': 'https://meet.example.com/decline',
-            },
-            format='json',
-        )
-        self.assertEqual(declining_invitation_response.status_code, status.HTTP_201_CREATED, declining_invitation_response.data)
-        decline_invitation_response = declining_applicant_client.post(
-            reverse('interview-invitation-decline', args=[declining_invitation_response.data['id']]),
-            {'decline_reason': 'Schedule conflict.'},
-            format='json',
-        )
-        self.assertEqual(decline_invitation_response.status_code, status.HTTP_200_OK, decline_invitation_response.data)
-        self.assertEqual(decline_invitation_response.data['status'], InterviewInvitation.Status.DECLINED)
+        self.assertEqual(declining_assign_response.status_code, status.HTTP_201_CREATED, declining_assign_response.data)
         declining_application.change_status(
             JobApplication.Status.EVALUATION_SUBMITTED,
             changed_by=interviewer,

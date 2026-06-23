@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CalendarEvent, Interview, InterviewInvitation, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
+from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
 
 
 @admin.register(Interview)
@@ -26,13 +26,6 @@ class InterviewAdmin(admin.ModelAdmin):
         'meeting_link',
         'location',
     )
-
-
-@admin.register(InterviewInvitation)
-class InterviewInvitationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'interview', 'proposed_datetime', 'mode', 'status', 'sent_at', 'responded_at')
-    list_filter = ('status', 'mode')
-    search_fields = ('interview__application__job__title', 'interview__application__applicant__email', 'meeting_link', 'location')
 
 
 @admin.register(InterviewStatusHistory)

@@ -120,7 +120,6 @@ class InterviewSchedulingRequest(models.Model):
 
 class Interview(models.Model):
     class SchedulingMethod(models.TextChoices):
-        MANUAL = 'manual', 'Manual'
         SELF_SCHEDULED = 'self_scheduled', 'Self Scheduled'
 
     class Mode(models.TextChoices):
@@ -130,7 +129,6 @@ class Interview(models.Model):
 
     class Status(models.TextChoices):
         ASSIGNED = 'assigned', 'Assigned'
-        INVITATION_SENT = 'invitation_sent', 'Invitation Sent'
         SCHEDULED = 'scheduled', 'Scheduled'
         DECLINED = 'declined', 'Declined'
         COMPLETED = 'completed', 'Completed'
@@ -168,7 +166,7 @@ class Interview(models.Model):
         blank=True,
         null=True,
     )
-    scheduling_method = models.CharField(max_length=30, choices=SchedulingMethod.choices, default=SchedulingMethod.MANUAL)
+    scheduling_method = models.CharField(max_length=30, choices=SchedulingMethod.choices, default=SchedulingMethod.SELF_SCHEDULED)
     mode = models.CharField(max_length=20, choices=Mode.choices, default=Mode.ONLINE)
     meeting_link = models.URLField(blank=True)
     location = models.CharField(max_length=255, blank=True)
@@ -211,34 +209,6 @@ class Interview(models.Model):
             changed_by=changed_by,
             note=note,
         )
-
-
-class InterviewInvitation(models.Model):
-    class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        ACCEPTED = 'accepted', 'Accepted'
-        DECLINED = 'declined', 'Declined'
-        EXPIRED = 'expired', 'Expired'
-
-    interview = models.ForeignKey(
-        Interview,
-        on_delete=models.CASCADE,
-        related_name='invitations',
-    )
-    proposed_datetime = models.DateTimeField()
-    mode = models.CharField(max_length=20, choices=Interview.Mode.choices, default=Interview.Mode.ONLINE)
-    meeting_link = models.URLField(blank=True)
-    location = models.CharField(max_length=255, blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
-    decline_reason = models.TextField(blank=True)
-    sent_at = models.DateTimeField(auto_now_add=True)
-    responded_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        ordering = ['-sent_at']
-
-    def __str__(self):
-        return f'{self.interview} invitation - {self.get_status_display()}'
 
 
 class InterviewStatusHistory(models.Model):
