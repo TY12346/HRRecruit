@@ -99,6 +99,10 @@ GoRouter createAppRouter(AuthController authController) {
         builder: (context, state) => const InterviewSchedulingRequestsScreen(),
       ),
       GoRoute(
+        path: '/interview-scheduling',
+        builder: (context, state) => const InterviewSchedulingRequestsScreen(),
+      ),
+      GoRoute(
         path: '/interviews',
         builder: (context, state) => const MyInterviewsScreen(),
       ),
