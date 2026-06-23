@@ -261,6 +261,8 @@ class InterviewStatusHistory(models.Model):
 
     class Meta:
         ordering = ['-changed_at']
+        verbose_name = 'Interview status history'
+        verbose_name_plural = 'Interview status histories'
 
     def __str__(self):
         return f'{self.interview} - {self.from_status} to {self.to_status}'
