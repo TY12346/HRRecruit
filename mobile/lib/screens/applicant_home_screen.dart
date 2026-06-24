@@ -16,6 +16,57 @@ class ApplicantHomeScreen extends StatelessWidget {
     final auth = context.watch<AuthController>();
     final profile = auth.profile;
 
+    final homeActions = <_ApplicantHomeAction>[
+      const _ApplicantHomeAction(
+        icon: Icons.search,
+        title: 'Find jobs',
+        subtitle: 'Search and filter open job postings',
+        route: '/jobs',
+      ),
+      const _ApplicantHomeAction(
+        icon: Icons.bookmark_border,
+        title: 'Saved jobs',
+        subtitle: 'Review jobs you saved for later',
+        route: '/saved-jobs',
+      ),
+      const _ApplicantHomeAction(
+        icon: Icons.assignment_outlined,
+        title: 'My applications',
+        subtitle: 'Track application status and history',
+        route: '/applications',
+      ),
+      const _ApplicantHomeAction(
+        icon: Icons.schedule_outlined,
+        title: 'Schedule interviews',
+        subtitle: 'Choose interview times from recruiter requests',
+        route: '/interview-scheduling',
+      ),
+      const _ApplicantHomeAction(
+        icon: Icons.event_outlined,
+        title: 'My interviews',
+        subtitle: 'View upcoming and completed interviews',
+        route: '/interviews',
+      ),
+      const _ApplicantHomeAction(
+        icon: Icons.card_giftcard_outlined,
+        title: 'Job offers',
+        subtitle: 'Review and respond to job offers',
+        route: '/job-offers',
+      ),
+      const _ApplicantHomeAction(
+        icon: Icons.notifications_outlined,
+        title: 'Notifications',
+        subtitle: 'Read application, interview, and offer updates',
+        route: '/notifications',
+      ),
+      const _ApplicantHomeAction(
+        icon: Icons.person_outline,
+        title: 'Profile',
+        subtitle: 'View and edit your applicant information',
+        route: '/profile',
+      ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Applicant home'),
@@ -38,99 +89,16 @@ class ApplicantHomeScreen extends StatelessWidget {
             const SizedBox(height: 8),
             const Text('Keep your profile and resume current for recruiter screening.'),
             const SizedBox(height: 24),
-
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.search),
-                title: const Text('Find jobs'),
-                subtitle: const Text('Search and filter open job postings'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/jobs'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.bookmark_border),
-                title: const Text('Saved jobs'),
-                subtitle: const Text('Review jobs you saved for later'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/saved-jobs'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.assignment_outlined),
-                title: const Text('My applications'),
-                subtitle: const Text('Track application status and history'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/applications'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.schedule_outlined),
-                title: const Text('Schedule interviews'),
-                subtitle: const Text('Choose interview times from recruiter requests'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/interview-scheduling'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.schedule_outlined),
-                title: const Text('Schedule interviews'),
-                subtitle: const Text('Choose interview times from recruiter requests'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/interview-scheduling'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.event_outlined),
-                title: const Text('My interviews'),
-                subtitle: const Text('View upcoming and completed interviews'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/interviews'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.card_giftcard_outlined),
-                title: const Text('Job offers'),
-                subtitle: const Text('Review and respond to job offers'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/job-offers'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.notifications_outlined),
-                title: const Text('Notifications'),
-                subtitle: const Text('Read application, interview, and offer updates'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/notifications'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.person_outline),
-                title: const Text('Profile'),
-                subtitle: const Text('View and edit your applicant information'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/profile'),
-              ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.upload_file_outlined),
-                title: const Text('Resume upload'),
-                subtitle: Text(
-                  profile?.resumeFile == null || profile!.resumeFile!.isEmpty
-                      ? 'Upload a PDF or DOCX resume'
-                      : 'Resume on file. Tap to replace it.',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/resume'),
+            for (final action in homeActions) _homeActionCard(context, action),
+            _homeActionCard(
+              context,
+              _ApplicantHomeAction(
+                icon: Icons.upload_file_outlined,
+                title: 'Resume upload',
+                subtitle: profile?.resumeFile == null || profile!.resumeFile!.isEmpty
+                    ? 'Upload a PDF or DOCX resume'
+                    : 'Resume on file. Tap to replace it.',
+                route: '/resume',
               ),
             ),
           ],
@@ -138,4 +106,30 @@ class ApplicantHomeScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _homeActionCard(BuildContext context, _ApplicantHomeAction action) {
+    return Card(
+      child: ListTile(
+        leading: Icon(action.icon),
+        title: Text(action.title),
+        subtitle: Text(action.subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push(action.route),
+      ),
+    );
+  }
+}
+
+class _ApplicantHomeAction {
+  const _ApplicantHomeAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String route;
 }
