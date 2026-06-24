@@ -1,5 +1,7 @@
 """Role-protected and organization-isolated interview management APIs."""
 
+import logging
+
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -24,6 +26,9 @@ from .serializers import (
     InterviewerAvailabilitySlotSerializer,
 )
 from .calendar_service import sync_calendar_event_for_interview
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_active_membership(user, role):
@@ -144,6 +149,42 @@ def change_application_status(application, new_status, changed_by, note):
         changed_by=changed_by,
         note=note,
     )
+
+
+def create_interview_booking_side_effects(scheduling_request, interview, applicant):
+    """Run optional booking side effects without failing the booking response."""
+    try:
+        sync_calendar_event_for_interview(interview)
+    except Exception:
+        logger.exception('Failed to sync calendar event for booked interview %s.', interview.id)
+
+    notification_payloads = [
+        (
+            scheduling_request.recruiter,
+            'Interview slot selected',
+            f'{applicant.full_name} selected an interview slot for {scheduling_request.application.job.title}.',
+        ),
+        (
+            scheduling_request.interviewer,
+            'Interview slot selected',
+            f'{applicant.full_name} selected your available interview slot.',
+        ),
+    ]
+    for recipient, title, message in notification_payloads:
+        try:
+            create_notification(
+                recipient,
+                'interview_self_scheduled',
+                title,
+                message,
+                related_entity=interview,
+            )
+        except Exception:
+            logger.exception(
+                'Failed to create booking notification for interview %s and recipient %s.',
+                interview.id,
+                getattr(recipient, 'id', None),
+            )
 
 
 class InterviewerAvailabilitySlotListCreateAPIView(APIView):
@@ -354,20 +395,8 @@ class BookSchedulingRequestAPIView(APIView):
             request.user,
             'Applicant selected an interview slot.',
         )
-        sync_calendar_event_for_interview(interview)
-        create_notification(
-            scheduling_request.recruiter,
-            'interview_self_scheduled',
-            'Interview slot selected',
-            f'{request.user.full_name} selected an interview slot for {scheduling_request.application.job.title}.',
-            related_entity=interview,
-        )
-        create_notification(
-            scheduling_request.interviewer,
-            'interview_self_scheduled',
-            'Interview slot selected',
-            f'{request.user.full_name} selected your available interview slot.',
-            related_entity=interview,
+        transaction.on_commit(
+            lambda: create_interview_booking_side_effects(scheduling_request, interview, request.user)
         )
         return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data)
 
