@@ -830,3 +830,32 @@ class WeeklyAvailabilitySchedulingTests(InterviewManagementAPITests):
         self.authenticate(self.other_interviewer)
         response = self.client.delete(reverse('interviewer-availability-pattern-detail', args=[pattern.id]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_application_available_dates_returns_summary_only(self):
+        self.create_monday_pattern()
+        InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
+        self.authenticate(self.applicant)
+        with patch('apps.interviews.slot_generation.timezone.now', return_value=timezone.make_aware(__import__('datetime').datetime(2026, 6, 24, 8, 0))):
+            response = self.client.get(reverse('application-interview-available-dates', args=[self.application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['date'], date(2026, 6, 29))
+        self.assertEqual(response.data[0]['day_of_week'], 'Monday')
+        self.assertEqual(response.data[0]['available_slot_count'], 4)
+        self.assertNotIn('start_time', response.data[0])
+
+    def test_application_available_slots_filters_to_selected_date(self):
+        self.create_monday_pattern()
+        InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
+        self.authenticate(self.applicant)
+        with patch('apps.interviews.slot_generation.timezone.now', return_value=timezone.make_aware(__import__('datetime').datetime(2026, 6, 24, 8, 0))):
+            response = self.client.get(
+                reverse('application-interview-available-slots', args=[self.application.id]),
+                {'date': '2026-06-29'},
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 4)
+        self.assertEqual({slot['date'] for slot in response.data}, {date(2026, 6, 29)})
+        self.assertEqual(response.data[0]['start_time'], time(10, 0))
+        self.assertEqual(response.data[0]['interviewer_names'], [self.interviewer.full_name])

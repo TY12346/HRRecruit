@@ -1,7 +1,13 @@
 from django.urls import path
 
 from apps.hiring.views import HiringDecisionSubmitAPIView, JobOfferCreateAPIView
-from apps.interviews.views import AssignInterviewerAPIView, CreateSchedulingRequestAPIView
+from apps.interviews.views import (
+    ApplicationAvailableInterviewDatesAPIView,
+    ApplicationAvailableInterviewSlotsAPIView,
+    ApplicationBookInterviewSlotAPIView,
+    AssignInterviewerAPIView,
+    CreateSchedulingRequestAPIView,
+)
 
 from .views import (
     ApplicationDetailAPIView,
@@ -24,6 +30,9 @@ urlpatterns = [
     path('<int:application_id>/shortlist/', ApplicationShortlistAPIView.as_view(), name='application-shortlist'),
     path('<int:application_id>/assign-interviewer/', AssignInterviewerAPIView.as_view(), name='application-assign-interviewer'),
     path('<int:application_id>/scheduling-request/', CreateSchedulingRequestAPIView.as_view(), name='application-create-scheduling-request'),
+    path('<int:application_id>/interview-available-dates/', ApplicationAvailableInterviewDatesAPIView.as_view(), name='application-interview-available-dates'),
+    path('<int:application_id>/interview-available-slots/', ApplicationAvailableInterviewSlotsAPIView.as_view(), name='application-interview-available-slots'),
+    path('<int:application_id>/book-interview-slot/', ApplicationBookInterviewSlotAPIView.as_view(), name='application-book-interview-slot'),
     path('<int:application_id>/reject/', ApplicationRejectAPIView.as_view(), name='application-reject'),
     path('<int:application_id>/remark/', ApplicationRemarkAPIView.as_view(), name='application-remark'),
     path('<int:application_id>/status-history/', ApplicationStatusHistoryAPIView.as_view(), name='application-status-history'),

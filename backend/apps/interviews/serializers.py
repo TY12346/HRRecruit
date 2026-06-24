@@ -146,7 +146,9 @@ class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_available_slots(self, obj):
-        if obj.status != InterviewSchedulingRequest.Status.PENDING:
+        request = self.context.get('request')
+        include_slots = request and request.query_params.get('include_available_slots') == '1'
+        if obj.status != InterviewSchedulingRequest.Status.PENDING or not include_slots:
             return []
         from .slot_generation import generate_available_slots
         generated_slots = generate_available_slots(obj.interviewer, obj.organization)
