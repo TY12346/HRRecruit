@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -170,6 +171,82 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(interview.meeting_link, 'https://meet.example.com/self-scheduled')
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_ACCEPTED)
+
+
+    def test_applicant_books_slot_from_recruiter_created_scheduling_request(self):
+        self.authenticate(self.interviewer)
+        slot_response = self.client.post(
+            reverse('interviewer-availability-list-create'),
+            {
+                'start_datetime': '2026-07-05T09:00:00Z',
+                'end_datetime': '2026-07-05T10:00:00Z',
+            },
+            format='json',
+        )
+        self.assertEqual(slot_response.status_code, status.HTTP_201_CREATED)
+
+        self.authenticate(self.recruiter)
+        request_response = self.client.post(
+            reverse('application-create-scheduling-request', args=[self.application.id]),
+            {'interviewer_id': self.interviewer.id, 'remark': 'Choose a slot.'},
+            format='json',
+        )
+        self.assertEqual(request_response.status_code, status.HTTP_201_CREATED)
+
+        self.authenticate(self.applicant)
+        booking_response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[request_response.data['id']]),
+            {
+                'slot_id': slot_response.data['id'],
+                'mode': Interview.Mode.ONLINE,
+                'meeting_link': 'https://meet.example.com/self-scheduled-api',
+            },
+            format='json',
+        )
+
+        self.assertEqual(booking_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(booking_response.data['status'], InterviewSchedulingRequest.Status.SCHEDULED)
+        self.assertEqual(booking_response.data['selected_slot']['id'], slot_response.data['id'])
+        interview = Interview.objects.get(application=self.application)
+        self.assertEqual(interview.status, Interview.Status.SCHEDULED)
+        self.assertEqual(interview.scheduled_datetime, interview.availability_slot.start_datetime)
+
+
+    @patch('apps.interviews.views.create_notification')
+    @patch('apps.interviews.views.sync_calendar_event_for_interview')
+    def test_booking_still_succeeds_when_optional_side_effects_fail(self, sync_calendar_event, create_notification_mock):
+        sync_calendar_event.side_effect = RuntimeError('Calendar service unavailable')
+        create_notification_mock.side_effect = RuntimeError('Notification service unavailable')
+        slot = InterviewerAvailabilitySlot.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            start_datetime='2026-07-06T09:00:00Z',
+            end_datetime='2026-07-06T10:00:00Z',
+        )
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            remark='Choose one slot.',
+        )
+        self.authenticate(self.applicant)
+
+        response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_request.id]),
+            {
+                'slot_id': slot.id,
+                'mode': Interview.Mode.ONLINE,
+                'meeting_link': 'https://meet.example.com/side-effect-failure',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        scheduling_request.refresh_from_db()
+        slot.refresh_from_db()
+        self.assertEqual(scheduling_request.status, InterviewSchedulingRequest.Status.SCHEDULED)
+        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.BOOKED)
 
     def test_applicant_cannot_book_unavailable_slot(self):
         slot = InterviewerAvailabilitySlot.objects.create(

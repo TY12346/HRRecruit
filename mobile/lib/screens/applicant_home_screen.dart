@@ -66,6 +66,7 @@ class ApplicantHomeScreen extends StatelessWidget {
         route: '/profile',
       ),
     ];
+    final uniqueHomeActions = _deduplicateHomeActions(homeActions);
 
     return Scaffold(
       appBar: AppBar(
@@ -89,7 +90,7 @@ class ApplicantHomeScreen extends StatelessWidget {
             const SizedBox(height: 8),
             const Text('Keep your profile and resume current for recruiter screening.'),
             const SizedBox(height: 24),
-            for (final action in homeActions) _homeActionCard(context, action),
+            for (final action in uniqueHomeActions) _homeActionCard(context, action),
             _homeActionCard(
               context,
               _ApplicantHomeAction(
@@ -105,6 +106,14 @@ class ApplicantHomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<_ApplicantHomeAction> _deduplicateHomeActions(List<_ApplicantHomeAction> actions) {
+    final seenRoutes = <String>{};
+    return [
+      for (final action in actions)
+        if (seenRoutes.add(action.route)) action,
+    ];
   }
 
   Widget _homeActionCard(BuildContext context, _ApplicantHomeAction action) {
