@@ -103,6 +103,24 @@ def visible_scheduling_requests_for(user):
     return requests.none()
 
 
+def bookable_scheduling_requests_for_applicant(applicant):
+    """Return scheduling requests for booking without nullable joins.
+
+    PostgreSQL rejects SELECT ... FOR UPDATE when the query includes nullable
+    outer joins, so the booking lock queryset intentionally avoids selected_slot
+    and interview select_related joins.
+    """
+    return InterviewSchedulingRequest.objects.select_related(
+        'application',
+        'application__job',
+        'application__job__organization',
+        'application__applicant',
+        'organization',
+        'recruiter',
+        'interviewer',
+    ).filter(application__applicant=applicant)
+
+
 def available_slots_for_interviewer(user):
     membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
     if not membership:
@@ -333,7 +351,7 @@ class BookSchedulingRequestAPIView(APIView):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can choose interview slots.')
         scheduling_request = get_object_or_404(
-            visible_scheduling_requests_for(request.user).select_for_update(),
+            bookable_scheduling_requests_for_applicant(request.user).select_for_update(),
             id=scheduling_request_id,
         )
         if scheduling_request.status != InterviewSchedulingRequest.Status.PENDING:

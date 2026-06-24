@@ -5,6 +5,7 @@ from rest_framework.test import APITestCase
 
 from apps.applications.models import ApplicationStageHistory, JobApplication
 from apps.interviews.models import Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
+from apps.interviews.views import bookable_scheduling_requests_for_applicant
 from apps.jobs.models import JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
@@ -130,6 +131,17 @@ class InterviewManagementAPITests(APITestCase):
 
         self.assertEqual(assigned_response.status_code, status.HTTP_200_OK)
         self.assertIn(scheduling_request.interview.id, {interview['id'] for interview in assigned_response.data})
+
+
+    def test_booking_lock_queryset_avoids_nullable_select_related_joins(self):
+        queryset = bookable_scheduling_requests_for_applicant(self.applicant)
+
+        self.assertNotIn('selected_slot', queryset.query.select_related)
+        self.assertNotIn('interview', queryset.query.select_related)
+        self.assertIn('application', queryset.query.select_related)
+        self.assertIn('organization', queryset.query.select_related)
+        self.assertIn('recruiter', queryset.query.select_related)
+        self.assertIn('interviewer', queryset.query.select_related)
 
     def test_applicant_books_available_slot_from_scheduling_request(self):
         slot = InterviewerAvailabilitySlot.objects.create(
