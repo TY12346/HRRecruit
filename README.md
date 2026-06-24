@@ -137,3 +137,14 @@ All seeded records are fake and intended only for FYP demonstration.
 - The implemented AI assists screening, ranking, transcription, and summaries; underqualified applicants are rejected by the screening threshold, while qualified applicants still require recruiter and HR review before hiring.
 - Demo/fallback behavior is intentional so the project can be reviewed without real SendGrid, Google Calendar, payment gateway, OpenAI, Whisper, or other external-service credentials.
 - Optional integrations should remain disabled unless valid credentials and a suitable deployment environment are configured.
+
+## Interview weekly availability scheduling
+
+Interview scheduling now uses reusable weekly availability patterns instead of requiring interviewers to repeatedly create date-specific slots.
+
+1. Interviewers open **My Weekly Availability** and create patterns with weekday, start time, end time, slot duration, mode, meeting link/location, and effective dates.
+2. Interviewers can add unavailable dates for holidays, leave, or other exceptions.
+3. When a recruiter creates a self-scheduling request for a shortlisted applicant, the applicant sees generated real dates/times from the assigned interviewer's active weekly patterns.
+4. Generated slots are hidden when they are in the past, fall on an unavailable date, or match an existing active interview booking for the same interviewer/date/start/end time.
+5. Applicants book a real generated slot. The interview stores the actual interview date, start time, end time, mode, and meeting details, and the database constraint prevents duplicate active bookings for the same interviewer and exact time window.
+6. Legacy date-specific availability slots remain supported for existing workflows, but weekly patterns are the preferred scheduling workflow.

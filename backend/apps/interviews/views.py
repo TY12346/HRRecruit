@@ -1,6 +1,8 @@
 """Role-protected and organization-isolated interview management APIs."""
 
 import logging
+from collections import defaultdict
+from datetime import datetime
 
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
@@ -16,16 +18,19 @@ from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
-from .models import Interview, InterviewSchedulingRequest, InterviewerAvailabilitySlot
+from .models import Interview, InterviewSchedulingRequest, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
 from .serializers import (
     AssignInterviewerSerializer,
     BookSchedulingRequestSerializer,
     CreateSchedulingRequestSerializer,
     InterviewSchedulingRequestSerializer,
     InterviewSerializer,
+    InterviewerAvailabilityPatternSerializer,
+    InterviewerUnavailableDateSerializer,
     InterviewerAvailabilitySlotSerializer,
 )
 from .calendar_service import sync_calendar_event_for_interview
+from .slot_generation import generate_available_slots
 
 
 logger = logging.getLogger(__name__)
@@ -127,6 +132,68 @@ def available_slots_for_interviewer(user):
         raise PermissionDenied('Interviewer must belong to an active organization.')
     return InterviewerAvailabilitySlot.objects.filter(organization=membership.organization, interviewer=user)
 
+
+
+def pending_scheduling_request_for_applicant_application_or_404(applicant, application_id):
+    return get_object_or_404(
+        bookable_scheduling_requests_for_applicant(applicant),
+        application_id=application_id,
+        status=InterviewSchedulingRequest.Status.PENDING,
+    )
+
+
+def selectable_slots_for_scheduling_request(scheduling_request, selected_date=None):
+    generated_slots = generate_available_slots(scheduling_request.interviewer, scheduling_request.organization)
+    if selected_date:
+        generated_slots = [slot for slot in generated_slots if slot.date == selected_date]
+    legacy_slots = InterviewerAvailabilitySlot.objects.filter(
+        organization=scheduling_request.organization,
+        interviewer=scheduling_request.interviewer,
+        status=InterviewerAvailabilitySlot.Status.AVAILABLE,
+        start_datetime__gt=timezone.now(),
+    ).order_by('start_datetime')
+    if selected_date:
+        legacy_slots = [slot for slot in legacy_slots if timezone.localdate(slot.start_datetime) == selected_date]
+    return generated_slots, legacy_slots
+
+
+def serialize_generated_slot_for_selection(slot, interviewer):
+    return {
+        'slot_id': slot.id,
+        'id': slot.id,
+        'pattern_id': slot.pattern_id,
+        'date': slot.date,
+        'interview_date': slot.date,
+        'start_time': slot.start_time,
+        'end_time': slot.end_time,
+        'start_datetime': slot.start_datetime,
+        'end_datetime': slot.end_datetime,
+        'mode': slot.mode,
+        'meeting_link': slot.meeting_link,
+        'location': slot.location,
+        'interviewer_names': [interviewer.full_name] if interviewer else [],
+        'status': slot.status,
+    }
+
+
+def serialize_legacy_slot_for_selection(slot, interviewer):
+    return {
+        'slot_id': slot.id,
+        'id': slot.id,
+        'pattern_id': None,
+        'date': timezone.localdate(slot.start_datetime),
+        'interview_date': timezone.localdate(slot.start_datetime),
+        'start_time': timezone.localtime(slot.start_datetime).time().replace(microsecond=0),
+        'end_time': timezone.localtime(slot.end_datetime).time().replace(microsecond=0),
+        'start_datetime': slot.start_datetime,
+        'end_datetime': slot.end_datetime,
+        'mode': Interview.Mode.ONLINE,
+        'meeting_link': '',
+        'location': '',
+        'interviewer_names': [interviewer.full_name] if interviewer else [],
+        'status': slot.status,
+    }
+
 def active_interviewer_for_organization_or_404(interviewer_id, organization):
     membership = get_object_or_404(
         OrganizationMembership.objects.select_related('user'),
@@ -204,6 +271,95 @@ def create_interview_booking_side_effects(scheduling_request, interview, applica
                 getattr(recipient, 'id', None),
             )
 
+
+
+def availability_patterns_for_interviewer(user):
+    membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
+    if not membership:
+        raise PermissionDenied('Interviewer must belong to an active organization.')
+    return InterviewerAvailabilityPattern.objects.filter(organization=membership.organization, interviewer=user)
+
+
+def unavailable_dates_for_interviewer(user):
+    membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
+    if not membership:
+        raise PermissionDenied('Interviewer must belong to an active organization.')
+    return InterviewerUnavailableDate.objects.filter(organization=membership.organization, interviewer=user)
+
+
+class InterviewerAvailabilityPatternListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage weekly availability.')
+        return Response(InterviewerAvailabilityPatternSerializer(availability_patterns_for_interviewer(request.user), many=True).data)
+
+    def post(self, request):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage weekly availability.')
+        membership = get_active_membership(request.user, OrganizationMembership.Role.INTERVIEWER)
+        if not membership:
+            raise PermissionDenied('Interviewer must belong to an active organization.')
+        serializer = InterviewerAvailabilityPatternSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pattern = InterviewerAvailabilityPattern.objects.create(organization=membership.organization, interviewer=request.user, **serializer.validated_data)
+        return Response(InterviewerAvailabilityPatternSerializer(pattern).data, status=status.HTTP_201_CREATED)
+
+
+class InterviewerAvailabilityPatternDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pattern_id):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage weekly availability.')
+        pattern = get_object_or_404(availability_patterns_for_interviewer(request.user), id=pattern_id)
+        serializer = InterviewerAvailabilityPatternSerializer(pattern, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, pattern_id):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage weekly availability.')
+        pattern = get_object_or_404(availability_patterns_for_interviewer(request.user), id=pattern_id)
+        pattern.is_active = False
+        pattern.save(update_fields=['is_active', 'updated_at'])
+        return Response(InterviewerAvailabilityPatternSerializer(pattern).data)
+
+
+class InterviewerUnavailableDateListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage unavailable dates.')
+        return Response(InterviewerUnavailableDateSerializer(unavailable_dates_for_interviewer(request.user), many=True).data)
+
+    def post(self, request):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage unavailable dates.')
+        membership = get_active_membership(request.user, OrganizationMembership.Role.INTERVIEWER)
+        if not membership:
+            raise PermissionDenied('Interviewer must belong to an active organization.')
+        serializer = InterviewerUnavailableDateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            unavailable = InterviewerUnavailableDate.objects.create(organization=membership.organization, interviewer=request.user, **serializer.validated_data)
+        except IntegrityError as exc:
+            raise ValidationError({'date': 'This unavailable date already exists.'}) from exc
+        return Response(InterviewerUnavailableDateSerializer(unavailable).data, status=status.HTTP_201_CREATED)
+
+
+class InterviewerUnavailableDateDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, unavailable_date_id):
+        if request.user.role != User.Role.INTERVIEWER:
+            raise PermissionDenied('Only interviewers can manage unavailable dates.')
+        unavailable = get_object_or_404(unavailable_dates_for_interviewer(request.user), id=unavailable_date_id)
+        unavailable.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class InterviewerAvailabilitySlotListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -343,6 +499,106 @@ class InterviewSchedulingRequestListAPIView(APIView):
         return Response(InterviewSchedulingRequestSerializer(scheduling_requests, many=True, context={'request': request}).data)
 
 
+def book_scheduling_request(request, scheduling_request):
+    if scheduling_request.status != InterviewSchedulingRequest.Status.PENDING:
+        raise ValidationError({'status': 'Only pending scheduling requests can be booked.'})
+    if scheduling_request.expires_at and scheduling_request.expires_at <= timezone.now():
+        scheduling_request.status = InterviewSchedulingRequest.Status.EXPIRED
+        scheduling_request.save(update_fields=['status', 'updated_at'])
+        raise ValidationError({'expires_at': 'This scheduling request has expired.'})
+    serializer = BookSchedulingRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    slot = None
+    selected_start = selected_end = selected_date = None
+    selected_mode = serializer.validated_data.get('mode', Interview.Mode.ONLINE)
+    selected_meeting_link = serializer.validated_data.get('meeting_link', '')
+    selected_location = serializer.validated_data.get('location', '')
+    if serializer.validated_data.get('slot_id'):
+        slot = get_object_or_404(
+            InterviewerAvailabilitySlot.objects.select_for_update(),
+            id=serializer.validated_data['slot_id'],
+            organization=scheduling_request.organization,
+            interviewer=scheduling_request.interviewer,
+        )
+        if slot.status != InterviewerAvailabilitySlot.Status.AVAILABLE:
+            raise ValidationError({'slot_id': 'Selected interview slot is no longer available.'})
+        if slot.start_datetime <= timezone.now():
+            raise ValidationError({'slot_id': 'Selected interview slot is in the past.'})
+        if Interview.objects.filter(availability_slot=slot).exists():
+            raise ValidationError({'slot_id': 'Selected interview slot is already linked to another interview.'})
+        selected_start = slot.start_datetime
+        selected_end = slot.end_datetime
+        selected_date = timezone.localdate(slot.start_datetime)
+    else:
+        selected_date = serializer.validated_data['interview_date']
+        pattern_id = serializer.validated_data['pattern_id']
+        start_time = serializer.validated_data['start_time'].replace(microsecond=0)
+        end_time = serializer.validated_data['end_time'].replace(microsecond=0)
+        matching_slots = generate_available_slots(scheduling_request.interviewer, scheduling_request.organization)
+        generated = next((item for item in matching_slots if item.pattern_id == pattern_id and item.date == selected_date and item.start_time == start_time and item.end_time == end_time), None)
+        if not generated:
+            raise ValidationError({'slot_id': 'Selected generated interview slot is no longer available.'})
+        selected_start = generated.start_datetime
+        selected_end = generated.end_datetime
+        selected_mode = generated.mode
+        selected_meeting_link = selected_meeting_link or generated.meeting_link
+        selected_location = selected_location or generated.location
+        if Interview.objects.select_for_update().filter(
+            organization=scheduling_request.organization,
+            interviewer=scheduling_request.interviewer,
+            interview_date=selected_date,
+            start_time=start_time,
+            end_time=end_time,
+            status__in=[Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
+        ).exists():
+            raise ValidationError({'slot_id': 'Selected interview slot is already booked.'})
+
+    interview, created = Interview.objects.get_or_create(
+        application=scheduling_request.application,
+        defaults={
+            'organization': scheduling_request.organization,
+            'recruiter': scheduling_request.recruiter,
+            'interviewer': scheduling_request.interviewer,
+            'status': Interview.Status.ASSIGNED,
+        },
+    )
+    interview.organization = scheduling_request.organization
+    interview.recruiter = scheduling_request.recruiter
+    interview.interviewer = scheduling_request.interviewer
+    interview.scheduled_datetime = selected_start
+    interview.interview_date = selected_date
+    interview.start_time = selected_start.time().replace(microsecond=0)
+    interview.end_time = selected_end.time().replace(microsecond=0)
+    interview.availability_slot = slot
+    interview.scheduling_method = Interview.SchedulingMethod.SELF_SCHEDULED
+    interview.mode = selected_mode
+    interview.meeting_link = selected_meeting_link
+    interview.location = selected_location
+    interview.save(update_fields=[
+        'organization', 'recruiter', 'interviewer', 'scheduled_datetime', 'interview_date', 'start_time', 'end_time', 'availability_slot',
+        'scheduling_method', 'mode', 'meeting_link', 'location', 'updated_at',
+    ])
+    interview.change_status(Interview.Status.SCHEDULED, changed_by=request.user, note='Applicant self-scheduled the interview.')
+
+    if slot:
+        slot.status = InterviewerAvailabilitySlot.Status.BOOKED
+        slot.save(update_fields=['status', 'updated_at'])
+    scheduling_request.status = InterviewSchedulingRequest.Status.SCHEDULED
+    scheduling_request.selected_slot = slot
+    scheduling_request.interview = interview
+    scheduling_request.save(update_fields=['status', 'selected_slot', 'interview', 'updated_at'])
+    change_application_status(
+        scheduling_request.application,
+        JobApplication.Status.INTERVIEW_ACCEPTED,
+        request.user,
+        'Applicant selected an interview slot.',
+    )
+    transaction.on_commit(
+        lambda: create_interview_booking_side_effects(scheduling_request, interview, request.user)
+    )
+    return scheduling_request
+
+
 class BookSchedulingRequestAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -354,68 +610,66 @@ class BookSchedulingRequestAPIView(APIView):
             bookable_scheduling_requests_for_applicant(request.user).select_for_update(),
             id=scheduling_request_id,
         )
-        if scheduling_request.status != InterviewSchedulingRequest.Status.PENDING:
-            raise ValidationError({'status': 'Only pending scheduling requests can be booked.'})
-        if scheduling_request.expires_at and scheduling_request.expires_at <= timezone.now():
-            scheduling_request.status = InterviewSchedulingRequest.Status.EXPIRED
-            scheduling_request.save(update_fields=['status', 'updated_at'])
-            raise ValidationError({'expires_at': 'This scheduling request has expired.'})
-        serializer = BookSchedulingRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        slot = get_object_or_404(
-            InterviewerAvailabilitySlot.objects.select_for_update(),
-            id=serializer.validated_data['slot_id'],
-            organization=scheduling_request.organization,
-            interviewer=scheduling_request.interviewer,
-        )
-        if slot.status != InterviewerAvailabilitySlot.Status.AVAILABLE:
-            raise ValidationError({'slot_id': 'Selected interview slot is no longer available.'})
+        scheduling_request = book_scheduling_request(request, scheduling_request)
+        return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data)
 
-        if Interview.objects.filter(availability_slot=slot).exists():
-            raise ValidationError({'slot_id': 'Selected interview slot is already linked to another interview.'})
 
-        interview, created = Interview.objects.get_or_create(
-            application=scheduling_request.application,
-            defaults={
-                'organization': scheduling_request.organization,
-                'recruiter': scheduling_request.recruiter,
-                'interviewer': scheduling_request.interviewer,
-                'status': Interview.Status.ASSIGNED,
-            },
-        )
-        interview.organization = scheduling_request.organization
-        interview.recruiter = scheduling_request.recruiter
-        interview.interviewer = scheduling_request.interviewer
-        interview.scheduled_datetime = slot.start_datetime
-        interview.availability_slot = slot
-        interview.scheduling_method = Interview.SchedulingMethod.SELF_SCHEDULED
-        interview.mode = serializer.validated_data.get('mode', Interview.Mode.ONLINE)
-        interview.meeting_link = serializer.validated_data.get('meeting_link', '')
-        interview.location = serializer.validated_data.get('location', '')
-        interview.save(update_fields=[
-            'organization', 'recruiter', 'interviewer', 'scheduled_datetime', 'availability_slot',
-            'scheduling_method', 'mode', 'meeting_link', 'location', 'updated_at',
+class ApplicationAvailableInterviewDatesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, application_id):
+        if request.user.role != User.Role.APPLICANT:
+            raise PermissionDenied('Only applicants can view available interview dates.')
+        scheduling_request = pending_scheduling_request_for_applicant_application_or_404(request.user, application_id)
+        generated_slots, legacy_slots = selectable_slots_for_scheduling_request(scheduling_request)
+        counts = defaultdict(int)
+        for slot in generated_slots:
+            counts[slot.date] += 1
+        for slot in legacy_slots:
+            counts[timezone.localdate(slot.start_datetime)] += 1
+        return Response([
+            {
+                'date': slot_date,
+                'day_of_week': slot_date.strftime('%A'),
+                'available_slot_count': count,
+            }
+            for slot_date, count in sorted(counts.items())
         ])
-        if created:
-            interview.change_status(Interview.Status.SCHEDULED, changed_by=request.user, note='Applicant self-scheduled the interview.')
-        else:
-            interview.change_status(Interview.Status.SCHEDULED, changed_by=request.user, note='Applicant self-scheduled the interview.')
 
-        slot.status = InterviewerAvailabilitySlot.Status.BOOKED
-        slot.save(update_fields=['status', 'updated_at'])
-        scheduling_request.status = InterviewSchedulingRequest.Status.SCHEDULED
-        scheduling_request.selected_slot = slot
-        scheduling_request.interview = interview
-        scheduling_request.save(update_fields=['status', 'selected_slot', 'interview', 'updated_at'])
-        change_application_status(
-            scheduling_request.application,
-            JobApplication.Status.INTERVIEW_ACCEPTED,
+
+class ApplicationAvailableInterviewSlotsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, application_id):
+        if request.user.role != User.Role.APPLICANT:
+            raise PermissionDenied('Only applicants can view available interview slots.')
+        date_value = request.query_params.get('date')
+        if not date_value:
+            raise ValidationError({'date': 'Date query parameter is required.'})
+        try:
+            selected_date = datetime.strptime(date_value, '%Y-%m-%d').date()
+        except ValueError as exc:
+            raise ValidationError({'date': 'Date must use YYYY-MM-DD format.'}) from exc
+        scheduling_request = pending_scheduling_request_for_applicant_application_or_404(request.user, application_id)
+        generated_slots, legacy_slots = selectable_slots_for_scheduling_request(scheduling_request, selected_date=selected_date)
+        data = [serialize_generated_slot_for_selection(slot, scheduling_request.interviewer) for slot in generated_slots]
+        data += [serialize_legacy_slot_for_selection(slot, scheduling_request.interviewer) for slot in legacy_slots]
+        return Response(sorted(data, key=lambda item: item['start_datetime']))
+
+
+class ApplicationBookInterviewSlotAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, application_id):
+        if request.user.role != User.Role.APPLICANT:
+            raise PermissionDenied('Only applicants can book interview slots.')
+        scheduling_request = pending_scheduling_request_for_applicant_application_or_404(
             request.user,
-            'Applicant selected an interview slot.',
+            application_id,
         )
-        transaction.on_commit(
-            lambda: create_interview_booking_side_effects(scheduling_request, interview, request.user)
-        )
+        scheduling_request = InterviewSchedulingRequest.objects.select_for_update().get(id=scheduling_request.id)
+        scheduling_request = book_scheduling_request(request, scheduling_request)
         return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data)
 
 

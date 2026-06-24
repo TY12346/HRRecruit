@@ -734,3 +734,128 @@ class InterviewEvaluationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('answers', response.data)
+
+from datetime import date, time
+from django.utils import timezone
+from apps.interviews.models import InterviewerAvailabilityPattern, InterviewerUnavailableDate
+from apps.interviews.slot_generation import generate_available_slots
+
+
+class WeeklyAvailabilitySchedulingTests(InterviewManagementAPITests):
+    def create_monday_pattern(self):
+        return InterviewerAvailabilityPattern.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            day_of_week=InterviewerAvailabilityPattern.DayOfWeek.MONDAY,
+            start_time=time(10, 0),
+            end_time=time(12, 0),
+            slot_duration_minutes=30,
+            mode=Interview.Mode.ONLINE,
+            meeting_link='https://meet.example.com/weekly',
+            effective_from=date(2026, 6, 1),
+        )
+
+    def test_monday_weekly_availability_generates_future_monday_slots(self):
+        pattern = self.create_monday_pattern()
+        now = timezone.make_aware(__import__('datetime').datetime(2026, 6, 24, 8, 0))
+
+        slots = generate_available_slots(self.interviewer, self.organization, days_ahead=14, from_datetime=now)
+
+        monday_slots = [slot for slot in slots if slot.pattern_id == pattern.id]
+        self.assertEqual([slot.date for slot in monday_slots[:4]], [date(2026, 6, 29)] * 4)
+        self.assertEqual([slot.start_time for slot in monday_slots[:4]], [time(10, 0), time(10, 30), time(11, 0), time(11, 30)])
+
+    def test_booked_and_unavailable_generated_slots_are_excluded(self):
+        self.create_monday_pattern()
+        InterviewerUnavailableDate.objects.create(organization=self.organization, interviewer=self.interviewer, date=date(2026, 6, 29))
+        Interview.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            interview_date=date(2026, 7, 6),
+            start_time=time(10, 0),
+            end_time=time(10, 30),
+            scheduled_datetime=timezone.make_aware(__import__('datetime').datetime(2026, 7, 6, 10, 0)),
+            status=Interview.Status.SCHEDULED,
+        )
+        now = timezone.make_aware(__import__('datetime').datetime(2026, 6, 24, 8, 0))
+
+        slots = generate_available_slots(self.interviewer, self.organization, days_ahead=14, from_datetime=now)
+
+        self.assertNotIn(date(2026, 6, 29), {slot.date for slot in slots})
+        self.assertNotIn((date(2026, 7, 6), time(10, 0)), {(slot.date, slot.start_time) for slot in slots})
+        self.assertIn((date(2026, 7, 6), time(10, 30)), {(slot.date, slot.start_time) for slot in slots})
+
+    def test_applicant_books_generated_slot_and_second_applicant_cannot_double_book(self):
+        pattern = self.create_monday_pattern()
+        other_application = JobApplication.objects.create(job=self.job, applicant=self.other_applicant, status=JobApplication.Status.SHORTLISTED)
+        first_request = InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
+        second_request = InterviewSchedulingRequest.objects.create(application=other_application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
+        payload = {
+            'pattern_id': pattern.id,
+            'interview_date': '2026-06-29',
+            'start_time': '10:00:00',
+            'end_time': '10:30:00',
+            'meeting_link': 'https://meet.example.com/weekly',
+        }
+        with patch('apps.interviews.views.timezone.now', return_value=timezone.make_aware(__import__('datetime').datetime(2026, 6, 24, 8, 0))):
+            self.authenticate(self.applicant)
+            first_response = self.client.post(reverse('interview-scheduling-request-book', args=[first_request.id]), payload, format='json')
+            self.authenticate(self.other_applicant)
+            second_response = self.client.post(reverse('interview-scheduling-request-book', args=[second_request.id]), payload, format='json')
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
+        interview = Interview.objects.get(application=self.application)
+        self.assertEqual(interview.interview_date, date(2026, 6, 29))
+        self.assertEqual(interview.start_time, time(10, 0))
+        self.assertEqual(interview.end_time, time(10, 30))
+
+    def test_applicant_cannot_book_scheduling_request_they_do_not_own(self):
+        pattern = self.create_monday_pattern()
+        scheduling_request = InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
+        self.authenticate(self.other_applicant)
+        response = self.client.post(reverse('interview-scheduling-request-book', args=[scheduling_request.id]), {
+            'pattern_id': pattern.id,
+            'interview_date': '2026-06-29',
+            'start_time': '10:00:00',
+            'end_time': '10:30:00',
+            'meeting_link': 'https://meet.example.com/weekly',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_interviewer_can_only_manage_own_availability_patterns(self):
+        pattern = self.create_monday_pattern()
+        self.authenticate(self.other_interviewer)
+        response = self.client.delete(reverse('interviewer-availability-pattern-detail', args=[pattern.id]))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_application_available_dates_returns_summary_only(self):
+        self.create_monday_pattern()
+        InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
+        self.authenticate(self.applicant)
+        with patch('apps.interviews.slot_generation.timezone.now', return_value=timezone.make_aware(__import__('datetime').datetime(2026, 6, 24, 8, 0))):
+            response = self.client.get(reverse('application-interview-available-dates', args=[self.application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['date'], date(2026, 6, 29))
+        self.assertEqual(response.data[0]['day_of_week'], 'Monday')
+        self.assertEqual(response.data[0]['available_slot_count'], 4)
+        self.assertNotIn('start_time', response.data[0])
+
+    def test_application_available_slots_filters_to_selected_date(self):
+        self.create_monday_pattern()
+        InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
+        self.authenticate(self.applicant)
+        with patch('apps.interviews.slot_generation.timezone.now', return_value=timezone.make_aware(__import__('datetime').datetime(2026, 6, 24, 8, 0))):
+            response = self.client.get(
+                reverse('application-interview-available-slots', args=[self.application.id]),
+                {'date': '2026-06-29'},
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 4)
+        self.assertEqual({slot['date'] for slot in response.data}, {date(2026, 6, 29)})
+        self.assertEqual(response.data[0]['start_time'], time(10, 0))
+        self.assertEqual(response.data[0]['interviewer_names'], [self.interviewer.full_name])

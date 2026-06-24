@@ -24,17 +24,53 @@ class ApplicantWorkflowService {
     );
   }
 
+
+
+  Future<List<InterviewAvailableDate>> getInterviewAvailableDates(int applicationId) async {
+    final response = await _apiClient.dio.get<List<dynamic>>(
+      'applications/$applicationId/interview-available-dates/',
+    );
+    return (response.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(InterviewAvailableDate.fromJson)
+        .toList();
+  }
+
+  Future<List<InterviewerAvailabilitySlot>> getInterviewAvailableSlots({
+    required int applicationId,
+    required String date,
+  }) async {
+    final response = await _apiClient.dio.get<List<dynamic>>(
+      'applications/$applicationId/interview-available-slots/',
+      queryParameters: {'date': date},
+    );
+    return (response.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(InterviewerAvailabilitySlot.fromJson)
+        .toList();
+  }
+
   Future<InterviewSchedulingRequest> bookInterviewSchedulingRequest({
     required int requestId,
-    required int slotId,
+    int? applicationId,
+    required InterviewerAvailabilitySlot slot,
     String mode = 'online',
     String meetingLink = 'https://meet.example.com/hrrecruit-interview',
     String location = '',
   }) async {
+    final endpoint = applicationId != null
+        ? 'applications/$applicationId/book-interview-slot/'
+        : 'interviews/scheduling-requests/$requestId/book/';
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'interviews/scheduling-requests/$requestId/book/',
+      endpoint,
       data: {
-        'slot_id': slotId,
+        if (slot.patternId > 0) ...{
+          'pattern_id': slot.patternId,
+          'interview_date': slot.interviewDate,
+          'start_time': slot.startTime,
+          'end_time': slot.endTime,
+        } else
+          'slot_id': int.tryParse(slot.id) ?? 0,
         'mode': mode,
         'meeting_link': meetingLink,
         'location': location,

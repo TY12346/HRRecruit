@@ -70,22 +70,76 @@ DateTime? _asDateTime(Object? value) {
 class InterviewerAvailabilitySlot {
   const InterviewerAvailabilitySlot({
     required this.id,
+    required this.patternId,
+    required this.interviewDate,
+    required this.startTime,
+    required this.endTime,
     required this.startDatetime,
     required this.endDatetime,
     required this.status,
+    required this.mode,
+    required this.meetingLink,
+    required this.location,
+    required this.interviewerNames,
   });
 
-  final int id;
+  final String id;
+  final int patternId;
+  final String interviewDate;
+  final String startTime;
+  final String endTime;
   final DateTime? startDatetime;
   final DateTime? endDatetime;
   final String status;
+  final String mode;
+  final String meetingLink;
+  final String location;
+  final List<String> interviewerNames;
 
   factory InterviewerAvailabilitySlot.fromJson(Map<String, dynamic> json) {
     return InterviewerAvailabilitySlot(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
+      patternId: _asInt(json['pattern_id']),
+      interviewDate: json['date'] as String? ?? '',
+      startTime: json['start_time'] as String? ?? '',
+      endTime: json['end_time'] as String? ?? '',
       startDatetime: _asDateTime(json['start_datetime']),
       endDatetime: _asDateTime(json['end_datetime']),
       status: json['status'] as String? ?? '',
+      mode: json['mode'] as String? ?? '',
+      meetingLink: json['meeting_link'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      interviewerNames: json['interviewer_names'] is List
+          ? (json['interviewer_names'] as List).map((value) => value.toString()).toList()
+          : const [],
+    );
+  }
+}
+
+class InterviewAvailableDate {
+  const InterviewAvailableDate({
+    required this.date,
+    required this.dayOfWeek,
+    required this.availableSlotCount,
+  });
+
+  final DateTime? date;
+  final String dayOfWeek;
+  final int availableSlotCount;
+
+  String get dateKey {
+    final value = date;
+    if (value == null) return '';
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
+  }
+
+  factory InterviewAvailableDate.fromJson(Map<String, dynamic> json) {
+    return InterviewAvailableDate(
+      date: _asDateTime(json['date']),
+      dayOfWeek: json['day_of_week'] as String? ?? '',
+      availableSlotCount: _asInt(json['available_slot_count']),
     );
   }
 }
