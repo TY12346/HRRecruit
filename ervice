@@ -1,0 +1,46 @@
+[1mdiff --git a/mobile/lib/services/applicant_workflow_service.dart b/mobile/lib/services/applicant_workflow_service.dart[m
+[1mindex 4997d14..484f961 100644[m
+[1m--- a/mobile/lib/services/applicant_workflow_service.dart[m
+[1m+++ b/mobile/lib/services/applicant_workflow_service.dart[m
+[36m@@ -43,41 +43,6 @@[m [mclass ApplicantWorkflowService {[m
+     return InterviewSchedulingRequest.fromJson(response.data!);[m
+   }[m
+ [m
+[31m-  Future<List<InterviewSchedulingRequest>> getInterviewSchedulingRequests() async {[m
+[31m-    final response = await _apiClient.dio.get<List<dynamic>>('interviews/scheduling-requests/');[m
+[31m-    return (response.data ?? [])[m
+[31m-        .whereType<Map<String, dynamic>>()[m
+[31m-        .map(InterviewSchedulingRequest.fromJson)[m
+[31m-        .toList();[m
+[31m-  }[m
+[31m-[m
+[31m-  Future<InterviewSchedulingRequest> getInterviewSchedulingRequest(int requestId) async {[m
+[31m-    final requests = await getInterviewSchedulingRequests();[m
+[31m-    return requests.firstWhere([m
+[31m-      (request) => request.id == requestId,[m
+[31m-      orElse: () => throw Exception('Interview scheduling request not found.'),[m
+[31m-    );[m
+[31m-  }[m
+[31m-[m
+[31m-  Future<InterviewSchedulingRequest> bookInterviewSchedulingRequest({[m
+[31m-    required int requestId,[m
+[31m-    required int slotId,[m
+[31m-    String mode = 'online',[m
+[31m-    String meetingLink = 'https://meet.example.com/hrrecruit-interview',[m
+[31m-    String location = '',[m
+[31m-  }) async {[m
+[31m-    final response = await _apiClient.dio.post<Map<String, dynamic>>([m
+[31m-      'interviews/scheduling-requests/$requestId/book/',[m
+[31m-      data: {[m
+[31m-        'slot_id': slotId,[m
+[31m-        'mode': mode,[m
+[31m-        'meeting_link': meetingLink,[m
+[31m-        'location': location,[m
+[31m-      },[m
+[31m-    );[m
+[31m-    return InterviewSchedulingRequest.fromJson(response.data!);[m
+[31m-  }[m
+[31m-[m
+   Future<List<ApplicantInterview>> getInterviews() async {[m
+     final response = await _apiClient.dio.get<List<dynamic>>('interviews/');[m
+     return (response.data ?? [])[m
