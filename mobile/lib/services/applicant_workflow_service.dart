@@ -8,38 +8,39 @@ class ApplicantWorkflowService {
 
   final ApiClient _apiClient;
 
-  Future<List<InterviewInvitation>> getInterviewInvitations() async {
-    final response = await _apiClient.dio.get<List<dynamic>>('interview-invitations/');
+  Future<List<InterviewSchedulingRequest>> getInterviewSchedulingRequests() async {
+    final response = await _apiClient.dio.get<List<dynamic>>('interviews/scheduling-requests/');
     return (response.data ?? [])
         .whereType<Map<String, dynamic>>()
-        .map(InterviewInvitation.fromJson)
+        .map(InterviewSchedulingRequest.fromJson)
         .toList();
   }
 
-  Future<InterviewInvitation> getInterviewInvitation(int invitationId) async {
-    final invitations = await getInterviewInvitations();
-    return invitations.firstWhere(
-      (invitation) => invitation.id == invitationId,
-      orElse: () => throw Exception('Interview invitation not found.'),
+  Future<InterviewSchedulingRequest> getInterviewSchedulingRequest(int requestId) async {
+    final requests = await getInterviewSchedulingRequests();
+    return requests.firstWhere(
+      (request) => request.id == requestId,
+      orElse: () => throw Exception('Interview scheduling request not found.'),
     );
   }
 
-  Future<InterviewInvitation> acceptInterviewInvitation(int invitationId) async {
-    final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'interview-invitations/$invitationId/accept/',
-    );
-    return InterviewInvitation.fromJson(response.data!);
-  }
-
-  Future<InterviewInvitation> declineInterviewInvitation(
-    int invitationId, {
-    required String declineReason,
+  Future<InterviewSchedulingRequest> bookInterviewSchedulingRequest({
+    required int requestId,
+    required int slotId,
+    String mode = 'online',
+    String meetingLink = 'https://meet.example.com/hrrecruit-interview',
+    String location = '',
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'interview-invitations/$invitationId/decline/',
-      data: {'decline_reason': declineReason},
+      'interviews/scheduling-requests/$requestId/book/',
+      data: {
+        'slot_id': slotId,
+        'mode': mode,
+        'meeting_link': meetingLink,
+        'location': location,
+      },
     );
-    return InterviewInvitation.fromJson(response.data!);
+    return InterviewSchedulingRequest.fromJson(response.data!);
   }
 
   Future<List<ApplicantInterview>> getInterviews() async {

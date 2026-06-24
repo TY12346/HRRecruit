@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import re
 from tempfile import TemporaryDirectory
@@ -445,3 +446,55 @@ class ResumeScreeningScoreComponentTests(SimpleTestCase):
 
     def test_education_score_is_zero_when_required_level_is_missing_from_resume(self):
         self.assertEqual(calculate_education_score({'level': None}, {'level': 'bachelor'}), 0.0)
+
+
+class LinkedInProfileImporterTests(SimpleTestCase):
+    def test_linkedin_profile_fixture_is_parsed_into_expected_sections(self):
+        from .linkedin_profile_importer import build_linkedin_profile_import
+
+        fixture_dir = Path(__file__).resolve().parents[1] / 'users' / 'test_fixtures'
+        raw_text = (fixture_dir / 'linkedin_profile_sample_raw.txt').read_text()
+        expected = json.loads((fixture_dir / 'linkedin_profile_sample_expected.json').read_text())
+
+        parsed = build_linkedin_profile_import(raw_text)
+
+        self.assertEqual(parsed['full_name'], expected['full_name'])
+        self.assertEqual(parsed['headline'], expected['headline'])
+        self.assertEqual(parsed['location'], expected['location'])
+        self.assertEqual(parsed['linkedin_url'], expected['linkedin_url'])
+        self.assertEqual(parsed['summary'], expected['summary'])
+        self.assertEqual(parsed['skills'][:len(expected['skills'])], expected['skills'])
+        for expected_skill in ['Java', 'Kubernetes', 'AWS']:
+            self.assertIn(expected_skill, parsed['skills'])
+        self.assertEqual(parsed['certifications'], expected['certifications'])
+        self.assertEqual(parsed['experience'], expected['experience'])
+        self.assertEqual(parsed['education'], expected['education'])
+
+
+    def test_linkedin_profile_parser_merges_sidebar_and_headline_skills(self):
+        from .linkedin_profile_importer import build_linkedin_profile_import
+
+        parsed = build_linkedin_profile_import(
+            'Contact\nwww.linkedin.com/in/dev-profile\nTop Skills\nTechnical Standards\n'
+            'Dev Candidate\nSoftware Engineer | Java • Kubernetes • AWS |\nMalaysia\nSummary\n'
+            'Building backend services.\nExperience\nExample Co\nEngineer\n'
+            'January 2024 - Present (6 months)'
+        )
+
+        self.assertEqual(parsed['skills'][0], 'Technical Standards')
+        self.assertIn('Java', parsed['skills'])
+        self.assertIn('Kubernetes', parsed['skills'])
+        self.assertIn('AWS', parsed['skills'])
+
+    def test_linkedin_profile_parser_handles_missing_optional_sections(self):
+        from .linkedin_profile_importer import build_linkedin_profile_import
+
+        parsed = build_linkedin_profile_import('Alex Applicant\nBackend Developer\nMalaysia\nExperience\nExample Co\nEngineer\nJanuary 2024 - Present (6 months)')
+
+        self.assertEqual(parsed['full_name'], 'Alex Applicant')
+        self.assertEqual(parsed['headline'], 'Backend Developer')
+        self.assertEqual(parsed['location'], 'Malaysia')
+        self.assertEqual(parsed['skills'], [])
+        self.assertEqual(parsed['certifications'], [])
+        self.assertEqual(parsed['education'], [])
+        self.assertEqual(parsed['experience'][0]['company_name'], 'Example Co')

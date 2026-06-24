@@ -3,8 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../controllers/auth_controller.dart';
 import '../screens/applicant/application_detail_screen.dart';
-import '../screens/applicant/interview_invitation_detail_screen.dart';
-import '../screens/applicant/interview_invitations_screen.dart';
+import '../screens/applicant/interview_scheduling_requests_screen.dart';
 import '../screens/applicant/job_offers_screen.dart';
 import '../screens/applicant/job_detail_screen.dart';
 import '../screens/applicant/job_search_screen.dart';
@@ -96,14 +95,8 @@ GoRouter createAppRouter(AuthController authController) {
         ),
       ),
       GoRoute(
-        path: '/interview-invitations',
-        builder: (context, state) => const InterviewInvitationsScreen(),
-      ),
-      GoRoute(
-        path: '/interview-invitations/:invitationId',
-        builder: (context, state) => InterviewInvitationDetailScreen(
-          invitationId: int.parse(state.pathParameters['invitationId']!),
-        ),
+        path: '/interview-scheduling',
+        builder: (context, state) => const InterviewSchedulingRequestsScreen(),
       ),
       GoRoute(
         path: '/interviews',

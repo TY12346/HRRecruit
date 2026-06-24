@@ -4,7 +4,6 @@ import { Link as RouterLink } from 'react-router-dom';
 const recruiterLinks = [
   ['Dashboard', '/recruiter'],
   ['Jobs', '/recruiter/jobs'],
-  ['Applications', '/recruiter/applications'],
   ['Interviews', '/recruiter/interviews'],
   ['Decisions', '/recruiter/hiring-decisions'],
   ['Offers', '/recruiter/job-offers'],

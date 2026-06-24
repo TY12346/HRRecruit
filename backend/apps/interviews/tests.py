@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import ApplicationStageHistory, JobApplication
-from apps.interviews.models import CalendarEvent, Interview, InterviewInvitation, InterviewStatusHistory
+from apps.interviews.models import Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
 from apps.jobs.models import JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
@@ -70,17 +70,135 @@ class InterviewManagementAPITests(APITestCase):
             format='json',
         )
 
-    def send_invitation(self, interview):
+    def test_interviewer_creates_availability_slot(self):
         self.authenticate(self.interviewer)
-        return self.client.post(
-            reverse('interview-send-invitation', args=[interview.id]),
+
+        response = self.client.post(
+            reverse('interviewer-availability-list-create'),
             {
-                'proposed_datetime': '2026-07-01T10:00:00Z',
-                'mode': Interview.Mode.ONLINE,
-                'meeting_link': 'https://meet.example.com/interview-1',
+                'start_datetime': '2026-07-02T09:00:00Z',
+                'end_datetime': '2026-07-02T10:00:00Z',
             },
             format='json',
         )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        slot = InterviewerAvailabilitySlot.objects.get(id=response.data['id'])
+        self.assertEqual(slot.organization, self.organization)
+        self.assertEqual(slot.interviewer, self.interviewer)
+        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.AVAILABLE)
+
+
+    def test_interviewer_duplicate_availability_returns_validation_error(self):
+        self.authenticate(self.interviewer)
+        payload = {
+            'start_datetime': '2026-07-02T09:00:00Z',
+            'end_datetime': '2026-07-02T10:00:00Z',
+        }
+
+        first_response = self.client.post(reverse('interviewer-availability-list-create'), payload, format='json')
+        duplicate_response = self.client.post(reverse('interviewer-availability-list-create'), payload, format='json')
+
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('start_datetime', duplicate_response.data)
+
+    def test_recruiter_creates_scheduling_request_for_applicant(self):
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('application-create-scheduling-request', args=[self.application.id]),
+            {'interviewer_id': self.interviewer.id, 'remark': 'Please choose a technical interview slot.'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        scheduling_request = InterviewSchedulingRequest.objects.get(id=response.data['id'])
+        self.assertEqual(scheduling_request.application, self.application)
+        self.assertEqual(scheduling_request.organization, self.organization)
+        self.assertEqual(scheduling_request.recruiter, self.recruiter)
+        self.assertEqual(scheduling_request.interviewer, self.interviewer)
+        self.assertEqual(scheduling_request.remark, 'Please choose a technical interview slot.')
+        self.assertIsNotNone(scheduling_request.interview)
+        self.assertEqual(scheduling_request.interview.interviewer, self.interviewer)
+        self.assertEqual(scheduling_request.interview.status, Interview.Status.ASSIGNED)
+        self.assertEqual(scheduling_request.interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
+
+        self.authenticate(self.interviewer)
+        assigned_response = self.client.get(reverse('interview-assigned-list'))
+
+        self.assertEqual(assigned_response.status_code, status.HTTP_200_OK)
+        self.assertIn(scheduling_request.interview.id, {interview['id'] for interview in assigned_response.data})
+
+    def test_applicant_books_available_slot_from_scheduling_request(self):
+        slot = InterviewerAvailabilitySlot.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            start_datetime='2026-07-03T09:00:00Z',
+            end_datetime='2026-07-03T10:00:00Z',
+        )
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            remark='Choose one slot.',
+        )
+        self.authenticate(self.applicant)
+
+        response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_request.id]),
+            {
+                'slot_id': slot.id,
+                'mode': Interview.Mode.ONLINE,
+                'meeting_link': 'https://meet.example.com/self-scheduled',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        scheduling_request.refresh_from_db()
+        slot.refresh_from_db()
+        interview = Interview.objects.get(application=self.application)
+        self.assertEqual(scheduling_request.status, InterviewSchedulingRequest.Status.SCHEDULED)
+        self.assertEqual(scheduling_request.selected_slot, slot)
+        self.assertEqual(scheduling_request.interview, interview)
+        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.BOOKED)
+        self.assertEqual(interview.status, Interview.Status.SCHEDULED)
+        self.assertEqual(interview.availability_slot, slot)
+        self.assertEqual(interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
+        self.assertEqual(interview.meeting_link, 'https://meet.example.com/self-scheduled')
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_ACCEPTED)
+
+    def test_applicant_cannot_book_unavailable_slot(self):
+        slot = InterviewerAvailabilitySlot.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            start_datetime='2026-07-04T09:00:00Z',
+            end_datetime='2026-07-04T10:00:00Z',
+            status=InterviewerAvailabilitySlot.Status.BOOKED,
+        )
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+        )
+        self.authenticate(self.applicant)
+
+        response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_request.id]),
+            {
+                'slot_id': slot.id,
+                'mode': Interview.Mode.ONLINE,
+                'meeting_link': 'https://meet.example.com/unavailable',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Interview.objects.filter(application=self.application).exists())
 
     def test_recruiter_assigns_interviewer_from_same_organization(self):
         self.authenticate(self.recruiter)
@@ -121,153 +239,6 @@ class InterviewManagementAPITests(APITestCase):
         self.assertIn(Interview.objects.get(application=self.application).id, interview_ids)
         self.assertNotIn(other_interview.id, interview_ids)
 
-    def test_interviewer_sends_invitation_and_applicant_accepts_with_calendar_placeholder(self):
-        self.assign_interviewer()
-        interview = Interview.objects.get(application=self.application)
-
-        invitation_response = self.send_invitation(interview)
-        self.assertEqual(invitation_response.status_code, status.HTTP_201_CREATED)
-        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
-        interview.refresh_from_db()
-        self.application.refresh_from_db()
-        self.assertEqual(interview.status, Interview.Status.INVITATION_SENT)
-        self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_INVITED)
-        self.assertTrue(InterviewStatusHistory.objects.filter(interview=interview, to_status=Interview.Status.INVITATION_SENT).exists())
-        self.assertTrue(ApplicationStageHistory.objects.filter(application=self.application, to_stage=JobApplication.Status.INTERVIEW_INVITED).exists())
-
-        self.authenticate(self.applicant)
-        list_response = self.client.get(reverse('interview-invitation-list'))
-        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'False'}):
-            accept_response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
-
-        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(list_response.data), 1)
-        self.assertEqual(accept_response.status_code, status.HTTP_200_OK)
-        invitation.refresh_from_db()
-        interview.refresh_from_db()
-        self.application.refresh_from_db()
-        self.assertEqual(invitation.status, InterviewInvitation.Status.ACCEPTED)
-        self.assertIsNotNone(invitation.responded_at)
-        self.assertEqual(interview.status, Interview.Status.SCHEDULED)
-        self.assertEqual(interview.scheduled_datetime, invitation.proposed_datetime)
-        self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_ACCEPTED)
-        calendar_event = CalendarEvent.objects.get(interview=interview, provider='local')
-        self.assertTrue(calendar_event.calendar_link.startswith('https://calendar.hrrecruit.local/events/'))
-        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.NOT_SYNCED)
-        self.assertIsNone(calendar_event.last_synced_at)
-        self.assertTrue(accept_response.data['calendar_link'].startswith('https://calendar.hrrecruit.local/events/'))
-
-    def test_accepting_invitation_creates_google_calendar_link_when_enabled_and_configured(self):
-        self.assign_interviewer()
-        interview = Interview.objects.get(application=self.application)
-        invitation_response = self.send_invitation(interview)
-        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
-        self.authenticate(self.applicant)
-
-        with patch.dict(
-            'os.environ',
-            {
-                'GOOGLE_CALENDAR_ENABLED': 'True',
-                'GOOGLE_CALENDAR_CLIENT_ID': 'demo-client-id',
-                'GOOGLE_CALENDAR_CLIENT_SECRET': 'demo-client-secret',
-            },
-        ), patch(
-            'apps.interviews.calendar_service.build_google_calendar_link',
-            return_value='https://calendar.google.com/calendar/render?action=TEMPLATE&text=Interview',
-        ) as google_link_builder:
-            response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        google_link_builder.assert_called_once()
-        calendar_event = CalendarEvent.objects.get(interview=interview, provider='google_calendar_link')
-        self.assertEqual(calendar_event.calendar_link, 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=Interview')
-        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.SYNCED)
-        self.assertIsNotNone(calendar_event.last_synced_at)
-        self.assertEqual(response.data['calendar_link'], calendar_event.calendar_link)
-
-    def test_accepting_invitation_falls_back_to_local_calendar_event_when_google_credentials_missing(self):
-        self.assign_interviewer()
-        interview = Interview.objects.get(application=self.application)
-        invitation_response = self.send_invitation(interview)
-        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
-        self.authenticate(self.applicant)
-
-        with patch.dict(
-            'os.environ',
-            {
-                'GOOGLE_CALENDAR_ENABLED': 'True',
-                'GOOGLE_CALENDAR_CLIENT_ID': '',
-                'GOOGLE_CALENDAR_CLIENT_SECRET': '',
-            },
-        ), patch('apps.interviews.calendar_service.build_google_calendar_link') as google_link_builder:
-            response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        google_link_builder.assert_not_called()
-        calendar_event = CalendarEvent.objects.get(interview=interview, provider='local')
-        self.assertTrue(calendar_event.calendar_link.startswith('https://calendar.hrrecruit.local/events/'))
-        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.NOT_SYNCED)
-        self.assertFalse(CalendarEvent.objects.filter(interview=interview, provider='google_calendar_link').exists())
-
-    def test_google_calendar_link_failure_marks_sync_failed_without_blocking_acceptance(self):
-        self.assign_interviewer()
-        interview = Interview.objects.get(application=self.application)
-        invitation_response = self.send_invitation(interview)
-        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
-        self.authenticate(self.applicant)
-
-        with patch.dict(
-            'os.environ',
-            {
-                'GOOGLE_CALENDAR_ENABLED': 'True',
-                'GOOGLE_CALENDAR_CLIENT_ID': 'demo-client-id',
-                'GOOGLE_CALENDAR_CLIENT_SECRET': 'demo-client-secret',
-            },
-        ), patch(
-            'apps.interviews.calendar_service.build_google_calendar_link',
-            side_effect=RuntimeError('calendar provider unavailable'),
-        ) as google_link_builder:
-            response = self.client.post(reverse('interview-invitation-accept', args=[invitation.id]))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        google_link_builder.assert_called_once()
-        calendar_event = CalendarEvent.objects.get(interview=interview, provider='google_calendar_link')
-        self.assertEqual(calendar_event.calendar_link, '')
-        self.assertEqual(calendar_event.sync_status, CalendarEvent.SyncStatus.FAILED)
-        self.assertIsNotNone(calendar_event.last_synced_at)
-
-    def test_applicant_declines_invitation_with_reason(self):
-        self.assign_interviewer()
-        interview = Interview.objects.get(application=self.application)
-        invitation_response = self.send_invitation(interview)
-        invitation = InterviewInvitation.objects.get(id=invitation_response.data['id'])
-        self.authenticate(self.applicant)
-
-        response = self.client.post(
-            reverse('interview-invitation-decline', args=[invitation.id]),
-            {'decline_reason': 'I am unavailable at that time.'},
-            format='json',
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        invitation.refresh_from_db()
-        interview.refresh_from_db()
-        self.application.refresh_from_db()
-        self.assertEqual(invitation.status, InterviewInvitation.Status.DECLINED)
-        self.assertEqual(invitation.decline_reason, 'I am unavailable at that time.')
-        self.assertEqual(interview.status, Interview.Status.DECLINED)
-        self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_DECLINED)
-        self.assertTrue(InterviewStatusHistory.objects.filter(interview=interview, to_status=Interview.Status.DECLINED).exists())
-
-    def test_applicant_cannot_respond_to_another_applicants_invitation(self):
-        self.assign_interviewer()
-        interview = Interview.objects.get(application=self.application)
-        invitation_response = self.send_invitation(interview)
-        self.authenticate(self.other_applicant)
-
-        response = self.client.post(reverse('interview-invitation-accept', args=[invitation_response.data['id']]))
-
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 from decimal import Decimal
 from django.core.files.uploadedfile import SimpleUploadedFile
