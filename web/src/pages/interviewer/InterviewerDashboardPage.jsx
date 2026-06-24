@@ -3,7 +3,7 @@ import { Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Paper, S
 import { Link as RouterLink } from 'react-router-dom';
 import { getAssignedInterviews, getInterviewerAnalytics } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
-import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, latestInviteStatus, titleize } from './interviewerUtils.js';
+import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, titleize } from './interviewerUtils.js';
 
 export default function InterviewerDashboardPage() {
   const [analytics, setAnalytics] = useState(null);
@@ -22,7 +22,7 @@ export default function InterviewerDashboardPage() {
   }, []);
 
   const metrics = analytics?.metrics ?? {};
-  const upcoming = interviews.filter((interview) => ['assigned', 'invitation_sent', 'scheduled'].includes(interview.status)).slice(0, 5);
+  const upcoming = interviews.filter((interview) => ['assigned', 'scheduled'].includes(interview.status)).slice(0, 5);
 
   return (
     <Box>
@@ -56,7 +56,7 @@ export default function InterviewerDashboardPage() {
                 <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{candidateName(interview)} • {jobTitle(interview)}</Typography>
-                    <Typography color="text.secondary">{titleize(interview.status)} • Invite: {latestInviteStatus(interview)} • {formatDateTime(interview.scheduled_datetime ?? interview.latest_invitation?.proposed_datetime)}</Typography>
+                    <Typography color="text.secondary">{titleize(interview.status)} • {formatDateTime(interview.scheduled_datetime)}</Typography>
                   </Box>
                   <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}`} variant="outlined">Open</Button>
                 </Stack>

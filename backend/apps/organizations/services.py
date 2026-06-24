@@ -102,7 +102,6 @@ def get_organization_deletion_blockers(organization):
     active_interview_count = organization.interviews.filter(
         status__in=[
             Interview.Status.ASSIGNED,
-            Interview.Status.INVITATION_SENT,
             Interview.Status.SCHEDULED,
         ],
     ).count()
