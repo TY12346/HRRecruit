@@ -5,6 +5,7 @@ const links = [
   ['Dashboard', '/interviewer'],
   ['Candidates', '/interviewer/candidates'],
   ['Interviews', '/interviewer/interviews'],
+  ['Availability', '/interviewer/availability'],
   ['Analytics', '/interviewer/analytics'],
   ['Notifications', '/interviewer/notifications'],
 ];

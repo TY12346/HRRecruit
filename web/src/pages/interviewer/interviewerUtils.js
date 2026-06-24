@@ -47,7 +47,6 @@ export const getApiErrorMessage = (error, fallback = 'Something went wrong.') =>
 export const candidateName = (interview) => interview?.application?.applicant?.full_name ?? 'Candidate';
 export const jobTitle = (interview) => interview?.application?.job_title ?? 'Job';
 
-export const latestInviteStatus = (interview) => titleize(interview?.latest_invitation?.status ?? 'not_sent');
 
 export const getStoredRecordingId = (interviewId) => window.localStorage.getItem(`hrrecruit.interview.${interviewId}.recordingId`) ?? '';
 export const setStoredRecordingId = (interviewId, recordingId) => window.localStorage.setItem(`hrrecruit.interview.${interviewId}.recordingId`, recordingId);

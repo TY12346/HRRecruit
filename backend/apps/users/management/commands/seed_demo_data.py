@@ -16,7 +16,7 @@ from apps.evaluations.models import (
     InterviewTranscript,
 )
 from apps.hiring.models import HiringDecision, JobOffer
-from apps.interviews.models import CalendarEvent, Interview, InterviewInvitation, InterviewStatusHistory
+from apps.interviews.models import CalendarEvent, Interview, InterviewStatusHistory
 from apps.jobs.models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, JobRequirement
 from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
@@ -289,7 +289,7 @@ class Command(BaseCommand):
         )
         self._ensure_application_history(application, JobApplication.Status.SUBMITTED, JobApplication.Status.SCREENED_QUALIFIED, users[User.Role.RECRUITER], 'AI screening qualified for recruiter review.')
         self._ensure_application_history(application, JobApplication.Status.SCREENED_QUALIFIED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'Recruiter shortlisted candidate for interview.')
-        self._ensure_application_history(application, JobApplication.Status.SHORTLISTED, JobApplication.Status.INTERVIEW_ACCEPTED, users[User.Role.APPLICANT], 'Applicant accepted interview invitation.')
+        self._ensure_application_history(application, JobApplication.Status.SHORTLISTED, JobApplication.Status.INTERVIEW_ACCEPTED, users[User.Role.APPLICANT], 'Applicant accepted scheduled interview.')
         self._ensure_application_history(application, JobApplication.Status.INTERVIEW_ACCEPTED, JobApplication.Status.EVALUATION_SUBMITTED, users[User.Role.INTERVIEWER], 'Interviewer submitted evaluation.')
         self._ensure_application_history(application, JobApplication.Status.EVALUATION_SUBMITTED, JobApplication.Status.HIRED, users[User.Role.HR_HEAD], 'HR head approved hiring and applicant accepted offer.')
         return application
@@ -317,20 +317,7 @@ class Command(BaseCommand):
                 'status': Interview.Status.COMPLETED,
             },
         )
-        invitation, _ = InterviewInvitation.objects.update_or_create(
-            interview=interview,
-            proposed_datetime=scheduled_datetime,
-            defaults={
-                'mode': Interview.Mode.ONLINE,
-                'meeting_link': interview.meeting_link,
-                'location': '',
-                'status': InterviewInvitation.Status.ACCEPTED,
-                'decline_reason': '',
-                'responded_at': timezone.now(),
-            },
-        )
-        self._ensure_interview_history(interview, Interview.Status.ASSIGNED, Interview.Status.INVITATION_SENT, users[User.Role.RECRUITER], 'Recruiter sent interview invitation.')
-        self._ensure_interview_history(interview, Interview.Status.INVITATION_SENT, Interview.Status.SCHEDULED, users[User.Role.APPLICANT], 'Applicant accepted interview invitation.')
+        self._ensure_interview_history(interview, Interview.Status.ASSIGNED, Interview.Status.SCHEDULED, users[User.Role.RECRUITER], 'Recruiter scheduled interview.')
         self._ensure_interview_history(interview, Interview.Status.SCHEDULED, Interview.Status.COMPLETED, users[User.Role.INTERVIEWER], 'Interview completed for demo workflow.')
         CalendarEvent.objects.update_or_create(
             interview=interview,
@@ -460,7 +447,7 @@ class Command(BaseCommand):
     def _seed_notifications(self, application, interview, users):
         notifications = [
             (users[User.Role.APPLICANT], 'application_status', 'Application shortlisted', 'Your demo Software Engineer application was shortlisted.', 'JobApplication', application.id),
-            (users[User.Role.APPLICANT], 'interview_invitation', 'Interview invitation accepted', 'Your demo interview invitation has been accepted and scheduled.', 'Interview', interview.id),
+            (users[User.Role.APPLICANT], 'interview_scheduled', 'Interview scheduled', 'Your demo interview has been scheduled.', 'Interview', interview.id),
             (users[User.Role.APPLICANT], 'job_offer', 'Demo job offer accepted', 'Your fake demo job offer has been accepted.', 'JobOffer', application.job_offers.first().id),
             (users[User.Role.RECRUITER], 'hiring_decision_update', 'HR approved recommendation', 'The HR head approved the demo hiring recommendation.', 'HiringDecision', application.hiring_decisions.first().id),
             (users[User.Role.HR_HEAD], 'hiring_decision_update', 'Offer accepted', 'The applicant accepted the fake demo offer.', 'JobApplication', application.id),
