@@ -1,10 +1,11 @@
 """Serializers for interview assignment and self-scheduling APIs."""
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.applications.serializers import AssignedInterviewerSerializer, JobApplicationSerializer
 from apps.users.models import User
-from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
+from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
 
 
 class InterviewStatusHistorySerializer(serializers.ModelSerializer):
@@ -38,6 +39,9 @@ class InterviewSerializer(serializers.ModelSerializer):
             'recruiter',
             'interviewer',
             'scheduled_datetime',
+            'interview_date',
+            'start_time',
+            'end_time',
             'availability_slot',
             'scheduling_method',
             'mode',
@@ -62,6 +66,46 @@ class InterviewSerializer(serializers.ModelSerializer):
     def get_calendar_link(self, interview):
         event = interview.calendar_events.order_by('-id').first()
         return event.calendar_link if event else ''
+
+
+class InterviewerAvailabilityPatternSerializer(serializers.ModelSerializer):
+    interviewer_name = serializers.CharField(source='interviewer.full_name', read_only=True)
+    day_name = serializers.CharField(source='get_day_of_week_display', read_only=True)
+
+    class Meta:
+        model = InterviewerAvailabilityPattern
+        fields = ['id', 'organization', 'interviewer', 'interviewer_name', 'day_of_week', 'day_name', 'start_time', 'end_time', 'slot_duration_minutes', 'mode', 'meeting_link', 'location', 'effective_from', 'effective_until', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'organization', 'interviewer', 'interviewer_name', 'day_name', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        if attrs.get('end_time') and attrs.get('start_time') and attrs['end_time'] <= attrs['start_time']:
+            raise serializers.ValidationError({'end_time': 'End time must be after start time.'})
+        if attrs.get('effective_until') and attrs.get('effective_from') and attrs['effective_until'] < attrs['effective_from']:
+            raise serializers.ValidationError({'effective_until': 'Effective until cannot be before effective from.'})
+        if attrs.get('slot_duration_minutes', 0) < 1:
+            raise serializers.ValidationError({'slot_duration_minutes': 'Slot duration must be at least 1 minute.'})
+        return attrs
+
+
+class InterviewerUnavailableDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewerUnavailableDate
+        fields = ['id', 'organization', 'interviewer', 'date', 'reason', 'created_at']
+        read_only_fields = ['id', 'organization', 'interviewer', 'created_at']
+
+
+class GeneratedInterviewSlotSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    pattern_id = serializers.IntegerField()
+    date = serializers.DateField()
+    start_time = serializers.TimeField()
+    end_time = serializers.TimeField()
+    start_datetime = serializers.DateTimeField()
+    end_datetime = serializers.DateTimeField()
+    mode = serializers.CharField()
+    meeting_link = serializers.CharField(allow_blank=True)
+    location = serializers.CharField(allow_blank=True)
+    status = serializers.CharField()
 
 
 class InterviewerAvailabilitySlotSerializer(serializers.ModelSerializer):
@@ -104,12 +148,15 @@ class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
     def get_available_slots(self, obj):
         if obj.status != InterviewSchedulingRequest.Status.PENDING:
             return []
-        slots = InterviewerAvailabilitySlot.objects.filter(
+        from .slot_generation import generate_available_slots
+        generated_slots = generate_available_slots(obj.interviewer, obj.organization)
+        legacy_slots = InterviewerAvailabilitySlot.objects.filter(
             organization=obj.organization,
             interviewer=obj.interviewer,
             status=InterviewerAvailabilitySlot.Status.AVAILABLE,
+            start_datetime__gt=timezone.now(),
         ).order_by('start_datetime')
-        return InterviewerAvailabilitySlotSerializer(slots, many=True).data
+        return GeneratedInterviewSlotSerializer(generated_slots, many=True).data + InterviewerAvailabilitySlotSerializer(legacy_slots, many=True).data
 
 
 class CreateSchedulingRequestSerializer(serializers.Serializer):
@@ -119,12 +166,18 @@ class CreateSchedulingRequestSerializer(serializers.Serializer):
 
 
 class BookSchedulingRequestSerializer(serializers.Serializer):
-    slot_id = serializers.IntegerField(required=True)
+    slot_id = serializers.IntegerField(required=False)
+    pattern_id = serializers.IntegerField(required=False)
+    interview_date = serializers.DateField(required=False)
+    start_time = serializers.TimeField(required=False)
+    end_time = serializers.TimeField(required=False)
     mode = serializers.ChoiceField(choices=Interview.Mode.choices, required=False, default=Interview.Mode.ONLINE)
     meeting_link = serializers.URLField(required=False, allow_blank=True)
     location = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
     def validate(self, attrs):
+        if not attrs.get('slot_id') and not all(attrs.get(field) for field in ['pattern_id', 'interview_date', 'start_time', 'end_time']):
+            raise serializers.ValidationError({'slot_id': 'Provide either a legacy slot_id or generated slot pattern/date/time fields.'})
         mode = attrs.get('mode', Interview.Mode.ONLINE)
         if mode == Interview.Mode.ONLINE and not attrs.get('meeting_link', ''):
             raise serializers.ValidationError({'meeting_link': 'Online interviews require a meeting link placeholder.'})

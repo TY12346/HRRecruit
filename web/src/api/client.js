@@ -378,6 +378,40 @@ export const getAssignedInterviews = async () => {
   return response.data;
 };
 
+export const getInterviewerAvailabilityPatterns = async () => {
+  const response = await apiClient.get('/interviews/availability/patterns/');
+  return response.data;
+};
+
+export const createInterviewerAvailabilityPattern = async (payload) => {
+  const response = await apiClient.post('/interviews/availability/patterns/', payload);
+  return response.data;
+};
+
+export const updateInterviewerAvailabilityPattern = async (patternId, payload) => {
+  const response = await apiClient.patch(`/interviews/availability/patterns/${patternId}/`, payload);
+  return response.data;
+};
+
+export const deactivateInterviewerAvailabilityPattern = async (patternId) => {
+  const response = await apiClient.delete(`/interviews/availability/patterns/${patternId}/`);
+  return response.data;
+};
+
+export const getInterviewerUnavailableDates = async () => {
+  const response = await apiClient.get('/interviews/availability/unavailable-dates/');
+  return response.data;
+};
+
+export const createInterviewerUnavailableDate = async (payload) => {
+  const response = await apiClient.post('/interviews/availability/unavailable-dates/', payload);
+  return response.data;
+};
+
+export const deleteInterviewerUnavailableDate = async (unavailableDateId) => {
+  await apiClient.delete(`/interviews/availability/unavailable-dates/${unavailableDateId}/`);
+};
+
 export const getInterviewerAvailabilitySlots = async () => {
   const response = await apiClient.get('/interviews/availability/');
   return response.data;

@@ -70,19 +70,31 @@ DateTime? _asDateTime(Object? value) {
 class InterviewerAvailabilitySlot {
   const InterviewerAvailabilitySlot({
     required this.id,
+    required this.patternId,
+    required this.interviewDate,
+    required this.startTime,
+    required this.endTime,
     required this.startDatetime,
     required this.endDatetime,
     required this.status,
   });
 
-  final int id;
+  final String id;
+  final int patternId;
+  final String interviewDate;
+  final String startTime;
+  final String endTime;
   final DateTime? startDatetime;
   final DateTime? endDatetime;
   final String status;
 
   factory InterviewerAvailabilitySlot.fromJson(Map<String, dynamic> json) {
     return InterviewerAvailabilitySlot(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
+      patternId: _asInt(json['pattern_id']),
+      interviewDate: json['date'] as String? ?? '',
+      startTime: json['start_time'] as String? ?? '',
+      endTime: json['end_time'] as String? ?? '',
       startDatetime: _asDateTime(json['start_datetime']),
       endDatetime: _asDateTime(json['end_datetime']),
       status: json['status'] as String? ?? '',
