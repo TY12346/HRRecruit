@@ -26,7 +26,7 @@ class ApplicantWorkflowService {
 
   Future<InterviewSchedulingRequest> bookInterviewSchedulingRequest({
     required int requestId,
-    required int slotId,
+    required InterviewerAvailabilitySlot slot,
     String mode = 'online',
     String meetingLink = 'https://meet.example.com/hrrecruit-interview',
     String location = '',
@@ -34,7 +34,13 @@ class ApplicantWorkflowService {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'interviews/scheduling-requests/$requestId/book/',
       data: {
-        'slot_id': slotId,
+        if (slot.patternId > 0) ...{
+          'pattern_id': slot.patternId,
+          'interview_date': slot.interviewDate,
+          'start_time': slot.startTime,
+          'end_time': slot.endTime,
+        } else
+          'slot_id': int.tryParse(slot.id) ?? 0,
         'mode': mode,
         'meeting_link': meetingLink,
         'location': location,

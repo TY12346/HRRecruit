@@ -6,6 +6,71 @@ from apps.organizations.models import Organization
 from apps.users.models import User
 
 
+class InterviewerAvailabilityPattern(models.Model):
+    class DayOfWeek(models.IntegerChoices):
+        MONDAY = 0, 'Monday'
+        TUESDAY = 1, 'Tuesday'
+        WEDNESDAY = 2, 'Wednesday'
+        THURSDAY = 3, 'Thursday'
+        FRIDAY = 4, 'Friday'
+        SATURDAY = 5, 'Saturday'
+        SUNDAY = 6, 'Sunday'
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='interviewer_availability_patterns')
+    interviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='availability_patterns', limit_choices_to={'role': User.Role.INTERVIEWER})
+    day_of_week = models.PositiveSmallIntegerField(choices=DayOfWeek.choices)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    slot_duration_minutes = models.PositiveSmallIntegerField(default=30)
+    mode = models.CharField(max_length=20, choices=[('online', 'Online'), ('physical', 'Physical'), ('phone', 'Phone')], default='online')
+    meeting_link = models.URLField(blank=True)
+    location = models.CharField(max_length=255, blank=True)
+    effective_from = models.DateField()
+    effective_until = models.DateField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['day_of_week', 'start_time']
+        constraints = [
+            models.CheckConstraint(check=models.Q(end_time__gt=models.F('start_time')), name='availability_pattern_end_after_start'),
+            models.CheckConstraint(check=models.Q(slot_duration_minutes__gte=1), name='availability_pattern_positive_duration'),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.interviewer_id and self.interviewer.role != User.Role.INTERVIEWER:
+            raise ValidationError({'interviewer': 'Availability pattern user must have the interviewer role.'})
+        if self.end_time and self.start_time and self.end_time <= self.start_time:
+            raise ValidationError({'end_time': 'End time must be after start time.'})
+        if self.effective_until and self.effective_from and self.effective_until < self.effective_from:
+            raise ValidationError({'effective_until': 'Effective until cannot be before effective from.'})
+
+    def __str__(self):
+        return f'{self.interviewer} weekly availability on {self.get_day_of_week_display()}'
+
+
+class InterviewerUnavailableDate(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='interviewer_unavailable_dates')
+    interviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='unavailable_dates', limit_choices_to={'role': User.Role.INTERVIEWER})
+    date = models.DateField()
+    reason = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['date']
+        constraints = [models.UniqueConstraint(fields=['interviewer', 'date'], name='unique_interviewer_unavailable_date')]
+
+    def clean(self):
+        super().clean()
+        if self.interviewer_id and self.interviewer.role != User.Role.INTERVIEWER:
+            raise ValidationError({'interviewer': 'Unavailable date user must have the interviewer role.'})
+
+    def __str__(self):
+        return f'{self.interviewer} unavailable on {self.date}'
+
+
 class InterviewerAvailabilitySlot(models.Model):
     class Status(models.TextChoices):
         AVAILABLE = 'available', 'Available'
@@ -159,6 +224,9 @@ class Interview(models.Model):
         limit_choices_to={'role': User.Role.INTERVIEWER},
     )
     scheduled_datetime = models.DateTimeField(blank=True, null=True)
+    interview_date = models.DateField(blank=True, null=True)
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
     availability_slot = models.OneToOneField(
         InterviewerAvailabilitySlot,
         on_delete=models.SET_NULL,
@@ -176,6 +244,13 @@ class Interview(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['interviewer', 'interview_date', 'start_time', 'end_time'],
+                condition=models.Q(status__in=['assigned', 'scheduled']),
+                name='unique_active_interview_booking_time',
+            ),
+        ]
 
     def clean(self):
         super().clean()

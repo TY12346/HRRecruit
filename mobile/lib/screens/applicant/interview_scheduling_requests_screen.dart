@@ -52,7 +52,7 @@ class _InterviewSchedulingRequestsScreenState extends State<InterviewSchedulingR
     try {
       await context.read<ApplicantWorkflowService>().bookInterviewSchedulingRequest(
             requestId: request.id,
-            slotId: slot.id,
+            slot: slot,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
