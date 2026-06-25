@@ -46,7 +46,13 @@ class Command(BaseCommand):
             from sklearn.model_selection import train_test_split  # type: ignore
         except Exception as exc:  # pragma: no cover - depends on optional local packages
             raise CommandError(
-                "Training requires optional ML dependencies. Install scikit-learn and joblib first."
+                "Training requires optional ML dependencies that are listed in backend/requirements.txt. "
+                "Activate the same virtual environment you use for Django, then run: "
+                "python -m pip install -r requirements.txt. "
+                "If you only want the minimum packages for this command, run: "
+                "python -m pip install scikit-learn joblib numpy. "
+                "After installation, retry: "
+                "python manage.py train_resume_match_model --dataset ../hrrecruit_ai_training_data.zip"
             ) from exc
 
         dataset_path = Path(options["dataset"]).expanduser()
