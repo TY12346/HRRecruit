@@ -1,15 +1,9 @@
 export const CHART_COLORS = [
-  '#2563eb',
-  '#16a34a',
-  '#f97316',
-  '#dc2626',
-  '#7c3aed',
-  '#0891b2',
-  '#ca8a04',
-  '#be123c',
-  '#4b5563',
-  '#0f766e',
-  '#9333ea',
+  '#111111',
+  '#444444',
+  '#777777',
+  '#999999',
+  '#bbbbbb',
 ];
 
 export const compactChartOptions = {
@@ -52,7 +46,7 @@ export function chartFromMap(values, label, titleFormatter = (value) => value) {
   };
 }
 
-export function singleValueBar(label, value, datasetLabel, color = '#2563eb') {
+export function singleValueBar(label, value, datasetLabel, color = '#777777') {
   return {
     labels: [label],
     datasets: [
@@ -65,7 +59,7 @@ export function singleValueBar(label, value, datasetLabel, color = '#2563eb') {
   };
 }
 
-export function percentageDoughnut(label, value, color = '#16a34a') {
+export function percentageDoughnut(label, value, color = '#777777') {
   const safeValue = Math.min(Math.max(Number(value) || 0, 0), 100);
 
   return {
