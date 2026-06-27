@@ -337,11 +337,12 @@ class ApplicationRejectAPIView(APIView):
             request.user,
             reason or remark,
         )
+        candidate_message = remark or reason or f'Your application for {application.job.title} was not selected.'
         create_notification(
             application.applicant,
             'application_status_update',
             'Application status updated',
-            f'Your application for {application.job.title} was not selected.',
+            candidate_message,
             related_entity=application,
         )
         return Response(JobApplicationSerializer(application, context={'request': request}).data)
