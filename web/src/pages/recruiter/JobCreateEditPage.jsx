@@ -28,6 +28,14 @@ import {
 } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
+import {
+  applyImportance,
+  applyMatchThreshold,
+  cloneRequirement,
+  importanceOptions,
+  matchThresholdOptions,
+  prepareRequirementsForApi,
+} from './requirementScoring.js';
 
 const blankJob = {
   title: '',
@@ -36,12 +44,6 @@ const blankJob = {
   approximate_salary: '',
   location: '',
   status: 'draft',
-};
-const blankRequirement = {
-  requirement_type: 'skill',
-  description: '',
-  weight_score: '0.25',
-  minimum_threshold: '0.50',
 };
 const blankCriterion = {
   criterion_name: '',
@@ -58,10 +60,6 @@ const employmentTypeOptions = [
 ];
 
 const createSteps = ['Job details', 'Requirements', 'Evaluation form'];
-
-function cloneRequirement() {
-  return { ...blankRequirement };
-}
 
 function cloneCriterion() {
   return { ...blankCriterion };
@@ -115,7 +113,18 @@ export default function JobCreateEditPage() {
   };
 
   const updateRequirement = (index, field, value) => {
-    setRequirements((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)));
+    setRequirements((items) => items.map((item, itemIndex) => {
+      if (itemIndex !== index) {
+        return item;
+      }
+      if (field === 'importance_level') {
+        return applyImportance(item, value);
+      }
+      if (field === 'match_strictness') {
+        return applyMatchThreshold(item, value);
+      }
+      return { ...item, [field]: value };
+    }));
   };
 
   const updateCriterion = (index, field, value) => {
@@ -159,7 +168,7 @@ export default function JobCreateEditPage() {
 
       try {
         await configureJobRequirements(job.id, {
-          requirements,
+          requirements: prepareRequirementsForApi(requirements),
           normalize_weights: normalizeRequirements,
         });
       } catch (err) {
@@ -228,20 +237,35 @@ export default function JobCreateEditPage() {
             />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
-                label="Weight"
-                type="number"
-                inputProps={{ step: '0.01' }}
-                value={requirement.weight_score}
-                onChange={(event) => updateRequirement(index, 'weight_score', event.target.value)}
-              />
+                label="Importance"
+                select
+                helperText="Choose recruiter-friendly priority instead of entering a raw numeric weight."
+                value={requirement.importance_level}
+                onChange={(event) => updateRequirement(index, 'importance_level', event.target.value)}
+              >
+                {importanceOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label} — {option.description}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
-                label="Minimum threshold"
-                type="number"
-                inputProps={{ step: '0.01' }}
-                value={requirement.minimum_threshold}
-                onChange={(event) => updateRequirement(index, 'minimum_threshold', event.target.value)}
-              />
+                label="Minimum match required"
+                select
+                helperText="Choose how strong the resume evidence should be before this item counts as matched."
+                value={requirement.match_strictness}
+                onChange={(event) => updateRequirement(index, 'match_strictness', event.target.value)}
+              >
+                {matchThresholdOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label} — {option.description}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Stack>
+            <Typography variant="caption" color="text.secondary">
+              HRRecruit converts these choices into AI scoring values: weight {requirement.weight_score}, minimum threshold {requirement.minimum_threshold}.
+            </Typography>
             <Button
               color="error"
               disabled={requirements.length === 1}
@@ -254,8 +278,11 @@ export default function JobCreateEditPage() {
       ))}
       <FormControlLabel
         control={<Checkbox checked={normalizeRequirements} onChange={(event) => setNormalizeRequirements(event.target.checked)} />}
-        label="Normalize weights to 1.0 automatically"
+        label="Auto-balance importance values so the AI scoring weights add up correctly"
       />
+      <Typography variant="caption" color="text.secondary">
+        Real recruitment tools usually ask for priorities such as must-have or nice-to-have, then normalize the underlying weights for consistent scoring.
+      </Typography>
       <Button onClick={() => setRequirements((items) => [...items, cloneRequirement()])} variant="outlined">
         Add requirement
       </Button>
