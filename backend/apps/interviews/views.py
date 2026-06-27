@@ -23,17 +23,90 @@ from .serializers import (
     AssignInterviewerSerializer,
     BookSchedulingRequestSerializer,
     CreateSchedulingRequestSerializer,
+    GoogleCalendarConnectSerializer,
+    GoogleCalendarOAuthCallbackSerializer,
     InterviewSchedulingRequestSerializer,
     InterviewSerializer,
     InterviewerAvailabilityPatternSerializer,
     InterviewerUnavailableDateSerializer,
     InterviewerAvailabilitySlotSerializer,
 )
-from .calendar_service import sync_calendar_event_for_interview
+from .calendar_service import (
+    GoogleCalendarConfigurationError,
+    build_google_calendar_authorization_url,
+    disconnect_google_calendar,
+    google_calendar_status_for_user,
+    store_google_calendar_credentials,
+    sync_calendar_event_for_interview,
+)
 from .slot_generation import generate_available_slots
 
 
 logger = logging.getLogger(__name__)
+
+
+
+def ensure_calendar_oauth_role(user):
+    if user.role not in (User.Role.RECRUITER, User.Role.INTERVIEWER):
+        raise PermissionDenied('Only recruiters and interviewers can connect Google Calendar.')
+
+
+class GoogleCalendarStatusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ensure_calendar_oauth_role(request.user)
+        return Response(google_calendar_status_for_user(request.user))
+
+
+class GoogleCalendarConnectAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ensure_calendar_oauth_role(request.user)
+        serializer = GoogleCalendarConnectSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        try:
+            authorization_url = build_google_calendar_authorization_url(
+                request.user,
+                next_url=serializer.validated_data.get('next', ''),
+            )
+        except GoogleCalendarConfigurationError as exc:
+            raise ValidationError({'google_calendar': str(exc)}) from exc
+        status_payload = google_calendar_status_for_user(request.user)
+        status_payload['authorization_url'] = authorization_url
+        return Response(status_payload)
+
+
+class GoogleCalendarOAuthCallbackAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        ensure_calendar_oauth_role(request.user)
+        serializer = GoogleCalendarOAuthCallbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            credential = store_google_calendar_credentials(
+                request.user,
+                code=serializer.validated_data['code'],
+                state=serializer.validated_data['state'],
+            )
+        except GoogleCalendarConfigurationError as exc:
+            raise ValidationError({'google_calendar': str(exc)}) from exc
+        return Response({
+            'connected': True,
+            'connected_email': credential.google_account_email,
+            'oauth_ready': True,
+        })
+
+
+class GoogleCalendarDisconnectAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        ensure_calendar_oauth_role(request.user)
+        disconnected = disconnect_google_calendar(request.user)
+        return Response({'connected': False, 'disconnected': disconnected})
 
 
 def get_active_membership(user, role):

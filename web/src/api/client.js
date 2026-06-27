@@ -373,6 +373,28 @@ export const sendJobOffer = async (applicationId, payload) => {
   return response.data;
 };
 
+export const getGoogleCalendarStatus = async () => {
+  const response = await apiClient.get('/interviews/calendar/google/status/');
+  return response.data;
+};
+
+export const getGoogleCalendarConnectUrl = async (nextUrl = '') => {
+  const response = await apiClient.get('/interviews/calendar/google/connect/', {
+    params: nextUrl ? { next: nextUrl } : {},
+  });
+  return response.data;
+};
+
+export const completeGoogleCalendarOAuth = async ({ code, state }) => {
+  const response = await apiClient.post('/interviews/calendar/google/callback/', { code, state });
+  return response.data;
+};
+
+export const disconnectGoogleCalendar = async () => {
+  const response = await apiClient.delete('/interviews/calendar/google/disconnect/');
+  return response.data;
+};
+
 export const getAssignedInterviews = async () => {
   const response = await apiClient.get('/interviews/assigned/');
   return response.data;
