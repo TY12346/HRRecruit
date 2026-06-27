@@ -31,6 +31,15 @@ function FitChip({ score }) {
   );
 }
 
+function FitChip({ score }) {
+  const fit = candidateFitFromScore(score);
+  return (
+    <Tooltip title={fit.description}>
+      <Chip color={fit.color} label={fit.label} size="small" />
+    </Tooltip>
+  );
+}
+
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [error, setError] = useState('');
