@@ -1,12 +1,113 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { getRankedCandidates } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
+import { candidateFitFromScore } from './candidateFit.js';
 import { applicationName, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 
+function FitChip({ score }) {
+  const fit = candidateFitFromScore(score);
+  return (
+    <Tooltip title={fit.description}>
+      <Chip color={fit.color} label={fit.label} size="small" />
+    </Tooltip>
+  );
+}
+
 export default function CandidateRankingPage() {
-  const { jobId } = useParams(); const [candidates, setCandidates] = useState([]); const [error, setError] = useState(''); const [isLoading, setIsLoading] = useState(true);
-  useEffect(() => { let active = true; getRankedCandidates(jobId).then((data) => { if (active) setCandidates(data); }).catch((err) => { if (active) setError(getApiErrorMessage(err, 'Unable to load ranked candidates.')); }).finally(() => { if (active) setIsLoading(false); }); return () => { active = false; }; }, [jobId]);
-  return <Box><RecruiterNav /><Paper sx={{ p: 3 }}><Typography variant="h5" sx={{ fontWeight: 700 }}>Qualified candidate ranking</Typography>{error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}{isLoading ? <CircularProgress /> : null}<Table><TableHead><TableRow><TableCell>Rank</TableCell><TableCell>Candidate</TableCell><TableCell>Status</TableCell><TableCell>Semantic</TableCell><TableCell>Skill</TableCell><TableCell>Experience</TableCell><TableCell>Education</TableCell><TableCell>Final</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead><TableBody>{candidates.map((candidate, index) => <TableRow key={candidate.id}><TableCell>#{index + 1}</TableCell><TableCell>{applicationName(candidate)}</TableCell><TableCell><Chip label={titleize(candidate.status)} size="small" /></TableCell><TableCell>{scoreText(candidate.semantic_score)}</TableCell><TableCell>{scoreText(candidate.skill_score)}</TableCell><TableCell>{scoreText(candidate.experience_score)}</TableCell><TableCell>{scoreText(candidate.education_score)}</TableCell><TableCell><strong>{scoreText(candidate.final_score)}</strong></TableCell><TableCell align="right"><Stack direction="row" spacing={1} justifyContent="flex-end"><Button component={RouterLink} to={`/recruiter/applications/${candidate.id}`} size="small">Profile</Button></Stack></TableCell></TableRow>)}</TableBody></Table></Paper></Box>;
+  const { jobId } = useParams();
+  const [candidates, setCandidates] = useState([]);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    getRankedCandidates(jobId)
+      .then((data) => {
+        if (active) {
+          setCandidates(data);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setError(getApiErrorMessage(err, 'Unable to load ranked candidates.'));
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [jobId]);
+
+  return (
+    <Box>
+      <RecruiterNav />
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>Qualified candidate ranking</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>
+          Real recruitment systems show AI fit as decision support. Recruiters still review profiles before shortlisting or rejecting candidates.
+        </Typography>
+        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+        {isLoading ? <CircularProgress /> : null}
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Rank</TableCell>
+              <TableCell>Candidate</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>AI fit</TableCell>
+              <TableCell>Semantic</TableCell>
+              <TableCell>Skill</TableCell>
+              <TableCell>Experience</TableCell>
+              <TableCell>Education</TableCell>
+              <TableCell>Final</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {candidates.map((candidate, index) => (
+              <TableRow key={candidate.id}>
+                <TableCell>#{index + 1}</TableCell>
+                <TableCell>{applicationName(candidate)}</TableCell>
+                <TableCell><Chip label={titleize(candidate.status)} size="small" /></TableCell>
+                <TableCell><FitChip score={candidate.final_score} /></TableCell>
+                <TableCell>{scoreText(candidate.semantic_score)}</TableCell>
+                <TableCell>{scoreText(candidate.skill_score)}</TableCell>
+                <TableCell>{scoreText(candidate.experience_score)}</TableCell>
+                <TableCell>{scoreText(candidate.education_score)}</TableCell>
+                <TableCell><strong>{scoreText(candidate.final_score)}</strong></TableCell>
+                <TableCell align="right">
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button component={RouterLink} to={`/recruiter/applications/${candidate.id}`} size="small">
+                      Profile
+                    </Button>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Paper>
+    </Box>
+  );
 }
