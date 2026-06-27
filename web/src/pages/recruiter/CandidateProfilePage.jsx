@@ -21,6 +21,7 @@ import { Link as RouterLink, useParams } from 'react-router-dom';
 import { getApplicationStatusHistory, getCandidateProfile, openApplicationResume, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { applicationName, formatDateTime, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
+import { renderApplicationTemplate } from './communicationTemplates.js';
 import { buildScreeningExplainability } from './screeningExplainability.js';
 
 const EMPTY_EXTRACTION_VALUE = '—';
@@ -189,7 +190,8 @@ export default function CandidateProfilePage() {
   }, [applicationId]);
 
   const reject = async () => {
-    const reason = window.prompt('Reason for rejection?');
+    const defaultMessage = renderApplicationTemplate('rejection', profile?.status === 'evaluation_submitted' ? 'rejection_after_interview' : 'rejection_general', profile ?? {});
+    const reason = window.prompt('Candidate rejection message', defaultMessage);
     if (!reason) return;
     try {
       await rejectApplication(applicationId, { reason, remark: reason });

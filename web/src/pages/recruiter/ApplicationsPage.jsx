@@ -20,6 +20,16 @@ import { getApplications, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { candidateFitFromScore } from './candidateFit.js';
 import { applicationName, formatDateTime, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
+import { renderApplicationTemplate } from './communicationTemplates.js';
+
+function FitChip({ score }) {
+  const fit = candidateFitFromScore(score);
+  return (
+    <Tooltip title={fit.description}>
+      <Chip color={fit.color} label={fit.label} size="small" />
+    </Tooltip>
+  );
+}
 
 function FitChip({ score }) {
   const fit = candidateFitFromScore(score);
@@ -72,7 +82,8 @@ export default function ApplicationsPage() {
   }, []);
 
   const reject = async (app) => {
-    const reason = window.prompt('Reason for rejecting this candidate?');
+    const defaultMessage = renderApplicationTemplate('rejection', app.status === 'evaluation_submitted' ? 'rejection_after_interview' : 'rejection_general', app);
+    const reason = window.prompt('Candidate rejection message', defaultMessage);
     if (!reason) {
       return;
     }

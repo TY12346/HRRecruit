@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { assignInterviewer, createInterviewSchedulingRequest, getApplication, getOrganizationMembers } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
+import { buildApplicationTemplateContext, getCommunicationTemplates, renderCommunicationTemplate } from './communicationTemplates.js';
 
 export default function InterviewAssignmentPage() {
   const { applicationId } = useParams();
@@ -12,6 +13,7 @@ export default function InterviewAssignmentPage() {
   const [interviewers, setInterviewers] = useState([]);
   const [interviewerId, setInterviewerId] = useState('');
   const [remark, setRemark] = useState('');
+  const [templateId, setTemplateId] = useState('self_schedule_standard');
   const [assignmentMode, setAssignmentMode] = useState('self_scheduling');
   const [createdInterview, setCreatedInterview] = useState(null);
   const [schedulingRequest, setSchedulingRequest] = useState(null);
@@ -24,12 +26,22 @@ export default function InterviewAssignmentPage() {
     Promise.all([getApplication(applicationId), getOrganizationMembers('')])
       .then(([app, members]) => {
         setApplication(app);
+        setRemark(renderCommunicationTemplate(getCommunicationTemplates('interview_self_scheduling')[0], buildApplicationTemplateContext(app)));
         setInterviewerId(app.assigned_interviewer?.id ?? '');
         setInterviewers(members.filter((member) => member.role === 'interviewer' && member.status === 'active' && member.user_id));
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load assignment data.')))
       .finally(() => setIsLoading(false));
   }, [applicationId]);
+
+  const templateType = assignmentMode === 'self_scheduling' ? 'interview_self_scheduling' : 'manual_interview_assignment';
+  const templates = getCommunicationTemplates(templateType);
+
+  const applyTemplate = (selectedTemplateId) => {
+    setTemplateId(selectedTemplateId);
+    const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+    setRemark(renderCommunicationTemplate(selectedTemplate, buildApplicationTemplateContext(application ?? {})));
+  };
 
   const assign = async (event) => {
     event.preventDefault();
@@ -43,7 +55,7 @@ export default function InterviewAssignmentPage() {
         setSuccess('Self-scheduling request created. The applicant can now choose from the interviewer availability slots.');
         return;
       }
-      const interview = await assignInterviewer(applicationId, { interviewer_id: Number(interviewerId), remark });
+      const interview = await assignInterviewer(applicationId, { interviewer_id: Number(interviewerId), note: remark });
       setCreatedInterview(interview);
       setSuccess('Interviewer assigned successfully. The interviewer can now continue from their portal.');
     } catch (err) {
@@ -74,14 +86,15 @@ export default function InterviewAssignmentPage() {
             {!createdInterview && !schedulingRequest ? (
               <Box component="form" onSubmit={assign}>
                 <Stack spacing={2}>
-                  <TextField label="Scheduling method" select value={assignmentMode} onChange={(e) => setAssignmentMode(e.target.value)}>
+                  <TextField label="Scheduling method" select value={assignmentMode} onChange={(e) => { const nextMode = e.target.value; setAssignmentMode(nextMode); const nextTemplates = getCommunicationTemplates(nextMode === 'self_scheduling' ? 'interview_self_scheduling' : 'manual_interview_assignment'); if (nextTemplates[0]) { setTemplateId(nextTemplates[0].id); setRemark(renderCommunicationTemplate(nextTemplates[0], buildApplicationTemplateContext(application ?? {}))); } }}>
                     <MenuItem value="self_scheduling">Self-scheduling request</MenuItem>
                     <MenuItem value="manual_assignment">Manual interviewer assignment</MenuItem>
                   </TextField>
                   <TextField label="Interviewer" select required value={interviewerId} onChange={(e) => setInterviewerId(e.target.value)}>
                     {interviewers.map((member) => <MenuItem key={member.id} value={member.user_id}>{member.full_name} ({member.email})</MenuItem>)}
                   </TextField>
-                  <TextField label="Optional remark" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText={assignmentMode === 'self_scheduling' ? 'This remark is shown on the scheduling request.' : 'This remark is stored with the assignment workflow.'} />
+                  <TextField label="Candidate communication template" select value={templateId} onChange={(e) => applyTemplate(e.target.value)} helperText="Choose a reusable message style, then edit the text before sending.">{templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.label} — {template.tone}</MenuItem>)}</TextField>
+                  <TextField label={assignmentMode === 'self_scheduling' ? 'Candidate scheduling message' : 'Interviewer briefing note'} multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText={assignmentMode === 'self_scheduling' ? 'This remark is shown on the scheduling request.' : 'This remark is stored with the assignment workflow.'} />
                   <Button type="submit" variant="contained" disabled={isSaving}>{isSaving ? 'Saving…' : assignmentMode === 'self_scheduling' ? 'Create self-scheduling request' : 'Assign interviewer'}</Button>
                 </Stack>
               </Box>

@@ -13,6 +13,7 @@ from rest_framework.test import APITestCase
 from docx import Document
 
 from apps.jobs.models import JobPosting, JobRequirement
+from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
@@ -342,6 +343,11 @@ class JobApplicationAPITests(APITestCase):
         history = application.stage_history.get()
         self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
         self.assertEqual(history.note, 'Does not meet minimum Django experience.')
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            title='Application status updated',
+            message='Does not meet minimum Django experience.',
+        ).exists())
 
     def test_remark_is_saved_without_status_change_and_visible_on_candidate_profile(self):
         application = JobApplication.objects.create(
