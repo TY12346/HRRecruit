@@ -29,6 +29,12 @@ import {
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 import {
+  applyCriterionImportance,
+  cloneCriterion,
+  criterionImportanceOptions,
+  prepareCriteriaForApi,
+} from './evaluationScoring.js';
+import {
   applyImportance,
   applyMatchThreshold,
   cloneRequirement,
@@ -45,12 +51,6 @@ const blankJob = {
   location: '',
   status: 'draft',
 };
-const blankCriterion = {
-  criterion_name: '',
-  description: '',
-  max_score: '10.00',
-  weight_score: '0.25',
-};
 const employmentTypeOptions = [
   { value: 'full_time', label: 'Full-time' },
   { value: 'part_time', label: 'Part-time' },
@@ -60,10 +60,6 @@ const employmentTypeOptions = [
 ];
 
 const createSteps = ['Job details', 'Requirements', 'Evaluation form'];
-
-function cloneCriterion() {
-  return { ...blankCriterion };
-}
 
 export default function JobCreateEditPage() {
   const { jobId } = useParams();
@@ -75,6 +71,7 @@ export default function JobCreateEditPage() {
   const [normalizeRequirements, setNormalizeRequirements] = useState(true);
   const [evaluationTitle, setEvaluationTitle] = useState('Interview Evaluation Form');
   const [criteria, setCriteria] = useState([cloneCriterion()]);
+  const [normalizeCriteria, setNormalizeCriteria] = useState(true);
   const [createdJobId, setCreatedJobId] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(isEdit);
@@ -128,7 +125,15 @@ export default function JobCreateEditPage() {
   };
 
   const updateCriterion = (index, field, value) => {
-    setCriteria((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)));
+    setCriteria((items) => items.map((item, itemIndex) => {
+      if (itemIndex !== index) {
+        return item;
+      }
+      if (field === 'importance_level') {
+        return applyCriterionImportance(item, value);
+      }
+      return { ...item, [field]: value };
+    }));
   };
 
   const handleEditSubmit = async (event) => {
@@ -178,7 +183,7 @@ export default function JobCreateEditPage() {
 
       await createJobEvaluationForm(job.id, {
         title: evaluationTitle,
-        criteria,
+        criteria: prepareCriteriaForApi(criteria, { normalizeImportance: normalizeCriteria }),
       });
       navigate(`/recruiter/jobs/${job.id}`);
     } catch (err) {
@@ -315,12 +320,22 @@ export default function JobCreateEditPage() {
                 onChange={(event) => updateCriterion(index, 'max_score', event.target.value)}
               />
               <TextField
-                label="Weight"
-                type="number"
-                value={criterion.weight_score}
-                onChange={(event) => updateCriterion(index, 'weight_score', event.target.value)}
-              />
+                label="Interview scoring importance"
+                select
+                helperText="Choose how much this competency should influence the interviewer score."
+                value={criterion.importance_level}
+                onChange={(event) => updateCriterion(index, 'importance_level', event.target.value)}
+              >
+                {criterionImportanceOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label} — {option.description}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Stack>
+            <Typography variant="caption" color="text.secondary">
+              HRRecruit stores this as evaluation weight {criterion.weight_score} for weighted interview scoring.
+            </Typography>
             <Button
               color="error"
               disabled={criteria.length === 1}
@@ -331,6 +346,13 @@ export default function JobCreateEditPage() {
           </Stack>
         </Paper>
       ))}
+      <FormControlLabel
+        control={<Checkbox checked={normalizeCriteria} onChange={(event) => setNormalizeCriteria(event.target.checked)} />}
+        label="Auto-balance interview scoring importance so criterion weights add up correctly"
+      />
+      <Typography variant="caption" color="text.secondary">
+        This mirrors real evaluation forms: HR defines competency priorities, while the system converts them into balanced scoring weights.
+      </Typography>
       <Button onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">
         Add criterion
       </Button>
