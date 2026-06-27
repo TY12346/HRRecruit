@@ -43,3 +43,8 @@ scikit-learn>=1.5,<2.0
 joblib>=1.4,<2.0
 numpy>=1.26,<3.0
 sentence-transformers>=3.0,<4.0
+
+# Optional real Google Calendar OAuth/event sync
+google-api-python-client>=2.130,<3.0
+google-auth>=2.30,<3.0
+google-auth-oauthlib>=1.2,<2.0

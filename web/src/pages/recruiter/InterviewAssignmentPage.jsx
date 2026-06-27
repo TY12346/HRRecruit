@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { assignInterviewer, createInterviewSchedulingRequest, getApplication, getOrganizationMembers } from '../../api/client.js';
+import { assignInterviewer, createInterviewSchedulingRequest, getApplication, getGoogleCalendarConnectUrl, getGoogleCalendarStatus, getOrganizationMembers } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 import { buildApplicationTemplateContext, getCommunicationTemplates, renderCommunicationTemplate } from './communicationTemplates.js';
@@ -21,13 +21,16 @@ export default function InterviewAssignmentPage() {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState(null);
+  const [isConnectingCalendar, setIsConnectingCalendar] = useState(false);
 
   useEffect(() => {
-    Promise.all([getApplication(applicationId), getOrganizationMembers('')])
-      .then(([app, members]) => {
+    Promise.all([getApplication(applicationId), getOrganizationMembers(''), getGoogleCalendarStatus().catch(() => null)])
+      .then(([app, members, googleStatus]) => {
         setApplication(app);
         setRemark(renderCommunicationTemplate(getCommunicationTemplates('interview_self_scheduling')[0], buildApplicationTemplateContext(app)));
         setInterviewerId(app.assigned_interviewer?.id ?? '');
+        setCalendarStatus(googleStatus);
         setInterviewers(members.filter((member) => member.role === 'interviewer' && member.status === 'active' && member.user_id));
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load assignment data.')))
@@ -41,6 +44,22 @@ export default function InterviewAssignmentPage() {
     setTemplateId(selectedTemplateId);
     const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
     setRemark(renderCommunicationTemplate(selectedTemplate, buildApplicationTemplateContext(application ?? {})));
+  };
+
+
+
+  const connectGoogleCalendar = async () => {
+    setError('');
+    setIsConnectingCalendar(true);
+    try {
+      const callbackUrl = `${window.location.origin}/recruiter/calendar/google/callback`;
+      const result = await getGoogleCalendarConnectUrl(callbackUrl);
+      window.location.assign(result.authorization_url);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to start Google Calendar connection.'));
+    } finally {
+      setIsConnectingCalendar(false);
+    }
   };
 
   const assign = async (event) => {
@@ -83,6 +102,33 @@ export default function InterviewAssignmentPage() {
         {isLoading ? <CircularProgress /> : (
           <Stack spacing={3}>
             <Typography><strong>Candidate:</strong> {application?.applicant?.full_name} for {application?.job_title}</Typography>
+
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Stack spacing={1}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                  <Box>
+                    <Typography variant="h6">Calendar sync realism</Typography>
+                    <Typography color="text.secondary">Connect a recruiter Google Calendar so booked applicant slots create real calendar events. If it is not connected, HRRecruit still provides a safe fallback calendar link.</Typography>
+                  </Box>
+                  <Chip
+                    color={calendarStatus?.connected ? 'success' : calendarStatus?.oauth_ready ? 'warning' : 'default'}
+                    label={calendarStatus?.connected ? 'Google connected' : calendarStatus?.oauth_ready ? 'Ready to connect' : 'Fallback mode'}
+                  />
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  Current mode: {calendarStatus?.connected ? `Real Google Calendar sync${calendarStatus.connected_email ? ` (${calendarStatus.connected_email})` : ''}` : calendarStatus?.fallback_mode === 'google_template_link' ? 'Google template link fallback' : 'Local placeholder fallback'}.
+                </Typography>
+                {!calendarStatus?.connected ? (
+                  <Button variant="outlined" onClick={connectGoogleCalendar} disabled={isConnectingCalendar || !calendarStatus?.oauth_ready}>
+                    {isConnectingCalendar ? 'Opening Google…' : 'Connect Google Calendar'}
+                  </Button>
+                ) : null}
+                {!calendarStatus?.oauth_ready && !calendarStatus?.connected ? (
+                  <Alert severity="info">Set GOOGLE_CALENDAR_ENABLED, GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET, GOOGLE_CALENDAR_REDIRECT_URI, and install Google API packages to enable real OAuth.</Alert>
+                ) : null}
+              </Stack>
+            </Paper>
+
             {!createdInterview && !schedulingRequest ? (
               <Box component="form" onSubmit={assign}>
                 <Stack spacing={2}>

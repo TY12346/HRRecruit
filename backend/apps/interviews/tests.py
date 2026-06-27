@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import ApplicationStageHistory, JobApplication
-from apps.interviews.models import Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
+from apps.interviews.models import CalendarEvent, GoogleCalendarCredential, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilitySlot
 from apps.interviews.views import bookable_scheduling_requests_for_applicant
 from apps.jobs.models import JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
@@ -71,6 +71,51 @@ class InterviewManagementAPITests(APITestCase):
             {'interviewer_id': self.interviewer.id},
             format='json',
         )
+
+
+    def test_google_calendar_status_uses_safe_fallback_when_not_configured(self):
+        self.authenticate(self.recruiter)
+
+        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'false'}, clear=False):
+            response = self.client.get(reverse('google-calendar-status'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['connected'])
+        self.assertFalse(response.data['oauth_ready'])
+        self.assertIn(response.data['fallback_mode'], ['local_placeholder', 'google_template_link'])
+
+    def test_google_calendar_connect_requires_oauth_configuration(self):
+        self.authenticate(self.recruiter)
+
+        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'false'}, clear=False):
+            response = self.client.get(reverse('google-calendar-connect'))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('google_calendar', response.data)
+
+    def test_calendar_sync_falls_back_to_local_event_without_google_oauth(self):
+        from apps.interviews.calendar_service import sync_calendar_event_for_interview
+
+        interview = Interview.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            scheduled_datetime='2026-07-09T09:00:00Z',
+            interview_date='2026-07-09',
+            start_time='09:00:00',
+            end_time='10:00:00',
+            mode=Interview.Mode.ONLINE,
+            meeting_link='https://meet.example.com/fallback',
+            status=Interview.Status.SCHEDULED,
+        )
+
+        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'false'}, clear=False):
+            event = sync_calendar_event_for_interview(interview)
+
+        self.assertEqual(event.provider, 'local')
+        self.assertEqual(event.sync_status, CalendarEvent.SyncStatus.NOT_SYNCED)
+        self.assertIn('calendar.hrrecruit.local', event.calendar_link)
 
     def test_interviewer_creates_availability_slot(self):
         self.authenticate(self.interviewer)
