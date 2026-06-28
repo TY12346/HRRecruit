@@ -197,6 +197,16 @@ export const completeDemoPayment = async ({ subscriptionId, transactionReference
   return response.data;
 };
 
+export const cancelSubscription = async ({ reason = '' } = {}) => {
+  const response = await apiClient.post('/billing/subscription/cancel/', { reason });
+  return response.data;
+};
+
+export const reactivateSubscription = async () => {
+  const response = await apiClient.post('/billing/subscription/reactivate/');
+  return response.data;
+};
+
 export const getHRHeadAnalytics = async () => {
   const response = await apiClient.get('/analytics/hr-head/dashboard/');
   return response.data;

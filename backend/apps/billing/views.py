@@ -1,7 +1,9 @@
 """Subscription and billing APIs."""
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,15 +16,18 @@ from .serializers import (
     DemoPaymentSuccessSerializer,
     PaymentSerializer,
     PlanSelectionSerializer,
+    SubscriptionCancelSerializer,
     SubscriptionPlanSerializer,
     SubscriptionSerializer,
 )
 from .payment_gateways import get_payment_gateway
 from .services import (
     activate_demo_subscription,
+    cancel_subscription_at_period_end,
     create_pending_subscription,
     get_active_hr_head_membership,
     get_active_subscription,
+    reactivate_subscription,
 )
 
 
@@ -77,6 +82,51 @@ class CurrentSubscriptionAPIView(BillingHRHeadMixin, APIView):
         if not subscription:
             return Response({'detail': 'No active subscription found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(SubscriptionSerializer(subscription).data)
+
+
+class CancelSubscriptionAPIView(BillingHRHeadMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        organization = self.get_organization(request)
+        subscription = get_active_subscription(organization)
+        if not subscription:
+            return Response({'detail': 'No active subscription found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = SubscriptionCancelSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            cancel_subscription_at_period_end(
+                subscription,
+                serializer.validated_data.get('reason', ''),
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError({'detail': exc.messages[0] if exc.messages else str(exc)}) from exc
+        return Response(
+            {
+                'message': 'Subscription will remain active until the current billing period ends.',
+                'subscription': SubscriptionSerializer(subscription).data,
+            }
+        )
+
+
+class ReactivateSubscriptionAPIView(BillingHRHeadMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        organization = self.get_organization(request)
+        subscription = get_active_subscription(organization)
+        if not subscription:
+            return Response({'detail': 'No active subscription found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            reactivate_subscription(subscription)
+        except DjangoValidationError as exc:
+            raise ValidationError({'detail': exc.messages[0] if exc.messages else str(exc)}) from exc
+        return Response(
+            {
+                'message': 'Subscription cancellation has been removed and auto-renew is enabled.',
+                'subscription': SubscriptionSerializer(subscription).data,
+            }
+        )
 
 
 class UpgradeSubscriptionAPIView(SubscribeAPIView):

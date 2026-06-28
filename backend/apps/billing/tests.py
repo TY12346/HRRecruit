@@ -97,11 +97,49 @@ class BillingAPITests(APITestCase):
         self.assertEqual(payment_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(payment_response.data['subscription']['status'], Subscription.Status.ACTIVE)
         self.assertTrue(payment_response.data['payment']['invoice_number'].startswith('INV-'))
+        self.assertEqual(payment_response.data['payment']['billing_reason'], Payment.BillingReason.SUBSCRIPTION_CREATE)
+        self.assertIsNotNone(payment_response.data['payment']['due_at'])
         self.assertEqual(current_response.status_code, status.HTTP_200_OK)
         self.assertEqual(current_response.data['id'], subscription_id)
         self.assertEqual(invoice_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(invoice_response.data), 1)
         self.assertEqual(Payment.objects.get().status, Payment.Status.PAID)
+
+    def test_hr_head_can_schedule_and_resume_subscription_cancellation(self):
+        self.authenticate(self.hr_head)
+        subscription = Subscription.objects.create(
+            organization=self.organization,
+            plan=self.pro_plan,
+            start_date=timezone.localdate(),
+            end_date=timezone.localdate() + timedelta(days=30),
+            status=Subscription.Status.ACTIVE,
+            is_auto_renew=True,
+        )
+
+        cancel_response = self.client.post(
+            reverse('billing-subscription-cancel'),
+            {'reason': 'Hiring pause for next quarter'},
+            format='json',
+        )
+        subscription.refresh_from_db()
+
+        self.assertEqual(cancel_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(subscription.status, Subscription.Status.ACTIVE)
+        self.assertTrue(subscription.cancel_at_period_end)
+        self.assertFalse(subscription.is_auto_renew)
+        self.assertIsNotNone(subscription.cancelled_at)
+        self.assertEqual(subscription.cancellation_reason, 'Hiring pause for next quarter')
+        self.assertTrue(cancel_response.data['subscription']['cancel_at_period_end'])
+
+        reactivate_response = self.client.post(reverse('billing-subscription-reactivate'), format='json')
+        subscription.refresh_from_db()
+
+        self.assertEqual(reactivate_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(subscription.cancel_at_period_end)
+        self.assertTrue(subscription.is_auto_renew)
+        self.assertIsNone(subscription.cancelled_at)
+        self.assertEqual(subscription.cancellation_reason, '')
+        self.assertFalse(reactivate_response.data['subscription']['cancel_at_period_end'])
 
     def test_only_hr_head_can_manage_billing(self):
         self.authenticate(self.recruiter)

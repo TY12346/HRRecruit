@@ -35,6 +35,10 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'end_date',
             'status',
             'is_auto_renew',
+            'trial_end_date',
+            'cancel_at_period_end',
+            'cancelled_at',
+            'cancellation_reason',
             'created_at',
         ]
         read_only_fields = fields
@@ -58,7 +62,12 @@ class PaymentSerializer(serializers.ModelSerializer):
             'amount',
             'currency',
             'status',
+            'billing_reason',
             'paid_at',
+            'due_at',
+            'hosted_invoice_url',
+            'receipt_url',
+            'failure_reason',
         ]
         read_only_fields = fields
 
@@ -112,3 +121,7 @@ class CheckoutSessionSerializer(serializers.Serializer):
             )
         except Subscription.DoesNotExist as exc:
             raise serializers.ValidationError('Pending subscription not found for this organization.') from exc
+
+
+class SubscriptionCancelSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=500, trim_whitespace=True)

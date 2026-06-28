@@ -204,19 +204,19 @@ def send_team_account_created_email(user, temporary_password):
 
 def send_job_offer_email(offer):
     application = offer.application
-    compensation = (
-        f'{getattr(offer, 'salary_currency', 'MYR')} {getattr(offer, 'salary_amount', None)}'
-        if getattr(offer, 'salary_amount', None) is not None
-        else 'Not specified'
-    )
+    salary_amount = getattr(offer, 'salary_amount', None)
+    salary_currency = getattr(offer, 'salary_currency', 'MYR')
+    start_date = getattr(offer, 'start_date', None) or 'To be confirmed'
+    work_arrangement = getattr(offer, 'work_arrangement', '') or 'To be confirmed'
+    compensation = f'{salary_currency} {salary_amount}' if salary_amount is not None else 'Not specified'
     return send_email(
         subject=f'Job offer for {application.job.title}',
         message=(
             f'Hello {application.applicant.full_name},\n\n'
             f'You received a job offer for {application.job.title}.\n'
             f'Compensation: {compensation}\n'
-            f'Start date: {getattr(offer, 'start_date', None) or "To be confirmed"}\n'
-            f'Work arrangement: {getattr(offer, 'work_arrangement', '') or "To be confirmed"}\n'
+            f'Start date: {start_date}\n'
+            f'Work arrangement: {work_arrangement}\n'
             f'Response deadline: {offer.respond_deadline}\n\n'
             f'{offer.offer_message}\n\n'
             'Please accept or decline the offer in HRRecruit.'
