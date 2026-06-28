@@ -98,6 +98,15 @@ function RankingSavedViews({ scope, filters, onApply }) {
   );
 }
 
+function FitChip({ score }) {
+  const fit = candidateFitFromScore(score);
+  return (
+    <Tooltip title={fit.description}>
+      <Chip color={fit.color} label={fit.label} size="small" />
+    </Tooltip>
+  );
+}
+
 export default function CandidateRankingPage() {
   const { jobId } = useParams();
   const [candidates, setCandidates] = useState([]);
