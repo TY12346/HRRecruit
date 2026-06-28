@@ -27,6 +27,37 @@ COMMUNICATION_SCORE_MIN = Decimal('0.00')
 COMMUNICATION_SCORE_MAX = Decimal('10.00')
 MOCK_COMMUNICATION_SCORE = Decimal('8.00')
 MOCK_SUMMARY_FALLBACK_TEXT = 'Mock AI summary generated for FYP development.'
+SUMMARY_TRANSPARENCY_VERSION = 'interview-summary-transparency-v1'
+
+
+def build_summary_transparency_metadata(
+    cleaned_transcript,
+    provider,
+    model='',
+    fallback_reason='',
+    generation_mode='mock',
+):
+    """Build recruiter/interviewer-facing metadata explaining how a summary was produced."""
+    excerpt = cleaned_transcript[:500]
+    if len(cleaned_transcript) > 500:
+        excerpt = f'{excerpt}…'
+    return {
+        'transparency_version': SUMMARY_TRANSPARENCY_VERSION,
+        'provider': provider,
+        'model': model,
+        'generation_mode': generation_mode,
+        'fallback_reason': fallback_reason,
+        'source': 'interview_transcript',
+        'source_excerpt': excerpt,
+        'human_review_required': True,
+        'decision_boundary': 'This AI summary supports interviewer review only and must not be treated as a final hiring decision.',
+        'editable_fields': sorted(SUMMARY_REQUIRED_FIELDS),
+        'limitations': [
+            'May miss context from audio tone, body language, or incomplete transcripts.',
+            'May contain summarization mistakes; interviewer must verify against the transcript.',
+            "Communication score is a decision-support signal on HRRecruit's current 0-10 scale.",
+        ],
+    }
 
 
 class SummaryGenerationUnavailable(Exception):
@@ -87,6 +118,12 @@ def build_mock_summary(cleaned_transcript='', reason='real_summary_disabled'):
         'communication_score': MOCK_COMMUNICATION_SCORE,
         'overall_impression': overall_impression,
         'editable_summary_text': editable_summary_text,
+        'summary_json': build_summary_transparency_metadata(
+            cleaned_transcript,
+            provider='mock',
+            fallback_reason=reason,
+            generation_mode='deterministic_fallback',
+        ),
     }
 
 
@@ -161,6 +198,8 @@ def validate_structured_summary(summary):
     if empty_text_fields:
         empty = ','.join(sorted(empty_text_fields))
         raise SummaryGenerationUnavailable(f'empty_summary_fields:{empty}')
+    if isinstance(summary.get('summary_json'), dict):
+        cleaned_summary['summary_json'] = summary['summary_json']
     return cleaned_summary
 
 
@@ -197,6 +236,12 @@ def run_real_summary(cleaned_transcript):
     try:
         content = _call_openai_summary(prompt, api_key, model)
         parsed = _parse_summary_content(content)
+        parsed['summary_json'] = build_summary_transparency_metadata(
+            cleaned_transcript,
+            provider='openai',
+            model=model,
+            generation_mode='real_llm',
+        )
         return validate_structured_summary(parsed)
     except SummaryGenerationUnavailable:
         raise
@@ -208,13 +253,14 @@ def generate_summary_payload(transcript):
     """Return unsaved structured summary payload for a transcript."""
     cleaned_transcript = preprocess_transcript_text(transcript)
 
+    fallback_reason = 'real_summary_disabled'
     if use_real_summary_enabled():
         try:
             return run_real_summary(cleaned_transcript)
-        except SummaryGenerationUnavailable:
-            pass
+        except SummaryGenerationUnavailable as exc:
+            fallback_reason = str(exc)
 
-    mock_summary = build_mock_summary(cleaned_transcript, 'real_summary_disabled')
+    mock_summary = build_mock_summary(cleaned_transcript, fallback_reason)
     return validate_structured_summary(mock_summary)
 
 

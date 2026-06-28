@@ -8,6 +8,15 @@ from apps.users.models import User
 from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
 
 
+class GoogleCalendarOAuthCallbackSerializer(serializers.Serializer):
+    code = serializers.CharField(required=True, trim_whitespace=True)
+    state = serializers.CharField(required=True, trim_whitespace=True)
+
+
+class GoogleCalendarConnectSerializer(serializers.Serializer):
+    next = serializers.URLField(required=False, allow_blank=True)
+
+
 class InterviewStatusHistorySerializer(serializers.ModelSerializer):
     changed_by_name = serializers.CharField(source='changed_by.full_name', read_only=True)
 
