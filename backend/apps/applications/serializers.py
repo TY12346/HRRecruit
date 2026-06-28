@@ -88,6 +88,8 @@ class CandidateScoreSerializer(serializers.Serializer):
 
 
 class CandidateProfileSerializer(serializers.ModelSerializer):
+    job_title = serializers.CharField(source='job.title', read_only=True)
+    organization_name = serializers.CharField(source='job.organization.name', read_only=True)
     applicant_profile = ApplicationApplicantSerializer(source='applicant', read_only=True)
     resume_info = serializers.SerializerMethodField()
     scores = CandidateScoreSerializer(source='*', read_only=True)
@@ -98,6 +100,8 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'job',
+            'job_title',
+            'organization_name',
             'applicant_profile',
             'resume_info',
             'extracted_skills',

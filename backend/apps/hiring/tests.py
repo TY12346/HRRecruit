@@ -117,7 +117,11 @@ class HiringWorkflowAPITests(APITestCase):
         offer = JobOffer.objects.get(application=self.application)
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, JobApplication.Status.OFFER_SENT)
-        self.assertTrue(Notification.objects.filter(recipient=self.applicant, title='Job offer received').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            title='Job offer received',
+            message='We are pleased to offer you the Backend Engineer role.',
+        ).exists())
 
         self.authenticate(self.applicant)
         offer_list_response = self.client.get(reverse('job-offer-list'))

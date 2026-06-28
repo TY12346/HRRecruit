@@ -3,6 +3,7 @@
 from collections import OrderedDict
 
 from django.db.models import Avg, Count
+from django.db.models.functions import TruncMonth
 from rest_framework.exceptions import PermissionDenied
 
 from apps.applications.models import ApplicationStageHistory, JobApplication
@@ -24,6 +25,52 @@ REJECTED_STATUSES = (
     JobApplication.Status.REJECTED,
     JobApplication.Status.HR_REJECTED,
     JobApplication.Status.SCREENED_NOT_QUALIFIED,
+)
+
+SHORTLIST_OR_BEYOND_STATUSES = (
+    JobApplication.Status.SHORTLISTED,
+    JobApplication.Status.INTERVIEW_INVITED,
+    JobApplication.Status.INTERVIEW_ACCEPTED,
+    JobApplication.Status.INTERVIEW_DECLINED,
+    JobApplication.Status.INTERVIEWING,
+    JobApplication.Status.EVALUATION_SUBMITTED,
+    JobApplication.Status.DECISION_PENDING,
+    JobApplication.Status.HR_APPROVED,
+    JobApplication.Status.OFFER_SENT,
+    JobApplication.Status.OFFER_ACCEPTED,
+    JobApplication.Status.OFFER_DECLINED,
+    JobApplication.Status.HIRED,
+)
+
+INTERVIEW_OR_BEYOND_STATUSES = (
+    JobApplication.Status.INTERVIEW_INVITED,
+    JobApplication.Status.INTERVIEW_ACCEPTED,
+    JobApplication.Status.INTERVIEW_DECLINED,
+    JobApplication.Status.INTERVIEWING,
+    JobApplication.Status.EVALUATION_SUBMITTED,
+    JobApplication.Status.DECISION_PENDING,
+    JobApplication.Status.HR_APPROVED,
+    JobApplication.Status.OFFER_SENT,
+    JobApplication.Status.OFFER_ACCEPTED,
+    JobApplication.Status.OFFER_DECLINED,
+    JobApplication.Status.HIRED,
+)
+
+EVALUATION_OR_BEYOND_STATUSES = (
+    JobApplication.Status.EVALUATION_SUBMITTED,
+    JobApplication.Status.DECISION_PENDING,
+    JobApplication.Status.HR_APPROVED,
+    JobApplication.Status.OFFER_SENT,
+    JobApplication.Status.OFFER_ACCEPTED,
+    JobApplication.Status.OFFER_DECLINED,
+    JobApplication.Status.HIRED,
+)
+
+OFFER_OR_BEYOND_STATUSES = (
+    JobApplication.Status.OFFER_SENT,
+    JobApplication.Status.OFFER_ACCEPTED,
+    JobApplication.Status.OFFER_DECLINED,
+    JobApplication.Status.HIRED,
 )
 
 FUNNEL_STAGES = OrderedDict(
@@ -174,6 +221,133 @@ def rate(numerator, denominator):
     return round((numerator / denominator) * 100, 2)
 
 
+
+def conversion_rates(applications):
+    total = applications.count()
+    return OrderedDict(
+        (
+            ('shortlist_rate', rate(applications.filter(status__in=SHORTLIST_OR_BEYOND_STATUSES).count(), total)),
+            ('interview_rate', rate(applications.filter(status__in=INTERVIEW_OR_BEYOND_STATUSES).count(), total)),
+            ('evaluation_rate', rate(applications.filter(status__in=EVALUATION_OR_BEYOND_STATUSES).count(), total)),
+            ('offer_rate', rate(applications.filter(status__in=OFFER_OR_BEYOND_STATUSES).count(), total)),
+            ('hire_rate', rate(applications.filter(status=JobApplication.Status.HIRED).count(), total)),
+        )
+    )
+
+
+def score_distribution(applications):
+    distribution = OrderedDict((('strong_fit', 0), ('possible_fit', 0), ('low_fit', 0), ('unscored', 0)))
+    for score in applications.values_list('final_score', flat=True):
+        if score is None:
+            distribution['unscored'] += 1
+        elif float(score) >= 75:
+            distribution['strong_fit'] += 1
+        elif float(score) >= 50:
+            distribution['possible_fit'] += 1
+        else:
+            distribution['low_fit'] += 1
+    return distribution
+
+
+def applications_over_time(applications):
+    rows = (
+        applications.annotate(month=TruncMonth('applied_at'))
+        .values('month')
+        .annotate(total=Count('id'))
+        .order_by('month')
+    )
+    return OrderedDict((row['month'].strftime('%b %Y') if row['month'] else 'Unknown', row['total']) for row in rows)
+
+
+def stage_transition_counts(applications):
+    rows = (
+        ApplicationStageHistory.objects.filter(application__in=applications)
+        .values('from_stage', 'to_stage')
+        .annotate(total=Count('id'))
+        .order_by('-total', 'from_stage', 'to_stage')[:8]
+    )
+    return [
+        {
+            'from_stage': row['from_stage'],
+            'to_stage': row['to_stage'],
+            'label': f"{JobApplication.Status(row['from_stage']).label} → {JobApplication.Status(row['to_stage']).label}",
+            'count': row['total'],
+        }
+        for row in rows
+    ]
+
+
+def pipeline_health(applications):
+    status_counts = applications_by_status(applications)
+    total = sum(status_counts.values())
+    if not total:
+        return {
+            'bottleneck_stage': None,
+            'bottleneck_count': 0,
+            'highest_dropout_status': None,
+            'highest_dropout_count': 0,
+            'insights': ['No candidate activity yet. Publish jobs and collect applications to populate analytics.'],
+        }
+
+    bottleneck_status, bottleneck_count = max(status_counts.items(), key=lambda item: item[1])
+    dropout_counts = {status: status_counts.get(status, 0) for status in (*DROPOUT_STATUSES, *REJECTED_STATUSES)}
+    dropout_status, dropout_count = max(dropout_counts.items(), key=lambda item: item[1])
+    rates = conversion_rates(applications)
+    insights = []
+    if rates['shortlist_rate'] < 40:
+        insights.append('Shortlist conversion is low; review job requirements, screening thresholds, and sourcing channels.')
+    if rates['interview_rate'] < 25:
+        insights.append('Interview conversion is low; check recruiter follow-up speed and candidate availability.')
+    if rates['offer_rate'] > 0 and rates['hire_rate'] < rates['offer_rate']:
+        insights.append('Offer-to-hire drop-off exists; compare compensation, response deadlines, and offer communication.')
+    if not insights:
+        insights.append('Pipeline movement looks healthy based on current conversion rates.')
+    return {
+        'bottleneck_stage': JobApplication.Status(bottleneck_status).label,
+        'bottleneck_count': bottleneck_count,
+        'highest_dropout_status': JobApplication.Status(dropout_status).label if dropout_status else None,
+        'highest_dropout_count': dropout_count,
+        'insights': insights,
+    }
+
+
+def top_jobs_by_applications(jobs, applications, limit=5):
+    rows = []
+    for job in jobs:
+        job_applications = applications.filter(job=job)
+        total = job_applications.count()
+        rows.append(
+            {
+                'job_id': job.id,
+                'job_title': job.title,
+                'applications': total,
+                'hires': job_applications.filter(status=JobApplication.Status.HIRED).count(),
+                'average_score': round(float(job_applications.aggregate(value=Avg('final_score'))['value'] or 0), 2),
+            }
+        )
+    return sorted(rows, key=lambda row: (row['applications'], row['hires']), reverse=True)[:limit]
+
+
+def conversion_rates_chart(applications):
+    values = conversion_rates(applications)
+    labels = ['Shortlist', 'Interview', 'Evaluation', 'Offer', 'Hire']
+    return Chart.single_dataset(labels, list(values.values()), 'Conversion %')
+
+
+def score_distribution_chart(applications):
+    values = score_distribution(applications)
+    labels = ['Strong fit', 'Possible fit', 'Low fit', 'Unscored']
+    return Chart.single_dataset(labels, list(values.values()), 'Candidates')
+
+
+def applications_over_time_chart(applications):
+    values = applications_over_time(applications)
+    return Chart.single_dataset(list(values.keys()), list(values.values()), 'Applications')
+
+
+def top_jobs_chart(rows):
+    return Chart.single_dataset([row['job_title'] for row in rows], [row['applications'] for row in rows], 'Applications')
+
 def base_application_metrics(jobs, applications):
     total_applications = applications.count()
     shortlisted_count = applications.filter(status=JobApplication.Status.SHORTLISTED).count()
@@ -196,6 +370,11 @@ def base_application_metrics(jobs, applications):
         'offer_acceptance_rate': rate(accepted_offers, total_offers),
         'total_offers': total_offers,
         'accepted_offers': accepted_offers,
+        'conversion_rates': conversion_rates(applications),
+        'score_distribution': score_distribution(applications),
+        'applications_over_time': applications_over_time(applications),
+        'stage_transition_counts': stage_transition_counts(applications),
+        'pipeline_health': pipeline_health(applications),
     }
 
 
@@ -203,6 +382,9 @@ def application_charts(applications):
     return {
         'applications_by_status': status_chart(applications),
         'candidate_funnel': candidate_funnel(applications),
+        'conversion_rates': conversion_rates_chart(applications),
+        'score_distribution': score_distribution_chart(applications),
+        'applications_over_time': applications_over_time_chart(applications),
     }
 
 
@@ -211,6 +393,7 @@ def recruiter_dashboard(user):
     jobs = JobPosting.objects.filter(organization=membership.organization, recruiter=user)
     applications = JobApplication.objects.filter(job__in=jobs)
     metrics = base_application_metrics(jobs, applications)
+    top_jobs = top_jobs_by_applications(jobs, applications)
     metrics['recruiter_hire_count'] = metrics['hired_count']
     metrics['interviewer_evaluation_count'] = InterviewEvaluation.objects.filter(
         interview__application__job__in=jobs,
@@ -219,7 +402,8 @@ def recruiter_dashboard(user):
         'dashboard': 'recruiter',
         'organization': {'id': membership.organization_id, 'name': membership.organization.name},
         'metrics': metrics,
-        'charts': application_charts(applications),
+        'charts': {**application_charts(applications), 'top_jobs_by_applications': top_jobs_chart(top_jobs)},
+        'top_jobs_by_applications': top_jobs,
     }
 
 
@@ -251,6 +435,7 @@ def hr_head_dashboard(user):
     jobs = JobPosting.objects.filter(organization=membership.organization)
     applications = JobApplication.objects.filter(job__in=jobs)
     metrics = base_application_metrics(jobs, applications)
+    top_jobs = top_jobs_by_applications(jobs, applications)
     metrics['hiring_success_rate'] = rate(metrics['hired_count'], metrics['total_applications'])
     metrics['rejection_rate'] = rate(metrics['rejected_count'], metrics['total_applications'])
     metrics['interviewer_evaluation_count'] = InterviewEvaluation.objects.filter(
@@ -265,7 +450,9 @@ def hr_head_dashboard(user):
             **application_charts(applications),
             'recruiter_performance': recruiter_performance_chart(membership.organization),
             'interviewer_performance': interviewer_performance_chart(membership.organization),
+            'top_jobs_by_applications': top_jobs_chart(top_jobs),
         },
+        'top_jobs_by_applications': top_jobs,
         'recruiter_performance': recruiter_performance(membership.organization),
         'interviewer_performance': interviewer_performance(membership.organization),
     }

@@ -315,7 +315,7 @@ class JobOfferCreateAPIView(APIView):
             application.applicant,
             'job_offer_sent',
             'Job offer received',
-            f'You received a job offer for {application.job.title}.',
+            offer.offer_message,
             related_entity=offer,
         )
         create_bulk_notifications(
