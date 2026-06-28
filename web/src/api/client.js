@@ -270,8 +270,8 @@ export const createJobEvaluationForm = async (jobId, payload) => {
   return response.data;
 };
 
-export const getApplications = async () => {
-  const response = await apiClient.get('/applications/');
+export const getApplications = async (params = {}) => {
+  const response = await apiClient.get('/applications/', { params });
   return response.data;
 };
 
@@ -329,8 +329,8 @@ export const getApplicationStatusHistory = async (applicationId) => {
   return response.data;
 };
 
-export const getRankedCandidates = async (jobId) => {
-  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`);
+export const getRankedCandidates = async (jobId, params = {}) => {
+  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`, { params });
   return response.data;
 };
 

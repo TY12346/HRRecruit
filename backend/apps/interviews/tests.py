@@ -610,6 +610,10 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(response.data['communication_score'], '8.00')
         self.assertIn('continued consideration', response.data['overall_impression'])
         self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
+        self.assertEqual(response.data['transparency']['provider'], 'mock')
+        self.assertTrue(response.data['transparency']['human_review_required'])
+        self.assertIn('final hiring decision', response.data['transparency']['decision_boundary'])
+        self.assertIn('Candidate communicated clearly', response.data['transparency']['source_excerpt'])
         self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 1)
         openai_summary.assert_not_called()
 
@@ -653,6 +657,8 @@ class InterviewEvaluationAPITests(APITestCase):
             'communication_score',
             'overall_impression',
             'editable_summary_text',
+            'summary_json',
+            'transparency',
         }
         self.assertTrue(required_fields.issubset(response.data.keys()))
         for field in required_fields - {'communication_score'}:
@@ -683,6 +689,16 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(summary.overall_impression, 'Edited interviewer impression.')
         self.assertEqual(summary.editable_summary_text, 'Edited full summary text.')
         self.assertEqual(summary.edited_by, self.interviewer)
+
+    def test_summary_transparency_tracks_real_summary_fallback_reason(self):
+        transcript = self.create_mock_transcript()
+
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': ''}):
+            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['summary_json']['fallback_reason'], 'missing_openai_api_key')
+        self.assertEqual(response.data['transparency']['fallback_reason'], 'missing_openai_api_key')
 
     def test_external_api_is_not_called_when_real_summary_disabled(self):
         transcript = self.create_mock_transcript()

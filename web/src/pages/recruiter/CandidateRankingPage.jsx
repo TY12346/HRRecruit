@@ -5,6 +5,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -12,6 +13,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -20,6 +22,81 @@ import { getRankedCandidates } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { candidateFitFromScore } from './candidateFit.js';
 import { applicationName, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
+import {
+  APPLICATION_FILTER_DEFAULTS,
+  buildApplicationQueryParams,
+  deleteApplicationView,
+  describeApplicationFilters,
+  loadSavedApplicationViews,
+  saveApplicationView,
+} from './applicationSearchViews.js';
+
+const RANKING_FILTER_DEFAULTS = {
+  ...APPLICATION_FILTER_DEFAULTS,
+  status: 'all',
+  sort: 'score_desc',
+};
+
+const FIT_FILTERS = [
+  ['all', 'All AI fit'],
+  ['strong', 'Strong fit (75+)'],
+  ['possible', 'Possible fit (50-74)'],
+  ['low', 'Low fit (<50)'],
+];
+
+const SORT_OPTIONS = [
+  ['score_desc', 'Highest score'],
+  ['score_asc', 'Lowest score'],
+  ['newest', 'Newest applied'],
+  ['oldest', 'Oldest applied'],
+  ['candidate_az', 'Candidate A-Z'],
+];
+
+function FitChip({ score }) {
+  const fit = candidateFitFromScore(score);
+  return (
+    <Tooltip title={fit.description}>
+      <Chip color={fit.color} label={fit.label} size="small" />
+    </Tooltip>
+  );
+}
+
+function RankingSavedViews({ scope, filters, onApply }) {
+  const [savedViews, setSavedViews] = useState(() => loadSavedApplicationViews(scope));
+  const [viewName, setViewName] = useState('');
+  const [selectedView, setSelectedView] = useState('');
+
+  const saveCurrentView = () => {
+    const nextViews = saveApplicationView(scope, viewName, filters);
+    setSavedViews(nextViews);
+    setSelectedView(viewName.trim());
+    setViewName('');
+  };
+
+  const applySavedView = (name) => {
+    setSelectedView(name);
+    const view = savedViews.find((item) => item.name === name);
+    if (view) onApply({ ...RANKING_FILTER_DEFAULTS, ...view.filters });
+  };
+
+  const removeSavedView = () => {
+    if (!selectedView) return;
+    setSavedViews(deleteApplicationView(scope, selectedView));
+    setSelectedView('');
+  };
+
+  return (
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
+      <TextField size="small" label="Saved ranking view" value={viewName} onChange={(event) => setViewName(event.target.value)} />
+      <Button variant="outlined" onClick={saveCurrentView} disabled={!viewName.trim()}>Save view</Button>
+      <TextField select size="small" label="Apply saved view" value={selectedView} onChange={(event) => applySavedView(event.target.value)} sx={{ minWidth: 220 }}>
+        <MenuItem value="">Choose saved view</MenuItem>
+        {savedViews.map((view) => <MenuItem key={view.name} value={view.name}>{view.name}</MenuItem>)}
+      </TextField>
+      <Button color="error" onClick={removeSavedView} disabled={!selectedView}>Delete view</Button>
+    </Stack>
+  );
+}
 
 function FitChip({ score }) {
   const fit = candidateFitFromScore(score);
@@ -33,31 +110,37 @@ function FitChip({ score }) {
 export default function CandidateRankingPage() {
   const { jobId } = useParams();
   const [candidates, setCandidates] = useState([]);
+  const [filters, setFilters] = useState(RANKING_FILTER_DEFAULTS);
+  const [draftFilters, setDraftFilters] = useState(RANKING_FILTER_DEFAULTS);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    getRankedCandidates(jobId)
+    setIsLoading(true);
+    getRankedCandidates(jobId, buildApplicationQueryParams(filters))
       .then((data) => {
-        if (active) {
-          setCandidates(data);
-        }
+        if (active) setCandidates(data);
       })
       .catch((err) => {
-        if (active) {
-          setError(getApiErrorMessage(err, 'Unable to load ranked candidates.'));
-        }
+        if (active) setError(getApiErrorMessage(err, 'Unable to load ranked candidates.'));
       })
       .finally(() => {
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       });
     return () => {
       active = false;
     };
-  }, [jobId]);
+  }, [jobId, filters]);
+
+  const applyFilters = (nextFilters = draftFilters) => {
+    const normalized = { ...RANKING_FILTER_DEFAULTS, ...nextFilters, status: 'all' };
+    setDraftFilters(normalized);
+    setFilters(normalized);
+  };
+
+  const resetFilters = () => applyFilters(RANKING_FILTER_DEFAULTS);
+  const activeFilterLabels = describeApplicationFilters(filters).filter((label) => !label.startsWith('Status:'));
 
   return (
     <Box>
@@ -65,9 +148,30 @@ export default function CandidateRankingPage() {
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Qualified candidate ranking</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Real recruitment systems show AI fit as decision support. Recruiters still review profiles before shortlisting or rejecting candidates.
+          Real recruitment systems combine ranking with search, fit filters, saved views, and human review before action.
         </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+              <TextField fullWidth label="Search qualified candidates, notes, or resume text" value={draftFilters.search} onChange={(event) => setDraftFilters({ ...draftFilters, search: event.target.value })} />
+              <TextField select label="AI fit" value={draftFilters.fit} onChange={(event) => setDraftFilters({ ...draftFilters, fit: event.target.value })} sx={{ minWidth: 180 }}>
+                {FIT_FILTERS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+              </TextField>
+              <TextField select label="Sort" value={draftFilters.sort} onChange={(event) => setDraftFilters({ ...draftFilters, sort: event.target.value })} sx={{ minWidth: 180 }}>
+                {SORT_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+              </TextField>
+            </Stack>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Button variant="contained" onClick={() => applyFilters()}>Apply ranking filters</Button>
+              <Button variant="outlined" onClick={resetFilters}>Reset</Button>
+              {activeFilterLabels.length ? activeFilterLabels.map((label) => <Chip key={label} label={titleize(label)} size="small" />) : <Chip label="Default ranking" size="small" />}
+            </Stack>
+            <RankingSavedViews scope={`ranking.${jobId}`} filters={filters} onApply={applyFilters} />
+          </Stack>
+        </Paper>
+
         {isLoading ? <CircularProgress /> : null}
         <Table>
           <TableHead>
@@ -105,6 +209,11 @@ export default function CandidateRankingPage() {
                 </TableCell>
               </TableRow>
             ))}
+            {!isLoading && candidates.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10}>No qualified candidates match the current search or saved ranking view.</TableCell>
+              </TableRow>
+            ) : null}
           </TableBody>
         </Table>
       </Paper>

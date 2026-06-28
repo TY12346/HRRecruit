@@ -56,6 +56,57 @@ function ChartCard({ title, description, children }) {
   );
 }
 
+
+function InsightsCard({ pipelineHealth }) {
+  const insights = pipelineHealth?.insights ?? [];
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography component="h3" variant="h6">Pipeline health insights</Typography>
+        <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+          Uses conversion, drop-off, and bottleneck signals to highlight where HR should investigate.
+        </Typography>
+        <Stack spacing={1}>
+          <Typography variant="body2"><strong>Bottleneck:</strong> {pipelineHealth?.bottleneck_stage ?? 'Not enough data'} ({pipelineHealth?.bottleneck_count ?? 0})</Typography>
+          <Typography variant="body2"><strong>Highest drop-off:</strong> {pipelineHealth?.highest_dropout_status ?? 'None yet'} ({pipelineHealth?.highest_dropout_count ?? 0})</Typography>
+          {insights.map((insight) => <Alert key={insight} severity="info">{insight}</Alert>)}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopJobsTable({ rows }) {
+  return (
+    <Card>
+      <CardContent>
+        <Typography component="h3" variant="h6" sx={{ mb: 2 }}>Top jobs by application volume</Typography>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Job</TableCell>
+              <TableCell>Applications</TableCell>
+              <TableCell>Hires</TableCell>
+              <TableCell>Avg. AI score</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {(rows ?? []).map((row) => (
+              <TableRow key={row.job_id}>
+                <TableCell>{row.job_title}</TableCell>
+                <TableCell>{row.applications}</TableCell>
+                <TableCell>{row.hires}</TableCell>
+                <TableCell>{row.average_score}</TableCell>
+              </TableRow>
+            ))}
+            {!(rows ?? []).length ? <TableRow><TableCell colSpan={4}>No job-level analytics yet.</TableCell></TableRow> : null}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PerformanceTable({ rows, type }) {
   const isRecruiter = type === 'recruiter';
   return (
@@ -162,6 +213,10 @@ export default function HRAnalyticsPage() {
   const applicationsByStatusChart = charts.applications_by_status ?? chartFromMap(applicationsByStatus, 'Applications', titleize);
   const timeToHireChart = singleValueBar('Average time-to-hire', metrics.average_time_to_hire_days, 'Days', '#7c3aed');
   const offerAcceptanceChart = percentageDoughnut('Accepted offers', metrics.offer_acceptance_rate, '#16a34a');
+  const conversionRatesChart = charts.conversion_rates;
+  const scoreDistributionChart = charts.score_distribution;
+  const applicationsOverTimeChart = charts.applications_over_time;
+  const topJobsChart = charts.top_jobs_by_applications;
 
   return (
     <Box>
@@ -224,8 +279,32 @@ export default function HRAnalyticsPage() {
               {charts.interviewer_performance ? <Bar data={charts.interviewer_performance} options={barChartOptions} /> : <Typography color="text.secondary">No interviewer performance data yet.</Typography>}
             </ChartCard>
           </Grid>
+          <Grid item xs={12} md={6}>
+            <ChartCard title="Conversion rates" description="Percentage of candidates reaching each recruitment milestone.">
+              {conversionRatesChart ? <Bar data={conversionRatesChart} options={barChartOptions} /> : <Typography color="text.secondary">No conversion data yet.</Typography>}
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ChartCard title="AI score distribution" description="Distribution of candidates by final AI screening score band.">
+              {scoreDistributionChart ? <Doughnut data={scoreDistributionChart} options={compactChartOptions} /> : <Typography color="text.secondary">No screening score data yet.</Typography>}
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ChartCard title="Applications over time" description="Monthly application volume across the organization.">
+              {applicationsOverTimeChart ? <Bar data={applicationsOverTimeChart} options={barChartOptions} /> : <Typography color="text.secondary">No timeline data yet.</Typography>}
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ChartCard title="Top jobs by volume" description="Jobs receiving the most applications.">
+              {topJobsChart ? <Bar data={topJobsChart} options={horizontalBarChartOptions} /> : <Typography color="text.secondary">No job analytics yet.</Typography>}
+            </ChartCard>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <InsightsCard pipelineHealth={metrics.pipeline_health} />
+          </Grid>
         </Grid>
 
+        <TopJobsTable rows={analytics?.top_jobs_by_applications ?? []} />
         <PerformanceTable rows={analytics?.recruiter_performance ?? []} type="recruiter" />
         <PerformanceTable rows={analytics?.interviewer_performance ?? []} type="interviewer" />
       </Stack>
