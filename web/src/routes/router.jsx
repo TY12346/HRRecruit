@@ -11,6 +11,7 @@ import CandidateRankingPage from '../pages/recruiter/CandidateRankingPage.jsx';
 import EvaluationFormBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
 import HiringDecisionPage from '../pages/recruiter/HiringDecisionPage.jsx';
 import InterviewAssignmentPage from '../pages/recruiter/InterviewAssignmentPage.jsx';
+import GoogleCalendarCallbackPage from '../pages/recruiter/GoogleCalendarCallbackPage.jsx';
 import InterviewEvaluationDetailPage from '../pages/recruiter/InterviewEvaluationDetailPage.jsx';
 import JobCreateEditPage from '../pages/recruiter/JobCreateEditPage.jsx';
 import JobDetailPage from '../pages/recruiter/JobDetailPage.jsx';
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
           { path: 'recruiter/applications/:applicationId/assign-interview', element: <InterviewAssignmentPage /> },
           { path: 'recruiter/applications/:applicationId/hiring-decision', element: <HiringDecisionPage /> },
           { path: 'recruiter/interviews', element: <InterviewEvaluationDetailPage /> },
+          { path: 'recruiter/calendar/google/callback', element: <GoogleCalendarCallbackPage /> },
           { path: 'recruiter/hiring-decisions', element: <HiringDecisionPage /> },
           { path: 'recruiter/job-offers', element: <JobOfferPage /> },
           { path: 'recruiter/analytics', element: <RecruiterAnalyticsPage /> },

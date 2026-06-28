@@ -270,8 +270,8 @@ export const createJobEvaluationForm = async (jobId, payload) => {
   return response.data;
 };
 
-export const getApplications = async () => {
-  const response = await apiClient.get('/applications/');
+export const getApplications = async (params = {}) => {
+  const response = await apiClient.get('/applications/', { params });
   return response.data;
 };
 
@@ -329,8 +329,8 @@ export const getApplicationStatusHistory = async (applicationId) => {
   return response.data;
 };
 
-export const getRankedCandidates = async (jobId) => {
-  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`);
+export const getRankedCandidates = async (jobId, params = {}) => {
+  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`, { params });
   return response.data;
 };
 
@@ -370,6 +370,28 @@ export const sendJobOffer = async (applicationId, payload) => {
   const response = await apiClient.post(`/applications/${applicationId}/job-offer/`, body, {
     headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
   });
+  return response.data;
+};
+
+export const getGoogleCalendarStatus = async () => {
+  const response = await apiClient.get('/interviews/calendar/google/status/');
+  return response.data;
+};
+
+export const getGoogleCalendarConnectUrl = async (nextUrl = '') => {
+  const response = await apiClient.get('/interviews/calendar/google/connect/', {
+    params: nextUrl ? { next: nextUrl } : {},
+  });
+  return response.data;
+};
+
+export const completeGoogleCalendarOAuth = async ({ code, state }) => {
+  const response = await apiClient.post('/interviews/calendar/google/callback/', { code, state });
+  return response.data;
+};
+
+export const disconnectGoogleCalendar = async () => {
+  const response = await apiClient.delete('/interviews/calendar/google/disconnect/');
   return response.data;
 };
 
