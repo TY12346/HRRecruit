@@ -1,52 +1,232 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, Divider, List, ListItem, ListItemText, Paper, Stack, TextField, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useLocation, useParams } from 'react-router-dom';
 import { generateTranscriptSummary, transcribeRecording, updateInterviewSummary } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
-import { getApiErrorMessage, getStoredRecordingId, getStoredSummaryId, getStoredTranscriptId, setStoredSummaryId, setStoredTranscriptId } from './interviewerUtils.js';
+import {
+  getApiErrorMessage,
+  getStoredRecordingId,
+  getStoredSummaryId,
+  getStoredTranscriptId,
+  setStoredSummaryId,
+  setStoredTranscriptId,
+} from './interviewerUtils.js';
 
 const transparencyValue = (summary, key, fallback = '') => summary?.transparency?.[key] ?? summary?.summary_json?.[key] ?? fallback;
+
+function SectionCard({ title, description, action, children }) {
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {title}
+              </Typography>
+              {description ? (
+                <Typography variant="body2" color="text.secondary">
+                  {description}
+                </Typography>
+              ) : null}
+            </Box>
+            {action}
+          </Stack>
+          {children}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetadataChip({ label, value, color = 'default' }) {
+  if (!value) return null;
+  return <Chip size="small" color={color} label={`${label}: ${value}`} />;
+}
+
+function ReadOnlyBlock({ children }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'grey.50' }}>
+      <Typography variant="body2" whiteSpace="pre-line">
+        {children || '—'}
+      </Typography>
+    </Paper>
+  );
+}
 
 function SummaryTransparencyCard({ summary }) {
   if (!summary) return null;
   const provider = transparencyValue(summary, 'provider', 'unknown');
-  const generationMode = transparencyValue(summary, 'generation_mode', 'unknown');
+  const generationMode = transparencyValue(summary, 'generation_mode', 'unknown').replaceAll('_', ' ');
   const fallbackReason = transparencyValue(summary, 'fallback_reason', '');
   const model = transparencyValue(summary, 'model', '');
   const limitations = transparencyValue(summary, 'limitations', []);
 
   return (
-    <Card variant="outlined">
-      <CardContent>
-        <Stack spacing={1.5}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
-            <Box>
-              <Typography variant="h6">AI summary transparency</Typography>
-              <Typography color="text.secondary">Shows how the summary was produced and why human review is required.</Typography>
-            </Box>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <Chip label={`Provider: ${provider}`} color={provider === 'mock' ? 'default' : 'primary'} />
-              <Chip label={generationMode.replaceAll('_', ' ')} />
-            </Stack>
-          </Stack>
-          {model ? <Typography variant="body2"><strong>Model:</strong> {model}</Typography> : null}
-          {fallbackReason ? <Alert severity="info">Fallback reason: {fallbackReason}</Alert> : null}
-          <Alert severity="warning">{transparencyValue(summary, 'decision_boundary', 'This AI summary supports interviewer review only and must not be treated as a final hiring decision.')}</Alert>
-          <Typography variant="subtitle2">Evidence excerpt used by AI</Typography>
-          <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'grey.50' }}>
-            <Typography variant="body2" whiteSpace="pre-line">{transparencyValue(summary, 'source_excerpt', 'No transcript excerpt available.')}</Typography>
-          </Paper>
-          <Typography variant="subtitle2">Known limitations</Typography>
-          <List dense sx={{ listStyleType: 'disc', pl: 3 }}>
-            {(Array.isArray(limitations) && limitations.length ? limitations : ['Interviewer must verify the summary against the transcript.']).map((item) => (
-              <ListItem key={item} sx={{ display: 'list-item', p: 0 }}>
-                <ListItemText primary={item} />
-              </ListItem>
-            ))}
-          </List>
+    <SectionCard
+      title="AI transparency"
+      description="A compact audit note showing how this draft was produced."
+      action={(
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <MetadataChip label="Provider" value={provider} color={provider === 'mock' ? 'default' : 'primary'} />
+          <Chip size="small" label={generationMode} />
+          <MetadataChip label="Model" value={model} />
         </Stack>
-      </CardContent>
-    </Card>
+      )}
+    >
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <Alert severity="warning" variant="outlined">
+            {transparencyValue(
+              summary,
+              'decision_boundary',
+              'This AI summary supports interviewer review only and must not be treated as a final hiring decision.',
+            )}
+          </Alert>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          {fallbackReason ? (
+            <Alert severity="info" variant="outlined">
+              Fallback reason: {fallbackReason.replaceAll('_', ' ')}
+            </Alert>
+          ) : (
+            <Alert severity="success" variant="outlined">
+              Generated without fallback metadata.
+            </Alert>
+          )}
+        </Grid>
+      </Grid>
+
+      <Box>
+        <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+          Evidence excerpt used by AI
+        </Typography>
+        <ReadOnlyBlock>{transparencyValue(summary, 'source_excerpt', 'No transcript excerpt available.')}</ReadOnlyBlock>
+      </Box>
+
+      <Box
+        component="details"
+        sx={{
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          p: 1.5,
+          '& summary': { cursor: 'pointer', fontWeight: 700 },
+        }}
+      >
+        <summary>Known limitations</summary>
+        <List dense sx={{ listStyleType: 'disc', pl: 3, pt: 1 }}>
+          {(Array.isArray(limitations) && limitations.length ? limitations : ['Interviewer must verify the summary against the transcript.']).map((item) => (
+            <ListItem key={item} sx={{ display: 'list-item', p: 0 }}>
+              <ListItemText primary={item} />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    </SectionCard>
+  );
+}
+
+function TranscriptPreview({ transcript }) {
+  if (!transcript) return null;
+  return (
+    <SectionCard
+      title={`Transcript #${transcript.id}`}
+      description="Review the transcript before generating the AI summary."
+      action={(
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <MetadataChip label="Provider" value={transcript.transcript_json?.provider ?? 'unknown'} />
+          <MetadataChip label="Fallback" value={transcript.transcript_json?.fallback_reason?.replaceAll('_', ' ')} color="warning" />
+        </Stack>
+      )}
+    >
+      <ReadOnlyBlock>{transcript.transcript_text}</ReadOnlyBlock>
+    </SectionCard>
+  );
+}
+
+function SummaryEditor({ summary, setSummary, isBusy, onSave }) {
+  if (!summary) return null;
+  return (
+    <SectionCard
+      title="Human review & edits"
+      description="Edit the AI draft before using it for evaluation. HRRecruit keeps transparency metadata for audit."
+    >
+      <Alert severity="info" variant="outlined">
+        Save only after verifying the draft against the transcript. AI text is decision support, not a final hiring decision.
+      </Alert>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Strengths"
+            multiline
+            minRows={3}
+            fullWidth
+            value={summary.strengths ?? ''}
+            onChange={(event) => setSummary({ ...summary, strengths: event.target.value })}
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Weaknesses / follow-ups"
+            multiline
+            minRows={3}
+            fullWidth
+            value={summary.weaknesses ?? ''}
+            onChange={(event) => setSummary({ ...summary, weaknesses: event.target.value })}
+          />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <TextField
+            label="Communication score"
+            type="number"
+            fullWidth
+            value={summary.communication_score ?? ''}
+            onChange={(event) => setSummary({ ...summary, communication_score: event.target.value })}
+            helperText="0-10 decision-support signal."
+          />
+        </Grid>
+        <Grid item xs={12} md={8}>
+          <TextField
+            label="Overall impression"
+            multiline
+            minRows={2}
+            fullWidth
+            value={summary.overall_impression ?? ''}
+            onChange={(event) => setSummary({ ...summary, overall_impression: event.target.value })}
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            label="Reviewed summary text"
+            multiline
+            minRows={5}
+            fullWidth
+            value={summary.editable_summary_text ?? ''}
+            onChange={(event) => setSummary({ ...summary, editable_summary_text: event.target.value })}
+          />
+        </Grid>
+      </Grid>
+      <Button variant="contained" disabled={isBusy} onClick={onSave}>
+        Save reviewed AI summary
+      </Button>
+    </SectionCard>
   );
 }
 
@@ -63,7 +243,9 @@ export default function TranscriptSummaryPage() {
   const [isBusy, setIsBusy] = useState(false);
 
   const makeTranscript = async () => {
-    setError(''); setSuccess(''); setIsBusy(true);
+    setError('');
+    setSuccess('');
+    setIsBusy(true);
     try {
       const data = await transcribeRecording(recordingId);
       setTranscript(data);
@@ -78,7 +260,9 @@ export default function TranscriptSummaryPage() {
   };
 
   const makeSummary = async () => {
-    setError(''); setSuccess(''); setIsBusy(true);
+    setError('');
+    setSuccess('');
+    setIsBusy(true);
     try {
       const data = await generateTranscriptSummary(transcriptId);
       setSummary(data);
@@ -93,7 +277,9 @@ export default function TranscriptSummaryPage() {
   };
 
   const saveSummary = async () => {
-    setError(''); setSuccess(''); setIsBusy(true);
+    setError('');
+    setSuccess('');
+    setIsBusy(true);
     try {
       const editablePayload = {
         strengths: summary?.strengths ?? '',
@@ -116,48 +302,101 @@ export default function TranscriptSummaryPage() {
     <Box>
       <InterviewerNav />
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Transcript & AI Summary</Typography>
-        <Typography color="text.secondary" sx={{ mb: 2 }}>Generate transcript and summary outputs, then verify AI-generated content before final evaluation.</Typography>
-        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         <Stack spacing={2}>
-          <TextField label="Recording ID" value={recordingId} onChange={(event) => setRecordingId(event.target.value)} helperText="Auto-filled after upload on this browser; enter manually if needed." />
-          <Button variant="contained" disabled={!recordingId || isBusy} onClick={makeTranscript}>Generate transcript</Button>
-          {transcript ? (
-            <Card variant="outlined">
-              <CardContent>
-                <Stack spacing={1}>
-                  <Typography variant="h6">Transcript #{transcript.id}</Typography>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    <Chip label={`Provider: ${transcript.transcript_json?.provider ?? 'unknown'}`} />
-                    {transcript.transcript_json?.fallback_reason ? <Chip label={`Fallback: ${transcript.transcript_json.fallback_reason}`} color="warning" /> : null}
-                  </Stack>
-                  <Typography whiteSpace="pre-line">{transcript.transcript_text}</Typography>
-                </Stack>
-              </CardContent>
-            </Card>
-          ) : null}
-          <Divider />
-          <TextField label="Transcript ID" value={transcriptId} onChange={(event) => setTranscriptId(event.target.value)} />
-          <Button variant="contained" disabled={!transcriptId || isBusy} onClick={makeSummary}>Generate AI summary with transparency</Button>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              Transcript & AI Summary
+            </Typography>
+            <Typography color="text.secondary">
+              Generate a transcript, create a transparent AI draft, then complete human review before evaluation.
+            </Typography>
+          </Box>
+
+          {error ? <Alert severity="error">{error}</Alert> : null}
+          {success ? <Alert severity="success">{success}</Alert> : null}
+
+          <SectionCard
+            title="1. Generate transcript"
+            description="Use the latest uploaded recording, or open advanced IDs if you need to paste one manually."
+            action={(
+              <Button variant="contained" disabled={!recordingId || isBusy} onClick={makeTranscript}>
+                Generate transcript
+              </Button>
+            )}
+          >
+            <Box
+              component="details"
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 1.5,
+                '& summary': { cursor: 'pointer', fontWeight: 700 },
+              }}
+            >
+              <summary>Advanced recording ID</summary>
+              <TextField
+                label="Recording ID"
+                value={recordingId}
+                onChange={(event) => setRecordingId(event.target.value)}
+                helperText="Auto-filled after upload on this browser; enter manually only if needed."
+                fullWidth
+                sx={{ mt: 1.5 }}
+              />
+            </Box>
+          </SectionCard>
+
+          <TranscriptPreview transcript={transcript} />
+
+          <SectionCard
+            title="2. Generate AI summary"
+            description="The summary draft is created from a transcript and must be checked by the interviewer."
+            action={(
+              <Button variant="contained" disabled={!transcriptId || isBusy} onClick={makeSummary}>
+                Generate AI summary
+              </Button>
+            )}
+          >
+            <Box
+              component="details"
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 1.5,
+                '& summary': { cursor: 'pointer', fontWeight: 700 },
+              }}
+            >
+              <summary>Advanced transcript/summary IDs</summary>
+              <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    label="Transcript ID"
+                    value={transcriptId}
+                    onChange={(event) => setTranscriptId(event.target.value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    label="Summary ID"
+                    value={summaryId}
+                    onChange={(event) => setSummaryId(event.target.value)}
+                    helperText="Used when saving edits to an existing draft."
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </SectionCard>
+
           {summary ? (
-            <Stack spacing={2}>
+            <>
+              <Divider />
               <SummaryTransparencyCard summary={summary} />
-              <Card variant="outlined">
-                <CardContent>
-                  <Stack spacing={2}>
-                    <Alert severity="info">Edit the AI draft below. HRRecruit stores who edited it and blocks edits after final evaluation submission.</Alert>
-                    <TextField label="Strengths" multiline minRows={2} value={summary.strengths ?? ''} onChange={(event) => setSummary({ ...summary, strengths: event.target.value })} />
-                    <TextField label="Weaknesses" multiline minRows={2} value={summary.weaknesses ?? ''} onChange={(event) => setSummary({ ...summary, weaknesses: event.target.value })} />
-                    <TextField label="Communication score" type="number" value={summary.communication_score ?? ''} onChange={(event) => setSummary({ ...summary, communication_score: event.target.value })} helperText="0-10 decision-support signal; verify against the transcript." />
-                    <TextField label="Overall impression" multiline minRows={2} value={summary.overall_impression ?? ''} onChange={(event) => setSummary({ ...summary, overall_impression: event.target.value })} />
-                    <TextField label="Editable summary text" multiline minRows={4} value={summary.editable_summary_text ?? ''} onChange={(event) => setSummary({ ...summary, editable_summary_text: event.target.value })} />
-                    <Button variant="outlined" disabled={isBusy} onClick={saveSummary}>Save reviewed AI summary</Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Stack>
-          ) : <TextField label="Summary ID" value={summaryId} onChange={(event) => setSummaryId(event.target.value)} helperText="Generate a new summary above to edit it in this page." />}
+              <SummaryEditor summary={summary} setSummary={setSummary} isBusy={isBusy} onSave={saveSummary} />
+            </>
+          ) : null}
         </Stack>
       </Paper>
     </Box>
