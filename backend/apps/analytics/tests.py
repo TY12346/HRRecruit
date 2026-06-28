@@ -41,7 +41,13 @@ class AnalyticsAPITests(APITestCase):
 
         applied_at = timezone.now() - timezone.timedelta(days=10)
         hired_at = timezone.now() - timezone.timedelta(days=1)
-        JobApplication.objects.filter(id=self.hired_application.id).update(applied_at=applied_at, updated_at=hired_at)
+        JobApplication.objects.filter(id=self.submitted_application.id).update(final_score='42.00')
+        JobApplication.objects.filter(id=self.shortlisted_application.id).update(final_score='72.00')
+        JobApplication.objects.filter(id=self.hired_application.id).update(
+            applied_at=applied_at,
+            updated_at=hired_at,
+            final_score='86.00',
+        )
         ApplicationStageHistory.objects.create(
             application=self.hired_application,
             from_stage=JobApplication.Status.OFFER_ACCEPTED,
@@ -121,6 +127,10 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.data['metrics']['interviewer_evaluation_count'], 1)
         self.assertEqual(response.data['metrics']['offer_acceptance_rate'], 100.0)
         self.assertIn('candidate_funnel', response.data['charts'])
+        self.assertIn('conversion_rates', response.data['charts'])
+        self.assertEqual(response.data['metrics']['conversion_rates']['shortlist_rate'], 66.67)
+        self.assertEqual(response.data['metrics']['score_distribution']['strong_fit'], 1)
+        self.assertEqual(response.data['top_jobs_by_applications'][0]['job_title'], 'Backend Engineer')
         self.assertNotEqual(response.data['metrics']['total_applications'], 4)
 
     def test_interviewer_dashboard_returns_assigned_interview_metrics(self):
@@ -149,7 +159,26 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(dashboard_response.data['metrics']['hiring_success_rate'], 33.33)
         self.assertEqual(dashboard_response.data['recruiter_performance'][0]['hire_count'], 1)
         self.assertEqual(dashboard_response.data['interviewer_performance'][0]['evaluation_count'], 1)
+        self.assertEqual(dashboard_response.data['metrics']['conversion_rates']['hire_rate'], 33.33)
+        self.assertEqual(dashboard_response.data['metrics']['score_distribution']['possible_fit'], 1)
+        self.assertEqual(dashboard_response.data['metrics']['score_distribution']['low_fit'], 1)
+        self.assertIn('applications_over_time', dashboard_response.data['charts'])
+        self.assertIn('top_jobs_by_applications', dashboard_response.data['charts'])
         self.assertEqual(overview_response.data['dashboard'], 'organization_overview')
+
+
+    def test_analytics_depth_includes_pipeline_health_and_transitions(self):
+        self.authenticate(self.hr_head)
+
+        response = self.client.get(reverse('analytics-organization-overview'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('pipeline_health', response.data['metrics'])
+        self.assertIn('insights', response.data['metrics']['pipeline_health'])
+        self.assertEqual(response.data['metrics']['stage_transition_counts'][0]['to_stage'], JobApplication.Status.HIRED)
+        self.assertEqual(response.data['metrics']['applications_over_time'][timezone.now().strftime('%b %Y')], 3)
+        self.assertEqual(response.data['top_jobs_by_applications'][0]['applications'], 3)
+        self.assertEqual(response.data['top_jobs_by_applications'][0]['average_score'], 66.67)
 
     def test_job_funnel_is_organization_isolated(self):
         self.authenticate(self.hr_head)

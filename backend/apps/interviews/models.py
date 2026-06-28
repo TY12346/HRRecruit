@@ -313,6 +313,33 @@ class InterviewStatusHistory(models.Model):
         return f'{self.interview} - {self.from_status} to {self.to_status}'
 
 
+class GoogleCalendarCredential(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='google_calendar_credential',
+    )
+    google_account_email = models.EmailField(blank=True)
+    access_token = models.TextField(blank=True)
+    refresh_token = models.TextField(blank=True)
+    token_uri = models.URLField(default='https://oauth2.googleapis.com/token')
+    client_id = models.CharField(max_length=255, blank=True)
+    client_secret = models.CharField(max_length=255, blank=True)
+    scopes = models.JSONField(default=list, blank=True)
+    expiry = models.DateTimeField(blank=True, null=True)
+    last_synced_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Google Calendar credential'
+        verbose_name_plural = 'Google Calendar credentials'
+
+    def __str__(self):
+        account = self.google_account_email or 'connected Google Calendar account'
+        return f'{account} for {self.user}'
+
+
 class CalendarEvent(models.Model):
     class SyncStatus(models.TextChoices):
         NOT_SYNCED = 'not_synced', 'Not Synced'

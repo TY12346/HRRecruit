@@ -80,6 +80,7 @@ class InterviewTranscriptSerializer(serializers.ModelSerializer):
 
 class InterviewAISummarySerializer(serializers.ModelSerializer):
     edited_by_name = serializers.CharField(source='edited_by.full_name', read_only=True)
+    transparency = serializers.SerializerMethodField()
 
     class Meta:
         model = InterviewAISummary
@@ -91,12 +92,30 @@ class InterviewAISummarySerializer(serializers.ModelSerializer):
             'communication_score',
             'overall_impression',
             'editable_summary_text',
+            'summary_json',
+            'transparency',
             'edited_by',
             'edited_by_name',
             'generated_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'transcript', 'edited_by', 'edited_by_name', 'generated_at', 'updated_at']
+        read_only_fields = ['id', 'transcript', 'summary_json', 'transparency', 'edited_by', 'edited_by_name', 'generated_at', 'updated_at']
+
+    def get_transparency(self, obj):
+        metadata = obj.summary_json or {}
+        return {
+            'provider': metadata.get('provider', 'unknown'),
+            'model': metadata.get('model', ''),
+            'generation_mode': metadata.get('generation_mode', 'unknown'),
+            'fallback_reason': metadata.get('fallback_reason', ''),
+            'human_review_required': metadata.get('human_review_required', True),
+            'decision_boundary': metadata.get(
+                'decision_boundary',
+                'This AI summary supports interviewer review only and must not be treated as a final hiring decision.',
+            ),
+            'source_excerpt': metadata.get('source_excerpt', ''),
+            'limitations': metadata.get('limitations', []),
+        }
 
 
 class InterviewAISummaryUpdateSerializer(serializers.ModelSerializer):

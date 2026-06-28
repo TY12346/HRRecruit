@@ -19,6 +19,11 @@ import {
   Grid,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   Typography,
 } from '@mui/material';
 import { downloadAnalyticsReportPdf, getRecruiterAnalytics } from '../../api/client.js';
@@ -28,6 +33,7 @@ import {
   chartHeight,
   compactChartOptions,
   downloadBlob,
+  horizontalBarChartOptions,
   percentageDoughnut,
   singleValueBar,
 } from '../analytics/analyticsChartUtils.js';
@@ -42,6 +48,57 @@ function Stat({ label, value }) {
       <CardContent>
         <Typography color="text.secondary" variant="body2">{label}</Typography>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>{value ?? 0}</Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+function InsightsCard({ pipelineHealth }) {
+  const insights = pipelineHealth?.insights ?? [];
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography component="h3" variant="h6">Pipeline health insights</Typography>
+        <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+          Highlights bottlenecks and conversion risks for recruiter follow-up.
+        </Typography>
+        <Stack spacing={1}>
+          <Typography variant="body2"><strong>Bottleneck:</strong> {pipelineHealth?.bottleneck_stage ?? 'Not enough data'} ({pipelineHealth?.bottleneck_count ?? 0})</Typography>
+          <Typography variant="body2"><strong>Highest drop-off:</strong> {pipelineHealth?.highest_dropout_status ?? 'None yet'} ({pipelineHealth?.highest_dropout_count ?? 0})</Typography>
+          {insights.map((insight) => <Alert key={insight} severity="info">{insight}</Alert>)}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopJobsTable({ rows }) {
+  return (
+    <Card>
+      <CardContent>
+        <Typography component="h3" variant="h6" sx={{ mb: 2 }}>Top jobs by application volume</Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Job</TableCell>
+              <TableCell>Applications</TableCell>
+              <TableCell>Hires</TableCell>
+              <TableCell>Avg. AI score</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {(rows ?? []).map((row) => (
+              <TableRow key={row.job_id}>
+                <TableCell>{row.job_title}</TableCell>
+                <TableCell>{row.applications}</TableCell>
+                <TableCell>{row.hires}</TableCell>
+                <TableCell>{row.average_score}</TableCell>
+              </TableRow>
+            ))}
+            {!(rows ?? []).length ? <TableRow><TableCell colSpan={4}>No job-level analytics yet.</TableCell></TableRow> : null}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );
@@ -104,6 +161,10 @@ export default function RecruiterAnalyticsPage() {
   const candidateFunnelChart = charts.candidate_funnel;
   const timeToHireChart = singleValueBar('Average time-to-hire', metrics.average_time_to_hire_days, 'Days', '#7c3aed');
   const offerAcceptanceChart = percentageDoughnut('Accepted offers', metrics.offer_acceptance_rate, '#16a34a');
+  const conversionRatesChart = charts.conversion_rates;
+  const scoreDistributionChart = charts.score_distribution;
+  const applicationsOverTimeChart = charts.applications_over_time;
+  const topJobsChart = charts.top_jobs_by_applications;
   const performanceChart = {
     labels: ['Hires', 'Evaluations submitted'],
     datasets: [
@@ -169,7 +230,32 @@ export default function RecruiterAnalyticsPage() {
                   <Bar data={performanceChart} options={barChartOptions} />
                 </ChartCard>
               </Grid>
+              <Grid item xs={12} md={6}>
+                <ChartCard title="Conversion rates" description="Percentage of candidates reaching each recruitment milestone.">
+                  {conversionRatesChart ? <Bar data={conversionRatesChart} options={barChartOptions} /> : <Typography color="text.secondary">No conversion data yet.</Typography>}
+                </ChartCard>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <ChartCard title="AI score distribution" description="Distribution of candidates by final AI screening score band.">
+                  {scoreDistributionChart ? <Doughnut data={scoreDistributionChart} options={compactChartOptions} /> : <Typography color="text.secondary">No screening score data yet.</Typography>}
+                </ChartCard>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <ChartCard title="Applications over time" description="Monthly application volume for the recruiter pipeline.">
+                  {applicationsOverTimeChart ? <Bar data={applicationsOverTimeChart} options={barChartOptions} /> : <Typography color="text.secondary">No timeline data yet.</Typography>}
+                </ChartCard>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <ChartCard title="Top jobs by volume" description="Jobs receiving the most applications.">
+                  {topJobsChart ? <Bar data={topJobsChart} options={horizontalBarChartOptions} /> : <Typography color="text.secondary">No job analytics yet.</Typography>}
+                </ChartCard>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <InsightsCard pipelineHealth={metrics.pipeline_health} />
+              </Grid>
             </Grid>
+
+            <TopJobsTable rows={analytics?.top_jobs_by_applications ?? []} />
           </Stack>
         )}
       </Paper>

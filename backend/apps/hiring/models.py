@@ -65,6 +65,7 @@ class JobOffer(models.Model):
         ACCEPTED = 'accepted', 'Accepted'
         DECLINED = 'declined', 'Declined'
         EXPIRED = 'expired', 'Expired'
+        WITHDRAWN = 'withdrawn', 'Withdrawn'
 
     application = models.ForeignKey(
         JobApplication,
@@ -73,10 +74,20 @@ class JobOffer(models.Model):
     )
     offer_letter_file = models.FileField(upload_to='offer_letters/', blank=True, null=True)
     offer_message = models.TextField()
+    salary_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    salary_currency = models.CharField(max_length=3, default='MYR')
+    start_date = models.DateField(blank=True, null=True)
+    employment_type = models.CharField(max_length=100, blank=True)
+    work_arrangement = models.CharField(max_length=50, blank=True)
+    probation_months = models.PositiveSmallIntegerField(blank=True, null=True)
+    benefits_summary = models.TextField(blank=True)
+    internal_notes = models.TextField(blank=True)
+    candidate_response_note = models.TextField(blank=True)
     offer_status = models.CharField(max_length=20, choices=OfferStatus.choices, default=OfferStatus.SENT)
     respond_deadline = models.DateTimeField()
     sent_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(blank=True, null=True)
+    withdrawn_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ['-sent_at']

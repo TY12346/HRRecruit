@@ -456,3 +456,69 @@ class ApplicantProfileSectionAPITests(APITestCase):
         self.assertEqual(self.applicant.experiences.count(), 1)
         self.assertEqual(self.applicant.educations.count(), 1)
         self.assertEqual(self.applicant.skills.count(), 2)
+
+
+class ApplicantResumeLibraryAPITests(APITestCase):
+    def setUp(self):
+        self.applicant = User.objects.create_user(
+            email='resume-applicant@example.com',
+            password='StrongPass123!',
+            full_name='Resume Applicant',
+            role=User.Role.APPLICANT,
+        )
+        self.recruiter = User.objects.create_user(
+            email='resume-recruiter@example.com',
+            password='StrongPass123!',
+            full_name='Resume Recruiter',
+            role=User.Role.RECRUITER,
+        )
+
+    def upload_resume(self, filename, title):
+        return self.client.post(
+            reverse('auth-resumes'),
+            {
+                'title': title,
+                'resume_file': SimpleUploadedFile(filename, b'%PDF-1.4 resume', content_type='application/pdf'),
+            },
+            format='multipart',
+        )
+
+    def test_applicant_can_upload_and_list_multiple_resumes(self):
+        self.client.force_authenticate(user=self.applicant)
+
+        first_response = self.upload_resume('backend.pdf', 'Backend resume')
+        second_response = self.upload_resume('data.pdf', 'Data resume')
+        list_response = self.client.get(reverse('auth-resumes'))
+
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.data), 2)
+        self.assertTrue(first_response.data['resume']['is_default'])
+        self.assertFalse(second_response.data['resume']['is_default'])
+        self.assertEqual(self.applicant.resumes.count(), 2)
+
+    def test_applicant_can_change_default_resume(self):
+        self.client.force_authenticate(user=self.applicant)
+        first_response = self.upload_resume('backend.pdf', 'Backend resume')
+        second_response = self.upload_resume('data.pdf', 'Data resume')
+
+        response = self.client.patch(
+            reverse('auth-resume-detail', args=[second_response.data['resume']['id']]),
+            {'is_default': True},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['resume']['is_default'])
+        self.applicant.refresh_from_db()
+        self.assertTrue(self.applicant.resumes.get(id=second_response.data['resume']['id']).is_default)
+        self.assertFalse(self.applicant.resumes.get(id=first_response.data['resume']['id']).is_default)
+        self.assertIn('data', self.applicant.applicant_profile.resume_file.name)
+
+    def test_non_applicant_cannot_upload_resume(self):
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.upload_resume('recruiter.pdf', 'Recruiter resume')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
