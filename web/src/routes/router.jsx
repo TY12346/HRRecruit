@@ -43,6 +43,14 @@ import NotificationsPage from '../pages/hr_head/NotificationsPage.jsx';
 import ProfilePage from '../pages/profile/ProfilePage.jsx';
 import { DashboardRedirect, GuestOnlyRoute, ProtectedRoute, RoleRoute } from './guards.jsx';
 
+const githubPagesBasename = window.location.hostname.endsWith('github.io')
+  ? `/${window.location.pathname.split('/').filter(Boolean)[0] || ''}`
+  : '';
+const configuredBasename = import.meta.env.VITE_ROUTER_BASENAME || githubPagesBasename || import.meta.env.BASE_URL;
+const routerBasename = configuredBasename && !['/', './'].includes(configuredBasename)
+  ? configuredBasename.replace(/\/$/, '')
+  : undefined;
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -119,4 +127,4 @@ export const router = createBrowserRouter([
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
-]);
+], { basename: routerBasename });
