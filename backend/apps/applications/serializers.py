@@ -7,6 +7,36 @@ from apps.users.models import User
 from .models import ApplicationStageHistory, JobApplication
 
 
+def build_resume_payload(application, context=None):
+    selected_resume = getattr(application, 'resume', None)
+    if selected_resume and selected_resume.resume_file:
+        resume_file = selected_resume.resume_file
+        resume_id = selected_resume.id
+        resume_title = selected_resume.title
+        is_default = selected_resume.is_default
+    else:
+        applicant_profile = getattr(application.applicant, 'applicant_profile', None)
+        resume_file = getattr(applicant_profile, 'resume_file', None)
+        resume_id = None
+        resume_title = resume_file.name.split('/')[-1] if resume_file else ''
+        is_default = False
+
+    resume_url = None
+    if resume_file:
+        request = (context or {}).get('request')
+        if request:
+            resume_url = request.build_absolute_uri(resume_file.url)
+        else:
+            resume_url = resume_file.url
+    return {
+        'id': resume_id,
+        'title': resume_title,
+        'is_default': is_default,
+        'resume_file': resume_file.name if resume_file else '',
+        'resume_url': resume_url,
+    }
+
+
 class ApplicationApplicantSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     email = serializers.EmailField(read_only=True)
@@ -29,6 +59,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='job.organization.name', read_only=True)
     applicant = ApplicationApplicantSerializer(read_only=True)
     assigned_interviewer = AssignedInterviewerSerializer(read_only=True)
+    selected_resume = serializers.SerializerMethodField()
 
     class Meta:
         model = JobApplication
@@ -41,6 +72,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'status',
             'recruiter_remark',
             'assigned_interviewer',
+            'selected_resume',
             'extracted_resume_text',
             'extracted_skills',
             'extracted_experience',
@@ -55,6 +87,9 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = fields
+
+    def get_selected_resume(self, application):
+        return build_resume_payload(application, self.context)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -88,16 +123,19 @@ class CandidateScoreSerializer(serializers.Serializer):
 
 
 class CandidateProfileSerializer(serializers.ModelSerializer):
+    job_title = serializers.CharField(source='job.title', read_only=True)
+    organization_name = serializers.CharField(source='job.organization.name', read_only=True)
     applicant_profile = ApplicationApplicantSerializer(source='applicant', read_only=True)
     resume_info = serializers.SerializerMethodField()
     scores = CandidateScoreSerializer(source='*', read_only=True)
     assigned_interviewer = AssignedInterviewerSerializer(read_only=True)
-
     class Meta:
         model = JobApplication
         fields = [
             'id',
             'job',
+            'job_title',
+            'organization_name',
             'applicant_profile',
             'resume_info',
             'extracted_skills',
@@ -111,22 +149,13 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_resume_info(self, application):
-        applicant_profile = getattr(application.applicant, 'applicant_profile', None)
-        resume_file = getattr(applicant_profile, 'resume_file', None)
-        resume_url = None
-        if resume_file:
-            request = self.context.get('request')
-            if request:
-                resume_url = request.build_absolute_uri(resume_file.url)
-            else:
-                resume_url = resume_file.url
-        return {
-            'resume_file': resume_file.name if resume_file else '',
-            'resume_url': resume_url,
+        resume_payload = build_resume_payload(application, self.context)
+        resume_payload.update({
             'extracted_resume_text': application.extracted_resume_text,
             'extracted_experience': application.extracted_experience,
             'extracted_education': application.extracted_education,
-        }
+        })
+        return resume_payload
 
 
 class ApplicationShortlistSerializer(serializers.Serializer):

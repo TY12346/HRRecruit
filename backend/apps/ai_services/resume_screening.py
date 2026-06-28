@@ -6,6 +6,7 @@ from apps.jobs.models import JobRequirement
 
 from .education_extractor import EDUCATION_LEVELS, extract_education
 from .experience_extractor import extract_experience
+from .ml.resume_matcher import build_ml_screening_result
 from .resume_preprocessor import preprocess_for_matching
 from .resume_text_extractor import extract_resume_text
 from .scoring import calculate_score_breakdown
@@ -17,7 +18,7 @@ SCREENING_THRESHOLD = 60.0
 
 def build_resume_screening(application):
     """Extract a local resume and return the complete screening result."""
-    resume_file = application.applicant.applicant_profile.resume_file
+    resume_file = get_application_resume_file(application)
     resume_text = extract_resume_text(resume_file.path)
     requirements = list(application.job.requirements.all())
     comparison_text = _build_job_comparison_text(application.job, requirements)
@@ -68,6 +69,25 @@ def build_resume_screening(application):
         experience_match,
         experience_gap,
     )
+    ml_screening = build_ml_screening_result(
+        semantic_score=scores['semantic_score'],
+        skill_score=scores['skill_score'],
+        experience_score=scores['experience_score'],
+        education_score=scores['education_score'],
+        rule_based_score=scores['final_score'],
+        matched_skills=matched_skills,
+        missing_skills=missing_skills,
+        experience_gap={
+            **experience_gap,
+            'gap_years': experience_gap.get('missing_years', 0.0),
+        },
+        education_gap={
+            **education_gap,
+            'gap_levels': _education_gap_levels(extracted_education, required_education),
+        },
+        resume_text=matching_resume_text,
+        job_text=matching_comparison_text,
+    )
     formula = '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score'
     explanation = {
         'formula': formula,
@@ -84,6 +104,8 @@ def build_resume_screening(application):
         'experience_match': experience_match,
         'experience_gap': experience_gap,
         'notes': notes,
+        'ml_screening': ml_screening,
+        'hybrid_formula': '0.5 * ml_suitability_score + 0.2 * semantic_score + 0.15 * skill_score + 0.1 * experience_score + 0.05 * education_score',
         'semantic': {
             'score': scores['semantic_score'],
             'comparison_source': 'job title, description, and configured requirements',
@@ -122,6 +144,12 @@ def build_resume_screening(application):
         **scores,
         'score_explanation': explanation,
     }
+
+
+def get_application_resume_file(application):
+    if getattr(application, 'resume_id', None) and application.resume and application.resume.resume_file:
+        return application.resume.resume_file
+    return application.applicant.applicant_profile.resume_file
 
 
 def calculate_skill_score(extracted_skills, required_skills, skill_requirements=None):
@@ -207,6 +235,16 @@ def describe_experience_match(extracted_experience, required_experience):
         'missing_roles': missing_roles,
     }
     return match, gap
+
+
+def _education_gap_levels(extracted_education, required_education):
+    required_level = required_education.get('level')
+    extracted_level = extracted_education.get('level')
+    if not required_level:
+        return 0
+    required_rank = EDUCATION_LEVELS[required_level]
+    extracted_rank = EDUCATION_LEVELS.get(extracted_level, 0)
+    return max(0, required_rank - extracted_rank)
 
 
 def describe_education_match(extracted_education, required_education):
