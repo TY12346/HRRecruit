@@ -49,7 +49,11 @@ class JobDiscoveryService {
   }
 
   Future<JobApplication> applyForJob(int jobId) async {
-    final response = await _apiClient.dio.post<Map<String, dynamic>>('jobs/$jobId/apply/');
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      'jobs/$jobId/apply/',
+      data: const <String, dynamic>{},
+      options: _apiClient.longRunningRequestOptions(),
+    );
     return JobApplication.fromJson(response.data!);
   }
 

@@ -19,6 +19,7 @@ from .serializers import (
     HiringDecisionSerializer,
     HiringDecisionSubmitSerializer,
     HRDecisionReviewSerializer,
+    JobOfferAcceptSerializer,
     JobOfferCreateSerializer,
     JobOfferDeclineSerializer,
     JobOfferSerializer,
@@ -126,6 +127,20 @@ def pending_decision_for_hr_head_or_404(user, decision_id):
     if decision.application.job.organization_id != membership.organization_id:
         raise Http404('Hiring decision not found.')
     return decision
+
+
+def recruiter_offer_for_update_or_404(user, offer_id):
+    if user.role != User.Role.RECRUITER:
+        raise PermissionDenied('Only recruiters can manage job offers.')
+    membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
+    if not membership:
+        raise PermissionDenied('Recruiter must belong to an active organization.')
+    return get_object_or_404(
+        JobOffer.objects.select_for_update().select_related('application', 'application__job', 'application__applicant'),
+        id=offer_id,
+        application__job__organization=membership.organization,
+        application__job__recruiter=user,
+    )
 
 
 def applicant_offer_for_update_or_404(user, offer_id):
@@ -315,7 +330,7 @@ class JobOfferCreateAPIView(APIView):
             application.applicant,
             'job_offer_sent',
             'Job offer received',
-            f'You received a job offer for {application.job.title}.',
+            offer.offer_message,
             related_entity=offer,
         )
         create_bulk_notifications(
@@ -352,9 +367,13 @@ class JobOfferAcceptAPIView(APIView):
             offer.save(update_fields=['offer_status'])
             raise ValidationError({'respond_deadline': 'This job offer has expired.'})
 
+        serializer = JobOfferAcceptSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         offer.offer_status = JobOffer.OfferStatus.ACCEPTED
         offer.responded_at = timezone.now()
-        offer.save(update_fields=['offer_status', 'responded_at'])
+        offer.candidate_response_note = serializer.validated_data.get('note', '')
+        offer.save(update_fields=['offer_status', 'responded_at', 'candidate_response_note'])
         application = offer.application
         change_application_status(
             application,
@@ -394,7 +413,8 @@ class JobOfferDeclineAPIView(APIView):
 
         offer.offer_status = JobOffer.OfferStatus.DECLINED
         offer.responded_at = timezone.now()
-        offer.save(update_fields=['offer_status', 'responded_at'])
+        offer.candidate_response_note = serializer.validated_data.get('reason', '')
+        offer.save(update_fields=['offer_status', 'responded_at', 'candidate_response_note'])
         application = offer.application
         decline_note = serializer.validated_data.get('reason') or 'Applicant declined job offer.'
         change_application_status(application, JobApplication.Status.OFFER_DECLINED, request.user, decline_note)
@@ -410,6 +430,42 @@ class JobOfferDeclineAPIView(APIView):
             'offer_response',
             'Job offer declined',
             f'{request.user.full_name} declined the job offer for {application.job.title}.',
+            related_entity=offer,
+        )
+        return Response(JobOfferSerializer(offer, context={'request': request}).data)
+
+class JobOfferWithdrawAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, offer_id):
+        offer = recruiter_offer_for_update_or_404(request.user, offer_id)
+        if offer.offer_status != JobOffer.OfferStatus.SENT:
+            raise ValidationError({'offer_status': 'Only sent job offers can be withdrawn.'})
+
+        offer.offer_status = JobOffer.OfferStatus.WITHDRAWN
+        offer.withdrawn_at = timezone.now()
+        offer.internal_notes = request.data.get('internal_notes', offer.internal_notes)
+        offer.save(update_fields=['offer_status', 'withdrawn_at', 'internal_notes'])
+        application = offer.application
+        change_application_status(
+            application,
+            JobApplication.Status.HR_APPROVED,
+            request.user,
+            'Recruiter withdrew the sent job offer; candidate remains HR-approved for a revised offer.',
+        )
+        create_notification(
+            application.applicant,
+            'job_offer_withdrawn',
+            'Job offer withdrawn',
+            f'The job offer for {application.job.title} was withdrawn. The recruiter may contact you with an update.',
+            related_entity=offer,
+        )
+        create_bulk_notifications(
+            list(organization_hr_heads(application.job.organization)),
+            'job_offer_withdrawn',
+            'Job offer withdrawn',
+            f'{request.user.full_name} withdrew the job offer for {application.applicant.full_name}.',
             related_entity=offer,
         )
         return Response(JobOfferSerializer(offer, context={'request': request}).data)

@@ -13,8 +13,9 @@ from rest_framework.test import APITestCase
 from docx import Document
 
 from apps.jobs.models import JobPosting, JobRequirement
+from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
-from apps.users.models import User
+from apps.users.models import ApplicantResume, User
 
 from .models import ApplicationStageHistory, JobApplication
 
@@ -68,9 +69,19 @@ class JobApplicationAPITests(APITestCase):
     def authenticate(self, user):
         self.client.force_authenticate(user)
 
-    def attach_resume(self, user=None, filename='resume.pdf'):
-        profile = (user or self.applicant).applicant_profile
-        profile.resume_file.save(filename, SimpleUploadedFile(filename, b'%PDF-1.4 test resume'))
+    def attach_resume(self, user=None, filename='resume.pdf', title='General resume', is_default=True):
+        applicant = user or self.applicant
+        resume = ApplicantResume.objects.create(
+            applicant=applicant,
+            title=title,
+            resume_file=SimpleUploadedFile(filename, b'%PDF-1.4 test resume'),
+            is_default=is_default,
+        )
+        if resume.is_default:
+            profile = applicant.applicant_profile
+            profile.resume_file = resume.resume_file
+            profile.save(update_fields=['resume_file', 'updated_at'])
+        return resume
 
     @patch('apps.applications.views.screen_job_application')
     def test_applicant_applies_once_to_open_job_and_runs_screening_immediately(self, screen_job_application):
@@ -92,7 +103,36 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(response.data['final_score'], '88.00')
         self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
         application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
+        self.assertIsNotNone(application.resume_id)
+        self.assertEqual(response.data['selected_resume']['title'], 'General resume')
         screen_job_application.assert_called_once_with(application, changed_by=None)
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_can_choose_one_of_multiple_resumes_for_a_job(self, screen_job_application):
+        default_resume = self.attach_resume(filename='backend.pdf', title='Backend resume')
+        data_resume = self.attach_resume(filename='data.pdf', title='Data analyst resume', is_default=False)
+        self.authenticate(self.applicant)
+        screen_job_application.side_effect = lambda application, changed_by: application
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]), {'resume_id': data_resume.id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
+        self.assertEqual(application.resume_id, data_resume.id)
+        self.assertNotEqual(application.resume_id, default_resume.id)
+        self.assertEqual(response.data['selected_resume']['title'], 'Data analyst resume')
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_cannot_apply_with_another_applicants_resume(self, screen_job_application):
+        other_resume = self.attach_resume(user=self.other_applicant, filename='other.pdf', title='Other resume')
+        self.authenticate(self.applicant)
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]), {'resume_id': other_resume.id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['resume_id'], 'Select one of your uploaded resumes.')
+        self.assertFalse(JobApplication.objects.filter(job=self.job, applicant=self.applicant).exists())
+        screen_job_application.assert_not_called()
 
     def test_apply_requires_resume_for_immediate_screening(self):
         self.authenticate(self.applicant)
@@ -175,6 +215,48 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [own_application.id])
 
+    def test_recruiter_filters_searches_and_sorts_application_list(self):
+        frontend_job = self.create_job(self.recruiter, title='Frontend Engineer')
+        backend_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+            final_score='92.00',
+            recruiter_remark='Strong Django API candidate.',
+            extracted_resume_text='Python Django APIs',
+        )
+        frontend_application = JobApplication.objects.create(
+            job=frontend_job,
+            applicant=self.other_applicant,
+            status=JobApplication.Status.SHORTLISTED,
+            final_score='61.00',
+            recruiter_remark='React portfolio looks relevant.',
+            extracted_resume_text='React frontend portfolio',
+        )
+        self.authenticate(self.recruiter)
+
+        search_response = self.client.get(reverse('application-list'), {'search': 'django', 'sort': 'score_desc'})
+        status_response = self.client.get(reverse('application-list'), {'status': JobApplication.Status.SHORTLISTED})
+        fit_response = self.client.get(reverse('application-list'), {'min_score': '75', 'sort': 'score_desc'})
+        job_response = self.client.get(reverse('application-list'), {'job': frontend_job.id})
+
+        self.assertEqual(search_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in search_response.data], [backend_application.id])
+        self.assertEqual([item['id'] for item in status_response.data], [frontend_application.id])
+        self.assertEqual([item['id'] for item in fit_response.data], [backend_application.id])
+        self.assertEqual([item['id'] for item in job_response.data], [frontend_application.id])
+
+    def test_application_filters_reject_invalid_status_sort_and_score(self):
+        self.authenticate(self.recruiter)
+
+        invalid_status_response = self.client.get(reverse('application-list'), {'status': 'unknown'})
+        invalid_sort_response = self.client.get(reverse('application-list'), {'sort': 'unsupported'})
+        invalid_score_response = self.client.get(reverse('application-list'), {'min_score': '200'})
+
+        self.assertEqual(invalid_status_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(invalid_sort_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(invalid_score_response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_recruiter_views_ranked_candidates_for_own_job_only(self):
         high_score_application = JobApplication.objects.create(
             job=self.job,
@@ -223,6 +305,31 @@ class JobApplicationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [qualified_application.id])
+
+    def test_ranked_candidates_support_search_fit_filter_and_sorting(self):
+        django_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+            final_score='88.00',
+            extracted_resume_text='Django API developer',
+        )
+        react_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.other_applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+            final_score='70.00',
+            extracted_resume_text='React frontend developer',
+        )
+        self.authenticate(self.recruiter)
+
+        search_response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]), {'search': 'react'})
+        fit_response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]), {'min_score': '75'})
+        ascending_response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]), {'sort': 'score_asc'})
+
+        self.assertEqual([item['id'] for item in search_response.data], [react_application.id])
+        self.assertEqual([item['id'] for item in fit_response.data], [django_application.id])
+        self.assertEqual([item['id'] for item in ascending_response.data], [react_application.id, django_application.id])
 
     def test_ranked_candidates_use_earliest_application_as_equal_score_tie_breaker_and_nulls_last(self):
         newest_equal_score_application = JobApplication.objects.create(
@@ -342,6 +449,11 @@ class JobApplicationAPITests(APITestCase):
         history = application.stage_history.get()
         self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
         self.assertEqual(history.note, 'Does not meet minimum Django experience.')
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            title='Application status updated',
+            message='Does not meet minimum Django experience.',
+        ).exists())
 
     def test_remark_is_saved_without_status_change_and_visible_on_candidate_profile(self):
         application = JobApplication.objects.create(

@@ -2,7 +2,7 @@
 
 from django.db import transaction
 from django.http import FileResponse
-from django.db.models import F
+from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -14,7 +14,7 @@ from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
 from apps.jobs.models import JobPosting
 from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
-from apps.users.models import User
+from apps.users.models import ApplicantResume, User
 
 from .models import ApplicationStageHistory, JobApplication
 from .serializers import (
@@ -28,6 +28,25 @@ from .serializers import (
 from .services import screen_job_application
 
 
+def get_application_resume_file(application):
+    if getattr(application, 'resume_id', None) and application.resume and application.resume.resume_file:
+        return application.resume.resume_file
+    applicant_profile = getattr(application.applicant, 'applicant_profile', None)
+    return getattr(applicant_profile, 'resume_file', None)
+
+
+def select_applicant_resume(applicant, resume_id=None):
+    if resume_id:
+        try:
+            return ApplicantResume.objects.get(id=resume_id, applicant=applicant)
+        except ApplicantResume.DoesNotExist as exc:
+            raise ValidationError({'resume_id': 'Select one of your uploaded resumes.'}) from exc
+    return (
+        applicant.resumes.filter(is_default=True).first()
+        or applicant.resumes.order_by('-uploaded_at', '-id').first()
+    )
+
+
 def get_active_membership(user, role):
     return OrganizationMembership.objects.filter(
         user=user,
@@ -39,7 +58,7 @@ def get_active_membership(user, role):
 
 def visible_applications_for(user):
     applications = JobApplication.objects.select_related(
-        'job', 'job__organization', 'job__recruiter', 'applicant', 'applicant__applicant_profile'
+        'job', 'job__organization', 'job__recruiter', 'applicant', 'applicant__applicant_profile', 'resume'
     )
     if user.role == User.Role.APPLICANT:
         return applications.filter(applicant=user)
@@ -52,6 +71,68 @@ def visible_applications_for(user):
         if membership:
             return applications.filter(job__organization=membership.organization)
     return applications.none()
+
+
+APPLICATION_SORT_OPTIONS = {
+    'newest': ('-applied_at',),
+    'oldest': ('applied_at',),
+    'score_desc': (F('final_score').desc(nulls_last=True), 'applied_at'),
+    'score_asc': (F('final_score').asc(nulls_last=True), 'applied_at'),
+    'candidate_az': ('applicant__full_name', 'applicant__email', '-applied_at'),
+}
+
+
+def parse_decimal_filter(value, field_name):
+    if value in (None, ''):
+        return None
+    try:
+        parsed = float(value)
+        if parsed < 0 or parsed > 100:
+            raise ValueError
+        return parsed
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({field_name: 'Enter a numeric score between 0 and 100.'}) from exc
+
+
+def apply_application_search_filters(applications, query_params, allow_status=True):
+    """Apply recruiter-style search, filter, score, and sorting controls to application querysets."""
+    search = (query_params.get('search') or '').strip()
+    if search:
+        applications = applications.filter(
+            Q(applicant__full_name__icontains=search)
+            | Q(applicant__email__icontains=search)
+            | Q(job__title__icontains=search)
+            | Q(recruiter_remark__icontains=search)
+            | Q(extracted_resume_text__icontains=search)
+        )
+
+    if allow_status:
+        status_filter = (query_params.get('status') or '').strip()
+        if status_filter:
+            statuses = [item.strip() for item in status_filter.split(',') if item.strip()]
+            invalid_statuses = [item for item in statuses if item not in JobApplication.Status.values]
+            if invalid_statuses:
+                raise ValidationError({'status': f'Unsupported application status: {", ".join(invalid_statuses)}.'})
+            applications = applications.filter(status__in=statuses)
+
+    job_id = (query_params.get('job') or query_params.get('job_id') or '').strip()
+    if job_id:
+        if not job_id.isdigit():
+            raise ValidationError({'job': 'Enter a valid job id.'})
+        applications = applications.filter(job_id=job_id)
+
+    min_score = parse_decimal_filter(query_params.get('min_score'), 'min_score')
+    max_score = parse_decimal_filter(query_params.get('max_score'), 'max_score')
+    if min_score is not None:
+        applications = applications.filter(final_score__gte=min_score)
+    if max_score is not None:
+        applications = applications.filter(final_score__lte=max_score)
+
+    sort_key = (query_params.get('sort') or 'newest').strip()
+    ordering = APPLICATION_SORT_OPTIONS.get(sort_key)
+    if ordering is None:
+        raise ValidationError({'sort': 'Unsupported sort option.'})
+    return applications.order_by(*ordering)
 
 
 def recruiter_job_or_404(user, job_id):
@@ -96,6 +177,7 @@ def candidate_profile_application_or_404(user, application_id):
                 'applicant',
                 'applicant__applicant_profile',
                 'assigned_interviewer',
+                'resume',
             ),
             id=application_id,
             assigned_interviewer=user,
@@ -144,13 +226,18 @@ class JobApplyAPIView(APIView):
             status=JobPosting.Status.OPEN,
             organization__status=Organization.Status.ACTIVE,
         )
-        resume_file = request.user.applicant_profile.resume_file
-        if not resume_file:
+        selected_resume = select_applicant_resume(request.user, request.data.get('resume_id'))
+        legacy_resume_file = request.user.applicant_profile.resume_file
+        if not selected_resume and not legacy_resume_file:
             raise ValidationError({'resume_file': 'Upload a resume before applying so AI screening can run immediately.'})
 
         try:
             with transaction.atomic():
-                application, created = JobApplication.objects.get_or_create(job=job, applicant=request.user)
+                application, created = JobApplication.objects.get_or_create(
+                    job=job,
+                    applicant=request.user,
+                    defaults={'resume': selected_resume},
+                )
                 if not created:
                     raise ValidationError({'job': 'You have already applied for this job.'})
                 application = screen_job_application(application, changed_by=None)
@@ -183,7 +270,10 @@ class ApplicationListAPIView(APIView):
 
     def get(self, request):
         ensure_application_viewer_role(request.user)
-        applications = visible_applications_for(request.user)
+        applications = apply_application_search_filters(
+            visible_applications_for(request.user),
+            request.query_params,
+        )
         return Response(JobApplicationSerializer(applications, many=True, context={'request': request}).data)
 
 
@@ -215,7 +305,7 @@ class ApplicationScreenAPIView(APIView):
 
         application = get_object_or_404(visible_applications_for(request.user), id=application_id)
         try:
-            resume_file = application.applicant.applicant_profile.resume_file
+            resume_file = get_application_resume_file(application)
             if not resume_file:
                 raise ValidationError({'resume_file': 'The applicant must upload a resume before screening.'})
             previous_status = application.status
@@ -240,15 +330,18 @@ class RankedCandidatesAPIView(APIView):
 
     def get(self, request, job_id):
         job = recruiter_job_or_404(request.user, job_id)
-        applications = job.applications.filter(
-            status=JobApplication.Status.SCREENED_QUALIFIED,
-        ).select_related(
-            'job',
-            'job__organization',
-            'applicant',
-            'applicant__applicant_profile',
-            'assigned_interviewer',
-        ).order_by(F('final_score').desc(nulls_last=True), 'applied_at')
+        applications = apply_application_search_filters(
+            job.applications.filter(status=JobApplication.Status.SCREENED_QUALIFIED).select_related(
+                'job',
+                'job__organization',
+                'applicant',
+                'applicant__applicant_profile',
+                'assigned_interviewer',
+                'resume',
+            ),
+            request.query_params,
+            allow_status=False,
+        )
         return Response(JobApplicationSerializer(applications, many=True, context={'request': request}).data)
 
 
@@ -265,8 +358,7 @@ class ApplicationResumeAPIView(APIView):
 
     def get(self, request, application_id):
         application = resume_application_or_404(request.user, application_id)
-        applicant_profile = getattr(application.applicant, 'applicant_profile', None)
-        resume_file = getattr(applicant_profile, 'resume_file', None)
+        resume_file = get_application_resume_file(application)
         if not resume_file:
             return Response({'detail': 'Resume file not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -337,11 +429,12 @@ class ApplicationRejectAPIView(APIView):
             request.user,
             reason or remark,
         )
+        candidate_message = remark or reason or f'Your application for {application.job.title} was not selected.'
         create_notification(
             application.applicant,
             'application_status_update',
             'Application status updated',
-            f'Your application for {application.job.title} was not selected.',
+            candidate_message,
             related_entity=application,
         )
         return Response(JobApplicationSerializer(application, context={'request': request}).data)

@@ -72,6 +72,7 @@ class InterviewAISummary(models.Model):
     communication_score = models.DecimalField(max_digits=5, decimal_places=2)
     overall_impression = models.TextField()
     editable_summary_text = models.TextField()
+    summary_json = models.JSONField(default=dict, blank=True)
     edited_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

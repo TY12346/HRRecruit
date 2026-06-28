@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -74,7 +75,17 @@ def activate_paid_subscription(subscription, gateway, transaction_reference='', 
         status=Subscription.Status.ACTIVE,
     ).exclude(id=subscription.id).update(status=Subscription.Status.CANCELLED)
     subscription.status = Subscription.Status.ACTIVE
-    subscription.save(update_fields=['status'])
+    subscription.cancel_at_period_end = False
+    subscription.cancelled_at = None
+    subscription.cancellation_reason = ''
+    subscription.save(
+        update_fields=[
+            'status',
+            'cancel_at_period_end',
+            'cancelled_at',
+            'cancellation_reason',
+        ]
+    )
     return Payment.objects.create(
         subscription=subscription,
         payment_gateway=gateway,
@@ -82,8 +93,46 @@ def activate_paid_subscription(subscription, gateway, transaction_reference='', 
         amount=amount if amount is not None else subscription.plan.price,
         currency=currency,
         status=Payment.Status.PAID,
+        billing_reason=Payment.BillingReason.SUBSCRIPTION_CREATE,
         paid_at=timezone.now(),
+        due_at=timezone.now(),
     )
+
+
+def cancel_subscription_at_period_end(subscription, reason=''):
+    if subscription.status != Subscription.Status.ACTIVE:
+        raise ValidationError('Only active subscriptions can be scheduled for cancellation.')
+    subscription.cancel_at_period_end = True
+    subscription.cancelled_at = timezone.now()
+    subscription.cancellation_reason = reason or ''
+    subscription.is_auto_renew = False
+    subscription.save(
+        update_fields=[
+            'cancel_at_period_end',
+            'cancelled_at',
+            'cancellation_reason',
+            'is_auto_renew',
+        ]
+    )
+    return subscription
+
+
+def reactivate_subscription(subscription):
+    if subscription.status != Subscription.Status.ACTIVE:
+        raise ValidationError('Only active subscriptions can be resumed.')
+    subscription.cancel_at_period_end = False
+    subscription.cancelled_at = None
+    subscription.cancellation_reason = ''
+    subscription.is_auto_renew = True
+    subscription.save(
+        update_fields=[
+            'cancel_at_period_end',
+            'cancelled_at',
+            'cancellation_reason',
+            'is_auto_renew',
+        ]
+    )
+    return subscription
 
 
 def activate_demo_subscription(subscription, transaction_reference=''):
