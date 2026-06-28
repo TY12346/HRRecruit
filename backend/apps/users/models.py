@@ -63,6 +63,35 @@ class ApplicantProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class ApplicantResume(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    applicant = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='resumes',
+        limit_choices_to={'role': User.Role.APPLICANT},
+    )
+    title = models.CharField(max_length=255, blank=True)
+    resume_file = models.FileField(upload_to='resumes/')
+    is_default = models.BooleanField(default=False)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-is_default', '-uploaded_at', '-id']
+
+    def save(self, *args, **kwargs):
+        if not self.title and self.resume_file:
+            self.title = self.resume_file.name.split('/')[-1]
+        super().save(*args, **kwargs)
+        if self.is_default:
+            ApplicantResume.objects.filter(applicant=self.applicant, is_default=True).exclude(pk=self.pk).update(
+                is_default=False
+            )
+
+    def __str__(self):
+        return f'{self.applicant.email} - {self.title or self.resume_file.name}'
+
+
 class ApplicantExperience(models.Model):
     id = models.BigAutoField(primary_key=True)
     applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='experiences')

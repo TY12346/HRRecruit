@@ -7,6 +7,7 @@ from .views import (
     JobOfferAcceptAPIView,
     JobOfferDeclineAPIView,
     JobOfferListAPIView,
+    JobOfferWithdrawAPIView,
     PendingHiringDecisionListAPIView,
 )
 
@@ -18,4 +19,5 @@ urlpatterns = [
     path('job-offers/', JobOfferListAPIView.as_view(), name='job-offer-list'),
     path('job-offers/<int:offer_id>/accept/', JobOfferAcceptAPIView.as_view(), name='job-offer-accept'),
     path('job-offers/<int:offer_id>/decline/', JobOfferDeclineAPIView.as_view(), name='job-offer-decline'),
+    path('job-offers/<int:offer_id>/withdraw/', JobOfferWithdrawAPIView.as_view(), name='job-offer-withdraw'),
 ]

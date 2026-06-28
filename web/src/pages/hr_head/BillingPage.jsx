@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   Checkbox,
+  Chip,
   CircularProgress,
   FormControlLabel,
   Grid,
@@ -15,13 +16,16 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from '@mui/material';
 import {
+  cancelSubscription,
   completeDemoPayment,
   getBillingInvoices,
   getBillingPlans,
   getCurrentSubscription,
+  reactivateSubscription,
   subscribeToPlan,
   upgradeSubscription,
 } from '../../api/client.js';
@@ -38,6 +42,8 @@ export default function BillingPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isSubscriptionActionLoading, setIsSubscriptionActionLoading] = useState(false);
 
   const loadBilling = async () => {
     setIsLoading(true);
@@ -119,6 +125,37 @@ export default function BillingPage() {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    setIsSubscriptionActionLoading(true);
+    setError('');
+    setSuccessMessage('');
+    try {
+      const response = await cancelSubscription({ reason: cancelReason });
+      setSubscription(response.subscription);
+      setCancelReason('');
+      setSuccessMessage(response.message ?? 'Subscription cancellation scheduled.');
+    } catch (cancelError) {
+      setError(getApiErrorMessage(cancelError, 'Unable to schedule subscription cancellation.'));
+    } finally {
+      setIsSubscriptionActionLoading(false);
+    }
+  };
+
+  const handleReactivateSubscription = async () => {
+    setIsSubscriptionActionLoading(true);
+    setError('');
+    setSuccessMessage('');
+    try {
+      const response = await reactivateSubscription();
+      setSubscription(response.subscription);
+      setSuccessMessage(response.message ?? 'Subscription resumed successfully.');
+    } catch (reactivateError) {
+      setError(getApiErrorMessage(reactivateError, 'Unable to resume subscription.'));
+    } finally {
+      setIsSubscriptionActionLoading(false);
+    }
+  };
+
   const handleCompletePayment = async () => {
     if (!pendingSubscription) {
       return;
@@ -158,14 +195,73 @@ export default function BillingPage() {
 
         <Card>
           <CardContent>
-            <Typography component="h3" variant="h6">Current subscription</Typography>
-            {subscription ? (
-              <Typography color="text.secondary">
-                {subscription.plan?.name} • {titleize(subscription.status)} • Ends {formatDateTime(subscription.end_date)}
-              </Typography>
-            ) : (
-              <Typography color="text.secondary">No active subscription found.</Typography>
-            )}
+            <Stack spacing={2}>
+              <Typography component="h3" variant="h6">Current subscription</Typography>
+              {subscription ? (
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {subscription.plan?.name} • {titleize(subscription.status)}
+                    </Typography>
+                    <Chip
+                      color={subscription.cancel_at_period_end ? 'warning' : 'success'}
+                      label={subscription.cancel_at_period_end ? 'Cancels at period end' : 'Active renewal'}
+                      size="small"
+                    />
+                    <Chip
+                      label={subscription.is_auto_renew ? 'Auto-renew on' : 'Auto-renew off'}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </Stack>
+                  <Typography color="text.secondary">
+                    Current period: {formatDateTime(subscription.start_date)} – {formatDateTime(subscription.end_date)}
+                  </Typography>
+                  {subscription.cancel_at_period_end ? (
+                    <Alert
+                      action={(
+                        <Button
+                          color="inherit"
+                          disabled={isSubscriptionActionLoading}
+                          onClick={handleReactivateSubscription}
+                        >
+                          Resume
+                        </Button>
+                      )}
+                      severity="warning"
+                    >
+                      This subscription remains usable until {formatDateTime(subscription.end_date)}.
+                      {subscription.cancellation_reason ? ` Reason: ${subscription.cancellation_reason}` : ''}
+                    </Alert>
+                  ) : (
+                    <Stack spacing={1} sx={{ maxWidth: 560 }}>
+                      <Typography color="text.secondary">
+                        Real billing systems usually schedule cancellation for the end of the paid period instead of
+                        cutting access immediately.
+                      </Typography>
+                      <TextField
+                        label="Cancellation reason (optional)"
+                        onChange={(event) => setCancelReason(event.target.value)}
+                        size="small"
+                        value={cancelReason}
+                      />
+                      <Box>
+                        <Button
+                          color="warning"
+                          disabled={isSubscriptionActionLoading}
+                          onClick={handleCancelSubscription}
+                          variant="outlined"
+                        >
+                          Cancel at period end
+                        </Button>
+                      </Box>
+                    </Stack>
+                  )}
+                </Stack>
+              ) : (
+                <Typography color="text.secondary">No active subscription found.</Typography>
+              )}
+            </Stack>
           </CardContent>
         </Card>
 
@@ -216,6 +312,8 @@ export default function BillingPage() {
                   <TableCell>Plan</TableCell>
                   <TableCell>Amount</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Reason</TableCell>
+                  <TableCell>Due</TableCell>
                   <TableCell>Paid at</TableCell>
                 </TableRow>
               </TableHead>
@@ -226,11 +324,13 @@ export default function BillingPage() {
                     <TableCell>{invoice.plan_name}</TableCell>
                     <TableCell>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
                     <TableCell>{titleize(invoice.status)}</TableCell>
+                    <TableCell>{titleize(invoice.billing_reason)}</TableCell>
+                    <TableCell>{formatDateTime(invoice.due_at)}</TableCell>
                     <TableCell>{formatDateTime(invoice.paid_at)}</TableCell>
                   </TableRow>
                 ))}
                 {!invoices.length ? (
-                  <TableRow><TableCell colSpan={5}>No invoices yet.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7}>No invoices yet.</TableCell></TableRow>
                 ) : null}
               </TableBody>
             </Table>

@@ -60,6 +60,32 @@ export const confirmPasswordReset = async ({ email, resetToken, newPassword }) =
   return response.data;
 };
 
+
+export const uploadResume = async ({ title, resumeFile, isDefault = false }) => {
+  const formData = new FormData();
+  formData.append('resume_file', resumeFile);
+  if (title) {
+    formData.append('title', title);
+  }
+  if (isDefault) {
+    formData.append('is_default', 'true');
+  }
+  const response = await apiClient.post('/auth/resumes/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const updateResume = async (resumeId, payload) => {
+  const response = await apiClient.patch(`/auth/resumes/${resumeId}/`, payload);
+  return response.data;
+};
+
+export const deleteResume = async (resumeId) => {
+  const response = await apiClient.delete(`/auth/resumes/${resumeId}/`);
+  return response.data;
+};
+
 export const changePassword = async ({ currentPassword, newPassword }) => {
   const response = await apiClient.post('/auth/password/change/', {
     current_password: currentPassword,
@@ -171,6 +197,16 @@ export const completeDemoPayment = async ({ subscriptionId, transactionReference
   return response.data;
 };
 
+export const cancelSubscription = async ({ reason = '' } = {}) => {
+  const response = await apiClient.post('/billing/subscription/cancel/', { reason });
+  return response.data;
+};
+
+export const reactivateSubscription = async () => {
+  const response = await apiClient.post('/billing/subscription/reactivate/');
+  return response.data;
+};
+
 export const getHRHeadAnalytics = async () => {
   const response = await apiClient.get('/analytics/hr-head/dashboard/');
   return response.data;
@@ -270,8 +306,8 @@ export const createJobEvaluationForm = async (jobId, payload) => {
   return response.data;
 };
 
-export const getApplications = async () => {
-  const response = await apiClient.get('/applications/');
+export const getApplications = async (params = {}) => {
+  const response = await apiClient.get('/applications/', { params });
   return response.data;
 };
 
@@ -329,8 +365,8 @@ export const getApplicationStatusHistory = async (applicationId) => {
   return response.data;
 };
 
-export const getRankedCandidates = async (jobId) => {
-  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`);
+export const getRankedCandidates = async (jobId, params = {}) => {
+  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`, { params });
   return response.data;
 };
 
@@ -361,15 +397,45 @@ export const getJobOffers = async () => {
 
 export const sendJobOffer = async (applicationId, payload) => {
   const hasFile = payload.offer_letter_file instanceof File;
-  const body = hasFile ? new FormData() : payload;
+  const cleanedPayload = Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  );
+  const body = hasFile ? new FormData() : cleanedPayload;
   if (hasFile) {
-    body.append('offer_message', payload.offer_message);
-    body.append('respond_deadline', payload.respond_deadline);
-    body.append('offer_letter_file', payload.offer_letter_file);
+    Object.entries(cleanedPayload).forEach(([key, value]) => {
+      body.append(key, value);
+    });
   }
   const response = await apiClient.post(`/applications/${applicationId}/job-offer/`, body, {
     headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
   });
+  return response.data;
+};
+
+export const withdrawJobOffer = async (offerId, payload = {}) => {
+  const response = await apiClient.post(`/job-offers/${offerId}/withdraw/`, payload);
+  return response.data;
+};
+
+export const getGoogleCalendarStatus = async () => {
+  const response = await apiClient.get('/interviews/calendar/google/status/');
+  return response.data;
+};
+
+export const getGoogleCalendarConnectUrl = async (nextUrl = '') => {
+  const response = await apiClient.get('/interviews/calendar/google/connect/', {
+    params: nextUrl ? { next: nextUrl } : {},
+  });
+  return response.data;
+};
+
+export const completeGoogleCalendarOAuth = async ({ code, state }) => {
+  const response = await apiClient.post('/interviews/calendar/google/callback/', { code, state });
+  return response.data;
+};
+
+export const disconnectGoogleCalendar = async () => {
+  const response = await apiClient.delete('/interviews/calendar/google/disconnect/');
   return response.data;
 };
 
