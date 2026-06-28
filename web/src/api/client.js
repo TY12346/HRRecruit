@@ -60,6 +60,32 @@ export const confirmPasswordReset = async ({ email, resetToken, newPassword }) =
   return response.data;
 };
 
+
+export const uploadResume = async ({ title, resumeFile, isDefault = false }) => {
+  const formData = new FormData();
+  formData.append('resume_file', resumeFile);
+  if (title) {
+    formData.append('title', title);
+  }
+  if (isDefault) {
+    formData.append('is_default', 'true');
+  }
+  const response = await apiClient.post('/auth/resumes/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const updateResume = async (resumeId, payload) => {
+  const response = await apiClient.patch(`/auth/resumes/${resumeId}/`, payload);
+  return response.data;
+};
+
+export const deleteResume = async (resumeId) => {
+  const response = await apiClient.delete(`/auth/resumes/${resumeId}/`);
+  return response.data;
+};
+
 export const changePassword = async ({ currentPassword, newPassword }) => {
   const response = await apiClient.post('/auth/password/change/', {
     current_password: currentPassword,
@@ -361,15 +387,23 @@ export const getJobOffers = async () => {
 
 export const sendJobOffer = async (applicationId, payload) => {
   const hasFile = payload.offer_letter_file instanceof File;
-  const body = hasFile ? new FormData() : payload;
+  const cleanedPayload = Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  );
+  const body = hasFile ? new FormData() : cleanedPayload;
   if (hasFile) {
-    body.append('offer_message', payload.offer_message);
-    body.append('respond_deadline', payload.respond_deadline);
-    body.append('offer_letter_file', payload.offer_letter_file);
+    Object.entries(cleanedPayload).forEach(([key, value]) => {
+      body.append(key, value);
+    });
   }
   const response = await apiClient.post(`/applications/${applicationId}/job-offer/`, body, {
     headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
   });
+  return response.data;
+};
+
+export const withdrawJobOffer = async (offerId, payload = {}) => {
+  const response = await apiClient.post(`/job-offers/${offerId}/withdraw/`, payload);
   return response.data;
 };
 

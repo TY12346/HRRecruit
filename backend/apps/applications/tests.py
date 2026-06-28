@@ -15,7 +15,7 @@ from docx import Document
 from apps.jobs.models import JobPosting, JobRequirement
 from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
-from apps.users.models import User
+from apps.users.models import ApplicantResume, User
 
 from .models import ApplicationStageHistory, JobApplication
 
@@ -69,9 +69,19 @@ class JobApplicationAPITests(APITestCase):
     def authenticate(self, user):
         self.client.force_authenticate(user)
 
-    def attach_resume(self, user=None, filename='resume.pdf'):
-        profile = (user or self.applicant).applicant_profile
-        profile.resume_file.save(filename, SimpleUploadedFile(filename, b'%PDF-1.4 test resume'))
+    def attach_resume(self, user=None, filename='resume.pdf', title='General resume', is_default=True):
+        applicant = user or self.applicant
+        resume = ApplicantResume.objects.create(
+            applicant=applicant,
+            title=title,
+            resume_file=SimpleUploadedFile(filename, b'%PDF-1.4 test resume'),
+            is_default=is_default,
+        )
+        if resume.is_default:
+            profile = applicant.applicant_profile
+            profile.resume_file = resume.resume_file
+            profile.save(update_fields=['resume_file', 'updated_at'])
+        return resume
 
     @patch('apps.applications.views.screen_job_application')
     def test_applicant_applies_once_to_open_job_and_runs_screening_immediately(self, screen_job_application):
@@ -93,7 +103,36 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(response.data['final_score'], '88.00')
         self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
         application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
+        self.assertIsNotNone(application.resume_id)
+        self.assertEqual(response.data['selected_resume']['title'], 'General resume')
         screen_job_application.assert_called_once_with(application, changed_by=None)
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_can_choose_one_of_multiple_resumes_for_a_job(self, screen_job_application):
+        default_resume = self.attach_resume(filename='backend.pdf', title='Backend resume')
+        data_resume = self.attach_resume(filename='data.pdf', title='Data analyst resume', is_default=False)
+        self.authenticate(self.applicant)
+        screen_job_application.side_effect = lambda application, changed_by: application
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]), {'resume_id': data_resume.id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
+        self.assertEqual(application.resume_id, data_resume.id)
+        self.assertNotEqual(application.resume_id, default_resume.id)
+        self.assertEqual(response.data['selected_resume']['title'], 'Data analyst resume')
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_cannot_apply_with_another_applicants_resume(self, screen_job_application):
+        other_resume = self.attach_resume(user=self.other_applicant, filename='other.pdf', title='Other resume')
+        self.authenticate(self.applicant)
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]), {'resume_id': other_resume.id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['resume_id'], 'Select one of your uploaded resumes.')
+        self.assertFalse(JobApplication.objects.filter(job=self.job, applicant=self.applicant).exists())
+        screen_job_application.assert_not_called()
 
     def test_apply_requires_resume_for_immediate_screening(self):
         self.authenticate(self.applicant)

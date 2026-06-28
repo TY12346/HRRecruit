@@ -14,7 +14,7 @@ from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
 from apps.jobs.models import JobPosting
 from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
-from apps.users.models import User
+from apps.users.models import ApplicantResume, User
 
 from .models import ApplicationStageHistory, JobApplication
 from .serializers import (
@@ -28,6 +28,25 @@ from .serializers import (
 from .services import screen_job_application
 
 
+def get_application_resume_file(application):
+    if getattr(application, 'resume_id', None) and application.resume and application.resume.resume_file:
+        return application.resume.resume_file
+    applicant_profile = getattr(application.applicant, 'applicant_profile', None)
+    return getattr(applicant_profile, 'resume_file', None)
+
+
+def select_applicant_resume(applicant, resume_id=None):
+    if resume_id:
+        try:
+            return ApplicantResume.objects.get(id=resume_id, applicant=applicant)
+        except ApplicantResume.DoesNotExist as exc:
+            raise ValidationError({'resume_id': 'Select one of your uploaded resumes.'}) from exc
+    return (
+        applicant.resumes.filter(is_default=True).first()
+        or applicant.resumes.order_by('-uploaded_at', '-id').first()
+    )
+
+
 def get_active_membership(user, role):
     return OrganizationMembership.objects.filter(
         user=user,
@@ -39,7 +58,7 @@ def get_active_membership(user, role):
 
 def visible_applications_for(user):
     applications = JobApplication.objects.select_related(
-        'job', 'job__organization', 'job__recruiter', 'applicant', 'applicant__applicant_profile'
+        'job', 'job__organization', 'job__recruiter', 'applicant', 'applicant__applicant_profile', 'resume'
     )
     if user.role == User.Role.APPLICANT:
         return applications.filter(applicant=user)
@@ -158,6 +177,7 @@ def candidate_profile_application_or_404(user, application_id):
                 'applicant',
                 'applicant__applicant_profile',
                 'assigned_interviewer',
+                'resume',
             ),
             id=application_id,
             assigned_interviewer=user,
@@ -206,13 +226,18 @@ class JobApplyAPIView(APIView):
             status=JobPosting.Status.OPEN,
             organization__status=Organization.Status.ACTIVE,
         )
-        resume_file = request.user.applicant_profile.resume_file
-        if not resume_file:
+        selected_resume = select_applicant_resume(request.user, request.data.get('resume_id'))
+        legacy_resume_file = request.user.applicant_profile.resume_file
+        if not selected_resume and not legacy_resume_file:
             raise ValidationError({'resume_file': 'Upload a resume before applying so AI screening can run immediately.'})
 
         try:
             with transaction.atomic():
-                application, created = JobApplication.objects.get_or_create(job=job, applicant=request.user)
+                application, created = JobApplication.objects.get_or_create(
+                    job=job,
+                    applicant=request.user,
+                    defaults={'resume': selected_resume},
+                )
                 if not created:
                     raise ValidationError({'job': 'You have already applied for this job.'})
                 application = screen_job_application(application, changed_by=None)
@@ -280,7 +305,7 @@ class ApplicationScreenAPIView(APIView):
 
         application = get_object_or_404(visible_applications_for(request.user), id=application_id)
         try:
-            resume_file = application.applicant.applicant_profile.resume_file
+            resume_file = get_application_resume_file(application)
             if not resume_file:
                 raise ValidationError({'resume_file': 'The applicant must upload a resume before screening.'})
             previous_status = application.status
@@ -312,6 +337,7 @@ class RankedCandidatesAPIView(APIView):
                 'applicant',
                 'applicant__applicant_profile',
                 'assigned_interviewer',
+                'resume',
             ),
             request.query_params,
             allow_status=False,
@@ -332,8 +358,7 @@ class ApplicationResumeAPIView(APIView):
 
     def get(self, request, application_id):
         application = resume_application_or_404(request.user, application_id)
-        applicant_profile = getattr(application.applicant, 'applicant_profile', None)
-        resume_file = getattr(applicant_profile, 'resume_file', None)
+        resume_file = get_application_resume_file(application)
         if not resume_file:
             return Response({'detail': 'Resume file not found.'}, status=status.HTTP_404_NOT_FOUND)
 

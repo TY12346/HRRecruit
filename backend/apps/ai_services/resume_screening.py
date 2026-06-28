@@ -18,7 +18,7 @@ SCREENING_THRESHOLD = 60.0
 
 def build_resume_screening(application):
     """Extract a local resume and return the complete screening result."""
-    resume_file = application.applicant.applicant_profile.resume_file
+    resume_file = get_application_resume_file(application)
     resume_text = extract_resume_text(resume_file.path)
     requirements = list(application.job.requirements.all())
     comparison_text = _build_job_comparison_text(application.job, requirements)
@@ -144,6 +144,12 @@ def build_resume_screening(application):
         **scores,
         'score_explanation': explanation,
     }
+
+
+def get_application_resume_file(application):
+    if getattr(application, 'resume_id', None) and application.resume and application.resume.resume_file:
+        return application.resume.resume_file
+    return application.applicant.applicant_profile.resume_file
 
 
 def calculate_skill_score(extracted_skills, required_skills, skill_requirements=None):
