@@ -55,6 +55,10 @@ class Subscription(models.Model):
     end_date = models.DateField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     is_auto_renew = models.BooleanField(default=False)
+    trial_end_date = models.DateTimeField(blank=True, null=True)
+    cancel_at_period_end = models.BooleanField(default=False)
+    cancelled_at = models.DateTimeField(blank=True, null=True)
+    cancellation_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -81,6 +85,12 @@ class Payment(models.Model):
         FAILED = 'failed', 'Failed'
         REFUNDED = 'refunded', 'Refunded'
 
+    class BillingReason(models.TextChoices):
+        SUBSCRIPTION_CREATE = 'subscription_create', 'Subscription created'
+        SUBSCRIPTION_UPDATE = 'subscription_update', 'Subscription updated'
+        RENEWAL = 'renewal', 'Subscription renewal'
+        MANUAL = 'manual', 'Manual adjustment'
+
     subscription = models.ForeignKey(
         Subscription,
         on_delete=models.CASCADE,
@@ -95,7 +105,16 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default='MYR')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    billing_reason = models.CharField(
+        max_length=30,
+        choices=BillingReason.choices,
+        default=BillingReason.SUBSCRIPTION_CREATE,
+    )
     paid_at = models.DateTimeField(blank=True, null=True)
+    due_at = models.DateTimeField(blank=True, null=True)
+    hosted_invoice_url = models.URLField(blank=True)
+    receipt_url = models.URLField(blank=True)
+    failure_reason = models.TextField(blank=True)
     invoice_number = models.CharField(max_length=100, unique=True, blank=True)
 
     class Meta:

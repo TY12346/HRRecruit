@@ -17,6 +17,7 @@ from .models import (
     ApplicantEducation,
     ApplicantExperience,
     ApplicantProfile,
+    ApplicantResume,
     ApplicantSkill,
     PasswordResetOTP,
     User,
@@ -123,6 +124,23 @@ class ApplicantSkillSerializer(serializers.ModelSerializer):
         fields = ['skill_id', 'skill_name']
 
 
+class ApplicantResumeSerializer(serializers.ModelSerializer):
+    resume_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ApplicantResume
+        fields = ['id', 'title', 'resume_file', 'resume_url', 'is_default', 'uploaded_at']
+        read_only_fields = ['id', 'resume_url', 'uploaded_at']
+
+    def get_resume_url(self, resume):
+        if not resume.resume_file:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(resume.resume_file.url)
+        return resume.resume_file.url
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     linkedin_url = serializers.URLField(source='applicant_profile.linkedin_url', required=False, allow_blank=True)
     personal_summary = serializers.CharField(source='applicant_profile.personal_summary', required=False, allow_blank=True)
@@ -130,14 +148,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
     experiences = ApplicantExperienceSerializer(many=True, required=False)
     educations = ApplicantEducationSerializer(many=True, required=False)
     skills = ApplicantSkillSerializer(many=True, required=False)
+    resumes = ApplicantResumeSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'full_name', 'phone_number', 'role', 'linkedin_url',
-            'personal_summary', 'resume_file', 'experiences', 'educations', 'skills',
+            'personal_summary', 'resume_file', 'resumes', 'experiences', 'educations', 'skills',
         ]
-        read_only_fields = ['id', 'email', 'role', 'resume_file']
+        read_only_fields = ['id', 'email', 'role', 'resume_file', 'resumes']
 
     def update(self, instance, validated_data):
         applicant_data = validated_data.pop('applicant_profile', {})
@@ -336,12 +355,12 @@ class LinkedInProfilePdfUploadSerializer(serializers.Serializer):
         return file
 
 
-class ResumeUploadSerializer(serializers.ModelSerializer):
+class ResumeUploadSerializer(ApplicantResumeSerializer):
     resume_file = serializers.FileField(write_only=True)
 
-    class Meta:
-        model = ApplicantProfile
-        fields = ['resume_file']
+    class Meta(ApplicantResumeSerializer.Meta):
+        fields = ['id', 'title', 'resume_file', 'resume_url', 'is_default', 'uploaded_at']
+        read_only_fields = ['id', 'resume_url', 'uploaded_at']
 
     def validate_resume_file(self, file):
         max_size = 5 * 1024 * 1024
@@ -356,6 +375,26 @@ class ResumeUploadSerializer(serializers.ModelSerializer):
         if content_type and content_type not in ALLOWED_RESUME_CONTENT_TYPES:
             raise serializers.ValidationError('Unsupported resume content type.')
         return file
+
+    def create(self, validated_data):
+        request = self.context['request']
+        applicant = request.user
+        should_be_default = validated_data.pop('is_default', False) or not applicant.resumes.exists()
+        resume = ApplicantResume.objects.create(
+            applicant=applicant,
+            is_default=should_be_default,
+            **validated_data,
+        )
+        if resume.is_default:
+            _sync_default_resume_to_profile(applicant, resume)
+        return resume
+
+
+def _sync_default_resume_to_profile(applicant, resume=None):
+    profile = applicant.applicant_profile
+    default_resume = resume or applicant.resumes.filter(is_default=True).first()
+    profile.resume_file = default_resume.resume_file if default_resume else None
+    profile.save(update_fields=['resume_file', 'updated_at'])
 
 
 class LogoutSerializer(serializers.Serializer):

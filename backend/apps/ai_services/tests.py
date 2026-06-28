@@ -498,3 +498,45 @@ class LinkedInProfileImporterTests(SimpleTestCase):
         self.assertEqual(parsed['certifications'], [])
         self.assertEqual(parsed['education'], [])
         self.assertEqual(parsed['experience'][0]['company_name'], 'Example Co')
+
+
+
+class ResumeMatchModelTests(SimpleTestCase):
+    def test_ml_screening_fallback_returns_requested_decision_support_fields(self):
+        from .ml.resume_matcher import build_ml_screening_result
+
+        result = build_ml_screening_result(
+            semantic_score=80,
+            skill_score=75,
+            experience_score=70,
+            education_score=100,
+            rule_based_score=78,
+            matched_skills=['python', 'django'],
+            missing_skills=['postgresql'],
+            experience_gap={'gap_years': 0},
+            education_gap={'gap_levels': 0},
+            resume_text='Python Django developer with five years experience',
+            job_text='Backend developer requiring Python Django PostgreSQL',
+        )
+
+        self.assertIn('ml_suitability_score', result)
+        self.assertIn('ml_match_label', result)
+        self.assertIn('ml_confidence', result)
+        self.assertIn('semantic_embedding_score', result)
+        self.assertIn('rule_based_score', result)
+        self.assertIn('hybrid_final_score', result)
+        self.assertIn('top_positive_factors', result)
+        self.assertIn('top_negative_factors', result)
+        self.assertTrue(result['fallback_used'])
+        self.assertEqual(result['model_version'], 'resume-match-level3-fallback-v1')
+        self.assertEqual(result['rule_based_score'], 78.0)
+        self.assertEqual(result['hybrid_final_score'], 78.25)
+        self.assertIn('Missing or unclear skills: postgresql', result['top_negative_factors'][0])
+
+    def test_score_to_label_uses_expected_match_bands(self):
+        from .ml.resume_matcher import score_to_label
+
+        self.assertEqual(score_to_label(90), 'strong_match')
+        self.assertEqual(score_to_label(70), 'moderate_match')
+        self.assertEqual(score_to_label(50), 'weak_match')
+        self.assertEqual(score_to_label(30), 'not_suitable')

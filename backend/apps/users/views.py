@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 
+from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,9 +11,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.ai_services.linkedin_profile_importer import build_linkedin_profile_import
 from apps.ai_services.resume_text_extractor import ResumeTextExtractionError, extract_resume_text
 
-from .models import ApplicantEducation, ApplicantExperience, ApplicantSkill, User
+from .models import ApplicantEducation, ApplicantExperience, ApplicantResume, ApplicantSkill, User
 from .serializers import (
     ApplicantRegisterSerializer,
+    ApplicantResumeSerializer,
     ChangePasswordSerializer,
     LinkedInProfilePdfUploadSerializer,
     LoginSerializer,
@@ -247,14 +249,86 @@ class LinkedInProfilePdfImportAPIView(APIView):
 class ResumeUploadAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def get(self, request):
+        if request.user.role != User.Role.APPLICANT:
+            return Response({'detail': 'Only applicants can view resumes.'}, status=status.HTTP_403_FORBIDDEN)
+        resumes = request.user.resumes.all()
+        return Response(ApplicantResumeSerializer(resumes, many=True, context={'request': request}).data)
+
     def post(self, request):
         if request.user.role != User.Role.APPLICANT:
             return Response({'detail': 'Only applicants can upload resumes.'}, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = ResumeUploadSerializer(request.user.applicant_profile, data=request.data, partial=True)
+        serializer = ResumeUploadSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({'message': 'Resume uploaded successfully.', 'resume_file': request.user.applicant_profile.resume_file.url})
+        resume = serializer.save()
+        resume_data = ApplicantResumeSerializer(resume, context={'request': request}).data
+        response_status = (
+            status.HTTP_200_OK
+            if request.resolver_match.url_name == 'auth-resume-upload'
+            else status.HTTP_201_CREATED
+        )
+        return Response(
+            {
+                'message': 'Resume uploaded successfully.',
+                'resume_file': resume.resume_file.url,
+                'resume': resume_data,
+            },
+            status=response_status,
+        )
+
+
+class ApplicantResumeDetailAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_resume(self, request, resume_id):
+        if request.user.role != User.Role.APPLICANT:
+            return None
+        return get_object_or_404(ApplicantResume, id=resume_id, applicant=request.user)
+
+    def patch(self, request, resume_id):
+        if request.user.role != User.Role.APPLICANT:
+            return Response({'detail': 'Only applicants can update resumes.'}, status=status.HTTP_403_FORBIDDEN)
+        resume = self.get_resume(request, resume_id)
+        title = request.data.get('title')
+        update_fields = []
+        if title is not None:
+            resume.title = title.strip() or resume.resume_file.name.split('/')[-1]
+            update_fields.append('title')
+        if request.data.get('is_default') in (True, 'true', 'True', '1', 1):
+            resume.is_default = True
+            update_fields.append('is_default')
+        if update_fields:
+            resume.save(update_fields=update_fields)
+            if resume.is_default:
+                _sync_default_resume_to_profile(request.user)
+        return Response(
+            {
+                'message': 'Resume updated successfully.',
+                'resume': ApplicantResumeSerializer(resume, context={'request': request}).data,
+            }
+        )
+
+    def delete(self, request, resume_id):
+        if request.user.role != User.Role.APPLICANT:
+            return Response({'detail': 'Only applicants can delete resumes.'}, status=status.HTTP_403_FORBIDDEN)
+        resume = self.get_resume(request, resume_id)
+        was_default = resume.is_default
+        resume.delete()
+        if was_default:
+            replacement = request.user.resumes.order_by('-uploaded_at', '-id').first()
+            if replacement:
+                replacement.is_default = True
+                replacement.save(update_fields=['is_default'])
+            _sync_default_resume_to_profile(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _sync_default_resume_to_profile(applicant):
+    profile = applicant.applicant_profile
+    default_resume = applicant.resumes.filter(is_default=True).first()
+    profile.resume_file = default_resume.resume_file if default_resume else None
+    profile.save(update_fields=['resume_file', 'updated_at'])
 
 
 def _parse_linkedin_month_date(value):

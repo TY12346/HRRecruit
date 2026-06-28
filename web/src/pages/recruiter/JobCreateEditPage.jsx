@@ -28,6 +28,20 @@ import {
 } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
+import {
+  applyCriterionImportance,
+  cloneCriterion,
+  criterionImportanceOptions,
+  prepareCriteriaForApi,
+} from './evaluationScoring.js';
+import {
+  applyImportance,
+  applyMatchThreshold,
+  cloneRequirement,
+  importanceOptions,
+  matchThresholdOptions,
+  prepareRequirementsForApi,
+} from './requirementScoring.js';
 
 const blankJob = {
   title: '',
@@ -36,18 +50,6 @@ const blankJob = {
   approximate_salary: '',
   location: '',
   status: 'draft',
-};
-const blankRequirement = {
-  requirement_type: 'skill',
-  description: '',
-  weight_score: '0.25',
-  minimum_threshold: '0.50',
-};
-const blankCriterion = {
-  criterion_name: '',
-  description: '',
-  max_score: '10.00',
-  weight_score: '0.25',
 };
 const employmentTypeOptions = [
   { value: 'full_time', label: 'Full-time' },
@@ -59,14 +61,6 @@ const employmentTypeOptions = [
 
 const createSteps = ['Job details', 'Requirements', 'Evaluation form'];
 
-function cloneRequirement() {
-  return { ...blankRequirement };
-}
-
-function cloneCriterion() {
-  return { ...blankCriterion };
-}
-
 export default function JobCreateEditPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
@@ -77,6 +71,7 @@ export default function JobCreateEditPage() {
   const [normalizeRequirements, setNormalizeRequirements] = useState(true);
   const [evaluationTitle, setEvaluationTitle] = useState('Interview Evaluation Form');
   const [criteria, setCriteria] = useState([cloneCriterion()]);
+  const [normalizeCriteria, setNormalizeCriteria] = useState(true);
   const [createdJobId, setCreatedJobId] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(isEdit);
@@ -115,11 +110,30 @@ export default function JobCreateEditPage() {
   };
 
   const updateRequirement = (index, field, value) => {
-    setRequirements((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)));
+    setRequirements((items) => items.map((item, itemIndex) => {
+      if (itemIndex !== index) {
+        return item;
+      }
+      if (field === 'importance_level') {
+        return applyImportance(item, value);
+      }
+      if (field === 'match_strictness') {
+        return applyMatchThreshold(item, value);
+      }
+      return { ...item, [field]: value };
+    }));
   };
 
   const updateCriterion = (index, field, value) => {
-    setCriteria((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)));
+    setCriteria((items) => items.map((item, itemIndex) => {
+      if (itemIndex !== index) {
+        return item;
+      }
+      if (field === 'importance_level') {
+        return applyCriterionImportance(item, value);
+      }
+      return { ...item, [field]: value };
+    }));
   };
 
   const handleEditSubmit = async (event) => {
@@ -159,7 +173,7 @@ export default function JobCreateEditPage() {
 
       try {
         await configureJobRequirements(job.id, {
-          requirements,
+          requirements: prepareRequirementsForApi(requirements),
           normalize_weights: normalizeRequirements,
         });
       } catch (err) {
@@ -169,7 +183,7 @@ export default function JobCreateEditPage() {
 
       await createJobEvaluationForm(job.id, {
         title: evaluationTitle,
-        criteria,
+        criteria: prepareCriteriaForApi(criteria, { normalizeImportance: normalizeCriteria }),
       });
       navigate(`/recruiter/jobs/${job.id}`);
     } catch (err) {
@@ -228,20 +242,35 @@ export default function JobCreateEditPage() {
             />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
-                label="Weight"
-                type="number"
-                inputProps={{ step: '0.01' }}
-                value={requirement.weight_score}
-                onChange={(event) => updateRequirement(index, 'weight_score', event.target.value)}
-              />
+                label="Importance"
+                select
+                helperText="Choose recruiter-friendly priority instead of entering a raw numeric weight."
+                value={requirement.importance_level}
+                onChange={(event) => updateRequirement(index, 'importance_level', event.target.value)}
+              >
+                {importanceOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label} — {option.description}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
-                label="Minimum threshold"
-                type="number"
-                inputProps={{ step: '0.01' }}
-                value={requirement.minimum_threshold}
-                onChange={(event) => updateRequirement(index, 'minimum_threshold', event.target.value)}
-              />
+                label="Minimum match required"
+                select
+                helperText="Choose how strong the resume evidence should be before this item counts as matched."
+                value={requirement.match_strictness}
+                onChange={(event) => updateRequirement(index, 'match_strictness', event.target.value)}
+              >
+                {matchThresholdOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label} — {option.description}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Stack>
+            <Typography variant="caption" color="text.secondary">
+              HRRecruit converts these choices into AI scoring values: weight {requirement.weight_score}, minimum threshold {requirement.minimum_threshold}.
+            </Typography>
             <Button
               color="error"
               disabled={requirements.length === 1}
@@ -254,8 +283,11 @@ export default function JobCreateEditPage() {
       ))}
       <FormControlLabel
         control={<Checkbox checked={normalizeRequirements} onChange={(event) => setNormalizeRequirements(event.target.checked)} />}
-        label="Normalize weights to 1.0 automatically"
+        label="Auto-balance importance values so the AI scoring weights add up correctly"
       />
+      <Typography variant="caption" color="text.secondary">
+        Real recruitment tools usually ask for priorities such as must-have or nice-to-have, then normalize the underlying weights for consistent scoring.
+      </Typography>
       <Button onClick={() => setRequirements((items) => [...items, cloneRequirement()])} variant="outlined">
         Add requirement
       </Button>
@@ -288,12 +320,22 @@ export default function JobCreateEditPage() {
                 onChange={(event) => updateCriterion(index, 'max_score', event.target.value)}
               />
               <TextField
-                label="Weight"
-                type="number"
-                value={criterion.weight_score}
-                onChange={(event) => updateCriterion(index, 'weight_score', event.target.value)}
-              />
+                label="Interview scoring importance"
+                select
+                helperText="Choose how much this competency should influence the interviewer score."
+                value={criterion.importance_level}
+                onChange={(event) => updateCriterion(index, 'importance_level', event.target.value)}
+              >
+                {criterionImportanceOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label} — {option.description}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Stack>
+            <Typography variant="caption" color="text.secondary">
+              HRRecruit stores this as evaluation weight {criterion.weight_score} for weighted interview scoring.
+            </Typography>
             <Button
               color="error"
               disabled={criteria.length === 1}
@@ -304,6 +346,13 @@ export default function JobCreateEditPage() {
           </Stack>
         </Paper>
       ))}
+      <FormControlLabel
+        control={<Checkbox checked={normalizeCriteria} onChange={(event) => setNormalizeCriteria(event.target.checked)} />}
+        label="Auto-balance interview scoring importance so criterion weights add up correctly"
+      />
+      <Typography variant="caption" color="text.secondary">
+        This mirrors real evaluation forms: HR defines competency priorities, while the system converts them into balanced scoring weights.
+      </Typography>
       <Button onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">
         Add criterion
       </Button>
