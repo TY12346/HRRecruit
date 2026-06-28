@@ -230,6 +230,51 @@ function SummaryEditor({ summary, setSummary, isBusy, onSave }) {
   );
 }
 
+const transparencyValue = (summary, key, fallback = '') => summary?.transparency?.[key] ?? summary?.summary_json?.[key] ?? fallback;
+
+function SummaryTransparencyCard({ summary }) {
+  if (!summary) return null;
+  const provider = transparencyValue(summary, 'provider', 'unknown');
+  const generationMode = transparencyValue(summary, 'generation_mode', 'unknown');
+  const fallbackReason = transparencyValue(summary, 'fallback_reason', '');
+  const model = transparencyValue(summary, 'model', '');
+  const limitations = transparencyValue(summary, 'limitations', []);
+
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack spacing={1.5}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+            <Box>
+              <Typography variant="h6">AI summary transparency</Typography>
+              <Typography color="text.secondary">Shows how the summary was produced and why human review is required.</Typography>
+            </Box>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Chip label={`Provider: ${provider}`} color={provider === 'mock' ? 'default' : 'primary'} />
+              <Chip label={generationMode.replaceAll('_', ' ')} />
+            </Stack>
+          </Stack>
+          {model ? <Typography variant="body2"><strong>Model:</strong> {model}</Typography> : null}
+          {fallbackReason ? <Alert severity="info">Fallback reason: {fallbackReason}</Alert> : null}
+          <Alert severity="warning">{transparencyValue(summary, 'decision_boundary', 'This AI summary supports interviewer review only and must not be treated as a final hiring decision.')}</Alert>
+          <Typography variant="subtitle2">Evidence excerpt used by AI</Typography>
+          <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'grey.50' }}>
+            <Typography variant="body2" whiteSpace="pre-line">{transparencyValue(summary, 'source_excerpt', 'No transcript excerpt available.')}</Typography>
+          </Paper>
+          <Typography variant="subtitle2">Known limitations</Typography>
+          <List dense sx={{ listStyleType: 'disc', pl: 3 }}>
+            {(Array.isArray(limitations) && limitations.length ? limitations : ['Interviewer must verify the summary against the transcript.']).map((item) => (
+              <ListItem key={item} sx={{ display: 'list-item', p: 0 }}>
+                <ListItemText primary={item} />
+              </ListItem>
+            ))}
+          </List>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TranscriptSummaryPage() {
   const { interviewId } = useParams();
   const location = useLocation();
