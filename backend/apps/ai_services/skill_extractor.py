@@ -1,9 +1,11 @@
-"""spaCy-capable skill extraction with deterministic fallback support."""
+"""spaCy skill extraction helpers with strict dependency requirements."""
 
 from functools import lru_cache
 import importlib
 import importlib.util
 import re
+
+from apps.ai_services.exceptions import AIServiceUnavailable
 
 from .resume_preprocessor import preprocess_for_matching
 
@@ -63,27 +65,20 @@ def normalize_text(text):
 
 
 def extract_skills(text, skills_dictionary=None):
-    """Return stable lower-case/internal skill keys found in text.
+    """Return stable lower-case/internal skill keys found in text using spaCy.
 
-    spaCy with PhraseMatcher is used when spaCy and ``en_core_web_sm`` are
-    available. If spaCy, the model, or matcher setup is unavailable, extraction
-    falls back to the deterministic dictionary/regex matcher used by earlier
-    versions so demo environments do not fail.
+    Missing spaCy dependencies, missing language models, or matcher failures now
+    raise a clear AI service error instead of falling back to regex matching.
     """
     normalized_text = normalize_text(text)
     dictionary = SKILLS_DICTIONARY if skills_dictionary is None else skills_dictionary
     if not dictionary:
         return []
-
-    spacy_skills = _extract_skills_with_spacy(normalized_text, dictionary)
-    if spacy_skills is not None:
-        return sorted(spacy_skills)
-
-    return extract_skills_with_fallback(normalized_text, dictionary, text_is_normalized=True)
+    return sorted(_extract_skills_with_spacy(normalized_text, dictionary))
 
 
-def extract_skills_with_fallback(text, skills_dictionary=None, *, text_is_normalized=False):
-    """Return skill keys using deterministic dictionary and regex alias matching."""
+def extract_skills_with_dictionary(text, skills_dictionary=None, *, text_is_normalized=False):
+    """Return skill keys using dictionary/regex matching for non-AI utilities only."""
     normalized_text = text if text_is_normalized else normalize_text(text)
     dictionary = SKILLS_DICTIONARY if skills_dictionary is None else skills_dictionary
 
@@ -125,15 +120,13 @@ def normalize_skill_key(skill, skills_dictionary=None):
 
 def _extract_skills_with_spacy(normalized_text, dictionary):
     nlp = _load_spacy_model()
-    if nlp is None:
-        return None
 
     try:
         matcher = _build_phrase_matcher(nlp, dictionary)
         doc = nlp(normalized_text)
         matches = matcher(doc)
-    except Exception:
-        return None
+    except Exception as exc:
+        raise AIServiceUnavailable('spaCy skill extraction failed.') from exc
 
     extracted_skills = set()
     for match_id, _start, _end in matches:
@@ -146,17 +139,13 @@ def _extract_skills_with_spacy(normalized_text, dictionary):
 @lru_cache(maxsize=1)
 def _load_spacy_model():
     if importlib.util.find_spec('spacy') is None:
-        return None
+        raise AIServiceUnavailable('spaCy is required for AI skill extraction.')
 
     try:
         spacy = importlib.import_module('spacy')
         return spacy.load(SPACY_MODEL_NAME)
-    except Exception:
-        # spaCy is optional for deterministic test/demo environments. Treat
-        # broken spaCy installs, missing language models, and missing
-        # transitive dependencies (for example click) as unavailable so the
-        # regex fallback can still extract skills.
-        return None
+    except Exception as exc:
+        raise AIServiceUnavailable(f'spaCy language model {SPACY_MODEL_NAME} is required for AI skill extraction.') from exc
 
 
 def _build_phrase_matcher(nlp, dictionary):

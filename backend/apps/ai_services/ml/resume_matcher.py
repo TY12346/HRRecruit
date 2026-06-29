@@ -1,4 +1,4 @@
-"""Trained resume/job matching helpers with deterministic fallback."""
+"""Trained resume/job matching helpers that require a model artifact."""
 
 from __future__ import annotations
 
@@ -9,8 +9,9 @@ from typing import Any, Iterable
 
 from django.conf import settings
 
+from apps.ai_services.exceptions import AIServiceUnavailable
+
 MODEL_VERSION = "resume-match-level3-v1"
-FALLBACK_MODEL_VERSION = "resume-match-level3-fallback-v1"
 ARTIFACT_FILENAME = "resume_match_model.joblib"
 
 HYBRID_WEIGHTS = {
@@ -99,7 +100,6 @@ def build_ml_screening_result(
             education_gap=education_gap or {},
         ),
         "model_version": prediction["model_version"],
-        "fallback_used": prediction["fallback_used"],
         "feature_names": FEATURE_NAMES,
         "feature_values": features,
     }
@@ -200,47 +200,39 @@ def build_negative_factors(*, skill_score: float, experience_score: float, educa
 
 def _predict_with_optional_model(features: list[float]) -> dict[str, Any]:
     artifact = _load_artifact()
-    if not artifact:
-        fallback_score = features[FEATURE_NAMES.index("rule_based_score")]
-        return {
-            "ml_suitability_score": fallback_score,
-            "ml_confidence": _fallback_confidence(fallback_score),
-            "model_version": FALLBACK_MODEL_VERSION,
-            "fallback_used": True,
-        }
+    model = artifact["model"]
+    feature_names = artifact.get("feature_names", FEATURE_NAMES)
+    feature_map = dict(zip(FEATURE_NAMES, features, strict=True))
     try:
-        model = artifact["model"]
-        feature_names = artifact.get("feature_names", FEATURE_NAMES)
-        feature_map = dict(zip(FEATURE_NAMES, features, strict=True))
         ordered_features = [feature_map[name] for name in feature_names]
         score = _clamp_score(model.predict([ordered_features])[0])
-        return {
-            "ml_suitability_score": score,
-            "ml_confidence": _model_confidence(score, artifact),
-            "model_version": artifact.get("model_version", MODEL_VERSION),
-            "fallback_used": False,
-        }
-    except Exception:
-        fallback_score = features[FEATURE_NAMES.index("rule_based_score")]
-        return {
-            "ml_suitability_score": fallback_score,
-            "ml_confidence": _fallback_confidence(fallback_score),
-            "model_version": FALLBACK_MODEL_VERSION,
-            "fallback_used": True,
-        }
+    except Exception as exc:
+        raise AIServiceUnavailable('Trained resume matching model prediction failed.') from exc
+    return {
+        "ml_suitability_score": score,
+        "ml_confidence": _model_confidence(score, artifact),
+        "model_version": artifact.get("model_version", MODEL_VERSION),
+    }
 
 
 @lru_cache(maxsize=1)
-def _load_artifact() -> dict[str, Any] | None:
+def _load_artifact() -> dict[str, Any]:
     artifact_path = Path(getattr(settings, "BASE_DIR", Path.cwd())) / "apps" / "ai_services" / "model_artifacts" / ARTIFACT_FILENAME
     if not artifact_path.exists():
-        return None
+        raise AIServiceUnavailable(
+            f'Trained resume matching model artifact is missing at {artifact_path}. Run train_resume_match_model before screening resumes.'
+        )
     try:
         import joblib  # type: ignore
-
-        return joblib.load(artifact_path)
-    except Exception:
-        return None
+    except ImportError as exc:
+        raise AIServiceUnavailable('joblib is required to load the trained resume matching model.') from exc
+    try:
+        artifact = joblib.load(artifact_path)
+    except Exception as exc:
+        raise AIServiceUnavailable('Trained resume matching model artifact could not be loaded.') from exc
+    if not isinstance(artifact, dict) or "model" not in artifact:
+        raise AIServiceUnavailable('Trained resume matching model artifact is invalid.')
+    return artifact
 
 
 def _model_confidence(score: float, artifact: dict[str, Any]) -> float:
@@ -249,10 +241,6 @@ def _model_confidence(score: float, artifact: dict[str, Any]) -> float:
     base = max(0.55, 0.95 - (mae / 100.0))
     certainty = abs(score - 50.0) / 100.0
     return round(min(0.98, base + certainty), 2)
-
-
-def _fallback_confidence(score: float) -> float:
-    return round(min(0.85, 0.55 + abs(_clamp_score(score) - 50.0) / 140.0), 2)
 
 
 def _clamp_score(value: Any) -> float:

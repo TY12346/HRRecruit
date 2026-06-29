@@ -77,10 +77,14 @@ POSTGRES_PASSWORD=your_postgres_password
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
 
-# Optional integrations; leave blank for local/demo fallback behavior.
+# External integrations. AI integrations are strict: missing credentials cause clear API errors.
 SENDGRID_API_KEY=
 DEFAULT_FROM_EMAIL=no-reply@hrrecruit.local
 OPENAI_API_KEY=
+TRANSCRIPTION_MODEL=whisper-1
+USE_REAL_TRANSCRIPTION=True
+SUMMARY_MODEL=gpt-4o-mini
+USE_REAL_SUMMARY=True
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_CHECKOUT_SUCCESS_URL=http://localhost:5173/billing/success
@@ -255,8 +259,8 @@ python manage.py seed_demo_data --no-update-password
 - For Android emulator networking, use `http://10.0.2.2:8000/api/`.
 - For physical phones, use the computer LAN IP and allow inbound traffic on port `8000`.
 
-### Missing optional AI/payment/email/calendar keys
+### Missing AI/payment/email/calendar keys
 
-- This is expected for local FYP demonstration.
-- Leave optional keys blank to use fallback/demo behavior.
-- Do not enable real integrations unless valid credentials, network access, callback URLs, and security configuration are available.
+- AI features are strict: resume semantic matching, trained resume matching, real transcription, and real summary generation return clear errors when their required model/dependency/credential is missing.
+- Configure `OPENAI_API_KEY`, `USE_REAL_TRANSCRIPTION=True`, `USE_REAL_SUMMARY=True`, and train the resume matching model before demoing AI flows.
+- Non-AI integrations still require valid credentials, network access, callback URLs, and security configuration before enabling production behavior.

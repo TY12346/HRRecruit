@@ -107,7 +107,6 @@ class InterviewAISummarySerializer(serializers.ModelSerializer):
             'provider': metadata.get('provider', 'unknown'),
             'model': metadata.get('model', ''),
             'generation_mode': metadata.get('generation_mode', 'unknown'),
-            'fallback_reason': metadata.get('fallback_reason', ''),
             'human_review_required': metadata.get('human_review_required', True),
             'decision_boundary': metadata.get(
                 'decision_boundary',

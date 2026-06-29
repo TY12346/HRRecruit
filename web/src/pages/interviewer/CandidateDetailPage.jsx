@@ -175,16 +175,12 @@ function AIScoresCard({ scores }) {
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Typography variant="body2" color="text.secondary">Model version</Typography>
-                    <Typography sx={{ fontWeight: 700 }}>{mlScreening.model_version || 'Fallback model'}</Typography>
+                    <Typography sx={{ fontWeight: 700 }}>{mlScreening.model_version || 'Trained model'}</Typography>
                   </Grid>
                 </Grid>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.5 }}>
                   <Chip size="small" label={`Label: ${titleize(mlScreening.ml_match_label)}`} />
-                  <Chip
-                    size="small"
-                    color={mlScreening.fallback_used ? 'warning' : 'success'}
-                    label={mlScreening.fallback_used ? 'Fallback used' : 'Trained model used'}
-                  />
+                  <Chip size="small" color="success" label="Trained model used" />
                 </Stack>
               </Box>
               <Grid container spacing={2}>

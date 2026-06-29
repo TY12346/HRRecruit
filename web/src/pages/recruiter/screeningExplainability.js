@@ -73,7 +73,6 @@ export function buildScreeningExplainability(profile = {}) {
     negativeFactors,
     notes,
     modelVersion: mlScreening.model_version ?? explanation.model_version ?? 'Rule-based screening',
-    fallbackUsed: Boolean(mlScreening.fallback_used ?? explanation.fallback_used),
     confidence: scoreNumber(mlScreening.ml_confidence),
     mlSuitabilityScore: scoreNumber(mlScreening.ml_suitability_score),
     mlMatchLabel: mlScreening.ml_match_label,

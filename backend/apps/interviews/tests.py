@@ -1,3 +1,5 @@
+import json
+import os
 from unittest.mock import patch
 from django.urls import reverse
 from rest_framework import status
@@ -475,7 +477,7 @@ class InterviewEvaluationAPITests(APITestCase):
             format='json',
         )
 
-    def audio_file(self, name='interview.mp3', content_type='audio/mpeg', content=b'mock audio bytes'):
+    def audio_file(self, name='interview.mp3', content_type='audio/mpeg', content=b'audio bytes'):
         return SimpleUploadedFile(name, content, content_type=content_type)
 
     def upload_recording(self):
@@ -492,13 +494,27 @@ class InterviewEvaluationAPITests(APITestCase):
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
         self.assertEqual(recording.uploaded_by, self.interviewer)
 
-        transcribe_response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.transcription_service._call_openai_transcription',
+            return_value='Candidate discussed Django API experience and communicated clearly.',
+        ):
+            transcribe_response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
         self.assertEqual(transcribe_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(transcribe_response.data['transcript_text'], 'This is a mock interview transcript for FYP development.')
-        self.assertEqual(transcribe_response.data['transcript_json']['provider'], 'mock')
+        self.assertEqual(transcribe_response.data['transcript_text'], 'Candidate discussed Django API experience and communicated clearly.')
+        self.assertEqual(transcribe_response.data['transcript_json']['provider'], 'openai')
         transcript = InterviewTranscript.objects.get(id=transcribe_response.data['id'])
 
-        summary_response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.summary_service._call_openai_summary',
+            return_value=json.dumps({
+                'strengths': 'Strong Django API experience.',
+                'weaknesses': 'Needs more detail on testing.',
+                'communication_score': 8,
+                'overall_impression': 'Clear and relevant interview responses.',
+                'editable_summary_text': 'Strong Django API experience with clear communication.',
+            }),
+        ):
+            summary_response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
         self.assertEqual(summary_response.status_code, status.HTTP_201_CREATED)
         self.assertIn('strengths', summary_response.data)
         summary = InterviewAISummary.objects.get(id=summary_response.data['id'])
@@ -514,23 +530,42 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(summary.edited_by, self.interviewer)
 
 
-    def test_mock_transcription_is_default_and_saves_metadata(self):
+    def test_real_transcription_uses_openai_when_enabled_and_configured(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
-        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'False'}), patch(
-            'apps.ai_services.transcription_service._call_openai_transcription'
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.transcription_service._call_openai_transcription',
+            return_value='Real provider transcript text.',
         ) as openai_transcription:
             response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['transcript_text'], 'This is a mock interview transcript for FYP development.')
-        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
-        self.assertEqual(response.data['transcript_json']['fallback_reason'], 'real_transcription_disabled')
+        self.assertEqual(response.data['transcript_text'], 'Real provider transcript text.')
+        self.assertEqual(response.data['transcript_json']['provider'], 'openai')
+        self.assertEqual(response.data['transcript_json']['model'], 'whisper-1')
         self.assertEqual(InterviewTranscript.objects.filter(recording=recording).count(), 1)
+        openai_transcription.assert_called_once()
+
+    def test_openai_api_key_alone_returns_clear_transcription_error(self):
+        upload_response = self.upload_recording()
+        recording = InterviewRecording.objects.get(id=upload_response.data['id'])
+        original_flag = os.environ.pop('USE_REAL_TRANSCRIPTION', None)
+        try:
+            with patch.dict('os.environ', {'OPENAI_API_KEY': 'test-key'}), patch(
+                'apps.ai_services.transcription_service._call_openai_transcription',
+                return_value='Real transcript should not be used by key alone.',
+            ) as openai_transcription:
+                response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
+        finally:
+            if original_flag is not None:
+                os.environ['USE_REAL_TRANSCRIPTION'] = original_flag
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('Real transcription is disabled', str(response.data['detail']))
         openai_transcription.assert_not_called()
 
-    def test_real_transcription_missing_api_key_falls_back_to_mock(self):
+    def test_real_transcription_missing_api_key_returns_clear_error(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
@@ -539,13 +574,11 @@ class InterviewEvaluationAPITests(APITestCase):
         ) as openai_transcription:
             response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['transcript_text'], 'This is a mock interview transcript for FYP development.')
-        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
-        self.assertEqual(response.data['transcript_json']['fallback_reason'], 'missing_openai_api_key')
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('OPENAI_API_KEY is required', str(response.data['detail']))
         openai_transcription.assert_not_called()
 
-    def test_real_transcription_provider_failure_falls_back_to_saved_mock_transcript(self):
+    def test_real_transcription_provider_failure_returns_clear_error_without_saving_transcript(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
@@ -555,18 +588,20 @@ class InterviewEvaluationAPITests(APITestCase):
         ) as openai_transcription:
             response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['transcript_text'], 'This is a mock interview transcript for FYP development.')
-        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
-        self.assertEqual(response.data['transcript_json']['fallback_reason'], 'real_transcription_failed: RuntimeError')
-        self.assertTrue(InterviewTranscript.objects.filter(recording=recording).exists())
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('Real transcription failed', str(response.data['detail']))
+        self.assertFalse(InterviewTranscript.objects.filter(recording=recording).exists())
         openai_transcription.assert_called_once()
 
     def test_transcription_response_is_saved_for_existing_evaluation_flow(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
-        response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.transcription_service._call_openai_transcription',
+            return_value='Saved real transcript text.',
+        ):
+            response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         transcript = InterviewTranscript.objects.get(id=response.data['id'])
@@ -574,7 +609,7 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(transcript.transcript_text, response.data['transcript_text'])
         self.assertEqual(transcript.transcript_json['algorithm'], 'automatic_speech_recognition')
 
-    def test_external_api_is_not_called_when_real_transcription_disabled(self):
+    def test_real_transcription_disabled_returns_clear_error_without_saving_transcript(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
@@ -583,55 +618,48 @@ class InterviewEvaluationAPITests(APITestCase):
         ) as openai_transcription:
             response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('Real transcription is disabled', str(response.data['detail']))
+        self.assertFalse(InterviewTranscript.objects.filter(recording=recording).exists())
         openai_transcription.assert_not_called()
 
-    def create_mock_transcript(self, text='Candidate communicated clearly and discussed Django API experience.'):
+    def create_transcript(self, text='Candidate communicated clearly and discussed Django API experience.'):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
         return InterviewTranscript.objects.create(
             recording=recording,
             transcript_text=text,
-            transcript_json={'provider': 'mock'},
+            transcript_json={'provider': 'openai', 'mode': 'real'},
         )
 
-    def test_mock_summary_is_default_and_saves_structured_fields(self):
-        transcript = self.create_mock_transcript()
+    def test_real_summary_requires_explicit_configuration(self):
+        transcript = self.create_transcript()
 
         with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'False'}), patch(
             'apps.ai_services.summary_service._call_openai_summary'
         ) as openai_summary:
             response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['strengths'], 'Candidate provided clear examples and showed relevant preparation.')
-        self.assertEqual(response.data['weaknesses'], 'Candidate needs to provide deeper technical detail in future interviews.')
-        self.assertEqual(response.data['communication_score'], '8.00')
-        self.assertIn('continued consideration', response.data['overall_impression'])
-        self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
-        self.assertEqual(response.data['transparency']['provider'], 'mock')
-        self.assertTrue(response.data['transparency']['human_review_required'])
-        self.assertIn('final hiring decision', response.data['transparency']['decision_boundary'])
-        self.assertIn('Candidate communicated clearly', response.data['transparency']['source_excerpt'])
-        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 1)
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('Real summary generation is disabled', str(response.data['detail']))
+        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 0)
         openai_summary.assert_not_called()
 
-    def test_real_summary_missing_api_key_falls_back_to_mock(self):
-        transcript = self.create_mock_transcript()
+    def test_real_summary_missing_api_key_returns_clear_error(self):
+        transcript = self.create_transcript()
 
         with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': ''}), patch(
             'apps.ai_services.summary_service._call_openai_summary'
         ) as openai_summary:
             response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['communication_score'], '8.00')
-        self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('OPENAI_API_KEY is required', str(response.data['detail']))
+        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 0)
         openai_summary.assert_not_called()
 
-    def test_real_summary_provider_failure_falls_back_to_required_mock_fields(self):
-        transcript = self.create_mock_transcript()
+    def test_real_summary_provider_failure_returns_clear_error(self):
+        transcript = self.create_transcript()
 
         with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.summary_service._call_openai_summary',
@@ -639,16 +667,25 @@ class InterviewEvaluationAPITests(APITestCase):
         ) as openai_summary:
             response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['communication_score'], '8.00')
-        self.assertIn('Mock AI summary generated for FYP development.', response.data['editable_summary_text'])
-        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 1)
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('Real summary generation failed', str(response.data['detail']))
+        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 0)
         openai_summary.assert_called_once()
 
-    def test_summary_response_contains_required_structured_output_fields(self):
-        transcript = self.create_mock_transcript()
+    def test_real_summary_response_contains_required_structured_output_fields(self):
+        transcript = self.create_transcript()
 
-        response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.summary_service._call_openai_summary',
+            return_value=json.dumps({
+                'strengths': 'Clear examples.',
+                'weaknesses': 'Needs deeper detail.',
+                'communication_score': 8,
+                'overall_impression': 'Relevant interview performance.',
+                'editable_summary_text': 'Clear examples with room for more detail.',
+            }),
+        ):
+            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         required_fields = {
@@ -661,12 +698,23 @@ class InterviewEvaluationAPITests(APITestCase):
             'transparency',
         }
         self.assertTrue(required_fields.issubset(response.data.keys()))
-        for field in required_fields - {'communication_score'}:
-            self.assertTrue(response.data[field])
+        self.assertEqual(response.data['transparency']['provider'], 'openai')
+        self.assertTrue(response.data['transparency']['human_review_required'])
+        self.assertIn('final hiring decision', response.data['transparency']['decision_boundary'])
 
     def test_interviewer_can_edit_generated_summary_before_final_evaluation(self):
-        transcript = self.create_mock_transcript()
-        summary_response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
+        transcript = self.create_transcript()
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+            'apps.ai_services.summary_service._call_openai_summary',
+            return_value=json.dumps({
+                'strengths': 'Original strengths.',
+                'weaknesses': 'Original weaknesses.',
+                'communication_score': 8,
+                'overall_impression': 'Original impression.',
+                'editable_summary_text': 'Original summary text.',
+            }),
+        ):
+            summary_response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
         summary = InterviewAISummary.objects.get(id=summary_response.data['id'])
 
         response = self.client.patch(
@@ -689,29 +737,6 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(summary.overall_impression, 'Edited interviewer impression.')
         self.assertEqual(summary.editable_summary_text, 'Edited full summary text.')
         self.assertEqual(summary.edited_by, self.interviewer)
-
-    def test_summary_transparency_tracks_real_summary_fallback_reason(self):
-        transcript = self.create_mock_transcript()
-
-        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': ''}):
-            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['summary_json']['fallback_reason'], 'missing_openai_api_key')
-        self.assertEqual(response.data['transparency']['fallback_reason'], 'missing_openai_api_key')
-
-    def test_external_api_is_not_called_when_real_summary_disabled(self):
-        transcript = self.create_mock_transcript()
-
-        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'False', 'OPENAI_API_KEY': 'test-key'}), patch(
-            'apps.ai_services.summary_service._call_openai_summary'
-        ) as openai_summary:
-            response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['communication_score'], '8.00')
-        openai_summary.assert_not_called()
-
 
     def test_unassigned_interviewer_cannot_upload_recording(self):
         self.authenticate(self.other_interviewer)

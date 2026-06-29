@@ -129,7 +129,7 @@ function ScreeningExplanationCard({ explainability }) {
 
           <Stack spacing={0.5}>
             <Typography variant="caption" color="text.secondary">
-              Model: {explainability.modelVersion}{explainability.fallbackUsed ? ' · deterministic fallback used' : ''}
+              Model: {explainability.modelVersion}
             </Typography>
             {explainability.mlMatchLabel ? (
               <Typography variant="caption" color="text.secondary">
