@@ -8,6 +8,10 @@ from apps.evaluations.views import (
 from .views import (
     AssignedInterviewListAPIView,
     BookSchedulingRequestAPIView,
+    GoogleCalendarConnectAPIView,
+    GoogleCalendarDisconnectAPIView,
+    GoogleCalendarOAuthCallbackAPIView,
+    GoogleCalendarStatusAPIView,
     InterviewDetailAPIView,
     InterviewListAPIView,
     InterviewSchedulingRequestListAPIView,
@@ -22,6 +26,10 @@ from .views import (
 urlpatterns = [
     path('', InterviewListAPIView.as_view(), name='interview-list'),
     path('assigned/', AssignedInterviewListAPIView.as_view(), name='interview-assigned-list'),
+    path('calendar/google/status/', GoogleCalendarStatusAPIView.as_view(), name='google-calendar-status'),
+    path('calendar/google/connect/', GoogleCalendarConnectAPIView.as_view(), name='google-calendar-connect'),
+    path('calendar/google/callback/', GoogleCalendarOAuthCallbackAPIView.as_view(), name='google-calendar-callback'),
+    path('calendar/google/disconnect/', GoogleCalendarDisconnectAPIView.as_view(), name='google-calendar-disconnect'),
     path('availability/patterns/', InterviewerAvailabilityPatternListCreateAPIView.as_view(), name='interviewer-availability-pattern-list-create'),
     path('availability/patterns/<int:pattern_id>/', InterviewerAvailabilityPatternDetailAPIView.as_view(), name='interviewer-availability-pattern-detail'),
     path('availability/unavailable-dates/', InterviewerUnavailableDateListCreateAPIView.as_view(), name='interviewer-unavailable-date-list-create'),

@@ -140,6 +140,13 @@ class ApiClient {
         (first == 192 && second == 168);
   }
 
+  Options longRunningRequestOptions() {
+    return Options(
+      sendTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 60),
+    );
+  }
+
   Future<void> updateBaseUrl(String baseUrl) async {
     final normalizedBaseUrl = normalizeBaseUrl(baseUrl);
     dio.options.baseUrl = normalizedBaseUrl;

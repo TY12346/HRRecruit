@@ -11,6 +11,7 @@ import CandidateRankingPage from '../pages/recruiter/CandidateRankingPage.jsx';
 import EvaluationFormBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
 import HiringDecisionPage from '../pages/recruiter/HiringDecisionPage.jsx';
 import InterviewAssignmentPage from '../pages/recruiter/InterviewAssignmentPage.jsx';
+import GoogleCalendarCallbackPage from '../pages/recruiter/GoogleCalendarCallbackPage.jsx';
 import InterviewEvaluationDetailPage from '../pages/recruiter/InterviewEvaluationDetailPage.jsx';
 import JobCreateEditPage from '../pages/recruiter/JobCreateEditPage.jsx';
 import JobDetailPage from '../pages/recruiter/JobDetailPage.jsx';
@@ -41,6 +42,14 @@ import HRAnalyticsPage from '../pages/hr_head/HRAnalyticsPage.jsx';
 import NotificationsPage from '../pages/hr_head/NotificationsPage.jsx';
 import ProfilePage from '../pages/profile/ProfilePage.jsx';
 import { DashboardRedirect, GuestOnlyRoute, ProtectedRoute, RoleRoute } from './guards.jsx';
+
+const githubPagesBasename = window.location.hostname.endsWith('github.io')
+  ? `/${window.location.pathname.split('/').filter(Boolean)[0] || ''}`
+  : '';
+const configuredBasename = import.meta.env.VITE_ROUTER_BASENAME || githubPagesBasename || import.meta.env.BASE_URL;
+const routerBasename = configuredBasename && !['/', './'].includes(configuredBasename)
+  ? configuredBasename.replace(/\/$/, '')
+  : undefined;
 
 export const router = createBrowserRouter([
   {
@@ -78,6 +87,7 @@ export const router = createBrowserRouter([
           { path: 'recruiter/applications/:applicationId/assign-interview', element: <InterviewAssignmentPage /> },
           { path: 'recruiter/applications/:applicationId/hiring-decision', element: <HiringDecisionPage /> },
           { path: 'recruiter/interviews', element: <InterviewEvaluationDetailPage /> },
+          { path: 'recruiter/calendar/google/callback', element: <GoogleCalendarCallbackPage /> },
           { path: 'recruiter/hiring-decisions', element: <HiringDecisionPage /> },
           { path: 'recruiter/job-offers', element: <JobOfferPage /> },
           { path: 'recruiter/analytics', element: <RecruiterAnalyticsPage /> },
@@ -117,4 +127,4 @@ export const router = createBrowserRouter([
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
-]);
+], { basename: routerBasename });

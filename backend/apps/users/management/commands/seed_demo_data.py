@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from apps.ai_services.summary_service import build_summary_transparency_metadata
 from apps.applications.models import ApplicationStageHistory, JobApplication
 from apps.billing.models import Payment, Subscription, SubscriptionPlan
 from apps.evaluations.models import (
@@ -20,7 +21,7 @@ from apps.interviews.models import CalendarEvent, Interview, InterviewStatusHist
 from apps.jobs.models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, JobRequirement
 from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
-from apps.users.models import ApplicantProfile, User, create_profile_for_user
+from apps.users.models import ApplicantProfile, ApplicantResume, User, create_profile_for_user
 
 
 DEMO_PASSWORD = 'DemoPass123!'
@@ -50,9 +51,10 @@ class Command(BaseCommand):
             raise CommandError('Password must not be empty.')
 
         users = self._seed_users(password=password, update_password=not options['no_update_password'])
+        resumes = self._seed_resumes(users[User.Role.APPLICANT])
         organization = self._seed_organization(users)
         jobs = self._seed_jobs(organization, users[User.Role.RECRUITER])
-        application = self._seed_application(jobs['software_engineer'], users)
+        application = self._seed_application(jobs['software_engineer'], users, resumes['software_engineer'])
         interview = self._seed_interview(application, organization, users)
         self._seed_hiring(application, users)
         self._seed_notifications(application, interview, users)
@@ -66,6 +68,7 @@ class Command(BaseCommand):
         self.stdout.write('')
         self.stdout.write('Seeded demo organization: TechNova Solutions Sdn Bhd')
         self.stdout.write('Seeded demo jobs: Software Engineer, Data Analyst')
+        self.stdout.write('Seeded applicant resumes: Software Engineer Resume, Data Analyst Resume')
         self.stdout.write('Seed command is idempotent and does not delete existing data.')
 
     def _seed_users(self, password, update_password):
@@ -133,6 +136,49 @@ class Command(BaseCommand):
             },
         )
         return users
+
+    def _seed_resumes(self, applicant):
+        resume_specs = {
+            'software_engineer': {
+                'title': 'Software Engineer Resume',
+                'filename': 'demo-software-engineer-resume.txt',
+                'is_default': True,
+                'content': (
+                    'Demo Software Engineer Resume\n'
+                    'Bachelor in Computer Science. 2.5 years building Python, Django, REST API, React, '
+                    'PostgreSQL, analytics dashboards, role-based access control, and SaaS workflows.'
+                ),
+            },
+            'data_analyst': {
+                'title': 'Data Analyst Resume',
+                'filename': 'demo-data-analyst-resume.txt',
+                'is_default': False,
+                'content': (
+                    'Demo Data Analyst Resume\n'
+                    'Experience with SQL, Excel, reporting dashboards, hiring funnel metrics, data visualization, '
+                    'stakeholder communication, and recruitment analytics.'
+                ),
+            },
+        }
+        resumes = {}
+        for key, spec in resume_specs.items():
+            resume, _ = ApplicantResume.objects.update_or_create(
+                applicant=applicant,
+                title=spec['title'],
+                defaults={'is_default': spec['is_default']},
+            )
+            if not resume.resume_file:
+                resume.resume_file.save(spec['filename'], ContentFile(spec['content'].encode('utf-8')), save=True)
+            elif resume.is_default != spec['is_default']:
+                resume.is_default = spec['is_default']
+                resume.save(update_fields=['is_default'])
+            resumes[key] = resume
+
+        profile = applicant.applicant_profile
+        if not profile.resume_file:
+            profile.resume_file.save('demo-profile-resume.txt', ContentFile(resume_specs['software_engineer']['content'].encode('utf-8')), save=True)
+        profile.save(update_fields=['resume_file', 'updated_at'])
+        return resumes
 
     def _seed_organization(self, users):
         organization, _ = Organization.objects.update_or_create(
@@ -242,7 +288,7 @@ class Command(BaseCommand):
             )
         return form
 
-    def _seed_application(self, job, users):
+    def _seed_application(self, job, users, selected_resume):
         semantic_score = Decimal('82.00')
         skill_score = Decimal('88.00')
         experience_score = Decimal('78.00')
@@ -258,6 +304,7 @@ class Command(BaseCommand):
             job=job,
             defaults={
                 'status': JobApplication.Status.HIRED,
+                'resume': selected_resume,
                 'recruiter_remark': 'Demo candidate completed the full FYP workflow and accepted the offer.',
                 'assigned_interviewer': users[User.Role.INTERVIEWER],
                 'extracted_resume_text': (
@@ -384,6 +431,15 @@ class Command(BaseCommand):
                     'Mock AI summary for demo only. Candidate communicates clearly, meets the core technical '
                     'requirements, and should be reviewed by the recruiter and HR head before any final decision.'
                 ),
+                'summary_json': {
+                    'transparency': build_summary_transparency_metadata(
+                        transcript.transcript_text,
+                        provider='mock',
+                        model='seed-demo-summary',
+                        fallback_reason='Seeded deterministic demo summary.',
+                        generation_mode='seeded_mock',
+                    ),
+                },
                 'edited_by': interviewer,
             },
         )
@@ -437,6 +493,15 @@ class Command(BaseCommand):
                     'Fake demo offer for Software Engineer at TechNova Solutions Sdn Bhd. This offer is '
                     'for FYP demonstration only and contains no real employment commitment.'
                 ),
+                'salary_amount': Decimal('6500.00'),
+                'salary_currency': 'MYR',
+                'start_date': timezone.localdate() + timedelta(days=21),
+                'employment_type': 'Full-time',
+                'work_arrangement': 'Hybrid',
+                'probation_months': 3,
+                'benefits_summary': 'Medical coverage, annual leave, learning allowance, and hybrid work arrangement.',
+                'internal_notes': 'Seeded demo offer. No real employment commitment.',
+                'candidate_response_note': 'Accepted for the FYP demo workflow.',
                 'offer_status': JobOffer.OfferStatus.ACCEPTED,
                 'respond_deadline': timezone.now() + timedelta(days=7),
                 'responded_at': timezone.now(),
@@ -479,7 +544,19 @@ class Command(BaseCommand):
             subscription.start_date = start_date
             subscription.end_date = end_date
             subscription.is_auto_renew = False
-            subscription.save(update_fields=['start_date', 'end_date', 'is_auto_renew'])
+            subscription.cancel_at_period_end = False
+            subscription.cancelled_at = None
+            subscription.cancellation_reason = ''
+            subscription.save(
+                update_fields=[
+                    'start_date',
+                    'end_date',
+                    'is_auto_renew',
+                    'cancel_at_period_end',
+                    'cancelled_at',
+                    'cancellation_reason',
+                ]
+            )
         else:
             subscription = Subscription.objects.create(
                 organization=organization,
@@ -495,8 +572,22 @@ class Command(BaseCommand):
             payment.amount = plan.price
             payment.currency = 'MYR'
             payment.status = Payment.Status.PAID
+            payment.billing_reason = Payment.BillingReason.SUBSCRIPTION_CREATE
             payment.paid_at = timezone.now()
-            payment.save(update_fields=['transaction_reference', 'amount', 'currency', 'status', 'paid_at'])
+            payment.due_at = timezone.now()
+            payment.failure_reason = ''
+            payment.save(
+                update_fields=[
+                    'transaction_reference',
+                    'amount',
+                    'currency',
+                    'status',
+                    'billing_reason',
+                    'paid_at',
+                    'due_at',
+                    'failure_reason',
+                ]
+            )
         else:
             Payment.objects.create(
                 subscription=subscription,
@@ -505,5 +596,7 @@ class Command(BaseCommand):
                 amount=plan.price,
                 currency='MYR',
                 status=Payment.Status.PAID,
+                billing_reason=Payment.BillingReason.SUBSCRIPTION_CREATE,
                 paid_at=timezone.now(),
+                due_at=timezone.now(),
             )

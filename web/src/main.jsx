@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import App from './App.jsx';
+import AppErrorBoundary from './AppErrorBoundary.jsx';
 import './styles.css';
 
 const plainBorder = '1px solid #777';
@@ -161,7 +162,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </ThemeProvider>
   </StrictMode>,
 );

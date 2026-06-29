@@ -1,4 +1,4 @@
-"""Interview audio transcription service with mock-first FYP fallback behavior."""
+"""Interview audio transcription service with strict real-ASR behavior."""
 
 from __future__ import annotations
 
@@ -10,24 +10,25 @@ from pathlib import Path
 
 from rest_framework.exceptions import ValidationError
 
+from apps.ai_services.exceptions import AIServiceUnavailable
 from apps.evaluations.models import ALLOWED_INTERVIEW_AUDIO_EXTENSIONS, InterviewTranscript
 
-MOCK_TRANSCRIPT_TEXT = 'This is a mock interview transcript for FYP development.'
 TRANSCRIPTION_TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
 ALLOWED_AUDIO_MIME_PREFIXES = ('audio/', 'video/webm')
 
 
-class TranscriptionUnavailable(Exception):
-    """Raised when optional real transcription cannot be used safely."""
+class TranscriptionUnavailable(AIServiceUnavailable):
+    """Raised when required real transcription cannot be used."""
 
 
 def use_real_transcription_enabled():
-    """Return whether real ASR is enabled by environment variable."""
-    return os.getenv('USE_REAL_TRANSCRIPTION', 'False').strip().lower() in TRANSCRIPTION_TRUTHY_VALUES
+    """Return whether required real ASR is explicitly enabled."""
+    explicit_setting = os.getenv('USE_REAL_TRANSCRIPTION', 'False')
+    return explicit_setting.strip().lower() in TRANSCRIPTION_TRUTHY_VALUES
 
 
 def get_transcription_model():
-    """Return configured ASR model name, defaulting to Whisper for optional OpenAI use."""
+    """Return configured ASR model name, defaulting to Whisper per ALGORITHMS.md."""
     return os.getenv('TRANSCRIPTION_MODEL', 'whisper-1').strip() or 'whisper-1'
 
 
@@ -66,29 +67,9 @@ def preprocess_audio(audio_file):
 def post_process_transcript(transcript_text):
     """Normalize provider transcript text before saving."""
     cleaned = ' '.join(str(transcript_text or '').split())
-    return cleaned or MOCK_TRANSCRIPT_TEXT
-
-
-def build_mock_transcription(recording, reason):
-    """Build deterministic mock transcript payload and provider metadata."""
-    return {
-        'text': MOCK_TRANSCRIPT_TEXT,
-        'metadata': {
-            'provider': 'mock',
-            'mode': 'fallback',
-            'fallback_reason': reason,
-            'recording_id': recording.id,
-            'preprocessing': 'skipped_for_local_fyp_development',
-            'segments': [
-                {
-                    'speaker': 'candidate',
-                    'start_seconds': 0,
-                    'end_seconds': 5,
-                    'text': MOCK_TRANSCRIPT_TEXT,
-                }
-            ],
-        },
-    }
+    if not cleaned:
+        raise TranscriptionUnavailable('Transcription provider returned an empty transcript.')
+    return cleaned
 
 
 def _extract_transcription_text(response):
@@ -101,9 +82,9 @@ def _extract_transcription_text(response):
 
 
 def _call_openai_transcription(audio_file, api_key, model):
-    """Call OpenAI Whisper transcription when explicitly enabled and configured."""
+    """Call OpenAI audio transcription when enabled and configured."""
     if importlib.util.find_spec('openai') is None:
-        raise TranscriptionUnavailable('openai_package_unavailable')
+        raise TranscriptionUnavailable('The OpenAI Python package is not installed; real transcription cannot run.')
 
     openai = importlib.import_module('openai')
     client = openai.OpenAI(api_key=api_key)
@@ -116,7 +97,7 @@ def run_real_transcription(audio_file):
     """Run optional real provider or raise a safe unavailability error."""
     api_key = get_openai_api_key()
     if not api_key:
-        raise TranscriptionUnavailable('missing_openai_api_key')
+        raise TranscriptionUnavailable('OPENAI_API_KEY is required for real transcription.')
 
     model = get_transcription_model()
     try:
@@ -124,7 +105,7 @@ def run_real_transcription(audio_file):
     except TranscriptionUnavailable:
         raise
     except Exception as exc:
-        raise TranscriptionUnavailable(f'real_transcription_failed: {exc.__class__.__name__}') from exc
+        raise TranscriptionUnavailable(f'Real transcription failed: {exc.__class__.__name__}') from exc
 
     return {
         'text': post_process_transcript(transcript_text),
@@ -138,18 +119,15 @@ def run_real_transcription(audio_file):
 
 
 def transcribe_recording_payload(recording):
-    """Return unsaved transcript payload for compatibility with existing callers."""
+    """Return unsaved transcript payload, failing clearly if real ASR is unavailable."""
     audio_file = validate_recording_audio_file(recording)
     processed_audio = preprocess_audio(audio_file)
 
     if not use_real_transcription_enabled():
-        result = build_mock_transcription(recording, 'real_transcription_disabled')
-    else:
-        try:
-            result = run_real_transcription(processed_audio)
-            result['metadata']['recording_id'] = recording.id
-        except TranscriptionUnavailable as exc:
-            result = build_mock_transcription(recording, str(exc))
+        raise TranscriptionUnavailable('Real transcription is disabled. Set USE_REAL_TRANSCRIPTION=True and configure OPENAI_API_KEY.')
+
+    result = run_real_transcription(processed_audio)
+    result['metadata']['recording_id'] = recording.id
 
     cleaned_text = post_process_transcript(result['text'])
     metadata = {

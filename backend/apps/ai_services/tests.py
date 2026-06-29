@@ -26,7 +26,8 @@ from .resume_screening import (
     extract_experience,
 )
 from .scoring import calculate_final_score, calculate_score_breakdown
-from .semantic_matcher import fallback_semantic_similarity, semantic_similarity
+from .exceptions import AIServiceUnavailable
+from .semantic_matcher import semantic_similarity
 from .skill_extractor import (
     _load_spacy_model,
     extract_skill_labels,
@@ -143,7 +144,9 @@ class SkillExtractorTests(SimpleTestCase):
     def test_normalize_text_lowercases_and_removes_extra_punctuation(self):
         self.assertEqual(normalize_text('  Python,   React.js!  '), 'python react.js')
 
-    def test_extract_skills_normalizes_aliases_and_returns_canonical_names(self):
+    @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
+    def test_extract_skills_normalizes_aliases_and_returns_canonical_names(self, _mock_spacy_model, _mock_phrase_matcher_class):
         resume_text = 'Built RESTful APIs with Python, Django, ReactJS, PostgreSQL, AWS, and C++.'
 
         self.assertEqual(
@@ -151,22 +154,20 @@ class SkillExtractorTests(SimpleTestCase):
             ['aws', 'c++', 'django', 'postgresql', 'python', 'react', 'rest api'],
         )
 
-    def test_extract_skills_does_not_match_alias_inside_another_word(self):
+    @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
+    def test_extract_skills_does_not_match_alias_inside_another_word(self, _mock_spacy_model, _mock_phrase_matcher_class):
         self.assertEqual(extract_skills('Enjoys javascript.', {'java': ('java',)}), [])
 
     def test_extract_skills_accepts_an_empty_custom_dictionary(self):
         self.assertEqual(extract_skills('Python', {}), [])
 
-    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=None)
-    def test_extract_skills_uses_deterministic_fallback_when_spacy_unavailable(self, _mock_spacy_model):
-        resume_text = 'Built RESTful APIs with py, js, nodejs, postgres, and reactjs.'
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', side_effect=AIServiceUnavailable('spaCy unavailable'))
+    def test_extract_skills_raises_when_spacy_unavailable(self, _mock_spacy_model):
+        with self.assertRaises(AIServiceUnavailable):
+            extract_skills('Built RESTful APIs with py, js, nodejs, postgres, and reactjs.')
 
-        self.assertEqual(
-            extract_skills(resume_text),
-            ['javascript', 'node.js', 'postgresql', 'python', 'react', 'rest api'],
-        )
-
-    def test_load_spacy_model_returns_none_when_spacy_dependency_import_fails(self):
+    def test_load_spacy_model_raises_when_spacy_dependency_import_fails(self):
         _load_spacy_model.cache_clear()
         self.addCleanup(_load_spacy_model.cache_clear)
 
@@ -177,21 +178,15 @@ class SkillExtractorTests(SimpleTestCase):
                 side_effect=ModuleNotFoundError('click'),
             ) as mock_import_module,
         ):
-            self.assertIsNone(_load_spacy_model())
+            with self.assertRaises(AIServiceUnavailable):
+                _load_spacy_model()
 
         mock_import_module.assert_called_once_with('spacy')
 
-    def test_extract_skill_labels_uses_fallback_when_spacy_install_is_broken(self):
-        _load_spacy_model.cache_clear()
-        self.addCleanup(_load_spacy_model.cache_clear)
-
-        with (
-            patch('apps.ai_services.skill_extractor.importlib.util.find_spec', return_value=object()),
-            patch(
-                'apps.ai_services.skill_extractor.importlib.import_module',
-                side_effect=ModuleNotFoundError('click'),
-            ),
-        ):
+    @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
+    def test_extract_skill_labels_uses_spacy_matches(self, _mock_spacy_model, _mock_phrase_matcher_class):
+        with patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher), patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP()):
             self.assertEqual(extract_skill_labels('py js reactjs nodejs postgres'), [
                 'JavaScript',
                 'Node.js',
@@ -212,13 +207,14 @@ class SkillExtractorTests(SimpleTestCase):
             get_skill_display_labels(['python', 'javascript', 'react', 'node.js', 'postgresql']),
             ['Python', 'JavaScript', 'React', 'Node.js', 'PostgreSQL'],
         )
-        self.assertEqual(extract_skill_labels('py js reactjs nodejs postgres'), [
-            'JavaScript',
-            'Node.js',
-            'PostgreSQL',
-            'Python',
-            'React',
-        ])
+        with patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher), patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP()):
+            self.assertEqual(extract_skill_labels('py js reactjs nodejs postgres'), [
+                'JavaScript',
+                'Node.js',
+                'PostgreSQL',
+                'Python',
+                'React',
+            ])
 
     @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
     @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
@@ -233,24 +229,28 @@ class SkillExtractorTests(SimpleTestCase):
 
 class SemanticMatcherTests(SimpleTestCase):
     @patch('apps.ai_services.semantic_matcher._get_model', side_effect=ModuleNotFoundError)
-    def test_semantic_similarity_uses_deterministic_fallback_when_dependency_is_unavailable(self, _mock_model):
-        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer', fallback_score=62), 50.0)
+    def test_semantic_similarity_raises_when_dependency_is_unavailable(self, _mock_model):
+        with self.assertRaises(AIServiceUnavailable):
+            semantic_similarity('Python Django developer', 'Django Python engineer')
 
     @patch('apps.ai_services.semantic_matcher._get_model', side_effect=OSError('offline model download failed'))
-    def test_semantic_similarity_uses_deterministic_fallback_when_model_loading_fails(self, _mock_model):
-        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 50.0)
+    def test_semantic_similarity_raises_when_model_loading_fails(self, _mock_model):
+        with self.assertRaises(AIServiceUnavailable):
+            semantic_similarity('Python Django developer', 'Django Python engineer')
 
     @patch('apps.ai_services.semantic_matcher._get_model')
-    def test_semantic_similarity_uses_deterministic_fallback_when_encoding_fails(self, mock_get_model):
+    def test_semantic_similarity_raises_when_encoding_fails(self, mock_get_model):
         mock_get_model.return_value.encode.side_effect = RuntimeError('tensor execution failed')
 
-        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 50.0)
+        with self.assertRaises(AIServiceUnavailable):
+            semantic_similarity('Python Django developer', 'Django Python engineer')
 
     @patch('apps.ai_services.semantic_matcher._get_model')
-    def test_semantic_similarity_uses_deterministic_fallback_when_tensor_handling_fails(self, mock_get_model):
+    def test_semantic_similarity_raises_when_tensor_handling_fails(self, mock_get_model):
         mock_get_model.return_value.encode.return_value = []
 
-        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 50.0)
+        with self.assertRaises(AIServiceUnavailable):
+            semantic_similarity('Python Django developer', 'Django Python engineer')
 
     @patch('apps.ai_services.semantic_matcher._get_model')
     def test_semantic_similarity_uses_model_embeddings_when_dependency_is_available(self, mock_get_model):
@@ -274,22 +274,6 @@ class SemanticMatcherTests(SimpleTestCase):
     def test_semantic_similarity_returns_zero_for_blank_input(self):
         self.assertEqual(semantic_similarity('', 'Backend engineer'), 0.0)
         self.assertEqual(semantic_similarity('Python developer', '   '), 0.0)
-
-    def test_semantic_similarity_rejects_out_of_range_fallback_score_for_api_compatibility(self):
-        with self.assertRaisesMessage(ValueError, 'fallback_score must be between 0 and 100'):
-            semantic_similarity('Python', 'Backend engineer', fallback_score=101)
-
-    def test_fallback_semantic_similarity_scores_related_text_higher_than_unrelated_text(self):
-        related_score = fallback_semantic_similarity(
-            'Python Django REST API backend developer',
-            'Backend engineer building Python Django APIs',
-        )
-        unrelated_score = fallback_semantic_similarity(
-            'Python Django REST API backend developer',
-            'Payroll benefits compliance specialist',
-        )
-
-        self.assertGreater(related_score, unrelated_score)
 
 
 class _Vector:
@@ -449,7 +433,9 @@ class ResumeScreeningScoreComponentTests(SimpleTestCase):
 
 
 class LinkedInProfileImporterTests(SimpleTestCase):
-    def test_linkedin_profile_fixture_is_parsed_into_expected_sections(self):
+    @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
+    def test_linkedin_profile_fixture_is_parsed_into_expected_sections(self, _mock_spacy_model, _mock_phrase_matcher_class):
         from .linkedin_profile_importer import build_linkedin_profile_import
 
         fixture_dir = Path(__file__).resolve().parents[1] / 'users' / 'test_fixtures'
@@ -471,7 +457,9 @@ class LinkedInProfileImporterTests(SimpleTestCase):
         self.assertEqual(parsed['education'], expected['education'])
 
 
-    def test_linkedin_profile_parser_merges_sidebar_and_headline_skills(self):
+    @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
+    def test_linkedin_profile_parser_merges_sidebar_and_headline_skills(self, _mock_spacy_model, _mock_phrase_matcher_class):
         from .linkedin_profile_importer import build_linkedin_profile_import
 
         parsed = build_linkedin_profile_import(
@@ -486,7 +474,9 @@ class LinkedInProfileImporterTests(SimpleTestCase):
         self.assertIn('Kubernetes', parsed['skills'])
         self.assertIn('AWS', parsed['skills'])
 
-    def test_linkedin_profile_parser_handles_missing_optional_sections(self):
+    @patch('apps.ai_services.skill_extractor._get_phrase_matcher_class', return_value=_FakePhraseMatcher)
+    @patch('apps.ai_services.skill_extractor._load_spacy_model', return_value=_FakeNLP())
+    def test_linkedin_profile_parser_handles_missing_optional_sections(self, _mock_spacy_model, _mock_phrase_matcher_class):
         from .linkedin_profile_importer import build_linkedin_profile_import
 
         parsed = build_linkedin_profile_import('Alex Applicant\nBackend Developer\nMalaysia\nExperience\nExample Co\nEngineer\nJanuary 2024 - Present (6 months)')
@@ -498,3 +488,32 @@ class LinkedInProfileImporterTests(SimpleTestCase):
         self.assertEqual(parsed['certifications'], [])
         self.assertEqual(parsed['education'], [])
         self.assertEqual(parsed['experience'][0]['company_name'], 'Example Co')
+
+
+
+class ResumeMatchModelTests(SimpleTestCase):
+    def test_ml_screening_requires_trained_artifact(self):
+        from .ml.resume_matcher import build_ml_screening_result
+
+        with self.assertRaises(AIServiceUnavailable):
+            build_ml_screening_result(
+                semantic_score=80,
+                skill_score=75,
+                experience_score=70,
+                education_score=100,
+                rule_based_score=78,
+                matched_skills=['python', 'django'],
+                missing_skills=['postgresql'],
+                experience_gap={'gap_years': 0},
+                education_gap={'gap_levels': 0},
+                resume_text='Python Django developer with five years experience',
+                job_text='Backend developer requiring Python Django PostgreSQL',
+            )
+
+    def test_score_to_label_uses_expected_match_bands(self):
+        from .ml.resume_matcher import score_to_label
+
+        self.assertEqual(score_to_label(90), 'strong_match')
+        self.assertEqual(score_to_label(70), 'moderate_match')
+        self.assertEqual(score_to_label(50), 'weak_match')
+        self.assertEqual(score_to_label(30), 'not_suitable')

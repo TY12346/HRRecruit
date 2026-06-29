@@ -1,4 +1,4 @@
-"""Interview AI summary service with mock-first FYP fallback behavior.
+"""Interview AI summary service with strict real-LLM behavior.
 
 The current backend stores and validates ``communication_score`` on a 0-10 scale.
 This service preserves that scale for API compatibility instead of adopting the
@@ -15,7 +15,10 @@ import json
 import os
 from decimal import Decimal, InvalidOperation
 
+from apps.ai_services.exceptions import AIServiceUnavailable
+
 SUMMARY_TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
+
 SUMMARY_REQUIRED_FIELDS = {
     'strengths',
     'weaknesses',
@@ -25,12 +28,39 @@ SUMMARY_REQUIRED_FIELDS = {
 }
 COMMUNICATION_SCORE_MIN = Decimal('0.00')
 COMMUNICATION_SCORE_MAX = Decimal('10.00')
-MOCK_COMMUNICATION_SCORE = Decimal('8.00')
-MOCK_SUMMARY_FALLBACK_TEXT = 'Mock AI summary generated for FYP development.'
+SUMMARY_TRANSPARENCY_VERSION = 'interview-summary-transparency-v1'
 
 
-class SummaryGenerationUnavailable(Exception):
-    """Raised when optional real summary generation cannot be used safely."""
+def build_summary_transparency_metadata(
+    cleaned_transcript,
+    provider,
+    model='',
+    generation_mode='real_llm',
+):
+    """Build recruiter/interviewer-facing metadata explaining how a summary was produced."""
+    excerpt = cleaned_transcript[:500]
+    if len(cleaned_transcript) > 500:
+        excerpt = f'{excerpt}…'
+    return {
+        'transparency_version': SUMMARY_TRANSPARENCY_VERSION,
+        'provider': provider,
+        'model': model,
+        'generation_mode': generation_mode,
+        'source': 'interview_transcript',
+        'source_excerpt': excerpt,
+        'human_review_required': True,
+        'decision_boundary': 'This AI summary supports interviewer review only and must not be treated as a final hiring decision.',
+        'editable_fields': sorted(SUMMARY_REQUIRED_FIELDS),
+        'limitations': [
+            'May miss context from audio tone, body language, or incomplete transcripts.',
+            'May contain summarization mistakes; interviewer must verify against the transcript.',
+            "Communication score is a decision-support signal on HRRecruit's current 0-10 scale.",
+        ],
+    }
+
+
+class SummaryGenerationUnavailable(AIServiceUnavailable):
+    """Raised when required real summary generation cannot be used."""
 
 
 def use_real_summary_enabled():
@@ -49,7 +79,7 @@ def get_openai_api_key():
 
 
 def preprocess_transcript_text(transcript):
-    """Normalize transcript text before prompting or mock summary generation."""
+    """Normalize transcript text before prompting the configured summary model."""
     raw_text = getattr(transcript, 'transcript_text', transcript)
     return ' '.join(str(raw_text or '').split())
 
@@ -67,27 +97,6 @@ def build_structured_summary_prompt(cleaned_transcript):
         'professional, and editable by the interviewer.\n\n'
         f'Interview transcript:\n{cleaned_transcript}'
     )
-
-
-def build_mock_summary(cleaned_transcript='', reason='real_summary_disabled'):
-    """Build deterministic structured mock summary data for reliable FYP demos."""
-    strengths = 'Candidate provided clear examples and showed relevant preparation.'
-    weaknesses = 'Candidate needs to provide deeper technical detail in future interviews.'
-    overall_impression = 'The candidate appears suitable for continued consideration based on this mock summary.'
-    editable_summary_text = (
-        f'Strengths: {strengths}\n'
-        f'Weaknesses: {weaknesses}\n'
-        f'Communication score: {MOCK_COMMUNICATION_SCORE}\n'
-        f'Overall impression: {overall_impression}\n'
-        f'Note: {MOCK_SUMMARY_FALLBACK_TEXT}'
-    )
-    return {
-        'strengths': strengths,
-        'weaknesses': weaknesses,
-        'communication_score': MOCK_COMMUNICATION_SCORE,
-        'overall_impression': overall_impression,
-        'editable_summary_text': editable_summary_text,
-    }
 
 
 def _extract_message_content(response):
@@ -113,7 +122,7 @@ def _parse_summary_content(content):
     if isinstance(content, dict):
         return content
     if not isinstance(content, str) or not content.strip():
-        raise SummaryGenerationUnavailable('empty_summary_response')
+        raise SummaryGenerationUnavailable('Summary provider returned an empty response.')
 
     text = content.strip()
     if text.startswith('```'):
@@ -123,9 +132,9 @@ def _parse_summary_content(content):
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise SummaryGenerationUnavailable('invalid_summary_json') from exc
+        raise SummaryGenerationUnavailable('Summary provider returned invalid JSON.') from exc
     if not isinstance(parsed, dict):
-        raise SummaryGenerationUnavailable('summary_json_not_object')
+        raise SummaryGenerationUnavailable('Summary provider JSON response must be an object.')
     return parsed
 
 
@@ -134,10 +143,10 @@ def _coerce_communication_score(value):
     try:
         score = Decimal(str(value)).quantize(Decimal('0.01'))
     except (InvalidOperation, TypeError, ValueError) as exc:
-        raise SummaryGenerationUnavailable('invalid_communication_score') from exc
+        raise SummaryGenerationUnavailable('Summary provider returned an invalid communication_score.') from exc
 
     if score < COMMUNICATION_SCORE_MIN or score > COMMUNICATION_SCORE_MAX:
-        raise SummaryGenerationUnavailable('communication_score_out_of_current_0_to_10_scale')
+        raise SummaryGenerationUnavailable('Summary provider communication_score must be between 0 and 10.')
     return score
 
 
@@ -146,7 +155,7 @@ def validate_structured_summary(summary):
     missing_fields = SUMMARY_REQUIRED_FIELDS - set(summary.keys())
     if missing_fields:
         missing = ','.join(sorted(missing_fields))
-        raise SummaryGenerationUnavailable(f'missing_summary_fields:{missing}')
+        raise SummaryGenerationUnavailable(f'Summary provider response is missing required field(s): {missing}.')
 
     cleaned_summary = {
         'strengths': str(summary.get('strengths') or '').strip(),
@@ -160,14 +169,16 @@ def validate_structured_summary(summary):
     ]
     if empty_text_fields:
         empty = ','.join(sorted(empty_text_fields))
-        raise SummaryGenerationUnavailable(f'empty_summary_fields:{empty}')
+        raise SummaryGenerationUnavailable(f'Summary provider response contains empty required field(s): {empty}.')
+    if isinstance(summary.get('summary_json'), dict):
+        cleaned_summary['summary_json'] = summary['summary_json']
     return cleaned_summary
 
 
 def _call_openai_summary(prompt, api_key, model):
     """Call OpenAI only when explicitly enabled and configured."""
     if importlib.util.find_spec('openai') is None:
-        raise SummaryGenerationUnavailable('openai_package_unavailable')
+        raise SummaryGenerationUnavailable('The OpenAI Python package is not installed; real summary generation cannot run.')
 
     openai = importlib.import_module('openai')
     client = openai.OpenAI(api_key=api_key)
@@ -187,35 +198,36 @@ def _call_openai_summary(prompt, api_key, model):
 
 
 def run_real_summary(cleaned_transcript):
-    """Run optional real LLM summary generation or raise safe unavailability."""
+    """Run real LLM summary generation or raise a clear unavailability error."""
     api_key = get_openai_api_key()
     if not api_key:
-        raise SummaryGenerationUnavailable('missing_openai_api_key')
+        raise SummaryGenerationUnavailable('OPENAI_API_KEY is required for real summary generation.')
 
     model = get_summary_model()
     prompt = build_structured_summary_prompt(cleaned_transcript)
     try:
         content = _call_openai_summary(prompt, api_key, model)
         parsed = _parse_summary_content(content)
+        parsed['summary_json'] = build_summary_transparency_metadata(
+            cleaned_transcript,
+            provider='openai',
+            model=model,
+            generation_mode='real_llm',
+        )
         return validate_structured_summary(parsed)
     except SummaryGenerationUnavailable:
         raise
     except Exception as exc:
-        raise SummaryGenerationUnavailable(f'real_summary_failed: {exc.__class__.__name__}') from exc
+        raise SummaryGenerationUnavailable(f'Real summary generation failed: {exc.__class__.__name__}') from exc
 
 
 def generate_summary_payload(transcript):
     """Return unsaved structured summary payload for a transcript."""
     cleaned_transcript = preprocess_transcript_text(transcript)
 
-    if use_real_summary_enabled():
-        try:
-            return run_real_summary(cleaned_transcript)
-        except SummaryGenerationUnavailable:
-            pass
-
-    mock_summary = build_mock_summary(cleaned_transcript, 'real_summary_disabled')
-    return validate_structured_summary(mock_summary)
+    if not use_real_summary_enabled():
+        raise SummaryGenerationUnavailable('Real summary generation is disabled. Set USE_REAL_SUMMARY=True and configure OPENAI_API_KEY.')
+    return run_real_summary(cleaned_transcript)
 
 
 # Compatibility name for older imports/tests.
