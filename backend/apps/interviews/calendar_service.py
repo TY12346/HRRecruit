@@ -1,25 +1,20 @@
 """Calendar event helpers for accepted interviews.
 
-The interview flow supports real Google Calendar OAuth when it is explicitly
-configured, but it still keeps the FYP demo usable without external services.
-If Google OAuth is unavailable or a recruiter has not connected Google, the
-service falls back to either a Google template link or a local placeholder
-CalendarEvent record.
+The interview flow uses real Google Calendar OAuth/API integration. If Google
+OAuth, credentials, dependencies, or a connected account are missing, scheduling
+raises a clear error instead of creating placeholder events.
 """
 
-import os
 from datetime import datetime, timedelta
+from uuid import uuid4
 from importlib import import_module, util
-from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core import signing
 from django.utils import timezone
-from django.utils.http import urlsafe_base64_encode
 
 from .models import CalendarEvent, GoogleCalendarCredential, Interview
 
-GOOGLE_CALENDAR_RENDER_URL = 'https://calendar.google.com/calendar/render'
 GOOGLE_CALENDAR_TOKEN_URI = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 GOOGLE_CALENDAR_STATE_SALT = 'hrrecruit.google-calendar-oauth'
@@ -34,11 +29,18 @@ class GoogleCalendarSyncError(RuntimeError):
     """Raised when Google Calendar event sync fails."""
 
 
-def _env_flag(name, default=False):
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.lower() in ('1', 'true', 'yes', 'on')
+def _optional_google_dependencies_available():
+    module_names = [
+        'google_auth_oauthlib',
+        'google_auth_oauthlib.flow',
+        'google',
+        'google.oauth2',
+        'google.oauth2.credentials',
+        'google.auth.transport.requests',
+        'googleapiclient',
+        'googleapiclient.discovery',
+    ]
+    return all(util.find_spec(module_name) is not None for module_name in module_names)
 
 
 def _optional_google_dependencies_available():
@@ -57,18 +59,18 @@ def _optional_google_dependencies_available():
 def google_calendar_credentials_configured():
     """Return True only when Google OAuth client settings are present."""
     return bool(
-        os.getenv('GOOGLE_CALENDAR_CLIENT_ID', '').strip()
-        and os.getenv('GOOGLE_CALENDAR_CLIENT_SECRET', '').strip()
+        getattr(settings, 'GOOGLE_CALENDAR_CLIENT_ID', '').strip()
+        and getattr(settings, 'GOOGLE_CALENDAR_CLIENT_SECRET', '').strip()
     )
 
 
 def google_calendar_redirect_uri():
-    return os.getenv('GOOGLE_CALENDAR_REDIRECT_URI', '').strip()
+    return getattr(settings, 'GOOGLE_CALENDAR_REDIRECT_URI', '').strip()
 
 
 def google_calendar_link_enabled():
     """Return whether Google Calendar integration is enabled for the demo."""
-    return _env_flag('GOOGLE_CALENDAR_ENABLED', default=False)
+    return bool(getattr(settings, 'GOOGLE_CALENDAR_ENABLED', False))
 
 
 def google_calendar_oauth_ready():
@@ -93,7 +95,6 @@ def google_calendar_status_for_user(user):
         'connected': bool(credential),
         'connected_email': credential.google_account_email if credential else '',
         'last_synced_at': credential.last_synced_at if credential else None,
-        'fallback_mode': _calendar_fallback_mode(),
     }
 
 
@@ -105,8 +106,8 @@ def _google_client_config():
         )
     return {
         'web': {
-            'client_id': os.getenv('GOOGLE_CALENDAR_CLIENT_ID', '').strip(),
-            'client_secret': os.getenv('GOOGLE_CALENDAR_CLIENT_SECRET', '').strip(),
+            'client_id': getattr(settings, 'GOOGLE_CALENDAR_CLIENT_ID', '').strip(),
+            'client_secret': getattr(settings, 'GOOGLE_CALENDAR_CLIENT_SECRET', '').strip(),
             'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
             'token_uri': GOOGLE_CALENDAR_TOKEN_URI,
             'redirect_uris': [google_calendar_redirect_uri()],
@@ -177,8 +178,8 @@ def store_google_calendar_credentials(user, code, state):
             'access_token': credentials.token or '',
             'refresh_token': credentials.refresh_token or '',
             'token_uri': credentials.token_uri or GOOGLE_CALENDAR_TOKEN_URI,
-            'client_id': credentials.client_id or os.getenv('GOOGLE_CALENDAR_CLIENT_ID', '').strip(),
-            'client_secret': credentials.client_secret or os.getenv('GOOGLE_CALENDAR_CLIENT_SECRET', '').strip(),
+            'client_id': credentials.client_id or getattr(settings, 'GOOGLE_CALENDAR_CLIENT_ID', '').strip(),
+            'client_secret': credentials.client_secret or getattr(settings, 'GOOGLE_CALENDAR_CLIENT_SECRET', '').strip(),
             'scopes': list(credentials.scopes or GOOGLE_CALENDAR_SCOPES),
             'expiry': credentials.expiry,
         },
@@ -193,14 +194,18 @@ def disconnect_google_calendar(user):
 
 def _credentials_from_model(credential):
     credentials_module = import_module('google.oauth2.credentials')
-    return credentials_module.Credentials(
+    credentials = credentials_module.Credentials(
         token=credential.access_token,
         refresh_token=credential.refresh_token or None,
         token_uri=credential.token_uri or GOOGLE_CALENDAR_TOKEN_URI,
-        client_id=credential.client_id or os.getenv('GOOGLE_CALENDAR_CLIENT_ID', '').strip(),
-        client_secret=credential.client_secret or os.getenv('GOOGLE_CALENDAR_CLIENT_SECRET', '').strip(),
+        client_id=credential.client_id or getattr(settings, 'GOOGLE_CALENDAR_CLIENT_ID', '').strip(),
+        client_secret=credential.client_secret or getattr(settings, 'GOOGLE_CALENDAR_CLIENT_SECRET', '').strip(),
         scopes=credential.scopes or GOOGLE_CALENDAR_SCOPES,
     )
+    if getattr(credentials, 'expired', False) and credentials.refresh_token:
+        request_module = import_module('google.auth.transport.requests')
+        credentials.refresh(request_module.Request())
+    return credentials
 
 
 def _google_calendar_service(credentials):
@@ -214,11 +219,6 @@ def _fetch_google_calendar_primary_email(credentials):
     return calendar.get('id', '')
 
 
-def _format_google_datetime(value):
-    """Format an aware datetime for Google Calendar template links."""
-    return value.astimezone(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-
-
 def _interview_end_datetime(interview):
     if interview.end_time and interview.interview_date:
         end_datetime = timezone.make_aware(
@@ -228,7 +228,7 @@ def _interview_end_datetime(interview):
         if interview.scheduled_datetime and end_datetime > interview.scheduled_datetime:
             return end_datetime
     duration_minutes = int(
-        os.getenv('GOOGLE_CALENDAR_DEFAULT_DURATION_MINUTES', DEFAULT_INTERVIEW_DURATION_MINUTES)
+        getattr(settings, 'GOOGLE_CALENDAR_DEFAULT_DURATION_MINUTES', DEFAULT_INTERVIEW_DURATION_MINUTES)
     )
     return interview.scheduled_datetime + timedelta(minutes=duration_minutes)
 
@@ -259,10 +259,38 @@ def _timezone_name():
     return getattr(settings, 'TIME_ZONE', 'UTC')
 
 
+def _event_attendees(interview):
+    people = [
+        interview.application.applicant,
+        interview.interviewer,
+        interview.recruiter,
+    ]
+    seen = set()
+    attendees = []
+    for person in people:
+        email = (getattr(person, 'email', '') or '').strip()
+        if not email or email.lower() in seen:
+            continue
+        seen.add(email.lower())
+        attendees.append({'email': email, 'displayName': getattr(person, 'full_name', '') or email})
+    return attendees
+
+
+def _conference_data_for(interview):
+    if interview.mode != Interview.Mode.ONLINE or interview.meeting_link:
+        return None
+    return {
+        'createRequest': {
+            'requestId': f'hrrecruit-interview-{interview.id}-{uuid4().hex[:12]}',
+            'conferenceSolutionKey': {'type': 'hangoutsMeet'},
+        }
+    }
+
+
 def _google_event_body(interview):
     if not interview.scheduled_datetime:
         raise ValueError('Interview must be scheduled before creating a calendar event.')
-    return {
+    event_body = {
         'summary': _event_summary(interview),
         'description': _event_description(interview),
         'location': _event_location(interview),
@@ -274,45 +302,13 @@ def _google_event_body(interview):
             'dateTime': _interview_end_datetime(interview).isoformat(),
             'timeZone': _timezone_name(),
         },
+        'attendees': _event_attendees(interview),
+        'reminders': {'useDefault': True},
     }
-
-
-def build_local_calendar_link(interview):
-    """Return a deterministic local calendar placeholder without external sync."""
-    query = urlencode(
-        {
-            'interview_id': interview.id,
-            'application_id': interview.application_id,
-            'scheduled_datetime': interview.scheduled_datetime.isoformat() if interview.scheduled_datetime else '',
-        }
-    )
-    token = urlsafe_base64_encode(f'interview:{interview.id}'.encode())
-    return f'https://calendar.hrrecruit.local/events/{token}?{query}'
-
-
-def build_google_calendar_link(interview):
-    """Build a Google Calendar event creation URL without calling Google APIs."""
-    if not interview.scheduled_datetime:
-        raise ValueError('Interview must be scheduled before creating a calendar link.')
-
-    start = _format_google_datetime(interview.scheduled_datetime)
-    end = _format_google_datetime(_interview_end_datetime(interview))
-    query = urlencode(
-        {
-            'action': 'TEMPLATE',
-            'text': _event_summary(interview),
-            'dates': f'{start}/{end}',
-            'details': _event_description(interview),
-            'location': _event_location(interview),
-        }
-    )
-    return f'{GOOGLE_CALENDAR_RENDER_URL}?{query}'
-
-
-def _calendar_fallback_mode():
-    if google_calendar_link_enabled() and google_calendar_credentials_configured():
-        return 'google_template_link'
-    return 'local_placeholder'
+    conference_data = _conference_data_for(interview)
+    if conference_data:
+        event_body['conferenceData'] = conference_data
+    return event_body
 
 
 def _sync_real_google_calendar_event(interview, credential):
@@ -325,12 +321,21 @@ def _sync_real_google_calendar_event(interview, credential):
             calendarId='primary',
             eventId=existing_event.external_event_id,
             body=event_body,
+            sendUpdates='all',
+            conferenceDataVersion=1,
         ).execute()
     else:
         google_event = service.events().insert(
             calendarId='primary',
             body=event_body,
+            sendUpdates='all',
+            conferenceDataVersion=1,
         ).execute()
+
+    generated_meet_link = google_event.get('hangoutLink') or ''
+    if generated_meet_link and not interview.meeting_link:
+        interview.meeting_link = generated_meet_link
+        interview.save(update_fields=['meeting_link', 'updated_at'])
 
     credential.access_token = getattr(credentials, 'token', credential.access_token) or credential.access_token
     credential.expiry = getattr(credentials, 'expiry', credential.expiry)
@@ -361,61 +366,51 @@ def _save_failed_google_event(interview, message=''):
     )[0]
 
 
-def _save_google_template_event(interview):
-    try:
-        calendar_link = build_google_calendar_link(interview)
-    except Exception:
-        return CalendarEvent.objects.update_or_create(
-            interview=interview,
-            provider='google_calendar_link',
-            defaults={
-                'calendar_link': '',
-                'sync_status': CalendarEvent.SyncStatus.FAILED,
-                'last_synced_at': timezone.now(),
-            },
-        )[0]
+def sync_existing_google_events_for_user(user):
+    """Sync this recruiter/interviewer's scheduled future interviews after OAuth connect."""
+    if not google_calendar_oauth_ready():
+        raise GoogleCalendarConfigurationError('Google Calendar OAuth is not ready.')
+    credential = GoogleCalendarCredential.objects.filter(user=user).first()
+    if not credential:
+        return {'synced': 0, 'failed': 0}
 
-    return CalendarEvent.objects.update_or_create(
-        interview=interview,
-        provider='google_calendar_link',
-        defaults={
-            'calendar_link': calendar_link,
-            'sync_status': CalendarEvent.SyncStatus.SYNCED,
-            'last_synced_at': timezone.now(),
-        },
-    )[0]
+    interviews = Interview.objects.select_related(
+        'application',
+        'application__applicant',
+        'application__job',
+        'recruiter',
+        'interviewer',
+    ).filter(status=Interview.Status.SCHEDULED, scheduled_datetime__gte=timezone.now())
+    if user.role == 'recruiter':
+        interviews = interviews.filter(recruiter=user)
+    elif user.role == 'interviewer':
+        interviews = interviews.filter(interviewer=user)
+    else:
+        interviews = interviews.none()
 
-
-def _save_local_event(interview):
-    return CalendarEvent.objects.update_or_create(
-        interview=interview,
-        provider='local',
-        defaults={
-            'calendar_link': build_local_calendar_link(interview),
-            'sync_status': CalendarEvent.SyncStatus.NOT_SYNCED,
-            'last_synced_at': None,
-        },
-    )[0]
-
+    synced = 0
+    failed = 0
+    for interview in interviews:
+        try:
+            _sync_real_google_calendar_event(interview, credential)
+            synced += 1
+        except Exception:
+            _save_failed_google_event(interview)
+            failed += 1
+    return {'synced': synced, 'failed': failed}
 
 def sync_calendar_event_for_interview(interview):
-    """Create/update the CalendarEvent for an accepted interview.
-
-    Real Google Calendar event insertion is used only when OAuth is enabled,
-    dependencies are installed, and the recruiter has connected Google. Without
-    that, HRRecruit keeps the workflow usable through the previous template-link
-    or local-placeholder fallback.
-    """
-    if google_calendar_oauth_ready():
-        credential = GoogleCalendarCredential.objects.filter(user=interview.recruiter).first()
-        if credential:
-            try:
-                return _sync_real_google_calendar_event(interview, credential)
-            except Exception as exc:
-                _save_failed_google_event(interview, message=str(exc))
-                raise GoogleCalendarSyncError('Failed to sync Google Calendar event.') from exc
-
-    if google_calendar_link_enabled() and google_calendar_credentials_configured():
-        return _save_google_template_event(interview)
-
-    return _save_local_event(interview)
+    """Create/update the real Google Calendar event for a scheduled interview."""
+    if not google_calendar_oauth_ready():
+        raise GoogleCalendarConfigurationError(
+            'Google Calendar API is not ready. Configure GOOGLE_CALENDAR_ENABLED, OAuth client credentials, '
+            'redirect URI, and Google API dependencies before scheduling interviews.'
+        )
+    credential = GoogleCalendarCredential.objects.filter(user=interview.recruiter).first()
+    if not credential:
+        raise GoogleCalendarConfigurationError('Recruiter has not connected Google Calendar.')
+    try:
+        return _sync_real_google_calendar_event(interview, credential)
+    except Exception as exc:
+        _save_failed_google_event(interview, message=str(exc))
+        raise GoogleCalendarSyncError('Failed to sync Google Calendar event.') from exc

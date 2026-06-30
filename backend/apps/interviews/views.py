@@ -33,11 +33,13 @@ from .serializers import (
 )
 from .calendar_service import (
     GoogleCalendarConfigurationError,
+    GoogleCalendarSyncError,
     build_google_calendar_authorization_url,
     disconnect_google_calendar,
     google_calendar_status_for_user,
     store_google_calendar_credentials,
     sync_calendar_event_for_interview,
+    sync_existing_google_events_for_user,
 )
 from .slot_generation import generate_available_slots
 
@@ -93,10 +95,13 @@ class GoogleCalendarOAuthCallbackAPIView(APIView):
             )
         except GoogleCalendarConfigurationError as exc:
             raise ValidationError({'google_calendar': str(exc)}) from exc
+        sync_result = sync_existing_google_events_for_user(request.user)
         return Response({
             'connected': True,
             'connected_email': credential.google_account_email,
             'oauth_ready': True,
+            'synced_interviews': sync_result['synced'],
+            'failed_interview_syncs': sync_result['failed'],
         })
 
 
@@ -310,12 +315,7 @@ def change_application_status(application, new_status, changed_by, note):
 
 
 def create_interview_booking_side_effects(scheduling_request, interview, applicant):
-    """Run optional booking side effects without failing the booking response."""
-    try:
-        sync_calendar_event_for_interview(interview)
-    except Exception:
-        logger.exception('Failed to sync calendar event for booked interview %s.', interview.id)
-
+    """Create booking notifications after strict calendar sync has succeeded."""
     notification_payloads = [
         (
             scheduling_request.recruiter,
@@ -666,6 +666,11 @@ def book_scheduling_request(request, scheduling_request):
         request.user,
         'Applicant selected an interview slot.',
     )
+    try:
+        sync_calendar_event_for_interview(interview)
+    except (GoogleCalendarConfigurationError, GoogleCalendarSyncError) as exc:
+        raise ValidationError({'google_calendar': str(exc)}) from exc
+
     transaction.on_commit(
         lambda: create_interview_booking_side_effects(scheduling_request, interview, request.user)
     )

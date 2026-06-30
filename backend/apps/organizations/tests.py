@@ -53,7 +53,6 @@ class OrganizationModelTests(SimpleTestCase):
         with self.assertRaisesMessage(ValidationError, "Membership role must match the user's role."):
             membership.clean()
 
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -175,17 +174,29 @@ class OrganizationAPITests(APITestCase):
         self.assertEqual(interviewer_rows[0]['user_id'], interviewer.id)
         self.assertEqual(interviewer_rows[0]['email'], interviewer.email)
 
-    def test_hr_head_can_bulk_import_csv_and_receive_row_errors(self):
+    def test_hr_head_can_bulk_import_papaparse_sheetjs_rows_and_receive_row_errors(self):
         self.create_organization()
-        csv_file = SimpleUploadedFile(
-            'members.csv',
-            b'email,full_name,phone_number,role\ninterviewer@example.com,Interviewer One,,interviewer\ninvalid@example.com,Invalid Role,,applicant\n',
-            content_type='text/csv',
-        )
+        payload = {
+            'members': [
+                {
+                    'email': 'interviewer@example.com',
+                    'full_name': 'Interviewer One',
+                    'phone_number': '',
+                    'role': 'interviewer',
+                },
+                {
+                    'email': 'invalid@example.com',
+                    'full_name': 'Invalid Role',
+                    'phone_number': '',
+                    'role': 'applicant',
+                },
+            ]
+        }
 
-        response = self.client.post(reverse('organization-member-bulk-import'), {'csv_file': csv_file}, format='multipart')
+        response = self.client.post(reverse('organization-member-bulk-import'), payload, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['message'], 'Spreadsheet import completed.')
         self.assertEqual(len(response.data['created']), 1)
         self.assertEqual(response.data['created'][0]['role'], User.Role.INTERVIEWER)
         self.assertEqual(response.data['errors'][0]['row'], 3)

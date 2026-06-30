@@ -129,12 +129,8 @@ export const createOrganizationMember = async (member) => {
   return response.data;
 };
 
-export const bulkImportOrganizationMembers = async (csvFile) => {
-  const formData = new FormData();
-  formData.append('csv_file', csvFile);
-  const response = await apiClient.post('/org/members/bulk/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+export const bulkImportOrganizationMembers = async (members) => {
+  const response = await apiClient.post('/org/members/bulk/', { members });
   return response.data;
 };
 

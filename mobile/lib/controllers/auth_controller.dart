@@ -2,17 +2,21 @@ import 'package:flutter/foundation.dart';
 
 import '../models/applicant_profile.dart';
 import '../services/applicant_auth_service.dart';
+import '../services/push_notification_service.dart';
 import '../services/token_storage.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController({
     required ApplicantAuthService authService,
     required TokenStorage tokenStorage,
+    required PushNotificationService pushNotificationService,
   })  : _authService = authService,
-        _tokenStorage = tokenStorage;
+        _tokenStorage = tokenStorage,
+        _pushNotificationService = pushNotificationService;
 
   final ApplicantAuthService _authService;
   final TokenStorage _tokenStorage;
+  final PushNotificationService _pushNotificationService;
 
   ApplicantProfile? _profile;
   bool _isInitialized = false;
@@ -35,6 +39,7 @@ class AuthController extends ChangeNotifier {
       final profile = await _authService.getProfile();
       _ensureApplicant(profile);
       _profile = profile;
+      await _pushNotificationService.registerDevice();
     } catch (_) {
       await _tokenStorage.clearTokens();
       _profile = null;
@@ -63,6 +68,7 @@ class AuthController extends ChangeNotifier {
         refreshToken: result.refreshToken,
       );
       _profile = result.user;
+      await _pushNotificationService.registerDevice();
     });
   }
 
@@ -78,6 +84,7 @@ class AuthController extends ChangeNotifier {
         refreshToken: result.refreshToken,
       );
       _profile = result.user;
+      await _pushNotificationService.registerDevice();
     });
   }
 

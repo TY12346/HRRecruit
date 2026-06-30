@@ -1,8 +1,5 @@
 """Serializers for HR-head organization and team management APIs."""
 
-import csv
-import io
-
 from django.db import transaction
 from rest_framework import serializers
 
@@ -79,46 +76,34 @@ class OrganizationMemberSerializer(serializers.ModelSerializer):
         return user.organization_memberships.get(organization=self.context['organization'])
 
 
-ALLOWED_CSV_CONTENT_TYPES = {'text/csv', 'application/csv', 'application/vnd.ms-excel'}
-
-
 class OrganizationMemberBulkImportSerializer(serializers.Serializer):
-    csv_file = serializers.FileField()
+    members = serializers.ListField(
+        child=serializers.DictField(),
+        allow_empty=False,
+        max_length=500,
+    )
 
-    def validate_csv_file(self, csv_file):
-        if not csv_file.name.lower().endswith('.csv'):
-            raise serializers.ValidationError('Only CSV files are supported. Excel import can be added later.')
-        if csv_file.size > 1024 * 1024:
-            raise serializers.ValidationError('CSV file must not exceed 1MB.')
-        content_type = getattr(csv_file, 'content_type', '')
-        if content_type and content_type not in ALLOWED_CSV_CONTENT_TYPES:
-            raise serializers.ValidationError('Unsupported CSV content type.')
-        return csv_file
+    def validate_members(self, members):
+        required_headers = {'email', 'full_name', 'role'}
+        for index, row in enumerate(members, start=2):
+            normalized_row = {str(key).strip(): value for key, value in row.items()}
+            if not required_headers.issubset(normalized_row):
+                raise serializers.ValidationError(
+                    f'Row {index} must include email, full_name, and role. phone_number is optional.'
+                )
+        return members
 
     def save(self):
-        csv_file = self.validated_data['csv_file']
-        try:
-            content = csv_file.read().decode('utf-8-sig')
-        except UnicodeDecodeError as error:
-            raise serializers.ValidationError({'csv_file': 'CSV file must be UTF-8 encoded.'}) from error
-
-        reader = csv.DictReader(io.StringIO(content))
-        required_headers = {'email', 'full_name', 'role'}
-        if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
-            raise serializers.ValidationError(
-                {'csv_file': 'CSV headers must include email, full_name, and role. phone_number is optional.'}
-            )
-
         created = []
         errors = []
         organization = self.context['organization']
-        for row_number, row in enumerate(reader, start=2):
+        for row_number, row in enumerate(self.validated_data['members'], start=2):
             member_serializer = OrganizationMemberSerializer(
                 data={
-                    'email': row.get('email', '').strip(),
-                    'full_name': row.get('full_name', '').strip(),
-                    'phone_number': row.get('phone_number', '').strip(),
-                    'role': row.get('role', '').strip(),
+                    'email': str(row.get('email', '') or '').strip(),
+                    'full_name': str(row.get('full_name', '') or '').strip(),
+                    'phone_number': str(row.get('phone_number', '') or '').strip(),
+                    'role': str(row.get('role', '') or '').strip().lower(),
                 },
                 context={'organization': organization},
             )

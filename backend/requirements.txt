@@ -33,8 +33,6 @@ python-docx>=1.1,<2.0
 # PDF report generation
 reportlab>=4.2,<5.0
 
-# Data/import utility for later CSV/Excel upload
-openpyxl>=3.1,<4.0
 
 # Optional real payment gateway support (sandbox mode)
 stripe>=10.0,<11.0
@@ -46,6 +44,9 @@ sentence-transformers>=3.0,<4.0
 
 # Optional real OpenAI transcription/summary support
 openai>=1.90,<2.0
+
+# Firebase Cloud Messaging push notifications
+firebase-admin>=6.5,<7.0
 
 # Optional real Google Calendar OAuth/event sync
 google-api-python-client>=2.130,<3.0

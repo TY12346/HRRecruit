@@ -107,16 +107,16 @@ export default function InterviewAssignmentPage() {
               <Stack spacing={1}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
                   <Box>
-                    <Typography variant="h6">Calendar sync realism</Typography>
-                    <Typography color="text.secondary">Connect a recruiter Google Calendar so booked applicant slots create real calendar events. If it is not connected, HRRecruit still provides a safe fallback calendar link.</Typography>
+                    <Typography variant="h6">Google Calendar API sync</Typography>
+                    <Typography color="text.secondary">Connect a recruiter Google Calendar so booked applicant slots create real Calendar API events, invite the candidate and interviewer, and generate Google Meet links when needed.</Typography>
                   </Box>
                   <Chip
                     color={calendarStatus?.connected ? 'success' : calendarStatus?.oauth_ready ? 'warning' : 'default'}
-                    label={calendarStatus?.connected ? 'Google connected' : calendarStatus?.oauth_ready ? 'Ready to connect' : 'Fallback mode'}
+                    label={calendarStatus?.connected ? 'Google connected' : calendarStatus?.oauth_ready ? 'Ready to connect' : 'Google not configured'}
                   />
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
-                  Current mode: {calendarStatus?.connected ? `Real Google Calendar sync${calendarStatus.connected_email ? ` (${calendarStatus.connected_email})` : ''}` : calendarStatus?.fallback_mode === 'google_template_link' ? 'Google template link fallback' : 'Local placeholder fallback'}.
+                  Current mode: {calendarStatus?.connected ? `Real Google Calendar API sync${calendarStatus.connected_email ? ` (${calendarStatus.connected_email})` : ''}` : calendarStatus?.oauth_ready ? 'Ready for Google OAuth connection' : 'Google Calendar API not configured'}.
                 </Typography>
                 {!calendarStatus?.connected ? (
                   <Button variant="outlined" onClick={connectGoogleCalendar} disabled={isConnectingCalendar || !calendarStatus?.oauth_ready}>

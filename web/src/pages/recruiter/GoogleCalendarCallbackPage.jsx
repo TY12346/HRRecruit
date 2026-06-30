@@ -22,7 +22,7 @@ export default function GoogleCalendarCallbackPage() {
     completeGoogleCalendarOAuth({ code, state })
       .then((result) => {
         setStatus('success');
-        setMessage(`Google Calendar connected${result.connected_email ? ` as ${result.connected_email}` : ''}. Future scheduled interviews can sync to Calendar.`);
+        setMessage(`Google Calendar connected${result.connected_email ? ` as ${result.connected_email}` : ''}. Synced ${result.synced_interviews ?? 0} existing interview(s); ${result.failed_interview_syncs ?? 0} sync(s) need attention.`);
       })
       .catch((err) => {
         setStatus('error');

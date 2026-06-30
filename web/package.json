@@ -19,7 +19,9 @@
     "react-chartjs-2": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",
-    "zustand": "latest"
+    "zustand": "latest",
+    "papaparse": "^5.5.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "latest",

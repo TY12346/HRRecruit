@@ -8,6 +8,7 @@ import 'router/app_router.dart';
 import 'services/applicant_auth_service.dart';
 import 'services/applicant_workflow_service.dart';
 import 'services/job_discovery_service.dart';
+import 'services/push_notification_service.dart';
 import 'services/token_storage.dart';
 
 void main() {
@@ -25,6 +26,7 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
   late final TokenStorage _tokenStorage;
   late final ApiClient _apiClient;
   late final ApplicantAuthService _authService;
+  late final PushNotificationService _pushNotificationService;
   late final AuthController _authController;
   late final GoRouter _router;
 
@@ -34,9 +36,11 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
     _tokenStorage = TokenStorage();
     _apiClient = ApiClient(tokenStorage: _tokenStorage);
     _authService = ApplicantAuthService(_apiClient);
+    _pushNotificationService = PushNotificationService(_apiClient);
     _authController = AuthController(
       authService: _authService,
       tokenStorage: _tokenStorage,
+      pushNotificationService: _pushNotificationService,
     )..initialize();
     _router = createAppRouter(_authController);
   }
@@ -55,6 +59,7 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
         Provider<TokenStorage>.value(value: _tokenStorage),
         Provider<ApiClient>.value(value: _apiClient),
         Provider<ApplicantAuthService>.value(value: _authService),
+        Provider<PushNotificationService>.value(value: _pushNotificationService),
         Provider<JobDiscoveryService>(
           create: (_) => JobDiscoveryService(_apiClient),
         ),

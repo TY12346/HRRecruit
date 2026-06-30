@@ -1,6 +1,9 @@
 import json
 import os
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+from django.test import override_settings
+from django.utils import timezone
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -75,28 +78,28 @@ class InterviewManagementAPITests(APITestCase):
         )
 
 
-    def test_google_calendar_status_uses_safe_fallback_when_not_configured(self):
+    def test_google_calendar_status_reports_not_ready_when_not_configured(self):
         self.authenticate(self.recruiter)
 
-        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'false'}, clear=False):
+        with override_settings(GOOGLE_CALENDAR_ENABLED=False):
             response = self.client.get(reverse('google-calendar-status'))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(response.data['connected'])
         self.assertFalse(response.data['oauth_ready'])
-        self.assertIn(response.data['fallback_mode'], ['local_placeholder', 'google_template_link'])
+        self.assertIn('dependencies_installed', response.data)
 
     def test_google_calendar_connect_requires_oauth_configuration(self):
         self.authenticate(self.recruiter)
 
-        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'false'}, clear=False):
+        with override_settings(GOOGLE_CALENDAR_ENABLED=False):
             response = self.client.get(reverse('google-calendar-connect'))
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('google_calendar', response.data)
 
-    def test_calendar_sync_falls_back_to_local_event_without_google_oauth(self):
-        from apps.interviews.calendar_service import sync_calendar_event_for_interview
+    def test_calendar_sync_requires_real_google_oauth_configuration(self):
+        from apps.interviews.calendar_service import GoogleCalendarConfigurationError, sync_calendar_event_for_interview
 
         interview = Interview.objects.create(
             application=self.application,
@@ -108,16 +111,72 @@ class InterviewManagementAPITests(APITestCase):
             start_time='09:00:00',
             end_time='10:00:00',
             mode=Interview.Mode.ONLINE,
-            meeting_link='https://meet.example.com/fallback',
+            meeting_link='https://meet.example.com/strict-calendar',
             status=Interview.Status.SCHEDULED,
         )
 
-        with patch.dict('os.environ', {'GOOGLE_CALENDAR_ENABLED': 'false'}, clear=False):
-            event = sync_calendar_event_for_interview(interview)
+        with override_settings(GOOGLE_CALENDAR_ENABLED=False):
+            with self.assertRaises(GoogleCalendarConfigurationError):
+                sync_calendar_event_for_interview(interview)
 
-        self.assertEqual(event.provider, 'local')
-        self.assertEqual(event.sync_status, CalendarEvent.SyncStatus.NOT_SYNCED)
-        self.assertIn('calendar.hrrecruit.local', event.calendar_link)
+
+    @override_settings(
+        GOOGLE_CALENDAR_ENABLED=True,
+        GOOGLE_CALENDAR_CLIENT_ID='client-id',
+        GOOGLE_CALENDAR_CLIENT_SECRET='client-secret',
+        GOOGLE_CALENDAR_REDIRECT_URI='http://localhost:5173/recruiter/calendar/google/callback',
+    )
+    @patch('apps.interviews.calendar_service._optional_google_dependencies_available', return_value=True)
+    @patch('apps.interviews.calendar_service._credentials_from_model')
+    @patch('apps.interviews.calendar_service._google_calendar_service')
+    def test_google_calendar_api_sync_creates_attended_event_and_meet_link(
+        self, mock_google_service, mock_credentials_from_model, _mock_dependencies
+    ):
+        from apps.interviews.calendar_service import sync_calendar_event_for_interview
+
+        GoogleCalendarCredential.objects.create(
+            user=self.recruiter,
+            google_account_email='recruiter@gmail.com',
+            access_token='access-token',
+            refresh_token='refresh-token',
+            client_id='client-id',
+            client_secret='client-secret',
+        )
+        mock_credentials_from_model.return_value = SimpleNamespace(token='new-access-token', expiry=None)
+        events_resource = Mock()
+        events_resource.insert.return_value.execute.return_value = {
+            'id': 'google-event-1',
+            'htmlLink': 'https://calendar.google.com/event?eid=abc',
+            'hangoutLink': 'https://meet.google.com/demo-link',
+        }
+        mock_google_service.return_value.events.return_value = events_resource
+        interview = Interview.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            scheduled_datetime=timezone.make_aware(__import__('datetime').datetime(2026, 7, 9, 9, 0)),
+            interview_date='2026-07-09',
+            start_time='09:00:00',
+            end_time='10:00:00',
+            mode=Interview.Mode.ONLINE,
+            status=Interview.Status.SCHEDULED,
+        )
+
+        event = sync_calendar_event_for_interview(interview)
+
+        insert_kwargs = events_resource.insert.call_args.kwargs
+        attendee_emails = {attendee['email'] for attendee in insert_kwargs['body']['attendees']}
+        self.assertEqual(insert_kwargs['calendarId'], 'primary')
+        self.assertEqual(insert_kwargs['sendUpdates'], 'all')
+        self.assertEqual(insert_kwargs['conferenceDataVersion'], 1)
+        self.assertIn(self.applicant.email, attendee_emails)
+        self.assertIn(self.interviewer.email, attendee_emails)
+        self.assertIn('conferenceData', insert_kwargs['body'])
+        self.assertEqual(event.provider, 'google_calendar')
+        self.assertEqual(event.external_event_id, 'google-event-1')
+        interview.refresh_from_db()
+        self.assertEqual(interview.meeting_link, 'https://meet.google.com/demo-link')
 
     def test_interviewer_creates_availability_slot(self):
         self.authenticate(self.interviewer)
@@ -190,7 +249,8 @@ class InterviewManagementAPITests(APITestCase):
         self.assertIn('recruiter', queryset.query.select_related)
         self.assertIn('interviewer', queryset.query.select_related)
 
-    def test_applicant_books_available_slot_from_scheduling_request(self):
+    @patch('apps.interviews.views.sync_calendar_event_for_interview')
+    def test_applicant_books_available_slot_from_scheduling_request(self, _mock_sync_calendar):
         slot = InterviewerAvailabilitySlot.objects.create(
             organization=self.organization,
             interviewer=self.interviewer,
@@ -232,7 +292,8 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_ACCEPTED)
 
 
-    def test_applicant_books_slot_from_recruiter_created_scheduling_request(self):
+    @patch('apps.interviews.views.sync_calendar_event_for_interview')
+    def test_applicant_books_slot_from_recruiter_created_scheduling_request(self, _mock_sync_calendar):
         self.authenticate(self.interviewer)
         slot_response = self.client.post(
             reverse('interviewer-availability-list-create'),
@@ -273,8 +334,10 @@ class InterviewManagementAPITests(APITestCase):
 
     @patch('apps.interviews.views.create_notification')
     @patch('apps.interviews.views.sync_calendar_event_for_interview')
-    def test_booking_still_succeeds_when_optional_side_effects_fail(self, sync_calendar_event, create_notification_mock):
-        sync_calendar_event.side_effect = RuntimeError('Calendar service unavailable')
+    def test_booking_returns_clear_error_when_calendar_sync_fails(self, sync_calendar_event, create_notification_mock):
+        from apps.interviews.calendar_service import GoogleCalendarConfigurationError
+
+        sync_calendar_event.side_effect = GoogleCalendarConfigurationError('Google Calendar API is not ready.')
         create_notification_mock.side_effect = RuntimeError('Notification service unavailable')
         slot = InterviewerAvailabilitySlot.objects.create(
             organization=self.organization,
@@ -301,11 +364,12 @@ class InterviewManagementAPITests(APITestCase):
             format='json',
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('google_calendar', response.data)
         scheduling_request.refresh_from_db()
         slot.refresh_from_db()
-        self.assertEqual(scheduling_request.status, InterviewSchedulingRequest.Status.SCHEDULED)
-        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.BOOKED)
+        self.assertEqual(scheduling_request.status, InterviewSchedulingRequest.Status.PENDING)
+        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.AVAILABLE)
 
     def test_applicant_cannot_book_unavailable_slot(self):
         slot = InterviewerAvailabilitySlot.objects.create(
@@ -822,7 +886,6 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertIn('answers', response.data)
 
 from datetime import date, time
-from django.utils import timezone
 from apps.interviews.models import InterviewerAvailabilityPattern, InterviewerUnavailableDate
 from apps.interviews.slot_generation import generate_available_slots
 
@@ -873,7 +936,8 @@ class WeeklyAvailabilitySchedulingTests(InterviewManagementAPITests):
         self.assertNotIn((date(2026, 7, 6), time(10, 0)), {(slot.date, slot.start_time) for slot in slots})
         self.assertIn((date(2026, 7, 6), time(10, 30)), {(slot.date, slot.start_time) for slot in slots})
 
-    def test_applicant_books_generated_slot_and_second_applicant_cannot_double_book(self):
+    @patch('apps.interviews.views.sync_calendar_event_for_interview')
+    def test_applicant_books_generated_slot_and_second_applicant_cannot_double_book(self, _mock_sync_calendar):
         pattern = self.create_monday_pattern()
         other_application = JobApplication.objects.create(job=self.job, applicant=self.other_applicant, status=JobApplication.Status.SHORTLISTED)
         first_request = InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
