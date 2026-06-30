@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 from apps.jobs.models import JobPosting
-from apps.users.models import User
+from apps.users.models import ApplicantResume, User
 
 
 class JobApplication(models.Model):
@@ -37,6 +37,13 @@ class JobApplication(models.Model):
         on_delete=models.CASCADE,
         related_name='job_applications',
         limit_choices_to={'role': User.Role.APPLICANT},
+    )
+    resume = models.ForeignKey(
+        ApplicantResume,
+        on_delete=models.SET_NULL,
+        related_name='applications',
+        blank=True,
+        null=True,
     )
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.SUBMITTED)
     recruiter_remark = models.TextField(blank=True)

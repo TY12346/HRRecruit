@@ -14,7 +14,7 @@ from apps.notifications.email_service import (
     send_subscription_reminder_email,
     send_team_account_created_email,
 )
-from apps.notifications.models import Notification
+from apps.notifications.models import Notification, PushDevice
 from apps.notifications.services import create_notification
 from apps.users.models import User
 
@@ -93,6 +93,91 @@ class NotificationAPITests(APITestCase):
         self.assertEqual(read_all_response.data['updated_count'], 2)
         self.assertEqual(count_after_response.data['unread_count'], 0)
         self.assertEqual(Notification.objects.filter(recipient=self.other_user, is_read=False).count(), 1)
+
+    def test_user_can_register_list_and_deactivate_push_device(self):
+        self.authenticate(self.user)
+        payload = {
+            'registration_token': 'fcm-token-' + ('x' * 32),
+            'platform': 'android',
+            'device_id': 'pixel-demo-device',
+            'app_version': '0.1.0',
+        }
+
+        create_response = self.client.post(reverse('notification-push-device-list'), payload, format='json')
+        list_response = self.client.get(reverse('notification-push-device-list'))
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data['platform'], 'android')
+        self.assertEqual(len(list_response.data), 1)
+        self.assertEqual(list_response.data[0]['device_id'], 'pixel-demo-device')
+
+        delete_response = self.client.delete(reverse('notification-push-device-detail', args=[create_response.data['id']]))
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(PushDevice.objects.get(id=create_response.data['id']).is_active)
+
+    def test_push_device_registration_is_scoped_to_authenticated_user(self):
+        other_device = PushDevice.objects.create(
+            user=self.other_user,
+            registration_token='fcm-token-' + ('y' * 32),
+            platform=PushDevice.Platform.ANDROID,
+        )
+        self.authenticate(self.user)
+
+        response = self.client.delete(reverse('notification-push-device-detail', args=[other_device.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        other_device.refresh_from_db()
+        self.assertTrue(other_device.is_active)
+
+    def test_firebase_push_status_endpoint_reports_configuration(self):
+        self.authenticate(self.user)
+
+        response = self.client.get(reverse('notification-push-status'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('enabled', response.data)
+        self.assertIn('ready', response.data)
+
+    @override_settings(FIREBASE_PUSH_ENABLED=True)
+    @patch('apps.notifications.push_service._firebase_app')
+    @patch('apps.notifications.push_service._firebase_messaging_module')
+    def test_firebase_push_service_sends_to_registered_device(self, mock_messaging_module, _mock_firebase_app):
+        from apps.notifications.push_service import send_notification_push
+
+        class FakeResponseItem:
+            success = True
+
+        class FakeBatchResponse:
+            success_count = 1
+            failure_count = 0
+            responses = [FakeResponseItem()]
+
+        fake_messaging = Mock()
+        fake_messaging.Notification.side_effect = lambda title, body: {'title': title, 'body': body}
+        fake_messaging.MulticastMessage.side_effect = lambda notification, tokens, data: {
+            'notification': notification,
+            'tokens': tokens,
+            'data': data,
+        }
+        fake_messaging.send_each_for_multicast.return_value = FakeBatchResponse()
+        mock_messaging_module.return_value = fake_messaging
+        PushDevice.objects.create(
+            user=self.user,
+            registration_token='fcm-token-' + ('z' * 32),
+            platform=PushDevice.Platform.ANDROID,
+        )
+        notification = Notification.objects.create(
+            recipient=self.user,
+            notification_type='interview_scheduled',
+            title='Interview scheduled',
+            message='Your interview is scheduled.',
+        )
+
+        result = send_notification_push(notification)
+
+        self.assertEqual(result['status'], 'sent')
+        self.assertEqual(result['success_count'], 1)
+        fake_messaging.send_each_for_multicast.assert_called_once()
 
 
 class EmailServiceTests(SimpleTestCase):

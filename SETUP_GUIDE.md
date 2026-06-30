@@ -77,10 +77,26 @@ POSTGRES_PASSWORD=your_postgres_password
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
 
-# Optional integrations; leave blank for local/demo fallback behavior.
+# External integrations. AI integrations are strict: missing credentials cause clear API errors.
 SENDGRID_API_KEY=
 DEFAULT_FROM_EMAIL=no-reply@hrrecruit.local
+
+FIREBASE_PUSH_ENABLED=False
+FIREBASE_PROJECT_ID=
+FIREBASE_CREDENTIALS_PATH=
+FIREBASE_CREDENTIALS_JSON=
+FIREBASE_USE_APPLICATION_DEFAULT_CREDENTIALS=False
+
+GOOGLE_CALENDAR_ENABLED=False
+GOOGLE_CALENDAR_CLIENT_ID=
+GOOGLE_CALENDAR_CLIENT_SECRET=
+GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:5173/recruiter/calendar/google/callback
+GOOGLE_CALENDAR_DEFAULT_DURATION_MINUTES=60
 OPENAI_API_KEY=
+TRANSCRIPTION_MODEL=whisper-1
+USE_REAL_TRANSCRIPTION=True
+SUMMARY_MODEL=gpt-4o-mini
+USE_REAL_SUMMARY=True
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_CHECKOUT_SUCCESS_URL=http://localhost:5173/billing/success
@@ -255,8 +271,22 @@ python manage.py seed_demo_data --no-update-password
 - For Android emulator networking, use `http://10.0.2.2:8000/api/`.
 - For physical phones, use the computer LAN IP and allow inbound traffic on port `8000`.
 
-### Missing optional AI/payment/email/calendar keys
+### Firebase mobile push notification setup
 
-- This is expected for local FYP demonstration.
-- Leave optional keys blank to use fallback/demo behavior.
-- Do not enable real integrations unless valid credentials, network access, callback URLs, and security configuration are available.
+- Create a Firebase project and Android app for the Flutter package.
+- Download the Firebase Admin service account JSON file.
+- Set `FIREBASE_PUSH_ENABLED=True`, `FIREBASE_PROJECT_ID`, and `FIREBASE_CREDENTIALS_PATH` to the JSON file path.
+- The mobile app can register its FCM token through `POST /api/notifications/push-devices/`.
+
+### Google Calendar API interview sync setup
+
+- Create a Google Cloud OAuth client and enable the Google Calendar API.
+- Set `GOOGLE_CALENDAR_ENABLED=True`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, and `GOOGLE_CALENDAR_REDIRECT_URI`.
+- Add the same redirect URI to the Google Cloud OAuth client. For local React development, use `http://localhost:5173/recruiter/calendar/google/callback`.
+- Recruiters can connect Google Calendar from the interview assignment page; booked interview slots then create/update real Google Calendar events with attendees and Google Meet links when needed.
+
+### Missing AI/payment/email/calendar keys
+
+- AI features are strict: resume semantic matching, trained resume matching, real transcription, and real summary generation return clear errors when their required model/dependency/credential is missing.
+- Configure `OPENAI_API_KEY`, `USE_REAL_TRANSCRIPTION=True`, `USE_REAL_SUMMARY=True`, and train the resume matching model before demoing AI flows.
+- Non-AI integrations still require valid credentials, network access, callback URLs, and security configuration before enabling production behavior.

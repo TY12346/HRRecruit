@@ -1,11 +1,12 @@
-"""Semantic similarity helpers with an optional Sentence-BERT backend."""
+"""Semantic similarity helpers that require Sentence-BERT."""
 
 from functools import lru_cache
+
+from apps.ai_services.exceptions import AIServiceUnavailable
 
 from .resume_preprocessor import preprocess_for_semantic_matching
 
 
-DEFAULT_FALLBACK_SCORE = 50.0
 DEFAULT_MODEL_NAME = 'all-MiniLM-L6-v2'
 
 
@@ -26,20 +27,13 @@ _SENTENCE_BERT_FAILURES = (
 )
 
 
-def semantic_similarity(resume_text, job_description, fallback_score=DEFAULT_FALLBACK_SCORE):
-    """Return a 0-100 semantic match score.
+def semantic_similarity(resume_text, job_description):
+    """Return a 0-100 semantic match score using the required Sentence-BERT model.
 
-    Sentence-BERT ``all-MiniLM-L6-v2`` is used when ``sentence-transformers``
-    and the model are available. Any optional dependency, model loading,
-    download, encoding, tensor, or runtime failure falls back to a deterministic
-    local token-overlap score so resume screening remains available offline and
-    during early development.
-
-    ``fallback_score`` is retained for API compatibility with earlier callers,
-    but semantic fallback scoring is now calculated from the supplied text rather
-    than returning a constant mock score.
+    Missing dependencies, unavailable model files, offline model downloads, or
+    inference errors now raise a clear AI service error instead of returning a
+    local token-overlap substitute score.
     """
-    _validate_score(fallback_score, 'fallback_score')
 
     normalized_resume_text = preprocess_for_semantic_matching(resume_text)
     normalized_job_description = preprocess_for_semantic_matching(job_description)
@@ -49,25 +43,10 @@ def semantic_similarity(resume_text, job_description, fallback_score=DEFAULT_FAL
 
     try:
         return _sentence_bert_similarity(normalized_resume_text, normalized_job_description)
-    except _SENTENCE_BERT_FAILURES:
-        return fallback_semantic_similarity(normalized_resume_text, normalized_job_description)
-
-
-def fallback_semantic_similarity(resume_text, job_description):
-    """Return a deterministic 0-100 local token-overlap/Jaccard score."""
-    normalized_resume_text = preprocess_for_semantic_matching(resume_text)
-    normalized_job_description = preprocess_for_semantic_matching(job_description)
-
-    if not normalized_resume_text or not normalized_job_description:
-        return 0.0
-
-    resume_tokens = set(normalized_resume_text.split())
-    job_tokens = set(normalized_job_description.split())
-
-    if not resume_tokens or not job_tokens:
-        return 0.0
-
-    return _normalize_score(len(resume_tokens & job_tokens) / len(resume_tokens | job_tokens))
+    except _SENTENCE_BERT_FAILURES as exc:
+        raise AIServiceUnavailable(
+            'Sentence-BERT semantic matching failed. Install sentence-transformers, make the all-MiniLM-L6-v2 model available, and retry.'
+        ) from exc
 
 
 def _sentence_bert_similarity(normalized_resume_text, normalized_job_description):

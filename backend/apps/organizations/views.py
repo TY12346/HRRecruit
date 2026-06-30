@@ -154,6 +154,6 @@ class OrganizationMemberBulkImportAPIView(ManagedOrganizationMixin, APIView):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
         return Response(
-            {'message': 'CSV import completed.', **result},
+            {'message': 'Spreadsheet import completed.', **result},
             status=status.HTTP_201_CREATED,
         )

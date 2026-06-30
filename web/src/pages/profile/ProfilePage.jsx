@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
-import { changePassword, getProfile, updateProfile } from '../../api/client.js';
+import { Alert, Box, Button, Chip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
+import { changePassword, deleteResume, getProfile, updateProfile, updateResume, uploadResume } from '../../api/client.js';
 import { useAuthStore } from '../../store/authStore.js';
 
 function buildProfileForm(user) {
@@ -34,6 +34,10 @@ export default function ProfilePage() {
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordMessage, setPasswordMessage] = useState('');
   const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+  const [resumeTitle, setResumeTitle] = useState('');
+  const [resumeFile, setResumeFile] = useState(null);
+  const [isResumeUploading, setIsResumeUploading] = useState(false);
+  const [resumeInputKey, setResumeInputKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -89,6 +93,58 @@ export default function ProfilePage() {
       setError(collectProfileErrors(submitError));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+
+  const refreshProfile = async () => {
+    const profile = await getProfile();
+    updateUser(profile);
+    setFormData(buildProfileForm(profile));
+    return profile;
+  };
+
+  const handleResumeUpload = async () => {
+    if (!resumeFile) {
+      setError('Choose a PDF or DOCX resume file before uploading.');
+      return;
+    }
+    setError('');
+    setSuccessMessage('');
+    setIsResumeUploading(true);
+    try {
+      await uploadResume({ title: resumeTitle, resumeFile, isDefault: !(user?.resumes ?? []).length });
+      await refreshProfile();
+      setResumeTitle('');
+      setResumeFile(null);
+      setResumeInputKey((current) => current + 1);
+      setSuccessMessage('Resume uploaded successfully. You can now choose different resumes for different job types.');
+    } catch (uploadError) {
+      setError(collectProfileErrors(uploadError));
+    } finally {
+      setIsResumeUploading(false);
+    }
+  };
+
+  const handleSetDefaultResume = async (resumeId) => {
+    setError('');
+    try {
+      await updateResume(resumeId, { is_default: true });
+      await refreshProfile();
+      setSuccessMessage('Default resume updated.');
+    } catch (resumeError) {
+      setError(collectProfileErrors(resumeError));
+    }
+  };
+
+  const handleDeleteResume = async (resumeId) => {
+    setError('');
+    try {
+      await deleteResume(resumeId);
+      await refreshProfile();
+      setSuccessMessage('Resume deleted successfully.');
+    } catch (resumeError) {
+      setError(collectProfileErrors(resumeError));
     }
   };
 
@@ -172,9 +228,78 @@ export default function ProfilePage() {
                 onChange={handleChange}
                 value={formData.personal_summary}
               />
-              <Alert severity="info">
-                Resume upload is handled by the backend API and will be connected to the UI in a later task.
-              </Alert>
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography component="h3" variant="h6">
+                      Resume library
+                    </Typography>
+                    <Typography color="text.secondary" variant="body2">
+                      Upload multiple resumes for different career tracks, then choose the best resume when applying for each job.
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                      <TextField
+                        label="Resume title"
+                        onChange={(event) => setResumeTitle(event.target.value)}
+                        placeholder="Backend roles, Data roles…"
+                        value={resumeTitle}
+                      />
+                      <Button component="label" variant="outlined">
+                        {resumeFile ? resumeFile.name : 'Choose file'}
+                        <input
+                          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          hidden
+                          key={resumeInputKey}
+                          onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)}
+                          type="file"
+                        />
+                      </Button>
+                      <Button disabled={isResumeUploading} onClick={handleResumeUpload} type="button" variant="contained">
+                        {isResumeUploading ? 'Uploading…' : 'Upload resume'}
+                      </Button>
+                    </Stack>
+                  </Box>
+                  <Divider />
+                  {(user?.resumes ?? []).length ? (
+                    <Stack spacing={1.5}>
+                      {user.resumes.map((resume) => (
+                        <Paper key={resume.id} variant="outlined" sx={{ p: 1.5 }}>
+                          <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                            <Box>
+                              <Stack alignItems="center" direction="row" spacing={1}>
+                                <Typography fontWeight={600}>{resume.title || 'Untitled resume'}</Typography>
+                                {resume.is_default ? <Chip color="primary" label="Default" size="small" /> : null}
+                              </Stack>
+                              <Typography color="text.secondary" variant="body2">
+                                {resume.resume_file?.split('/').pop()}
+                              </Typography>
+                            </Box>
+                            <Stack direction="row" spacing={1}>
+                              {resume.resume_url ? (
+                                <Button href={resume.resume_url} size="small" target="_blank" variant="text">
+                                  View
+                                </Button>
+                              ) : null}
+                              {!resume.is_default ? (
+                                <Button onClick={() => handleSetDefaultResume(resume.id)} size="small" variant="outlined">
+                                  Set default
+                                </Button>
+                              ) : null}
+                              <Button color="error" onClick={() => handleDeleteResume(resume.id)} size="small" variant="text">
+                                Delete
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Alert severity="info">Upload at least one resume before applying so AI screening can run immediately.</Alert>
+                  )}
+                </Stack>
+              </Paper>
             </>
           ) : null}
           <Button disabled={isLoading || isSubmitting} type="submit" variant="contained">

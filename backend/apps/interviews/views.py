@@ -23,17 +23,95 @@ from .serializers import (
     AssignInterviewerSerializer,
     BookSchedulingRequestSerializer,
     CreateSchedulingRequestSerializer,
+    GoogleCalendarConnectSerializer,
+    GoogleCalendarOAuthCallbackSerializer,
     InterviewSchedulingRequestSerializer,
     InterviewSerializer,
     InterviewerAvailabilityPatternSerializer,
     InterviewerUnavailableDateSerializer,
     InterviewerAvailabilitySlotSerializer,
 )
-from .calendar_service import sync_calendar_event_for_interview
+from .calendar_service import (
+    GoogleCalendarConfigurationError,
+    GoogleCalendarSyncError,
+    build_google_calendar_authorization_url,
+    disconnect_google_calendar,
+    google_calendar_status_for_user,
+    store_google_calendar_credentials,
+    sync_calendar_event_for_interview,
+    sync_existing_google_events_for_user,
+)
 from .slot_generation import generate_available_slots
 
 
 logger = logging.getLogger(__name__)
+
+
+
+def ensure_calendar_oauth_role(user):
+    if user.role not in (User.Role.RECRUITER, User.Role.INTERVIEWER):
+        raise PermissionDenied('Only recruiters and interviewers can connect Google Calendar.')
+
+
+class GoogleCalendarStatusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ensure_calendar_oauth_role(request.user)
+        return Response(google_calendar_status_for_user(request.user))
+
+
+class GoogleCalendarConnectAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ensure_calendar_oauth_role(request.user)
+        serializer = GoogleCalendarConnectSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        try:
+            authorization_url = build_google_calendar_authorization_url(
+                request.user,
+                next_url=serializer.validated_data.get('next', ''),
+            )
+        except GoogleCalendarConfigurationError as exc:
+            raise ValidationError({'google_calendar': str(exc)}) from exc
+        status_payload = google_calendar_status_for_user(request.user)
+        status_payload['authorization_url'] = authorization_url
+        return Response(status_payload)
+
+
+class GoogleCalendarOAuthCallbackAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        ensure_calendar_oauth_role(request.user)
+        serializer = GoogleCalendarOAuthCallbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            credential = store_google_calendar_credentials(
+                request.user,
+                code=serializer.validated_data['code'],
+                state=serializer.validated_data['state'],
+            )
+        except GoogleCalendarConfigurationError as exc:
+            raise ValidationError({'google_calendar': str(exc)}) from exc
+        sync_result = sync_existing_google_events_for_user(request.user)
+        return Response({
+            'connected': True,
+            'connected_email': credential.google_account_email,
+            'oauth_ready': True,
+            'synced_interviews': sync_result['synced'],
+            'failed_interview_syncs': sync_result['failed'],
+        })
+
+
+class GoogleCalendarDisconnectAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        ensure_calendar_oauth_role(request.user)
+        disconnected = disconnect_google_calendar(request.user)
+        return Response({'connected': False, 'disconnected': disconnected})
 
 
 def get_active_membership(user, role):
@@ -237,12 +315,7 @@ def change_application_status(application, new_status, changed_by, note):
 
 
 def create_interview_booking_side_effects(scheduling_request, interview, applicant):
-    """Run optional booking side effects without failing the booking response."""
-    try:
-        sync_calendar_event_for_interview(interview)
-    except Exception:
-        logger.exception('Failed to sync calendar event for booked interview %s.', interview.id)
-
+    """Create booking notifications after strict calendar sync has succeeded."""
     notification_payloads = [
         (
             scheduling_request.recruiter,
@@ -593,6 +666,11 @@ def book_scheduling_request(request, scheduling_request):
         request.user,
         'Applicant selected an interview slot.',
     )
+    try:
+        sync_calendar_event_for_interview(interview)
+    except (GoogleCalendarConfigurationError, GoogleCalendarSyncError) as exc:
+        raise ValidationError({'google_calendar': str(exc)}) from exc
+
     transaction.on_commit(
         lambda: create_interview_booking_side_effects(scheduling_request, interview, request.user)
     )

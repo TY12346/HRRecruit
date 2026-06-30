@@ -1,5 +1,5 @@
 """Backward-compatible imports for interview service helpers."""
 
-from .calendar_service import build_local_calendar_link as build_calendar_link
+from .calendar_service import sync_calendar_event_for_interview
 
-__all__ = ['build_calendar_link']
+__all__ = ['sync_calendar_event_for_interview']
