@@ -136,13 +136,16 @@ class NotificationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('enabled', response.data)
+        self.assertEqual(response.data['channel'], 'fcm_push')
+        self.assertEqual(response.data['provider'], 'firebase_fcm')
+        self.assertEqual(response.data['sdk'], 'firebase_admin')
         self.assertIn('ready', response.data)
 
     @override_settings(FIREBASE_PUSH_ENABLED=True)
     @patch('apps.notifications.push_service._firebase_app')
     @patch('apps.notifications.push_service._firebase_messaging_module')
     def test_firebase_push_service_sends_to_registered_device(self, mock_messaging_module, _mock_firebase_app):
-        from apps.notifications.push_service import send_notification_push
+        from apps.notifications.push_service import send_fcm_notification_push
 
         class FakeResponseItem:
             success = True
@@ -173,11 +176,59 @@ class NotificationAPITests(APITestCase):
             message='Your interview is scheduled.',
         )
 
-        result = send_notification_push(notification)
+        result = send_fcm_notification_push(notification)
 
         self.assertEqual(result['status'], 'sent')
+        self.assertEqual(result['channel'], 'fcm_push')
+        self.assertEqual(result['provider'], 'firebase_fcm')
+        self.assertEqual(result['sdk'], 'firebase_admin')
         self.assertEqual(result['success_count'], 1)
         fake_messaging.send_each_for_multicast.assert_called_once()
+
+    @override_settings(FIREBASE_PUSH_ENABLED=False)
+    def test_firebase_push_service_reports_disabled_without_alternate_provider(self):
+        from apps.notifications.push_service import send_fcm_notification_push
+
+        PushDevice.objects.create(
+            user=self.user,
+            registration_token='fcm-token-' + ('d' * 32),
+            platform=PushDevice.Platform.ANDROID,
+        )
+        notification = Notification.objects.create(
+            recipient=self.user,
+            notification_type='application_status_update',
+            title='Application updated',
+            message='Your application changed.',
+        )
+
+        result = send_fcm_notification_push(notification)
+
+        self.assertEqual(result, {
+            'channel': 'fcm_push',
+            'provider': 'firebase_fcm',
+            'sdk': 'firebase_admin',
+            'status': 'disabled',
+            'success_count': 0,
+            'failure_count': 0,
+        })
+
+    @patch('apps.notifications.services.send_fcm_notification_push')
+    def test_create_notification_delivers_only_through_fcm_push(self, mock_send_fcm):
+        mock_send_fcm.return_value = {
+            'channel': 'fcm_push',
+            'provider': 'firebase_fcm',
+            'sdk': 'firebase_admin',
+            'status': 'sent',
+        }
+
+        notification = create_notification(
+            self.user,
+            'interview_invitation',
+            'Interview invitation',
+            'Please respond to your interview invitation.',
+        )
+
+        mock_send_fcm.assert_called_once_with(notification)
 
 
 class EmailServiceTests(SimpleTestCase):
