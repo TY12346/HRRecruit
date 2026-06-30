@@ -43,6 +43,19 @@ def _optional_google_dependencies_available():
     return all(util.find_spec(module_name) is not None for module_name in module_names)
 
 
+def _optional_google_dependencies_available():
+    module_names = [
+        'google_auth_oauthlib',
+        'google_auth_oauthlib.flow',
+        'google',
+        'google.oauth2',
+        'google.oauth2.credentials',
+        'googleapiclient',
+        'googleapiclient.discovery',
+    ]
+    return all(util.find_spec(module_name) is not None for module_name in module_names)
+
+
 def google_calendar_credentials_configured():
     """Return True only when Google OAuth client settings are present."""
     return bool(
