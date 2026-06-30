@@ -39,10 +39,16 @@ class AuthController extends ChangeNotifier {
       final profile = await _authService.getProfile();
       _ensureApplicant(profile);
       _profile = profile;
-      await _pushNotificationService.registerDevice();
     } catch (_) {
       await _tokenStorage.clearTokens();
       _profile = null;
+      _isInitialized = true;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      await _pushNotificationService.registerDevice();
     } finally {
       _isInitialized = true;
       notifyListeners();

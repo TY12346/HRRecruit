@@ -17,7 +17,7 @@ from apps.evaluations.models import (
     InterviewTranscript,
 )
 from apps.hiring.models import HiringDecision, JobOffer
-from apps.interviews.models import CalendarEvent, Interview, InterviewStatusHistory
+from apps.interviews.models import Interview, InterviewStatusHistory
 from apps.jobs.models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, JobRequirement
 from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
@@ -366,16 +366,6 @@ class Command(BaseCommand):
         )
         self._ensure_interview_history(interview, Interview.Status.ASSIGNED, Interview.Status.SCHEDULED, users[User.Role.RECRUITER], 'Recruiter scheduled interview.')
         self._ensure_interview_history(interview, Interview.Status.SCHEDULED, Interview.Status.COMPLETED, users[User.Role.INTERVIEWER], 'Interview completed for demo workflow.')
-        CalendarEvent.objects.update_or_create(
-            interview=interview,
-            provider='local',
-            defaults={
-                'external_event_id': 'demo-local-calendar-event',
-                'calendar_link': interview.meeting_link,
-                'last_synced_at': timezone.now(),
-                'sync_status': CalendarEvent.SyncStatus.NOT_SYNCED,
-            },
-        )
         recording = self._seed_recording(interview, users[User.Role.INTERVIEWER])
         transcript = self._seed_transcript(recording)
         self._seed_ai_summary(transcript, users[User.Role.INTERVIEWER])

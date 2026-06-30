@@ -13,6 +13,10 @@ from django.conf import settings
 
 from .models import Notification, PushDevice
 
+FCM_PUSH_CHANNEL = 'fcm_push'
+FIREBASE_FCM_PROVIDER = 'firebase_fcm'
+FIREBASE_ADMIN_SDK = 'firebase_admin'
+
 
 class FirebasePushUnavailable(Exception):
     """Raised when Firebase Admin SDK push delivery cannot be used."""
@@ -34,6 +38,9 @@ def firebase_push_status() -> dict:
     ready = firebase_push_configured() and dependencies_installed and credentials_configured
     return {
         'enabled': firebase_push_configured(),
+        'channel': FCM_PUSH_CHANNEL,
+        'provider': FIREBASE_FCM_PROVIDER,
+        'sdk': FIREBASE_ADMIN_SDK,
         'dependencies_installed': dependencies_installed,
         'credentials_configured': credentials_configured,
         'ready': ready,
@@ -41,20 +48,34 @@ def firebase_push_status() -> dict:
 
 
 def send_notification_push(notification: Notification) -> dict:
+    """Backward-compatible wrapper for FCM notification delivery."""
+    return send_fcm_notification_push(notification)
+
+
+def send_fcm_notification_push(notification: Notification) -> dict:
     """Send one stored notification to all active FCM tokens for the recipient."""
     devices = list(notification.recipient.push_devices.filter(is_active=True))
     if not devices:
-        return {'provider': 'firebase_fcm', 'status': 'no_active_devices', 'success_count': 0, 'failure_count': 0}
-    return send_push_to_devices(devices, notification.title, notification.message, data=_notification_data(notification))
+        return _firebase_push_result('no_active_devices', success_count=0, failure_count=0)
+    return send_fcm_push_to_devices(devices, notification.title, notification.message, data=_notification_data(notification))
 
 
 def send_push_to_devices(devices: Iterable[PushDevice], title: str, body: str, data: dict | None = None) -> dict:
-    """Send a Firebase multicast push to the supplied devices."""
+    """Backward-compatible wrapper for FCM device delivery."""
+    return send_fcm_push_to_devices(devices, title, body, data=data)
+
+
+def send_fcm_push_to_devices(devices: Iterable[PushDevice], title: str, body: str, data: dict | None = None) -> dict:
+    """Send a Firebase Admin SDK multicast push to the supplied devices.
+
+    HRRecruit uses Firebase Cloud Messaging through the official Firebase Admin
+    SDK only. No alternate push provider is used for mobile push delivery.
+    """
     device_list = [device for device in devices if device.is_active and device.registration_token]
     if not device_list:
-        return {'provider': 'firebase_fcm', 'status': 'no_active_devices', 'success_count': 0, 'failure_count': 0}
+        return _firebase_push_result('no_active_devices', success_count=0, failure_count=0)
     if not firebase_push_configured():
-        return {'provider': 'firebase_fcm', 'status': 'disabled', 'success_count': 0, 'failure_count': 0}
+        return _firebase_push_result('disabled', success_count=0, failure_count=0)
 
     messaging = _firebase_messaging_module()
     _firebase_app()
@@ -68,11 +89,20 @@ def send_push_to_devices(devices: Iterable[PushDevice], title: str, body: str, d
     except AttributeError:
         response = messaging.send_multicast(message)
     _deactivate_failed_tokens(device_list, getattr(response, 'responses', []))
+    return _firebase_push_result(
+        'sent',
+        success_count=int(getattr(response, 'success_count', 0)),
+        failure_count=int(getattr(response, 'failure_count', 0)),
+    )
+
+
+def _firebase_push_result(status: str, **extra) -> dict:
     return {
-        'provider': 'firebase_fcm',
-        'status': 'sent',
-        'success_count': int(getattr(response, 'success_count', 0)),
-        'failure_count': int(getattr(response, 'failure_count', 0)),
+        'channel': FCM_PUSH_CHANNEL,
+        'provider': FIREBASE_FCM_PROVIDER,
+        'sdk': FIREBASE_ADMIN_SDK,
+        'status': status,
+        **extra,
     }
 
 
