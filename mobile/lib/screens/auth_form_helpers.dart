@@ -4,15 +4,21 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 
-String readableApiError(Object error, {String? apiBaseUrl}) {
+String readableApiError(
+  Object error, {
+  String? apiBaseUrl,
+  String? timeoutHelpText,
+}) {
   if (error is DioException) {
     if (_isTimeoutProblem(error)) {
       final currentUrl = apiBaseUrl == null
           ? ''
           : '\nCurrent API URL: $apiBaseUrl';
-      return 'The HRRecruit API took too long to respond.$currentUrl\n\n'
-          'Submitting an application can take longer because the backend extracts and screens your selected resume. '
-          'Please wait a moment and try again. If this keeps happening, confirm Django is still running and increase local machine resources for the demo.';
+      final helpText = timeoutHelpText ??
+          'Check that Django is running and reachable from this device. '
+              'For a physical phone, tap API settings and use your computer LAN IP, for example '
+              'http://YOUR_COMPUTER_LAN_IP:8000/api/. Do not use localhost or the Android emulator address on a physical phone.';
+      return 'The HRRecruit API took too long to respond.$currentUrl\n\n$helpText';
     }
 
     if (_isConnectionProblem(error)) {
@@ -72,7 +78,11 @@ String _stringifyMessage(Object? value) {
   return value?.toString() ?? '';
 }
 
-Future<void> showErrorSnackBar(BuildContext context, Object error) async {
+Future<void> showErrorSnackBar(
+  BuildContext context,
+  Object error, {
+  String? timeoutHelpText,
+}) async {
   String? apiBaseUrl;
   try {
     apiBaseUrl = await context.read<ApiClient>().currentBaseUrl();
@@ -82,6 +92,12 @@ Future<void> showErrorSnackBar(BuildContext context, Object error) async {
 
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(readableApiError(error, apiBaseUrl: apiBaseUrl))),
+    SnackBar(
+      content: Text(readableApiError(
+        error,
+        apiBaseUrl: apiBaseUrl,
+        timeoutHelpText: timeoutHelpText,
+      )),
+    ),
   );
 }

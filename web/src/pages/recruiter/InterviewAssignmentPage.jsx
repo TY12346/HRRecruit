@@ -6,6 +6,23 @@ import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 import { buildApplicationTemplateContext, getCommunicationTemplates, renderCommunicationTemplate } from './communicationTemplates.js';
 
+function getGoogleCalendarSetupSteps(calendarStatus) {
+  const steps = [];
+  if (!calendarStatus?.enabled) {
+    steps.push('Set GOOGLE_CALENDAR_ENABLED=true in backend/.env and restart Django.');
+  }
+  if (!calendarStatus?.client_configured) {
+    steps.push('Create a Google Cloud OAuth web client, then set GOOGLE_CALENDAR_CLIENT_ID and GOOGLE_CALENDAR_CLIENT_SECRET in backend/.env.');
+  }
+  if (!calendarStatus?.redirect_uri_configured) {
+    steps.push('Set GOOGLE_CALENDAR_REDIRECT_URI to the same callback URL registered in Google Cloud, for example http://localhost:5173/recruiter/calendar/google/callback.');
+  }
+  if (!calendarStatus?.dependencies_installed) {
+    steps.push('Install the backend Google packages from backend/requirements.txt, then restart Django.');
+  }
+  return steps;
+}
+
 export default function InterviewAssignmentPage() {
   const { applicationId } = useParams();
   const navigate = useNavigate();
@@ -124,7 +141,17 @@ export default function InterviewAssignmentPage() {
                   </Button>
                 ) : null}
                 {!calendarStatus?.oauth_ready && !calendarStatus?.connected ? (
-                  <Alert severity="info">Set GOOGLE_CALENDAR_ENABLED, GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET, GOOGLE_CALENDAR_REDIRECT_URI, and install Google API packages to enable real OAuth.</Alert>
+                  <Alert severity="info">
+                    <Typography sx={{ fontWeight: 700 }}>To enable the Connect Google Calendar button:</Typography>
+                    <Box component="ol" sx={{ m: 0, mt: 1, pl: 3 }}>
+                      {getGoogleCalendarSetupSteps(calendarStatus).map((step) => (
+                        <Box component="li" key={step}>{step}</Box>
+                      ))}
+                    </Box>
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      After setup, reload this page. The mode should change to Ready to connect, then click Connect Google Calendar and approve access with the recruiter Google account.
+                    </Typography>
+                  </Alert>
                 ) : null}
               </Stack>
             </Paper>

@@ -73,6 +73,11 @@ class GoogleCalendarConnectAPIView(APIView):
             )
         except GoogleCalendarConfigurationError as exc:
             raise ValidationError({'google_calendar': str(exc)}) from exc
+        except Exception as exc:
+            logger.exception('Failed to start Google Calendar OAuth for user %s.', request.user.id)
+            raise ValidationError({
+                'google_calendar': 'Unable to start Google Calendar OAuth. Check the backend Google Calendar settings and redirect URI.'
+            }) from exc
         status_payload = google_calendar_status_for_user(request.user)
         status_payload['authorization_url'] = authorization_url
         return Response(status_payload)
@@ -93,6 +98,11 @@ class GoogleCalendarOAuthCallbackAPIView(APIView):
             )
         except GoogleCalendarConfigurationError as exc:
             raise ValidationError({'google_calendar': str(exc)}) from exc
+        except Exception as exc:
+            logger.exception('Failed to complete Google Calendar OAuth for user %s.', request.user.id)
+            raise ValidationError({
+                'google_calendar': 'Unable to complete Google Calendar OAuth. Check the redirect URI and Google OAuth client configuration.'
+            }) from exc
         return Response({
             'connected': True,
             'connected_email': credential.google_account_email,
