@@ -10,11 +10,16 @@ String readableApiError(Object error, {String? apiBaseUrl}) {
       final currentUrl = apiBaseUrl == null
           ? ''
           : '\nCurrent API URL: $apiBaseUrl';
+      final details = _connectionErrorDetails(error);
       return 'Could not reach the HRRecruit API.$currentUrl\n\n'
+          'Network detail: $details\n\n'
           'Use http://10.0.2.2:8000/api/ only for the Android emulator. '
           'Use http://localhost:8000/api/ for iOS simulator, desktop, or web. '
           'For a physical phone, tap API settings and use '
           'http://YOUR_COMPUTER_LAN_IP:8000/api/. Do not omit :8000.\n\n'
+          'For a physical phone, also confirm the phone and computer are on '
+          'the same Wi-Fi network and that mobile data, VPN, hotspot/client '
+          'isolation, or guest Wi-Fi is not blocking access to the computer.\n\n'
           'Also check that Django is running with '
           'python manage.py runserver 0.0.0.0:8000, that Windows Firewall '
           'allows port 8000, DJANGO_ALLOWED_HOSTS includes your LAN IP, '
@@ -64,6 +69,15 @@ bool _isConnectionProblem(DioException error) {
   return error.type == DioExceptionType.connectionTimeout ||
       error.type == DioExceptionType.connectionError ||
       error.response == null;
+}
+
+String _connectionErrorDetails(DioException error) {
+  final details = <String>[
+    error.type.toString().split('.').last,
+    if (error.message != null && error.message!.isNotEmpty) error.message!,
+    if (error.error != null) error.error.toString(),
+  ];
+  return details.toSet().join(' — ');
 }
 
 String _stringifyMessage(Object? value) {

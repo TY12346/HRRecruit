@@ -9,7 +9,23 @@ load_dotenv(BASE_DIR / ".env", override=True)
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if host.strip()]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+    if host.strip()
+]
+ALLOW_DEBUG_HOSTS = os.getenv('DJANGO_ALLOW_DEBUG_HOSTS', 'True').lower() in (
+    '1',
+    'true',
+    'yes',
+    'on',
+)
+if DEBUG and ALLOW_DEBUG_HOSTS and '*' not in ALLOWED_HOSTS:
+    # Local mobile devices often reach Django through a changing LAN IP. In
+    # DEBUG only, allow those hosts so Flutter login does not fail with
+    # DisallowedHost after moving between networks. Production deployments keep
+    # using the explicit DJANGO_ALLOWED_HOSTS value.
+    ALLOWED_HOSTS.append('*')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
