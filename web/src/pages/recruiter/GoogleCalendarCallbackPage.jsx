@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { completeGoogleCalendarOAuth } from '../../api/client.js';
@@ -7,6 +7,7 @@ import { getApiErrorMessage } from './recruiterUtils.js';
 
 export default function GoogleCalendarCallbackPage() {
   const location = useLocation();
+  const hasSubmittedOAuthCode = useRef(false);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('Connecting Google Calendar…');
 
@@ -19,6 +20,8 @@ export default function GoogleCalendarCallbackPage() {
       setMessage('Google did not return the required authorization code and state. Please try connecting again.');
       return;
     }
+    if (hasSubmittedOAuthCode.current) return;
+    hasSubmittedOAuthCode.current = true;
     completeGoogleCalendarOAuth({ code, state })
       .then((result) => {
         setStatus('success');
