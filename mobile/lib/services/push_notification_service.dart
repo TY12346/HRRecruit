@@ -12,52 +12,51 @@ class PushNotificationService {
   bool _tokenRefreshListenerAttached = false;
 
   Future<void> registerDevice() async {
-    final messaging = await _messagingOrNull();
-    if (messaging == null) return;
+    final messaging = await _messaging();
 
-    await messaging.requestPermission();
-    final token = await messaging.getToken();
-    if (token != null && token.isNotEmpty) {
-      await _registerToken(token);
+    final settings = await messaging.requestPermission();
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      throw StateError('FCM notification permission was denied.');
     }
+    final token = await messaging.getToken();
+    if (token == null || token.isEmpty) {
+      throw StateError(
+        'Firebase Messaging did not return an FCM registration token.',
+      );
+    }
+    await _registerToken(token);
 
     if (!_tokenRefreshListenerAttached) {
       _tokenRefreshListenerAttached = true;
-      messaging.onTokenRefresh.listen((newToken) {
-        if (newToken.isNotEmpty) {
-          _registerToken(newToken);
+      messaging.onTokenRefresh.listen((newToken) async {
+        if (newToken.isEmpty) {
+          throw StateError(
+            'Firebase Messaging returned an empty refreshed FCM token.',
+          );
         }
+        await _registerToken(newToken);
       });
     }
   }
 
-  Future<FirebaseMessaging?> _messagingOrNull() async {
-    try {
-      if (!_initialized) {
-        await Firebase.initializeApp();
-        _initialized = true;
-      }
-      return FirebaseMessaging.instance;
-    } catch (error) {
-      debugPrint('Firebase Messaging is not configured: $error');
-      return null;
+  Future<FirebaseMessaging> _messaging() async {
+    if (!_initialized) {
+      await Firebase.initializeApp();
+      _initialized = true;
     }
+    return FirebaseMessaging.instance;
   }
 
   Future<void> _registerToken(String token) async {
-    try {
-      await _apiClient.dio.post<Map<String, dynamic>>(
-        'notifications/push-devices/',
-        data: {
-          'registration_token': token,
-          'platform': _platformName(),
-          'device_id': '',
-          'app_version': '0.1.0',
-        },
-      );
-    } catch (error) {
-      debugPrint('Unable to register FCM token with HRRecruit API: $error');
-    }
+    await _apiClient.dio.post<Map<String, dynamic>>(
+      'notifications/push-devices/',
+      data: {
+        'registration_token': token,
+        'platform': _platformName(),
+        'device_id': '',
+        'app_version': '0.1.0',
+      },
+    );
   }
 
   String _platformName() {

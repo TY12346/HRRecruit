@@ -163,9 +163,11 @@ class SkillExtractorTests(SimpleTestCase):
         self.assertEqual(extract_skills('Python', {}), [])
 
     @patch('apps.ai_services.skill_extractor._load_spacy_model', side_effect=AIServiceUnavailable('spaCy unavailable'))
-    def test_extract_skills_raises_when_spacy_unavailable(self, _mock_spacy_model):
-        with self.assertRaises(AIServiceUnavailable):
-            extract_skills('Built RESTful APIs with py, js, nodejs, postgres, and reactjs.')
+    def test_extract_skills_uses_dictionary_fallback_when_spacy_unavailable(self, _mock_spacy_model):
+        self.assertEqual(
+            extract_skills('Built RESTful APIs with py, js, nodejs, postgres, and reactjs.'),
+            ['javascript', 'node.js', 'postgresql', 'python', 'react', 'rest api'],
+        )
 
     def test_load_spacy_model_raises_when_spacy_dependency_import_fails(self):
         _load_spacy_model.cache_clear()
