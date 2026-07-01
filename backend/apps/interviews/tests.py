@@ -110,15 +110,15 @@ class InterviewManagementAPITests(APITestCase):
         self.assertIn('Unable to start Google Calendar OAuth', response.data['google_calendar'])
 
     def test_local_http_google_oauth_redirect_sets_oauthlib_debug_escape_hatch(self):
-        from apps.interviews.calendar_service import _allow_local_http_oauth_for_debug
+        from apps.interviews.calendar_service import _allow_local_http_oauth_for_local_redirects
 
-        with override_settings(DEBUG=True), patch.dict(
+        with patch.dict(
             'os.environ',
             {'GOOGLE_CALENDAR_REDIRECT_URI': 'http://localhost:5173/recruiter/calendar/google/callback'},
             clear=False,
         ):
             os.environ.pop('OAUTHLIB_INSECURE_TRANSPORT', None)
-            _allow_local_http_oauth_for_debug()
+            _allow_local_http_oauth_for_local_redirects()
 
         self.assertEqual(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'), '1')
 
