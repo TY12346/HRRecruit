@@ -21,16 +21,16 @@ export default function InterviewerNav() {
         borderRight: { md: '1px solid #e5e7eb' },
         bottom: { md: 0 },
         left: { md: 0 },
-        mb: { xs: 3, md: 0 },
+        mb: { xs: 4, md: 0 },
         overflowY: { md: 'auto' },
         position: { xs: 'static', md: 'fixed' },
-        pt: { xs: 0, md: 2 },
+        pt: { xs: 0, md: 3 },
         top: { md: 64 },
         width: { md: 230 },
         zIndex: (theme) => theme.zIndex.drawer,
       }}
     >
-      <Stack direction={{ xs: 'row', md: 'column' }} spacing={0.75} useFlexGap flexWrap={{ xs: 'wrap', md: 'nowrap' }}>
+      <Stack direction={{ xs: 'row', md: 'column' }} spacing={1.5} useFlexGap flexWrap={{ xs: 'wrap', md: 'nowrap' }}>
         {links.map(([icon, label, to]) => (
           <Button
             key={to}
@@ -44,8 +44,8 @@ export default function InterviewerNav() {
               fontWeight: 800,
               gap: 1,
               justifyContent: { xs: 'center', md: 'flex-start' },
-              minHeight: 42,
-              px: { xs: 1.5, md: 2 },
+              minHeight: 46,
+              px: { xs: 1.75, md: 2.5 },
               textTransform: 'none',
             }}
           >

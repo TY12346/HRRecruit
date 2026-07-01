@@ -38,6 +38,7 @@ export default function PortalLayout() {
           bgcolor: '#ffffff',
           borderBottom: '1px solid #e5e7eb',
           display: 'grid',
+          columnGap: { xs: 2, md: 4 },
           gridTemplateColumns: { xs: '1fr auto', md: '230px 1fr auto' },
           height: 64,
           left: 0,
@@ -58,14 +59,14 @@ export default function PortalLayout() {
             display: { xs: 'none', md: 'block' },
             fontSize: 14,
             fontWeight: 800,
-            pl: 4,
+            pl: 6,
           }}
         >
           {isAuthenticated ? `${user?.role === 'hr_head' ? 'HR Department Head' : user?.role === 'recruiter' ? 'Recruiter' : 'Interviewer'} Portal` : 'Web Portal'}
         </Typography>
 
         {isAuthenticated ? (
-          <Stack alignItems="center" direction="row" justifyContent="flex-end" spacing={2}>
+          <Stack alignItems="center" direction="row" justifyContent="flex-end" spacing={3}>
             <Tooltip title="Notifications">
               <IconButton aria-label="Notifications" size="small" sx={{ color: '#111111' }}>
                 <Badge color="error" overlap="circular" variant="dot">
@@ -87,7 +88,7 @@ export default function PortalLayout() {
         ) : null}
       </Box>
 
-      <Container maxWidth={false} sx={{ p: { xs: 2, md: 0 } }}>
+      <Container maxWidth={false} sx={{ p: { xs: 2.5, md: 3 } }}>
         <Outlet />
       </Container>
     </Box>
