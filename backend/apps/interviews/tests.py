@@ -95,6 +95,82 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('google_calendar', response.data)
 
+    def test_google_calendar_connect_returns_clean_error_when_oauth_library_fails(self):
+        self.authenticate(self.recruiter)
+
+        with patch(
+            'apps.interviews.views.build_google_calendar_authorization_url',
+            side_effect=RuntimeError('oauthlib failed'),
+        ):
+            response = self.client.get(reverse('google-calendar-connect'))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('google_calendar', response.data)
+        self.assertIn('Unable to start Google Calendar OAuth', response.data['google_calendar'])
+
+    def test_google_calendar_callback_is_idempotent_when_already_connected(self):
+        self.authenticate(self.recruiter)
+        GoogleCalendarCredential.objects.create(
+            user=self.recruiter,
+            google_account_email='recruiter@gmail.com',
+        )
+
+        with patch(
+            'apps.interviews.views.store_google_calendar_credentials',
+            side_effect=RuntimeError('authorization code already used'),
+        ):
+            response = self.client.post(
+                reverse('google-calendar-callback'),
+                {'code': 'used-code', 'state': 'already-validated-state'},
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['connected'])
+        self.assertEqual(response.data['connected_email'], 'recruiter@gmail.com')
+
+    def test_google_calendar_callback_unhandled_errors_return_clean_json(self):
+        self.authenticate(self.recruiter)
+
+        with patch(
+            'apps.interviews.views.GoogleCalendarOAuthCallbackSerializer.is_valid',
+            side_effect=RuntimeError('unexpected serializer failure'),
+        ):
+            response = self.client.post(
+                reverse('google-calendar-callback'),
+                {'code': 'code', 'state': 'state'},
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('google_calendar', response.data)
+        self.assertIn('Unable to complete Google Calendar OAuth', response.data['google_calendar'])
+
+    def test_local_http_google_oauth_redirect_sets_oauthlib_debug_escape_hatch(self):
+        from apps.interviews.calendar_service import _allow_local_http_oauth_for_local_redirects
+
+        with patch.dict(
+            'os.environ',
+            {'GOOGLE_CALENDAR_REDIRECT_URI': 'http://localhost:5173/recruiter/calendar/google/callback'},
+            clear=False,
+        ):
+            os.environ.pop('OAUTHLIB_INSECURE_TRANSPORT', None)
+            _allow_local_http_oauth_for_local_redirects()
+
+        self.assertEqual(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'), '1')
+
+    def test_google_calendar_oauth_state_max_age_defaults_to_one_hour(self):
+        from apps.interviews.calendar_service import google_calendar_oauth_state_max_age_seconds
+
+        with patch.dict('os.environ', {}, clear=True):
+            self.assertEqual(google_calendar_oauth_state_max_age_seconds(), 3600)
+
+    def test_google_calendar_oauth_state_max_age_has_five_minute_floor(self):
+        from apps.interviews.calendar_service import google_calendar_oauth_state_max_age_seconds
+
+        with patch.dict('os.environ', {'GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS': '60'}, clear=False):
+            self.assertEqual(google_calendar_oauth_state_max_age_seconds(), 300)
+
     def test_calendar_sync_falls_back_to_local_event_without_google_oauth(self):
         from apps.interviews.calendar_service import sync_calendar_event_for_interview
 

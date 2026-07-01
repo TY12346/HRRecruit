@@ -37,7 +37,14 @@ class _LoginScreenState extends State<LoginScreen> {
           );
     } catch (error) {
       if (!mounted) return;
-      showErrorSnackBar(context, error);
+      showErrorSnackBar(
+        context,
+        error,
+        timeoutHelpText: 'Login should respond quickly. Confirm the Django backend is still running, '
+            'then check that the mobile API URL matches this device: use '
+            'http://10.0.2.2:8000/api/ for the Android emulator, or '
+            'http://YOUR_COMPUTER_LAN_IP:8000/api/ for a physical phone.',
+      );
     }
   }
 
