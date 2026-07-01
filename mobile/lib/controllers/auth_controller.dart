@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/applicant_profile.dart';
@@ -47,12 +49,9 @@ class AuthController extends ChangeNotifier {
       return;
     }
 
-    try {
-      await _pushNotificationService.registerDevice();
-    } finally {
-      _isInitialized = true;
-      notifyListeners();
-    }
+    _registerPushDeviceAfterAuth();
+    _isInitialized = true;
+    notifyListeners();
   }
 
   Future<void> register({
@@ -74,7 +73,7 @@ class AuthController extends ChangeNotifier {
         refreshToken: result.refreshToken,
       );
       _profile = result.user;
-      await _pushNotificationService.registerDevice();
+      _registerPushDeviceAfterAuth();
     });
   }
 
@@ -90,7 +89,7 @@ class AuthController extends ChangeNotifier {
         refreshToken: result.refreshToken,
       );
       _profile = result.user;
-      await _pushNotificationService.registerDevice();
+      _registerPushDeviceAfterAuth();
     });
   }
 
@@ -218,6 +217,20 @@ class AuthController extends ChangeNotifier {
   void _ensureApplicant(ApplicantProfile profile) {
     if (profile.role != 'applicant') {
       throw Exception('Only applicant accounts can use the mobile app.');
+    }
+  }
+
+  void _registerPushDeviceAfterAuth() {
+    unawaited(_registerPushDeviceAfterAuthSafely());
+  }
+
+  Future<void> _registerPushDeviceAfterAuthSafely() async {
+    try {
+      await _pushNotificationService.registerDevice();
+    } catch (error) {
+      debugPrint(
+        'Unable to register Firebase push device after authentication: $error',
+      );
     }
   }
 
