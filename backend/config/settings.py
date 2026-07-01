@@ -9,7 +9,23 @@ load_dotenv(BASE_DIR / ".env", override=True)
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if host.strip()]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+    if host.strip()
+]
+ALLOW_DEBUG_HOSTS = os.getenv('DJANGO_ALLOW_DEBUG_HOSTS', 'True').lower() in (
+    '1',
+    'true',
+    'yes',
+    'on',
+)
+if DEBUG and ALLOW_DEBUG_HOSTS and '*' not in ALLOWED_HOSTS:
+    # Local mobile devices often reach Django through a changing LAN IP. In
+    # DEBUG only, allow those hosts so Flutter login does not fail with
+    # DisallowedHost after moving between networks. Production deployments keep
+    # using the explicit DJANGO_ALLOWED_HOSTS value.
+    ALLOWED_HOSTS.append('*')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -123,16 +139,8 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = 'users.User'
 
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', '')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
-EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'false').lower() in ('1', 'true', 'yes', 'on')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@hrrecruit.local')
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
-SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', DEFAULT_FROM_EMAIL)
+SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', '')
 FRONTEND_PASSWORD_RESET_URL = os.getenv('FRONTEND_PASSWORD_RESET_URL', 'http://localhost:5173/reset-password')
 
 FIREBASE_PUSH_ENABLED = os.getenv('FIREBASE_PUSH_ENABLED', 'False').lower() in ('1', 'true', 'yes', 'on')

@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import '../services/token_storage.dart';
 
 class ApiClient {
+  static const _retriedWithDefaultBaseUrlKey = 'retried_with_default_base_url';
+
   ApiClient({
     required TokenStorage tokenStorage,
     String? baseUrl,
@@ -11,9 +13,9 @@ class ApiClient {
         dio = Dio(
           BaseOptions(
             baseUrl: normalizeBaseUrl(baseUrl ?? defaultBaseUrl),
-            connectTimeout: const Duration(seconds: 8),
-            sendTimeout: const Duration(seconds: 8),
-            receiveTimeout: const Duration(seconds: 8),
+            connectTimeout: const Duration(seconds: 15),
+            sendTimeout: const Duration(seconds: 15),
+            receiveTimeout: const Duration(seconds: 15),
             headers: const {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
@@ -23,10 +25,15 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final configuredBaseUrl = await _tokenStorage.readApiBaseUrl();
-          options.baseUrl = normalizeBaseUrl(
-            _resolveConfiguredBaseUrl(configuredBaseUrl) ?? dio.options.baseUrl,
-          );
+          if (options.extra[_retriedWithDefaultBaseUrlKey] == true) {
+            options.baseUrl = normalizeBaseUrl(options.baseUrl);
+          } else {
+            final configuredBaseUrl = await _tokenStorage.readApiBaseUrl();
+            options.baseUrl = normalizeBaseUrl(
+              _resolveConfiguredBaseUrl(configuredBaseUrl) ??
+                  dio.options.baseUrl,
+            );
+          }
 
           final accessToken = await _tokenStorage.readAccessToken();
           if (accessToken != null && accessToken.isNotEmpty) {
@@ -35,7 +42,11 @@ class ApiClient {
 
           handler.next(options);
         },
-        onError: (error, handler) {
+        onError: (error, handler) async {
+          if (await _retryWithDefaultBaseUrl(error, handler)) {
+            return;
+          }
+
           debugPrint(
             'HRRecruit API request failed: '
             '${error.requestOptions.method} '
@@ -140,6 +151,51 @@ class ApiClient {
         (first == 192 && second == 168);
   }
 
+  Future<bool> _retryWithDefaultBaseUrl(
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    if (!_shouldRetryWithDefaultBaseUrl(error)) {
+      return false;
+    }
+
+    final fallbackBaseUrl = normalizeBaseUrl(defaultBaseUrl);
+    final retryOptions = error.requestOptions;
+    retryOptions.baseUrl = fallbackBaseUrl;
+    retryOptions.extra[_retriedWithDefaultBaseUrlKey] = true;
+
+    debugPrint(
+      'HRRecruit API request failed for configured URL; retrying with '
+      '$fallbackBaseUrl',
+    );
+
+    try {
+      final response = await dio.fetch<dynamic>(retryOptions);
+      handler.resolve(response);
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
+
+  bool _shouldRetryWithDefaultBaseUrl(DioException error) {
+    if (error.requestOptions.extra[_retriedWithDefaultBaseUrlKey] == true) {
+      return false;
+    }
+
+    final requestBaseUrl = normalizeBaseUrl(error.requestOptions.baseUrl);
+    final fallbackBaseUrl = normalizeBaseUrl(defaultBaseUrl);
+    if (requestBaseUrl == fallbackBaseUrl) {
+      return false;
+    }
+
+    return error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.response == null;
+  }
+
   Options longRunningRequestOptions() {
     return Options(
       sendTimeout: const Duration(seconds: 60),
@@ -151,6 +207,13 @@ class ApiClient {
     final normalizedBaseUrl = normalizeBaseUrl(baseUrl);
     dio.options.baseUrl = normalizedBaseUrl;
     await _tokenStorage.saveApiBaseUrl(normalizedBaseUrl);
+  }
+
+  Future<String> resetBaseUrlToDefault() async {
+    final normalizedDefaultBaseUrl = normalizeBaseUrl(defaultBaseUrl);
+    dio.options.baseUrl = normalizedDefaultBaseUrl;
+    await _tokenStorage.clearApiBaseUrl();
+    return normalizedDefaultBaseUrl;
   }
 
   Future<String> currentBaseUrl() async {

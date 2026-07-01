@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/applicant_profile.dart';
@@ -39,14 +41,17 @@ class AuthController extends ChangeNotifier {
       final profile = await _authService.getProfile();
       _ensureApplicant(profile);
       _profile = profile;
-      await _pushNotificationService.registerDevice();
     } catch (_) {
       await _tokenStorage.clearTokens();
       _profile = null;
-    } finally {
       _isInitialized = true;
       notifyListeners();
+      return;
     }
+
+    _registerPushDeviceAfterAuth();
+    _isInitialized = true;
+    notifyListeners();
   }
 
   Future<void> register({
@@ -68,7 +73,7 @@ class AuthController extends ChangeNotifier {
         refreshToken: result.refreshToken,
       );
       _profile = result.user;
-      await _pushNotificationService.registerDevice();
+      _registerPushDeviceAfterAuth();
     });
   }
 
@@ -84,16 +89,14 @@ class AuthController extends ChangeNotifier {
         refreshToken: result.refreshToken,
       );
       _profile = result.user;
-      await _pushNotificationService.registerDevice();
+      _registerPushDeviceAfterAuth();
     });
   }
 
-  Future<String?> requestPasswordReset({required String email}) async {
-    String? resetCode;
+  Future<void> requestPasswordReset({required String email}) async {
     await _runAuthAction(() async {
-      resetCode = await _authService.requestPasswordReset(email: email);
+      await _authService.requestPasswordReset(email: email);
     });
-    return resetCode;
   }
 
   Future<void> verifyPasswordResetOtp({
@@ -214,6 +217,20 @@ class AuthController extends ChangeNotifier {
   void _ensureApplicant(ApplicantProfile profile) {
     if (profile.role != 'applicant') {
       throw Exception('Only applicant accounts can use the mobile app.');
+    }
+  }
+
+  void _registerPushDeviceAfterAuth() {
+    unawaited(_registerPushDeviceAfterAuthSafely());
+  }
+
+  Future<void> _registerPushDeviceAfterAuthSafely() async {
+    try {
+      await _pushNotificationService.registerDevice();
+    } catch (error) {
+      debugPrint(
+        'Unable to register Firebase push device after authentication: $error',
+      );
     }
   }
 

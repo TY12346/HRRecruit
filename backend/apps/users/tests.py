@@ -143,6 +143,12 @@ class RegistrationAPITests(APITestCase):
 
 class PasswordManagementAPITests(APITestCase):
     def setUp(self):
+        self.email_patcher = patch(
+            'apps.users.serializers.send_password_reset_otp_email',
+            return_value={'provider': 'sendgrid', 'status_code': 202},
+        )
+        self.email_patcher.start()
+        self.addCleanup(self.email_patcher.stop)
         self.user = User.objects.create_user(
             email='password-user@example.com',
             password='OldPass123!',
@@ -195,8 +201,8 @@ class PasswordManagementAPITests(APITestCase):
             format='json',
         )
         self.assertEqual(request_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(request_response.data['email_delivery'], 'console')
-        self.assertRegex(request_response.data['reset_code'], r'^\d{6}$')
+        self.assertEqual(request_response.data['email_delivery'], 'sendgrid')
+        self.assertNotIn('reset_code', request_response.data)
         otp = self.user.password_reset_otps.first()
 
         verify_response = self.client.post(
@@ -280,8 +286,7 @@ class PasswordManagementAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotIn('reset_code', response.data)
-        self.assertIn('/reset-password?', response.data['reset_link'])
-        self.assertIn('token=', response.data['reset_link'])
+        self.assertNotIn('reset_link', response.data)
         self.assertTrue(self.staff_user.password_reset_otps.exists())
 
     def test_web_password_reset_confirm_accepts_reset_token_from_email_link(self):
