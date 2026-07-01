@@ -259,13 +259,18 @@ class ResumeUploadAPIView(APIView):
         if request.user.role != User.Role.APPLICANT:
             return Response({'detail': 'Only applicants can upload resumes.'}, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = ResumeUploadSerializer(data=request.data, context={'request': request})
+        upload_data = request.data.copy()
+        is_single_resume_upload = request.resolver_match.url_name == 'auth-resume-upload'
+        if is_single_resume_upload:
+            upload_data['is_default'] = True
+
+        serializer = ResumeUploadSerializer(data=upload_data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         resume = serializer.save()
         resume_data = ApplicantResumeSerializer(resume, context={'request': request}).data
         response_status = (
             status.HTTP_200_OK
-            if request.resolver_match.url_name == 'auth-resume-upload'
+            if is_single_resume_upload
             else status.HTTP_201_CREATED
         )
         return Response(
