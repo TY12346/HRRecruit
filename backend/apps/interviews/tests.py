@@ -109,6 +109,27 @@ class InterviewManagementAPITests(APITestCase):
         self.assertIn('google_calendar', response.data)
         self.assertIn('Unable to start Google Calendar OAuth', response.data['google_calendar'])
 
+    def test_google_calendar_callback_is_idempotent_when_already_connected(self):
+        self.authenticate(self.recruiter)
+        GoogleCalendarCredential.objects.create(
+            user=self.recruiter,
+            google_account_email='recruiter@gmail.com',
+        )
+
+        with patch(
+            'apps.interviews.views.store_google_calendar_credentials',
+            side_effect=RuntimeError('authorization code already used'),
+        ):
+            response = self.client.post(
+                reverse('google-calendar-callback'),
+                {'code': 'used-code', 'state': 'already-validated-state'},
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['connected'])
+        self.assertEqual(response.data['connected_email'], 'recruiter@gmail.com')
+
     def test_local_http_google_oauth_redirect_sets_oauthlib_debug_escape_hatch(self):
         from apps.interviews.calendar_service import _allow_local_http_oauth_for_local_redirects
 

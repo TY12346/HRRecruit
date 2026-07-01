@@ -18,7 +18,7 @@ from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
-from .models import Interview, InterviewSchedulingRequest, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
+from .models import GoogleCalendarCredential, Interview, InterviewSchedulingRequest, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
 from .serializers import (
     AssignInterviewerSerializer,
     BookSchedulingRequestSerializer,
@@ -100,6 +100,14 @@ class GoogleCalendarOAuthCallbackAPIView(APIView):
             raise ValidationError({'google_calendar': str(exc)}) from exc
         except Exception as exc:
             logger.exception('Failed to complete Google Calendar OAuth for user %s.', request.user.id)
+            credential = GoogleCalendarCredential.objects.filter(user=request.user).first()
+            if credential:
+                return Response({
+                    'connected': True,
+                    'connected_email': credential.google_account_email,
+                    'oauth_ready': True,
+                    'message': 'Google Calendar was already connected.',
+                })
             raise ValidationError({
                 'google_calendar': 'Unable to complete Google Calendar OAuth. Check the redirect URI and Google OAuth client configuration.'
             }) from exc

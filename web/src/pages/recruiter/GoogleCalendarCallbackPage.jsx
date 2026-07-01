@@ -5,6 +5,8 @@ import { completeGoogleCalendarOAuth } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 
+const submittedOAuthCodes = new Set();
+
 export default function GoogleCalendarCallbackPage() {
   const location = useLocation();
   const hasSubmittedOAuthCode = useRef(false);
@@ -20,8 +22,13 @@ export default function GoogleCalendarCallbackPage() {
       setMessage('Google did not return the required authorization code and state. Please try connecting again.');
       return;
     }
-    if (hasSubmittedOAuthCode.current) return;
+    if (hasSubmittedOAuthCode.current || submittedOAuthCodes.has(code)) {
+      setStatus('info');
+      setMessage('This Google Calendar authorization response is already being processed. If the calendar does not show as connected, start the connection again from HRRecruit.');
+      return;
+    }
     hasSubmittedOAuthCode.current = true;
+    submittedOAuthCodes.add(code);
     completeGoogleCalendarOAuth({ code, state })
       .then((result) => {
         setStatus('success');
