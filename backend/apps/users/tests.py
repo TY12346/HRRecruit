@@ -521,6 +521,30 @@ class ApplicantResumeLibraryAPITests(APITestCase):
         self.assertFalse(self.applicant.resumes.get(id=first_response.data['resume']['id']).is_default)
         self.assertIn('data', self.applicant.applicant_profile.resume_file.name)
 
+    def test_legacy_resume_upload_replaces_default_resume(self):
+        self.client.force_authenticate(user=self.applicant)
+        first_response = self.upload_resume('backend.pdf', 'Backend resume')
+
+        response = self.client.post(
+            reverse('auth-resume-upload'),
+            {
+                'title': 'Sales resume',
+                'resume_file': SimpleUploadedFile(
+                    'sales.pdf',
+                    b'%PDF-1.4 sales resume',
+                    content_type='application/pdf',
+                ),
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['resume']['is_default'])
+        self.applicant.refresh_from_db()
+        self.assertIn('sales', self.applicant.applicant_profile.resume_file.name)
+        self.assertTrue(self.applicant.resumes.get(id=response.data['resume']['id']).is_default)
+        self.assertFalse(self.applicant.resumes.get(id=first_response.data['resume']['id']).is_default)
+
     def test_non_applicant_cannot_upload_resume(self):
         self.client.force_authenticate(user=self.recruiter)
 
