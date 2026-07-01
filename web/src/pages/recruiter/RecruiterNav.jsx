@@ -13,10 +13,23 @@ const recruiterLinks = [
 
 export default function RecruiterNav() {
   return (
-    <Paper sx={{ p: 1.5, mb: 3 }}>
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+    <Paper
+      component="nav"
+      sx={{
+        bottom: { md: 0 },
+        left: { md: 0 },
+        mb: { xs: 3, md: 0 },
+        overflowY: { md: 'auto' },
+        p: 1.5,
+        position: { xs: 'static', md: 'fixed' },
+        top: { md: 0 },
+        width: { md: 220 },
+        zIndex: (theme) => theme.zIndex.drawer,
+      }}
+    >
+      <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} useFlexGap flexWrap={{ xs: 'wrap', md: 'nowrap' }}>
         {recruiterLinks.map(([label, to]) => (
-          <Button key={to} component={RouterLink} size="small" to={to} variant="text">
+          <Button key={to} component={RouterLink} size="small" to={to} sx={{ justifyContent: { md: 'flex-start' } }} variant="text">
             {label}
           </Button>
         ))}
