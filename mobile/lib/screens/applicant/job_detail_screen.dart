@@ -129,7 +129,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 const SizedBox(height: 24),
                 Text('Description', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                Text(job.description.isEmpty ? 'No description provided.' : job.description),
+                Text(
+                  job.description.isEmpty ? 'No description provided.' : formatJobDescriptionText(job.description),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
+                ),
                 const SizedBox(height: 24),
                 Text('Requirements', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
