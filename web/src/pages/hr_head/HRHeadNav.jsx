@@ -1,33 +1,37 @@
-import { Button, Paper, Stack } from '@mui/material';
+import { Box, Button, Paper, Stack } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [
-  { label: 'Dashboard', to: '/hr-head' },
-  { label: 'Organization', to: '/hr-head/organization' },
-  { label: 'Team', to: '/hr-head/team' },
-  { label: 'Hiring Decisions', to: '/hr-head/hiring-decisions' },
-  { label: 'Billing', to: '/hr-head/billing' },
-  { label: 'Analytics', to: '/hr-head/analytics' },
-  { label: 'Notifications', to: '/hr-head/notifications' },
+  { icon: '⌂', label: 'Dashboard', to: '/hr-head' },
+  { icon: '☷', label: 'Submitted Hiring Decisions', to: '/hr-head/hiring-decisions' },
+  { icon: '◔', label: 'Analytics', to: '/hr-head/analytics' },
+  { icon: '▱', label: 'Recruiter & Interviewer', to: '/hr-head/team' },
+  { icon: '▣', label: 'Organization Account', to: '/hr-head/organization' },
+  { icon: '□', label: 'Billing', to: '/hr-head/billing' },
+  { icon: '♧', label: 'Notifications', to: '/hr-head/notifications' },
 ];
 
 export default function HRHeadNav() {
   return (
     <Paper
       component="nav"
+      elevation={0}
+      square
       sx={{
+        bgcolor: '#ffffff',
+        borderRight: { md: '1px solid #e5e7eb' },
         bottom: { md: 0 },
         left: { md: 0 },
         mb: { xs: 3, md: 0 },
         overflowY: { md: 'auto' },
-        p: 1.5,
         position: { xs: 'static', md: 'fixed' },
-        top: { md: 0 },
-        width: { md: 220 },
+        pt: { xs: 0, md: 2 },
+        top: { md: 64 },
+        width: { md: 230 },
         zIndex: (theme) => theme.zIndex.drawer,
       }}
     >
-      <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} useFlexGap flexWrap={{ xs: 'wrap', md: 'nowrap' }}>
+      <Stack direction={{ xs: 'row', md: 'column' }} spacing={0.75} useFlexGap flexWrap={{ xs: 'wrap', md: 'nowrap' }}>
         {navItems.map((item) => (
           <Button
             component={NavLink}
@@ -35,13 +39,23 @@ export default function HRHeadNav() {
             key={item.to}
             to={item.to}
             sx={{
-              justifyContent: { md: 'flex-start' },
+              color: '#111111',
+              fontSize: 12,
+              fontWeight: 800,
+              gap: 1,
+              justifyContent: { xs: 'center', md: 'flex-start' },
+              minHeight: 42,
+              px: { xs: 1.5, md: 2 },
+              textTransform: 'none',
               '&.active': {
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
+                bgcolor: 'transparent',
+                color: '#111111',
               },
             }}
           >
+            <Box component="span" sx={{ fontSize: 17, fontWeight: 400, lineHeight: 1, width: 18 }}>
+              {item.icon}
+            </Box>
             {item.label}
           </Button>
         ))}
