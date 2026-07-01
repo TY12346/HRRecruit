@@ -70,7 +70,7 @@ class _ApiSettingsButtonState extends State<ApiSettingsButton> {
       return;
     }
 
-    final newBaseUrl = await showDialog<String>(
+    final apiSettingAction = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -99,6 +99,10 @@ class _ApiSettingsButtonState extends State<ApiSettingsButton> {
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancel'),
             ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop('__default__'),
+              child: const Text('Use default'),
+            ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(controller.text),
               child: const Text('Save'),
@@ -108,13 +112,17 @@ class _ApiSettingsButtonState extends State<ApiSettingsButton> {
       },
     );
 
-    if (newBaseUrl == null) {
+    if (apiSettingAction == null) {
       controller.dispose();
       return;
     }
 
-    final normalizedBaseUrl = ApiClient.normalizeBaseUrl(newBaseUrl);
-    await apiClient.updateBaseUrl(normalizedBaseUrl);
+    final normalizedBaseUrl = apiSettingAction == '__default__'
+        ? await apiClient.resetBaseUrlToDefault()
+        : ApiClient.normalizeBaseUrl(apiSettingAction);
+    if (apiSettingAction != '__default__') {
+      await apiClient.updateBaseUrl(normalizedBaseUrl);
+    }
     controller.dispose();
     _refreshCurrentBaseUrl();
 

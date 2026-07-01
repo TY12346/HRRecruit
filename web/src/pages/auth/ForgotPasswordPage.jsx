@@ -16,21 +16,15 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [developmentResetLink, setDevelopmentResetLink] = useState('');
-  const [emailDeliveryNote, setEmailDeliveryNote] = useState('');
 
   const submitRequest = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
-    setDevelopmentResetLink('');
-    setEmailDeliveryNote('');
     setIsSubmitting(true);
     try {
       const data = await requestPasswordReset({ email });
       setSuccess(data.message ?? 'If the email exists, a password reset link has been sent.');
-      setDevelopmentResetLink(data.reset_link ?? '');
-      setEmailDeliveryNote(data.email_delivery_note ?? '');
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -48,14 +42,6 @@ export default function ForgotPasswordPage() {
       </Typography>
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
-      {developmentResetLink ? (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          {emailDeliveryNote || 'Development email mode detected. Configure SMTP or SendGrid to deliver reset emails to an inbox; use this reset link to continue locally.'}{' '}
-          <MuiLink href={developmentResetLink}>
-            Open reset password page
-          </MuiLink>
-        </Alert>
-      ) : null}
 
       <Box component="form" onSubmit={submitRequest}>
         <Stack spacing={2}>
