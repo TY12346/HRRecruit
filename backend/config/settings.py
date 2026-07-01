@@ -143,6 +143,9 @@ SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
 SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', '')
 FRONTEND_PASSWORD_RESET_URL = os.getenv('FRONTEND_PASSWORD_RESET_URL', 'http://localhost:5173/reset-password')
 
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@hrrecruit.local')
+
 FIREBASE_PUSH_ENABLED = os.getenv('FIREBASE_PUSH_ENABLED', 'False').lower() in ('1', 'true', 'yes', 'on')
 FIREBASE_PROJECT_ID = os.getenv('FIREBASE_PROJECT_ID', '')
 FIREBASE_CREDENTIALS_PATH = os.getenv('FIREBASE_CREDENTIALS_PATH', '')

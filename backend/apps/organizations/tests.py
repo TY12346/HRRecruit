@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 
@@ -107,16 +109,20 @@ class OrganizationAPITests(APITestCase):
 
     def test_hr_head_can_create_search_and_deactivate_team_member(self):
         self.create_organization()
-        create_response = self.client.post(
-            reverse('organization-member-list-create'),
-            {
-                'email': 'recruiter@example.com',
-                'full_name': 'Recruiter One',
-                'phone_number': '+60111111111',
-                'role': User.Role.RECRUITER,
-            },
-            format='json',
-        )
+        with patch(
+            'apps.organizations.services.send_temporary_password_email',
+            side_effect=RuntimeError('Email backend unavailable'),
+        ):
+            create_response = self.client.post(
+                reverse('organization-member-list-create'),
+                {
+                    'email': 'recruiter@example.com',
+                    'full_name': 'Recruiter One',
+                    'phone_number': '+60111111111',
+                    'role': User.Role.RECRUITER,
+                },
+                format='json',
+            )
         membership_id = create_response.data['member']['id']
 
         search_response = self.client.get(reverse('organization-member-list-create'), {'search': 'Recruiter One'})
