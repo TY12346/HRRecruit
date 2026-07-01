@@ -57,13 +57,13 @@ def send_email(subject, message, recipient_list):
 
     Early HRRecruit development uses Django's console email backend by default, so
     account-creation flows must not fail just because SendGrid credentials are
-    absent in a local/demo environment.
+    absent or only partially configured in a local/demo environment.
     """
     recipients = [email for email in recipient_list if email]
     if not recipients:
         raise SendGridConfigurationError('At least one recipient email is required for email delivery.')
 
-    if _sendgrid_api_key() or _from_email():
+    if _sendgrid_api_key() and _from_email():
         return _send_via_sendgrid(subject, message, recipients)
 
     sent_count = send_mail(

@@ -244,15 +244,25 @@ class EmailServiceTests(SimpleTestCase):
 
         self.assertEqual(result, {'provider': 'django_email_backend', 'sent_count': 1})
 
-    @override_settings(SENDGRID_API_KEY='', SENDGRID_FROM_EMAIL='sender@example.com')
-    def test_send_email_requires_sendgrid_api_key_if_partial_sendgrid_config_exists(self):
-        with self.assertRaises(SendGridConfigurationError):
-            send_email('Subject', 'Message', ['recipient@example.com'])
+    @override_settings(
+        SENDGRID_API_KEY='',
+        SENDGRID_FROM_EMAIL='sender@example.com',
+        EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    )
+    def test_send_email_uses_django_backend_if_sendgrid_api_key_is_missing(self):
+        result = send_email('Subject', 'Message', ['recipient@example.com'])
 
-    @override_settings(SENDGRID_API_KEY='SG.test-key', SENDGRID_FROM_EMAIL='')
-    def test_send_email_requires_sendgrid_from_email_if_partial_sendgrid_config_exists(self):
-        with self.assertRaises(SendGridConfigurationError):
-            send_email('Subject', 'Message', ['recipient@example.com'])
+        self.assertEqual(result, {'provider': 'django_email_backend', 'sent_count': 1})
+
+    @override_settings(
+        SENDGRID_API_KEY='SG.test-key',
+        SENDGRID_FROM_EMAIL='',
+        EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    )
+    def test_send_email_uses_django_backend_if_sendgrid_from_email_is_missing(self):
+        result = send_email('Subject', 'Message', ['recipient@example.com'])
+
+        self.assertEqual(result, {'provider': 'django_email_backend', 'sent_count': 1})
 
     @override_settings(SENDGRID_API_KEY='SG.test-key', SENDGRID_FROM_EMAIL='sender@example.com')
     def test_send_email_requires_recipient_for_sendgrid_delivery(self):
