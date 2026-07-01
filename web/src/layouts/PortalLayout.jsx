@@ -22,7 +22,7 @@ export default function PortalLayout() {
   };
 
   return (
-    <Box component="main" sx={{ py: 4 }}>
+    <Box component="main" sx={{ py: 4, pl: { xs: 0, md: isAuthenticated ? '244px' : 0 } }}>
       <Container maxWidth="lg">
         <Stack
           alignItems={{ xs: 'flex-start', sm: 'center' }}
