@@ -10,9 +10,8 @@ CalendarEvent record.
 import os
 from datetime import datetime, timedelta
 from importlib import import_module, util
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
-from django.conf import settings
 from django.core import signing
 from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
@@ -122,8 +121,35 @@ def _require_google_oauth_ready():
         )
 
 
+def _is_local_oauth_redirect_host(hostname):
+    if hostname in ('localhost', '127.0.0.1', '10.0.2.2'):
+        return True
+    if hostname.startswith(('192.168.', '10.')):
+        return True
+    parts = hostname.split('.')
+    if len(parts) == 4 and parts[0] == '172':
+        try:
+            second_octet = int(parts[1])
+        except ValueError:
+            return False
+        return 16 <= second_octet <= 31
+    return False
+
+
+def _allow_local_http_oauth_for_local_redirects():
+    """Allow OAuthLib HTTP redirects for localhost/local-network demo setups."""
+    redirect_uri = google_calendar_redirect_uri()
+    parsed_uri = urlparse(redirect_uri)
+    if (
+        parsed_uri.scheme == 'http'
+        and _is_local_oauth_redirect_host(parsed_uri.hostname or '')
+    ):
+        os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
+
+
 def _flow_from_client_config(state=None):
     _require_google_oauth_ready()
+    _allow_local_http_oauth_for_local_redirects()
     flow_module = import_module('google_auth_oauthlib.flow')
     flow = flow_module.Flow.from_client_config(
         _google_client_config(),

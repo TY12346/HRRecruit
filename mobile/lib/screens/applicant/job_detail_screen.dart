@@ -67,7 +67,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       context.push('/applications/${application.id}');
     } catch (error) {
       if (!mounted) return;
-      showErrorSnackBar(context, error);
+      showErrorSnackBar(
+        context,
+        error,
+        timeoutHelpText:
+            'Submitting an application can take longer because the backend extracts and screens your selected resume. '
+            'Please wait a moment and try again. If this keeps happening, confirm Django is still running and '
+            'increase local machine resources for the demo.',
+      );
     } finally {
       if (mounted) setState(() => _isApplying = false);
     }
