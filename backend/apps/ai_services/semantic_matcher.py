@@ -1,8 +1,8 @@
-"""Semantic similarity helpers that require Sentence-BERT."""
+"""Semantic similarity helpers with a fast local fallback for early development."""
 
 from functools import lru_cache
 
-from apps.ai_services.exceptions import AIServiceUnavailable
+from django.conf import settings
 
 from .resume_preprocessor import preprocess_for_semantic_matching
 
@@ -28,11 +28,13 @@ _SENTENCE_BERT_FAILURES = (
 
 
 def semantic_similarity(resume_text, job_description):
-    """Return a 0-100 semantic match score using the required Sentence-BERT model.
+    """Return a 0-100 semantic match score without blocking applicant flows.
 
-    Missing dependencies, unavailable model files, offline model downloads, or
-    inference errors now raise a clear AI service error instead of returning a
-    local token-overlap substitute score.
+    Sentence-BERT is optional in this project. By default, HRRecruit uses a
+    deterministic token-overlap score so applicant job applications do not hang
+    while a local machine downloads or loads ML models. Set
+    ``AI_USE_SENTENCE_BERT=True`` to opt into the local Sentence-BERT path; if
+    that optional path fails, the same fast fallback is used.
     """
 
     normalized_resume_text = preprocess_for_semantic_matching(resume_text)
@@ -41,12 +43,13 @@ def semantic_similarity(resume_text, job_description):
     if not normalized_resume_text or not normalized_job_description:
         return 0.0
 
-    try:
-        return _sentence_bert_similarity(normalized_resume_text, normalized_job_description)
-    except _SENTENCE_BERT_FAILURES as exc:
-        raise AIServiceUnavailable(
-            'Sentence-BERT semantic matching failed. Install sentence-transformers, make the all-MiniLM-L6-v2 model available, and retry.'
-        ) from exc
+    if getattr(settings, 'AI_USE_SENTENCE_BERT', False):
+        try:
+            return _sentence_bert_similarity(normalized_resume_text, normalized_job_description)
+        except _SENTENCE_BERT_FAILURES:
+            return _token_overlap_similarity(normalized_resume_text, normalized_job_description)
+
+    return _token_overlap_similarity(normalized_resume_text, normalized_job_description)
 
 
 def _sentence_bert_similarity(normalized_resume_text, normalized_job_description):
@@ -65,6 +68,17 @@ def _get_model():
     from sentence_transformers import SentenceTransformer
 
     return SentenceTransformer(DEFAULT_MODEL_NAME)
+
+
+def _token_overlap_similarity(normalized_resume_text, normalized_job_description):
+    resume_tokens = set(normalized_resume_text.split())
+    job_tokens = set(normalized_job_description.split())
+    if not resume_tokens or not job_tokens:
+        return 0.0
+
+    overlap = len(resume_tokens & job_tokens)
+    # Sørensen-Dice gives a stable local approximation without optional ML deps.
+    return round((2 * overlap / (len(resume_tokens) + len(job_tokens))) * 100, 2)
 
 
 def _normalize_score(score):

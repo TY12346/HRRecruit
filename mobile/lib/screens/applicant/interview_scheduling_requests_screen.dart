@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/applicant_interview.dart';
 import '../../services/applicant_workflow_service.dart';
 import '../../widgets/app_navigation.dart';
+import '../auth_form_helpers.dart';
 import 'applicant_workflow_widgets.dart';
 import 'job_cards.dart';
 
@@ -227,7 +228,7 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to book slot. It may have just been booked by another applicant. $error')),
+        SnackBar(content: Text('Unable to book slot. ${readableApiError(error)}')),
       );
       setState(() {
         _step = 1;
