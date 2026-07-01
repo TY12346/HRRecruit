@@ -6,15 +6,6 @@ import '../api/api_client.dart';
 
 String readableApiError(Object error, {String? apiBaseUrl}) {
   if (error is DioException) {
-    if (_isTimeoutProblem(error)) {
-      final currentUrl = apiBaseUrl == null
-          ? ''
-          : '\nCurrent API URL: $apiBaseUrl';
-      return 'The HRRecruit API took too long to respond.$currentUrl\n\n'
-          'Submitting an application can take longer because the backend extracts and screens your selected resume. '
-          'Please wait a moment and try again. If this keeps happening, confirm Django is still running and increase local machine resources for the demo.';
-    }
-
     if (_isConnectionProblem(error)) {
       final currentUrl = apiBaseUrl == null
           ? ''
@@ -28,6 +19,15 @@ String readableApiError(Object error, {String? apiBaseUrl}) {
           'python manage.py runserver 0.0.0.0:8000, that Windows Firewall '
           'allows port 8000, DJANGO_ALLOWED_HOSTS includes your LAN IP, '
           'and Android cleartext HTTP is enabled for local development.';
+    }
+
+    if (_isTimeoutProblem(error)) {
+      final currentUrl = apiBaseUrl == null
+          ? ''
+          : '\nCurrent API URL: $apiBaseUrl';
+      return 'The HRRecruit API took too long to respond.$currentUrl\n\n'
+          'Please wait a moment and try again. If this keeps happening, '
+          'confirm Django is still running and increase local machine resources for the demo.';
     }
 
     final data = error.response?.data;
@@ -56,13 +56,14 @@ String readableApiError(Object error, {String? apiBaseUrl}) {
 }
 
 bool _isTimeoutProblem(DioException error) {
-  return error.type == DioExceptionType.connectionTimeout ||
-      error.type == DioExceptionType.sendTimeout ||
+  return error.type == DioExceptionType.sendTimeout ||
       error.type == DioExceptionType.receiveTimeout;
 }
 
 bool _isConnectionProblem(DioException error) {
-  return error.type == DioExceptionType.connectionError || error.response == null;
+  return error.type == DioExceptionType.connectionTimeout ||
+      error.type == DioExceptionType.connectionError ||
+      error.response == null;
 }
 
 String _stringifyMessage(Object? value) {
