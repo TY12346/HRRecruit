@@ -94,12 +94,10 @@ class AuthController extends ChangeNotifier {
     });
   }
 
-  Future<String?> requestPasswordReset({required String email}) async {
-    String? resetCode;
+  Future<void> requestPasswordReset({required String email}) async {
     await _runAuthAction(() async {
-      resetCode = await _authService.requestPasswordReset(email: email);
+      await _authService.requestPasswordReset(email: email);
     });
-    return resetCode;
   }
 
   Future<void> verifyPasswordResetOtp({

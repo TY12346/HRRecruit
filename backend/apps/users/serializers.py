@@ -8,8 +8,6 @@ from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.notifications.email_service import (
-    build_password_reset_link,
-    is_development_email_backend,
     send_password_reset_otp_email,
 )
 
@@ -216,14 +214,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         PasswordResetOTP.objects.create(user=user, otp_code=otp_code, expires_at=expires_at)
 
         delivery = send_password_reset_otp_email(user, otp_code, self.validated_data['client_app'])
-        result = {'email_delivery': delivery.get('provider', 'unknown')}
-        if _should_return_development_reset_code():
-            if self.validated_data['client_app'] == self.CLIENT_MOBILE:
-                result['reset_code'] = otp_code
-            elif self.validated_data['client_app'] == self.CLIENT_WEB:
-                result['reset_link'] = build_password_reset_link(user, otp_code, self.CLIENT_WEB)
-                result['email_delivery_note'] = 'Development email mode detected. Configure SMTP or SendGrid in backend/.env to deliver this email to an inbox; for now, the reset email was printed to the backend console.'
-        return result
+        return {'email_delivery': delivery.get('provider', 'unknown')}
 
 
 def _user_can_reset_from_client(user, client_app):
@@ -232,10 +223,6 @@ def _user_can_reset_from_client(user, client_app):
     if client_app == PasswordResetRequestSerializer.CLIENT_WEB:
         return user.role in PasswordResetRequestSerializer.STAFF_ROLES
     return False
-
-
-def _should_return_development_reset_code():
-    return is_development_email_backend()
 
 
 def _get_valid_password_reset_otp(email, client_app, reset_secret):
