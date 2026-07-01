@@ -10,9 +10,8 @@ CalendarEvent record.
 import os
 from datetime import datetime, timedelta
 from importlib import import_module, util
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
-from django.conf import settings
 from django.core import signing
 from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
@@ -24,6 +23,7 @@ GOOGLE_CALENDAR_TOKEN_URI = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 GOOGLE_CALENDAR_STATE_SALT = 'hrrecruit.google-calendar-oauth'
 DEFAULT_INTERVIEW_DURATION_MINUTES = 60
+DEFAULT_GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS = 3600
 
 
 class GoogleCalendarConfigurationError(RuntimeError):
@@ -122,8 +122,35 @@ def _require_google_oauth_ready():
         )
 
 
+def _is_local_oauth_redirect_host(hostname):
+    if hostname in ('localhost', '127.0.0.1', '10.0.2.2'):
+        return True
+    if hostname.startswith(('192.168.', '10.')):
+        return True
+    parts = hostname.split('.')
+    if len(parts) == 4 and parts[0] == '172':
+        try:
+            second_octet = int(parts[1])
+        except ValueError:
+            return False
+        return 16 <= second_octet <= 31
+    return False
+
+
+def _allow_local_http_oauth_for_local_redirects():
+    """Allow OAuthLib HTTP redirects for localhost/local-network demo setups."""
+    redirect_uri = google_calendar_redirect_uri()
+    parsed_uri = urlparse(redirect_uri)
+    if (
+        parsed_uri.scheme == 'http'
+        and _is_local_oauth_redirect_host(parsed_uri.hostname or '')
+    ):
+        os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
+
+
 def _flow_from_client_config(state=None):
     _require_google_oauth_ready()
+    _allow_local_http_oauth_for_local_redirects()
     flow_module = import_module('google_auth_oauthlib.flow')
     flow = flow_module.Flow.from_client_config(
         _google_client_config(),
@@ -141,11 +168,32 @@ def build_google_calendar_oauth_state(user, next_url=''):
     )
 
 
+def google_calendar_oauth_state_max_age_seconds():
+    raw_value = os.getenv(
+        'GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS',
+        str(DEFAULT_GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS),
+    )
+    try:
+        return max(300, int(raw_value))
+    except (TypeError, ValueError):
+        return DEFAULT_GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS
+
+
 def validate_google_calendar_oauth_state(state, user):
     try:
-        payload = signing.loads(state, salt=GOOGLE_CALENDAR_STATE_SALT, max_age=600)
+        payload = signing.loads(
+            state,
+            salt=GOOGLE_CALENDAR_STATE_SALT,
+            max_age=google_calendar_oauth_state_max_age_seconds(),
+        )
+    except signing.SignatureExpired as exc:
+        raise GoogleCalendarConfigurationError(
+            'Google Calendar OAuth state expired. Please start the Google Calendar connection again from HRRecruit.'
+        ) from exc
     except signing.BadSignature as exc:
-        raise GoogleCalendarConfigurationError('Invalid or expired Google Calendar OAuth state.') from exc
+        raise GoogleCalendarConfigurationError(
+            'Invalid Google Calendar OAuth state. Please start the Google Calendar connection again from HRRecruit in the same browser session.'
+        ) from exc
     if payload.get('user_id') != user.id:
         raise GoogleCalendarConfigurationError('Google Calendar OAuth state does not match the signed-in user.')
     return payload
@@ -159,6 +207,7 @@ def build_google_calendar_authorization_url(user, next_url=''):
         access_type='offline',
         include_granted_scopes='true',
         prompt='consent',
+        state=state,
     )
     return authorization_url
 

@@ -8,7 +8,7 @@ from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,7 +18,7 @@ from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
-from .models import Interview, InterviewSchedulingRequest, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
+from .models import GoogleCalendarCredential, Interview, InterviewSchedulingRequest, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
 from .serializers import (
     AssignInterviewerSerializer,
     BookSchedulingRequestSerializer,
@@ -45,13 +45,27 @@ from .slot_generation import generate_available_slots
 logger = logging.getLogger(__name__)
 
 
+class GoogleCalendarAPIViewMixin:
+    """Return clean JSON for unexpected Google Calendar OAuth failures."""
+
+    google_calendar_error_message = 'Google Calendar OAuth failed. Check the backend logs for details.'
+
+    def handle_exception(self, exc):
+        if isinstance(exc, APIException):
+            return super().handle_exception(exc)
+        logger.exception('Unhandled Google Calendar OAuth API error.')
+        return Response(
+            {'google_calendar': self.google_calendar_error_message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
 
 def ensure_calendar_oauth_role(user):
     if user.role not in (User.Role.RECRUITER, User.Role.INTERVIEWER):
         raise PermissionDenied('Only recruiters and interviewers can connect Google Calendar.')
 
 
-class GoogleCalendarStatusAPIView(APIView):
+class GoogleCalendarStatusAPIView(GoogleCalendarAPIViewMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -59,7 +73,11 @@ class GoogleCalendarStatusAPIView(APIView):
         return Response(google_calendar_status_for_user(request.user))
 
 
-class GoogleCalendarConnectAPIView(APIView):
+class GoogleCalendarConnectAPIView(GoogleCalendarAPIViewMixin, APIView):
+    google_calendar_error_message = (
+        'Unable to start Google Calendar OAuth. Check the backend Google Calendar settings and redirect URI.'
+    )
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -73,12 +91,21 @@ class GoogleCalendarConnectAPIView(APIView):
             )
         except GoogleCalendarConfigurationError as exc:
             raise ValidationError({'google_calendar': str(exc)}) from exc
+        except Exception as exc:
+            logger.exception('Failed to start Google Calendar OAuth for user %s.', request.user.id)
+            raise ValidationError({
+                'google_calendar': 'Unable to start Google Calendar OAuth. Check the backend Google Calendar settings and redirect URI.'
+            }) from exc
         status_payload = google_calendar_status_for_user(request.user)
         status_payload['authorization_url'] = authorization_url
         return Response(status_payload)
 
 
-class GoogleCalendarOAuthCallbackAPIView(APIView):
+class GoogleCalendarOAuthCallbackAPIView(GoogleCalendarAPIViewMixin, APIView):
+    google_calendar_error_message = (
+        'Unable to complete Google Calendar OAuth. Start the connection again from HRRecruit and check the backend logs.'
+    )
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -93,6 +120,19 @@ class GoogleCalendarOAuthCallbackAPIView(APIView):
             )
         except GoogleCalendarConfigurationError as exc:
             raise ValidationError({'google_calendar': str(exc)}) from exc
+        except Exception as exc:
+            logger.exception('Failed to complete Google Calendar OAuth for user %s.', request.user.id)
+            credential = GoogleCalendarCredential.objects.filter(user=request.user).first()
+            if credential:
+                return Response({
+                    'connected': True,
+                    'connected_email': credential.google_account_email,
+                    'oauth_ready': True,
+                    'message': 'Google Calendar was already connected.',
+                })
+            raise ValidationError({
+                'google_calendar': 'Unable to complete Google Calendar OAuth. Check the redirect URI and Google OAuth client configuration.'
+            }) from exc
         return Response({
             'connected': True,
             'connected_email': credential.google_account_email,
