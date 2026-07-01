@@ -13,6 +13,7 @@ from apps.notifications.email_service import (
     send_password_reset_otp_email,
     send_subscription_reminder_email,
     send_team_account_created_email,
+    SendGridConfigurationError,
 )
 from apps.notifications.models import Notification, PushDevice
 from apps.notifications.services import create_notification
@@ -136,13 +137,16 @@ class NotificationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('enabled', response.data)
+        self.assertEqual(response.data['channel'], 'fcm_push')
+        self.assertEqual(response.data['provider'], 'firebase_fcm')
+        self.assertEqual(response.data['sdk'], 'firebase_admin')
         self.assertIn('ready', response.data)
 
     @override_settings(FIREBASE_PUSH_ENABLED=True)
     @patch('apps.notifications.push_service._firebase_app')
     @patch('apps.notifications.push_service._firebase_messaging_module')
     def test_firebase_push_service_sends_to_registered_device(self, mock_messaging_module, _mock_firebase_app):
-        from apps.notifications.push_service import send_notification_push
+        from apps.notifications.push_service import send_fcm_notification_push
 
         class FakeResponseItem:
             success = True
@@ -173,48 +177,76 @@ class NotificationAPITests(APITestCase):
             message='Your interview is scheduled.',
         )
 
-        result = send_notification_push(notification)
+        result = send_fcm_notification_push(notification)
 
         self.assertEqual(result['status'], 'sent')
+        self.assertEqual(result['channel'], 'fcm_push')
+        self.assertEqual(result['provider'], 'firebase_fcm')
+        self.assertEqual(result['sdk'], 'firebase_admin')
         self.assertEqual(result['success_count'], 1)
         fake_messaging.send_each_for_multicast.assert_called_once()
 
+    @override_settings(FIREBASE_PUSH_ENABLED=False)
+    def test_firebase_push_service_reports_disabled_without_alternate_provider(self):
+        from apps.notifications.push_service import send_fcm_notification_push
 
-class EmailServiceTests(SimpleTestCase):
-    @override_settings(
-        SENDGRID_API_KEY='SG.test-key',
-        SENDGRID_FROM_EMAIL='',
-        DEFAULT_FROM_EMAIL='no-reply@hrrecruit.local',
-    )
-    @patch('apps.notifications.email_service.send_mail')
-    def test_send_email_falls_back_to_django_backend_when_sendgrid_from_email_missing(self, mock_send_mail):
-        mock_send_mail.return_value = 1
-
-        result = send_email('Subject', 'Message', ['recipient@example.com'])
-
-        self.assertEqual(result['provider'], 'locmem')
-        mock_send_mail.assert_called_once_with(
-            subject='Subject',
-            message='Message',
-            from_email='no-reply@hrrecruit.local',
-            recipient_list=['recipient@example.com'],
-            fail_silently=False,
+        PushDevice.objects.create(
+            user=self.user,
+            registration_token='fcm-token-' + ('d' * 32),
+            platform=PushDevice.Platform.ANDROID,
+        )
+        notification = Notification.objects.create(
+            recipient=self.user,
+            notification_type='application_status_update',
+            title='Application updated',
+            message='Your application changed.',
         )
 
-    @override_settings(
-        EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
-        SENDGRID_API_KEY='',
-        SENDGRID_FROM_EMAIL='',
-        DEFAULT_FROM_EMAIL='sender@example.com',
-    )
-    @patch('apps.notifications.email_service.send_mail')
-    def test_send_email_reports_smtp_provider_when_smtp_backend_is_configured(self, mock_send_mail):
-        mock_send_mail.return_value = 1
+        result = send_fcm_notification_push(notification)
 
-        result = send_email('Subject', 'Message', ['recipient@example.com'])
+        self.assertEqual(result, {
+            'channel': 'fcm_push',
+            'provider': 'firebase_fcm',
+            'sdk': 'firebase_admin',
+            'status': 'disabled',
+            'success_count': 0,
+            'failure_count': 0,
+        })
 
-        self.assertEqual(result['provider'], 'smtp')
-        self.assertEqual(result['sent_count'], 1)
+    @patch('apps.notifications.services.send_fcm_notification_push')
+    def test_create_notification_delivers_only_through_fcm_push(self, mock_send_fcm):
+        mock_send_fcm.return_value = {
+            'channel': 'fcm_push',
+            'provider': 'firebase_fcm',
+            'sdk': 'firebase_admin',
+            'status': 'sent',
+        }
+
+        notification = create_notification(
+            self.user,
+            'interview_invitation',
+            'Interview invitation',
+            'Please respond to your interview invitation.',
+        )
+
+        mock_send_fcm.assert_called_once_with(notification)
+
+
+class EmailServiceTests(SimpleTestCase):
+    @override_settings(SENDGRID_API_KEY='', SENDGRID_FROM_EMAIL='sender@example.com')
+    def test_send_email_requires_sendgrid_api_key(self):
+        with self.assertRaises(SendGridConfigurationError):
+            send_email('Subject', 'Message', ['recipient@example.com'])
+
+    @override_settings(SENDGRID_API_KEY='SG.test-key', SENDGRID_FROM_EMAIL='')
+    def test_send_email_requires_sendgrid_from_email(self):
+        with self.assertRaises(SendGridConfigurationError):
+            send_email('Subject', 'Message', ['recipient@example.com'])
+
+    @override_settings(SENDGRID_API_KEY='SG.test-key', SENDGRID_FROM_EMAIL='sender@example.com')
+    def test_send_email_requires_recipient_for_sendgrid_delivery(self):
+        with self.assertRaises(SendGridConfigurationError):
+            send_email('Subject', 'Message', [''])
 
     @override_settings(FRONTEND_PASSWORD_RESET_URL='http://localhost:5173/forgot-password')
     def test_web_password_reset_link_uses_reset_password_page_even_with_old_env_value(self):
@@ -230,7 +262,6 @@ class EmailServiceTests(SimpleTestCase):
     @override_settings(
         SENDGRID_API_KEY='SG.test-key',
         SENDGRID_FROM_EMAIL='sender@example.com',
-        DEFAULT_FROM_EMAIL='sender@example.com',
     )
     @patch('apps.notifications.email_service.urlrequest.urlopen')
     def test_send_email_uses_sendgrid_when_configured(self, mock_urlopen):
@@ -259,11 +290,6 @@ class EmailServiceTests(SimpleTestCase):
         self.assertNotIn('http://', password_reset_call.kwargs['message'])
         self.assertNotIn('https://', password_reset_call.kwargs['message'])
 
-    @override_settings(
-        SENDGRID_API_KEY='',
-        SENDGRID_FROM_EMAIL='',
-        DEFAULT_FROM_EMAIL='no-reply@hrrecruit.local',
-    )
     @patch('apps.notifications.email_service.send_email')
     def test_email_templates_cover_required_hrrecruit_flows(self, mock_send_email):
         user = SimpleNamespace(

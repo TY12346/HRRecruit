@@ -351,7 +351,7 @@ class CalendarEvent(models.Model):
         on_delete=models.CASCADE,
         related_name='calendar_events',
     )
-    provider = models.CharField(max_length=100, default='local')
+    provider = models.CharField(max_length=100, default='google_calendar')
     external_event_id = models.CharField(max_length=255, blank=True)
     calendar_link = models.URLField(max_length=1000, blank=True)
     last_synced_at = models.DateTimeField(blank=True, null=True)
