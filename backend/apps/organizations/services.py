@@ -1,5 +1,6 @@
 """Service helpers for organization and team setup."""
 
+import logging
 import secrets
 import string
 
@@ -10,6 +11,8 @@ from apps.notifications.email_service import send_team_account_created_email
 from apps.users.models import User
 
 from .models import Organization, OrganizationMembership
+
+logger = logging.getLogger(__name__)
 
 
 def verify_company_registration(registration_no):
@@ -36,6 +39,14 @@ def send_temporary_password_email(user, temporary_password):
     send_team_account_created_email(user, temporary_password)
 
 
+def send_temporary_password_email_safely(user, temporary_password):
+    """Send credentials without failing team-account creation if delivery is unavailable."""
+    try:
+        send_temporary_password_email(user, temporary_password)
+    except Exception:  # pragma: no cover - defensive guard for external email backends
+        logger.exception('Unable to send temporary password email for team member %s.', user.email)
+
+
 @transaction.atomic
 def create_team_member(*, organization, email, full_name, phone_number='', role):
     """Create a recruiter or interviewer, attach them to an organization, and email credentials."""
@@ -59,7 +70,7 @@ def create_team_member(*, organization, email, full_name, phone_number='', role)
         user=user,
         role=role,
     )
-    send_temporary_password_email(user, temporary_password)
+    transaction.on_commit(lambda: send_temporary_password_email_safely(user, temporary_password))
     return user
 
 
