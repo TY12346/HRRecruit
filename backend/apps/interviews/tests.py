@@ -109,6 +109,28 @@ class InterviewManagementAPITests(APITestCase):
         self.assertIn('google_calendar', response.data)
         self.assertIn('Unable to start Google Calendar OAuth', response.data['google_calendar'])
 
+    def test_google_calendar_authorization_url_sends_signed_state_to_google(self):
+        from apps.interviews.calendar_service import build_google_calendar_authorization_url
+
+        class FakeFlow:
+            def __init__(self):
+                self.kwargs = None
+
+            def authorization_url(self, **kwargs):
+                self.kwargs = kwargs
+                return 'https://accounts.google.com/o/oauth2/auth', kwargs.get('state')
+
+        fake_flow = FakeFlow()
+        signed_state = 'signed-state-value'
+        with patch('apps.interviews.calendar_service.build_google_calendar_oauth_state', return_value=signed_state), patch(
+            'apps.interviews.calendar_service._flow_from_client_config',
+            return_value=fake_flow,
+        ):
+            authorization_url = build_google_calendar_authorization_url(self.recruiter)
+
+        self.assertEqual(authorization_url, 'https://accounts.google.com/o/oauth2/auth')
+        self.assertEqual(fake_flow.kwargs['state'], signed_state)
+
     def test_google_calendar_callback_is_idempotent_when_already_connected(self):
         self.authenticate(self.recruiter)
         GoogleCalendarCredential.objects.create(

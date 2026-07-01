@@ -207,6 +207,7 @@ def build_google_calendar_authorization_url(user, next_url=''):
         access_type='offline',
         include_granted_scopes='true',
         prompt='consent',
+        state=state,
     )
     return authorization_url
 
