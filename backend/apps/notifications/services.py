@@ -1,5 +1,11 @@
 from .models import Notification
-from .push_service import FirebasePushUnavailable, send_notification_push
+from .push_service import (
+    FCM_PUSH_CHANNEL,
+    FIREBASE_ADMIN_SDK,
+    FIREBASE_FCM_PROVIDER,
+    FirebasePushUnavailable,
+    send_fcm_notification_push,
+)
 
 
 def _related_entity_values(related_entity):
@@ -18,7 +24,7 @@ def create_notification(recipient, notification_type, title, message, related_en
         related_entity_type=related_entity_type,
         related_entity_id=related_entity_id,
     )
-    _deliver_push_safely(notification)
+    _deliver_fcm_push_safely(notification)
     return notification
 
 
@@ -37,15 +43,25 @@ def create_bulk_notifications(recipients, notification_type, title, message, rel
     ]
     created_notifications = Notification.objects.bulk_create(notifications)
     for notification in created_notifications:
-        _deliver_push_safely(notification)
+        _deliver_fcm_push_safely(notification)
     return created_notifications
 
 
-def _deliver_push_safely(notification):
-    """Attempt Firebase push without breaking the database notification workflow."""
+def _deliver_fcm_push_safely(notification):
+    """Attempt FCM push delivery without breaking database notifications."""
     try:
-        return send_notification_push(notification)
+        return send_fcm_notification_push(notification)
     except FirebasePushUnavailable as exc:
-        return {'provider': 'firebase_fcm', 'status': 'unavailable', 'error': str(exc)}
+        return _fcm_delivery_error('unavailable', str(exc))
     except Exception as exc:
-        return {'provider': 'firebase_fcm', 'status': 'failed', 'error': exc.__class__.__name__}
+        return _fcm_delivery_error('failed', exc.__class__.__name__)
+
+
+def _fcm_delivery_error(status, error):
+    return {
+        'channel': FCM_PUSH_CHANNEL,
+        'provider': FIREBASE_FCM_PROVIDER,
+        'sdk': FIREBASE_ADMIN_SDK,
+        'status': status,
+        'error': error,
+    }

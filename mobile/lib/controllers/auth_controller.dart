@@ -39,10 +39,16 @@ class AuthController extends ChangeNotifier {
       final profile = await _authService.getProfile();
       _ensureApplicant(profile);
       _profile = profile;
-      await _pushNotificationService.registerDevice();
     } catch (_) {
       await _tokenStorage.clearTokens();
       _profile = null;
+      _isInitialized = true;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      await _pushNotificationService.registerDevice();
     } finally {
       _isInitialized = true;
       notifyListeners();
@@ -88,12 +94,10 @@ class AuthController extends ChangeNotifier {
     });
   }
 
-  Future<String?> requestPasswordReset({required String email}) async {
-    String? resetCode;
+  Future<void> requestPasswordReset({required String email}) async {
     await _runAuthAction(() async {
-      resetCode = await _authService.requestPasswordReset(email: email);
+      await _authService.requestPasswordReset(email: email);
     });
-    return resetCode;
   }
 
   Future<void> verifyPasswordResetOtp({
