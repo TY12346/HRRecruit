@@ -2,6 +2,7 @@ import json
 import os
 from unittest.mock import patch
 from django.urls import reverse
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -94,6 +95,32 @@ class InterviewManagementAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('google_calendar', response.data)
+
+    def test_google_calendar_connect_returns_clean_error_when_oauth_library_fails(self):
+        self.authenticate(self.recruiter)
+
+        with patch(
+            'apps.interviews.views.build_google_calendar_authorization_url',
+            side_effect=RuntimeError('oauthlib failed'),
+        ):
+            response = self.client.get(reverse('google-calendar-connect'))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('google_calendar', response.data)
+        self.assertIn('Unable to start Google Calendar OAuth', response.data['google_calendar'])
+
+    def test_local_http_google_oauth_redirect_sets_oauthlib_debug_escape_hatch(self):
+        from apps.interviews.calendar_service import _allow_local_http_oauth_for_debug
+
+        with override_settings(DEBUG=True), patch.dict(
+            'os.environ',
+            {'GOOGLE_CALENDAR_REDIRECT_URI': 'http://localhost:5173/recruiter/calendar/google/callback'},
+            clear=False,
+        ):
+            os.environ.pop('OAUTHLIB_INSECURE_TRANSPORT', None)
+            _allow_local_http_oauth_for_debug()
+
+        self.assertEqual(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'), '1')
 
     def test_calendar_sync_falls_back_to_local_event_without_google_oauth(self):
         from apps.interviews.calendar_service import sync_calendar_event_for_interview
