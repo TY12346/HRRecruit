@@ -23,7 +23,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   _ForgotPasswordStep _step = _ForgotPasswordStep.requestEmail;
-  String? _developmentResetCode;
 
   @override
   void dispose() {
@@ -37,24 +36,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _requestReset() async {
     if (!_requestFormKey.currentState!.validate()) return;
     try {
-      final resetCode = await context
+      await context
           .read<AuthController>()
           .requestPasswordReset(email: _emailController.text.trim());
       if (!mounted) return;
       setState(() {
         _step = _ForgotPasswordStep.enterOtp;
-        _developmentResetCode = resetCode;
-        if (resetCode != null && resetCode.isNotEmpty) {
-          _otpController.text = resetCode;
-        }
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            resetCode == null || resetCode.isEmpty
-                ? 'If the email exists, an OTP has been sent.'
-                : 'Development OTP received and prefilled.',
-          ),
+        const SnackBar(
+          content: Text('If the email exists, an OTP has been sent.'),
         ),
       );
     } catch (error) {
@@ -100,7 +91,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   void _restart() {
     setState(() {
       _step = _ForgotPasswordStep.requestEmail;
-      _developmentResetCode = null;
       _otpController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
@@ -199,17 +189,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_developmentResetCode != null && _developmentResetCode!.isNotEmpty) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  'Development mode: OTP $_developmentResetCode has been prefilled because emails may be printed in the backend console instead of delivered to an inbox.',
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
           TextFormField(
             controller: _otpController,
             keyboardType: TextInputType.number,

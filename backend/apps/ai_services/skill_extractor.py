@@ -1,4 +1,4 @@
-"""spaCy skill extraction helpers with strict dependency requirements."""
+"""spaCy skill extraction helpers with deterministic dictionary fallback."""
 
 from functools import lru_cache
 import importlib
@@ -65,16 +65,21 @@ def normalize_text(text):
 
 
 def extract_skills(text, skills_dictionary=None):
-    """Return stable lower-case/internal skill keys found in text using spaCy.
+    """Return stable lower-case/internal skill keys found in text.
 
-    Missing spaCy dependencies, missing language models, or matcher failures now
-    raise a clear AI service error instead of falling back to regex matching.
+    The preferred path uses spaCy and PhraseMatcher. If spaCy or the
+    ``en_core_web_sm`` model is unavailable in a local/demo environment, the
+    deterministic dictionary matcher is used so applicant job applications do
+    not fail during resume screening.
     """
     normalized_text = normalize_text(text)
     dictionary = SKILLS_DICTIONARY if skills_dictionary is None else skills_dictionary
     if not dictionary:
         return []
-    return sorted(_extract_skills_with_spacy(normalized_text, dictionary))
+    try:
+        return sorted(_extract_skills_with_spacy(normalized_text, dictionary))
+    except AIServiceUnavailable:
+        return extract_skills_with_dictionary(normalized_text, dictionary, text_is_normalized=True)
 
 
 def extract_skills_with_dictionary(text, skills_dictionary=None, *, text_is_normalized=False):

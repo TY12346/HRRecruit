@@ -36,20 +36,6 @@ def _optional_google_dependencies_available():
         'google',
         'google.oauth2',
         'google.oauth2.credentials',
-        'google.auth.transport.requests',
-        'googleapiclient',
-        'googleapiclient.discovery',
-    ]
-    return all(util.find_spec(module_name) is not None for module_name in module_names)
-
-
-def _optional_google_dependencies_available():
-    module_names = [
-        'google_auth_oauthlib',
-        'google_auth_oauthlib.flow',
-        'google',
-        'google.oauth2',
-        'google.oauth2.credentials',
         'googleapiclient',
         'googleapiclient.discovery',
     ]
@@ -69,7 +55,7 @@ def google_calendar_redirect_uri():
 
 
 def google_calendar_link_enabled():
-    """Return whether Google Calendar integration is enabled for the demo."""
+    """Return whether Google Calendar API integration is enabled."""
     return bool(getattr(settings, 'GOOGLE_CALENDAR_ENABLED', False))
 
 
@@ -354,18 +340,6 @@ def _sync_real_google_calendar_event(interview, credential):
     )[0]
 
 
-def _save_failed_google_event(interview, message=''):
-    return CalendarEvent.objects.update_or_create(
-        interview=interview,
-        provider='google_calendar',
-        defaults={
-            'calendar_link': '',
-            'sync_status': CalendarEvent.SyncStatus.FAILED,
-            'last_synced_at': timezone.now(),
-        },
-    )[0]
-
-
 def sync_existing_google_events_for_user(user):
     """Sync this recruiter/interviewer's scheduled future interviews after OAuth connect."""
     if not google_calendar_oauth_ready():
@@ -389,15 +363,11 @@ def sync_existing_google_events_for_user(user):
         interviews = interviews.none()
 
     synced = 0
-    failed = 0
     for interview in interviews:
-        try:
-            _sync_real_google_calendar_event(interview, credential)
-            synced += 1
-        except Exception:
-            _save_failed_google_event(interview)
-            failed += 1
-    return {'synced': synced, 'failed': failed}
+        _sync_real_google_calendar_event(interview, credential)
+        synced += 1
+    return {'synced': synced, 'failed': 0}
+
 
 def sync_calendar_event_for_interview(interview):
     """Create/update the real Google Calendar event for a scheduled interview."""
@@ -412,5 +382,4 @@ def sync_calendar_event_for_interview(interview):
     try:
         return _sync_real_google_calendar_event(interview, credential)
     except Exception as exc:
-        _save_failed_google_event(interview, message=str(exc))
         raise GoogleCalendarSyncError('Failed to sync Google Calendar event.') from exc

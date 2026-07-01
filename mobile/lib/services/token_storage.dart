@@ -34,6 +34,10 @@ class TokenStorage {
     return _secureStorage.read(key: _apiBaseUrlKey);
   }
 
+  Future<void> clearApiBaseUrl() {
+    return _secureStorage.delete(key: _apiBaseUrlKey);
+  }
+
   Future<void> clearTokens() async {
     await Future.wait([
       _secureStorage.delete(key: _accessTokenKey),
