@@ -223,6 +223,27 @@ class ApiClient {
     );
   }
 
+  Future<Uri> resolveBackendFileUri(String fileUrlOrPath) async {
+    final trimmed = fileUrlOrPath.trim();
+    final parsedUri = Uri.tryParse(trimmed);
+    if (parsedUri != null &&
+        parsedUri.hasScheme &&
+        parsedUri.host.isNotEmpty) {
+      return parsedUri;
+    }
+
+    final apiBaseUri = Uri.parse(await currentBaseUrl());
+    final backendRootUri = apiBaseUri.replace(
+      path: '/',
+      query: null,
+      fragment: null,
+    );
+    final normalizedPath = trimmed.startsWith('/')
+        ? trimmed.substring(1)
+        : trimmed;
+    return backendRootUri.resolve(normalizedPath);
+  }
+
   final TokenStorage _tokenStorage;
   final Dio dio;
 }

@@ -1,7 +1,9 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../api/api_client.dart';
 import '../controllers/auth_controller.dart';
 import 'auth_form_helpers.dart';
 import '../widgets/app_navigation.dart';
@@ -65,6 +67,36 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
     }
   }
 
+  Future<void> _viewCurrentResume() async {
+    final currentResume = context
+        .read<AuthController>()
+        .profile
+        ?.resumeFile
+        ?.trim();
+    if (currentResume == null || currentResume.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No resume uploaded yet.')),
+      );
+      return;
+    }
+
+    try {
+      final resumeUri = await context
+          .read<ApiClient>()
+          .resolveBackendFileUri(currentResume);
+      final opened = await launchUrl(
+        resumeUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        throw Exception('Unable to open the resume file.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      showErrorSnackBar(context, error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
@@ -74,67 +106,77 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
       child: Scaffold(
         appBar: appScreenAppBar(context, title: 'Resume upload'),
         body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Current resume',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      currentResume == null || currentResume.isEmpty
-                          ? 'No resume uploaded yet.'
-                          : currentResume,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Upload PDF or DOCX',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Maximum file size is validated by the backend at 5MB.'),
-                    const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      onPressed: auth.isLoading ? null : _pickResume,
-                      icon: const Icon(Icons.attach_file),
-                      label: const Text('Choose resume'),
-                    ),
-                    if (_selectedFile != null) ...[
-                      const SizedBox(height: 12),
-                      Text('Selected: ${_selectedFile!.name}'),
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Current resume',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        currentResume == null || currentResume.isEmpty
+                            ? 'No resume uploaded yet.'
+                            : currentResume,
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: currentResume == null || currentResume.isEmpty
+                            ? null
+                            : _viewCurrentResume,
+                        icon: const Icon(Icons.visibility_outlined),
+                        label: const Text('View resume'),
+                      ),
                     ],
-                    const SizedBox(height: 20),
-                    FilledButton.icon(
-                      onPressed: auth.isLoading ? null : _upload,
-                      icon: const Icon(Icons.cloud_upload_outlined),
-                      label: auth.isLoading
-                          ? const Text('Uploading...')
-                          : const Text('Upload resume'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Upload PDF or DOCX',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Maximum file size is validated by the backend at 5MB.',
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: auth.isLoading ? null : _pickResume,
+                        icon: const Icon(Icons.attach_file),
+                        label: const Text('Choose resume'),
+                      ),
+                      if (_selectedFile != null) ...[
+                        const SizedBox(height: 12),
+                        Text('Selected: ${_selectedFile!.name}'),
+                      ],
+                      const SizedBox(height: 20),
+                      FilledButton.icon(
+                        onPressed: auth.isLoading ? null : _upload,
+                        icon: const Icon(Icons.cloud_upload_outlined),
+                        label: auth.isLoading
+                            ? const Text('Uploading...')
+                            : const Text('Upload resume'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
