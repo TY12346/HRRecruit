@@ -122,6 +122,18 @@ class InterviewManagementAPITests(APITestCase):
 
         self.assertEqual(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'), '1')
 
+    def test_google_calendar_oauth_state_max_age_defaults_to_one_hour(self):
+        from apps.interviews.calendar_service import google_calendar_oauth_state_max_age_seconds
+
+        with patch.dict('os.environ', {}, clear=True):
+            self.assertEqual(google_calendar_oauth_state_max_age_seconds(), 3600)
+
+    def test_google_calendar_oauth_state_max_age_has_five_minute_floor(self):
+        from apps.interviews.calendar_service import google_calendar_oauth_state_max_age_seconds
+
+        with patch.dict('os.environ', {'GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS': '60'}, clear=False):
+            self.assertEqual(google_calendar_oauth_state_max_age_seconds(), 300)
+
     def test_calendar_sync_falls_back_to_local_event_without_google_oauth(self):
         from apps.interviews.calendar_service import sync_calendar_event_for_interview
 

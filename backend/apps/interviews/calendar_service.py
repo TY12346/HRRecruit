@@ -23,6 +23,7 @@ GOOGLE_CALENDAR_TOKEN_URI = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 GOOGLE_CALENDAR_STATE_SALT = 'hrrecruit.google-calendar-oauth'
 DEFAULT_INTERVIEW_DURATION_MINUTES = 60
+DEFAULT_GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS = 3600
 
 
 class GoogleCalendarConfigurationError(RuntimeError):
@@ -167,11 +168,32 @@ def build_google_calendar_oauth_state(user, next_url=''):
     )
 
 
+def google_calendar_oauth_state_max_age_seconds():
+    raw_value = os.getenv(
+        'GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS',
+        str(DEFAULT_GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS),
+    )
+    try:
+        return max(300, int(raw_value))
+    except (TypeError, ValueError):
+        return DEFAULT_GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS
+
+
 def validate_google_calendar_oauth_state(state, user):
     try:
-        payload = signing.loads(state, salt=GOOGLE_CALENDAR_STATE_SALT, max_age=600)
+        payload = signing.loads(
+            state,
+            salt=GOOGLE_CALENDAR_STATE_SALT,
+            max_age=google_calendar_oauth_state_max_age_seconds(),
+        )
+    except signing.SignatureExpired as exc:
+        raise GoogleCalendarConfigurationError(
+            'Google Calendar OAuth state expired. Please start the Google Calendar connection again from HRRecruit.'
+        ) from exc
     except signing.BadSignature as exc:
-        raise GoogleCalendarConfigurationError('Invalid or expired Google Calendar OAuth state.') from exc
+        raise GoogleCalendarConfigurationError(
+            'Invalid Google Calendar OAuth state. Please start the Google Calendar connection again from HRRecruit in the same browser session.'
+        ) from exc
     if payload.get('user_id') != user.id:
         raise GoogleCalendarConfigurationError('Google Calendar OAuth state does not match the signed-in user.')
     return payload
