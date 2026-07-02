@@ -96,9 +96,9 @@ class ApplicantHomeScreen extends StatelessWidget {
               _ApplicantHomeAction(
                 icon: Icons.upload_file_outlined,
                 title: 'Resume upload',
-                subtitle: profile?.resumeFile == null || profile!.resumeFile!.isEmpty
-                    ? 'Upload a PDF or DOCX resume'
-                    : 'Resume on file. Tap to replace it.',
+                subtitle: profile?.resumes.isEmpty ?? true
+                    ? 'Upload up to 5 labeled resumes'
+                    : '${profile!.resumes.length}/5 resumes saved. Tap to manage them.',
                 route: '/resume',
               ),
             ),

@@ -148,19 +148,37 @@ class ApplicantAuthService {
     return ApplicantProfile.fromJson(data['user'] as Map<String, dynamic>);
   }
 
-  Future<String?> uploadResume({
+  Future<ApplicantProfile> uploadResume({
     required String path,
     required String fileName,
+    required String title,
   }) async {
     final formData = FormData.fromMap({
+      'title': title,
       'resume_file': await MultipartFile.fromFile(path, filename: fileName),
     });
-    final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'auth/resume/upload/',
+    await _apiClient.dio.post<Map<String, dynamic>>(
+      'auth/resumes/',
       data: formData,
       options: Options(contentType: 'multipart/form-data'),
     );
 
-    return response.data?['resume_file'] as String?;
+    return getProfile();
+  }
+
+  Future<ApplicantProfile> updateResume({
+    required int resumeId,
+    required String title,
+  }) async {
+    await _apiClient.dio.patch<Map<String, dynamic>>(
+      'auth/resumes/$resumeId/',
+      data: {'title': title},
+    );
+    return getProfile();
+  }
+
+  Future<ApplicantProfile> deleteResume({required int resumeId}) async {
+    await _apiClient.dio.delete<void>('auth/resumes/$resumeId/');
+    return getProfile();
   }
 }

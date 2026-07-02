@@ -343,11 +343,20 @@ class LinkedInProfilePdfUploadSerializer(serializers.Serializer):
 
 
 class ResumeUploadSerializer(ApplicantResumeSerializer):
+    max_resumes_per_applicant = 5
     resume_file = serializers.FileField(write_only=True)
 
     class Meta(ApplicantResumeSerializer.Meta):
         fields = ['id', 'title', 'resume_file', 'resume_url', 'is_default', 'uploaded_at']
         read_only_fields = ['id', 'resume_url', 'uploaded_at']
+
+    def validate(self, attrs):
+        request = self.context['request']
+        if request.user.resumes.count() >= self.max_resumes_per_applicant:
+            raise serializers.ValidationError({
+                'resumes': f'You can upload a maximum of {self.max_resumes_per_applicant} resumes.'
+            })
+        return attrs
 
     def validate_resume_file(self, file):
         max_size = 5 * 1024 * 1024

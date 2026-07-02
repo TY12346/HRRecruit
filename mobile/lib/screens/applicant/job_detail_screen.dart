@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../controllers/auth_controller.dart';
+import '../../models/applicant_profile.dart';
 import '../../models/job_posting.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
-import 'job_cards.dart';
 import '../../widgets/app_navigation.dart';
+import 'job_cards.dart';
 
 class JobDetailScreen extends StatefulWidget {
   const JobDetailScreen({super.key, required this.jobId});
@@ -57,12 +59,35 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _apply(JobPosting job) async {
+    final resumes =
+        context.read<AuthController>().profile?.resumes ??
+        const <ApplicantResume>[];
+    if (resumes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Upload a resume before applying.')),
+      );
+      context.push('/resume');
+      return;
+    }
+
+    final selectedResume = await _selectResumeForApplication(resumes);
+    if (selectedResume == null) {
+      return;
+    }
+
     setState(() => _isApplying = true);
     try {
-      final application = await context.read<JobDiscoveryService>().applyForJob(job.id);
+      final application = await context.read<JobDiscoveryService>().applyForJob(
+            job.id,
+            resumeId: selectedResume.id,
+          );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Application submitted successfully.')),
+        SnackBar(
+          content: Text(
+            'Application submitted with ${_resumeLabel(selectedResume)}.',
+          ),
+        ),
       );
       context.push('/applications/${application.id}');
     } catch (error) {
@@ -73,15 +98,77 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
+  Future<ApplicantResume?> _selectResumeForApplication(
+    List<ApplicantResume> resumes,
+  ) {
+    return showModalBottomSheet<ApplicantResume>(
+      context: context,
+      showDragHandle: true,
+      builder: (bottomSheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select resume for this application',
+                style: Theme.of(bottomSheetContext).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Choose the resume you want recruiters to review for this job.',
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final resume in resumes)
+                      Card.outlined(
+                        child: ListTile(
+                          leading: const Icon(Icons.description_outlined),
+                          title: Text(_resumeLabel(resume)),
+                          subtitle: Text(resume.resumeFile.split('/').last),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () =>
+                              Navigator.of(bottomSheetContext).pop(resume),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(bottomSheetContext).pop();
+                  context.push('/resume');
+                },
+                icon: const Icon(Icons.upload_file_outlined),
+                label: const Text('Manage resumes'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _resumeLabel(ApplicantResume resume) {
+    final title = resume.title.trim();
+    if (title.isNotEmpty) return title;
+    return resume.resumeFile.split('/').last;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppBackScope(
       child: Scaffold(
         appBar: appScreenAppBar(context, title: 'Job details'),
         body: SafeArea(
-        child: FutureBuilder<JobPosting>(
-          future: _jobFuture,
-          builder: (context, snapshot) {
+          child: FutureBuilder<JobPosting>(
+            future: _jobFuture,
+            builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -92,16 +179,32 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             return ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                Text(job.title, style: Theme.of(context).textTheme.headlineSmall),
+                Text(
+                  job.title,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
                 const SizedBox(height: 6),
-                Text(job.organizationName, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  job.organizationName,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    Chip(label: Text(job.location.isEmpty ? 'Location n/a' : job.location)),
-                    Chip(label: Text(job.employmentType.isEmpty ? 'Type n/a' : job.employmentType)),
+                    Chip(
+                      label: Text(
+                        job.location.isEmpty ? 'Location n/a' : job.location,
+                      ),
+                    ),
+                    Chip(
+                      label: Text(
+                        job.employmentType.isEmpty
+                            ? 'Type n/a'
+                            : job.employmentType,
+                      ),
+                    ),
                     Chip(label: Text(formatMoney(job.approximateSalary))),
                     Chip(label: Text(titleCaseStatus(job.status))),
                   ],
@@ -112,14 +215,18 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _isSaving ? null : () => _toggleSaved(job),
-                        icon: Icon(job.isSaved ? Icons.bookmark : Icons.bookmark_border),
+                        icon: Icon(
+                          job.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                        ),
                         label: Text(job.isSaved ? 'Unsave job' : 'Save job'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: _isApplying || job.status != 'open' ? null : () => _apply(job),
+                        onPressed: _isApplying || job.status != 'open'
+                            ? null
+                            : () => _apply(job),
                         icon: const Icon(Icons.send_outlined),
                         label: Text(_isApplying ? 'Applying...' : 'Apply'),
                       ),
@@ -127,14 +234,22 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                Text('Description', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Description',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
                 Text(
-                  job.description.isEmpty ? 'No description provided.' : formatJobDescriptionText(job.description),
+                  job.description.isEmpty
+                      ? 'No description provided.'
+                      : formatJobDescriptionText(job.description),
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
                 ),
                 const SizedBox(height: 24),
-                Text('Requirements', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Requirements',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
                 if (job.requirements.isEmpty)
                   const Text('No requirements configured yet.')
@@ -155,9 +270,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 Text('Posted ${formatDate(job.createdAt)}'),
               ],
             );
-          },
+            },
+          ),
         ),
-      ),
       ),
     );
   }

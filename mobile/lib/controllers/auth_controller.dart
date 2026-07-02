@@ -185,10 +185,36 @@ class AuthController extends ChangeNotifier {
   Future<void> uploadResume({
     required String path,
     required String fileName,
+    required String title,
   }) async {
     await _runAuthAction(() async {
-      await _authService.uploadResume(path: path, fileName: fileName);
-      final profile = await _authService.getProfile();
+      final profile = await _authService.uploadResume(
+        path: path,
+        fileName: fileName,
+        title: title,
+      );
+      _ensureApplicant(profile);
+      _profile = profile;
+    });
+  }
+
+  Future<void> renameResume({
+    required int resumeId,
+    required String title,
+  }) async {
+    await _runAuthAction(() async {
+      final profile = await _authService.updateResume(
+        resumeId: resumeId,
+        title: title,
+      );
+      _ensureApplicant(profile);
+      _profile = profile;
+    });
+  }
+
+  Future<void> deleteResume({required int resumeId}) async {
+    await _runAuthAction(() async {
+      final profile = await _authService.deleteResume(resumeId: resumeId);
       _ensureApplicant(profile);
       _profile = profile;
     });

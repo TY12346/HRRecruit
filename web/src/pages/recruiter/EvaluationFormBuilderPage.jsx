@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createJobEvaluationForm, getJob } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
@@ -17,7 +17,6 @@ export default function EvaluationFormBuilderPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('Interview Evaluation Form');
   const [criteria, setCriteria] = useState([cloneCriterion()]);
-  const [normalizeCriteria, setNormalizeCriteria] = useState(true);
   const [existing, setExisting] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -52,7 +51,7 @@ export default function EvaluationFormBuilderPage() {
     setSuccess('');
 
     try {
-      const payloadCriteria = prepareCriteriaForApi(criteria, { normalizeImportance: normalizeCriteria });
+      const payloadCriteria = prepareCriteriaForApi(criteria);
       const saved = await createJobEvaluationForm(jobId, { title, criteria: payloadCriteria });
       setSuccess('Evaluation form created.');
       setExisting(saved);
@@ -130,17 +129,6 @@ export default function EvaluationFormBuilderPage() {
                 </Stack>
               </Paper>
             ))}
-            {!existing ? (
-              <>
-                <FormControlLabel
-                  control={<Checkbox checked={normalizeCriteria} onChange={(event) => setNormalizeCriteria(event.target.checked)} />}
-                  label="Auto-balance interview scoring importance so criterion weights add up correctly"
-                />
-                <Typography variant="caption" color="text.secondary">
-                  HRRecruit converts competency priorities into balanced weights for weighted interview scoring.
-                </Typography>
-              </>
-            ) : null}
             <Stack direction="row" spacing={1}>
               {!existing ? (
                 <Button onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">

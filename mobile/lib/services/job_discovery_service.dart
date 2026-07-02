@@ -48,10 +48,10 @@ class JobDiscoveryService {
     await _apiClient.dio.delete<void>('jobs/$jobId/save/');
   }
 
-  Future<JobApplication> applyForJob(int jobId) async {
+  Future<JobApplication> applyForJob(int jobId, {required int resumeId}) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'jobs/$jobId/apply/',
-      data: const <String, dynamic>{},
+      data: {'resume_id': resumeId},
       options: _apiClient.longRunningRequestOptions(),
     );
     return JobApplication.fromJson(response.data!);
