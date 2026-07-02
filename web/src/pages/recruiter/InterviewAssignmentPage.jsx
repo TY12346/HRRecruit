@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createInterviewSchedulingRequest, getApplication, getGoogleCalendarConnectUrl, getGoogleCalendarStatus, getOrganizationMembers } from '../../api/client.js';
+import { createInterviewSchedulingRequest, getApplication, getGoogleCalendarConnectUrl, getGoogleCalendarStatus, getInterviewSchedulingRequests, getOrganizationMembers } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 import { buildApplicationTemplateContext, getCommunicationTemplates, renderCommunicationTemplate } from './communicationTemplates.js';
@@ -23,13 +23,24 @@ export default function InterviewAssignmentPage() {
   const [isConnectingCalendar, setIsConnectingCalendar] = useState(false);
 
   useEffect(() => {
-    Promise.all([getApplication(applicationId), getOrganizationMembers(''), getGoogleCalendarStatus().catch(() => null)])
-      .then(([app, members, googleStatus]) => {
+    Promise.all([
+      getApplication(applicationId),
+      getOrganizationMembers(''),
+      getGoogleCalendarStatus().catch(() => null),
+      getInterviewSchedulingRequests().catch(() => []),
+    ])
+      .then(([app, members, googleStatus, schedulingRequests]) => {
         setApplication(app);
         setRemark(renderCommunicationTemplate(getCommunicationTemplates('interview_self_scheduling')[0], buildApplicationTemplateContext(app)));
         setInterviewerId(app.assigned_interviewer?.id ?? '');
         setCalendarStatus(googleStatus);
         setInterviewers(members.filter((member) => member.role === 'interviewer' && member.status === 'active' && member.user_id));
+        const existingRequest = schedulingRequests
+          .filter((request) => request.application?.id === Number(applicationId))
+          .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))[0];
+        if (existingRequest) {
+          setSchedulingRequest(existingRequest);
+        }
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load assignment data.')))
       .finally(() => setIsLoading(false));
@@ -74,7 +85,7 @@ export default function InterviewAssignmentPage() {
   };
 
   const nextStepMessage = schedulingRequest
-    ? `Scheduling request #${schedulingRequest.id} has been created. The interview will be created after the applicant chooses a slot.`
+    ? `Interview-scheduling request #${schedulingRequest.id} has been sent. The interview will be created after the applicant chooses a slot.`
     : 'The applicant should use the mobile Schedule interviews page to choose a slot from the interviewer availability.';
 
   return (
