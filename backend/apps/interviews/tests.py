@@ -334,7 +334,7 @@ class InterviewManagementAPITests(APITestCase):
 
     @patch('apps.interviews.views.create_notification')
     @patch('apps.interviews.views.sync_calendar_event_for_interview')
-    def test_booking_returns_clear_error_when_calendar_sync_fails(self, sync_calendar_event, create_notification_mock):
+    def test_booking_succeeds_when_calendar_sync_fails(self, sync_calendar_event, create_notification_mock):
         from apps.interviews.calendar_service import GoogleCalendarConfigurationError
 
         sync_calendar_event.side_effect = GoogleCalendarConfigurationError('Google Calendar API is not ready.')
@@ -364,12 +364,11 @@ class InterviewManagementAPITests(APITestCase):
             format='json',
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('google_calendar', response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         scheduling_request.refresh_from_db()
         slot.refresh_from_db()
-        self.assertEqual(scheduling_request.status, InterviewSchedulingRequest.Status.PENDING)
-        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.AVAILABLE)
+        self.assertEqual(scheduling_request.status, InterviewSchedulingRequest.Status.SCHEDULED)
+        self.assertEqual(slot.status, InterviewerAvailabilitySlot.Status.BOOKED)
 
     def test_applicant_cannot_book_unavailable_slot(self):
         slot = InterviewerAvailabilitySlot.objects.create(
@@ -541,6 +540,21 @@ class InterviewEvaluationAPITests(APITestCase):
             format='json',
         )
 
+    def test_interview_detail_includes_evaluation_criteria_for_interviewer_form(self):
+        self.authenticate(self.interviewer)
+
+        response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        criteria = response.data['evaluation_criteria']
+        self.assertEqual(len(criteria), 2)
+        self.assertEqual(criteria[0]['id'], self.criterion_one.id)
+        self.assertEqual(criteria[0]['criterion_name'], 'Technical Skills')
+        self.assertEqual(criteria[0]['description'], 'Evaluate technical problem solving.')
+        self.assertEqual(criteria[0]['max_score'], '10.00')
+        self.assertEqual(criteria[0]['weight_score'], '0.60')
+        self.assertEqual(criteria[1]['id'], self.criterion_two.id)
+
     def audio_file(self, name='interview.mp3', content_type='audio/mpeg', content=b'audio bytes'):
         return SimpleUploadedFile(name, content, content_type=content_type)
 
@@ -611,7 +625,7 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(InterviewTranscript.objects.filter(recording=recording).count(), 1)
         openai_transcription.assert_called_once()
 
-    def test_openai_api_key_alone_returns_clear_transcription_error(self):
+    def test_openai_api_key_alone_uses_mock_transcription(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
         original_flag = os.environ.pop('USE_REAL_TRANSCRIPTION', None)
@@ -625,8 +639,9 @@ class InterviewEvaluationAPITests(APITestCase):
             if original_flag is not None:
                 os.environ['USE_REAL_TRANSCRIPTION'] = original_flag
 
-        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
-        self.assertIn('Real transcription is disabled', str(response.data['detail']))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
+        self.assertIn('Mock transcript', response.data['transcript_text'])
         openai_transcription.assert_not_called()
 
     def test_real_transcription_missing_api_key_returns_clear_error(self):
@@ -673,7 +688,7 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(transcript.transcript_text, response.data['transcript_text'])
         self.assertEqual(transcript.transcript_json['algorithm'], 'automatic_speech_recognition')
 
-    def test_real_transcription_disabled_returns_clear_error_without_saving_transcript(self):
+    def test_real_transcription_disabled_uses_mock_transcription(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
@@ -682,9 +697,9 @@ class InterviewEvaluationAPITests(APITestCase):
         ) as openai_transcription:
             response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
-        self.assertIn('Real transcription is disabled', str(response.data['detail']))
-        self.assertFalse(InterviewTranscript.objects.filter(recording=recording).exists())
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
+        self.assertTrue(InterviewTranscript.objects.filter(recording=recording).exists())
         openai_transcription.assert_not_called()
 
     def create_transcript(self, text='Candidate communicated clearly and discussed Django API experience.'):
@@ -696,7 +711,7 @@ class InterviewEvaluationAPITests(APITestCase):
             transcript_json={'provider': 'openai', 'mode': 'real'},
         )
 
-    def test_real_summary_requires_explicit_configuration(self):
+    def test_real_summary_disabled_uses_mock_summary(self):
         transcript = self.create_transcript()
 
         with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'False'}), patch(
@@ -704,9 +719,11 @@ class InterviewEvaluationAPITests(APITestCase):
         ) as openai_summary:
             response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
-        self.assertIn('Real summary generation is disabled', str(response.data['detail']))
-        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 0)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['transparency']['provider'], 'mock')
+        self.assertEqual(response.data['transparency']['generation_mode'], 'local_development')
+        self.assertEqual(response.data['summary_json']['model'], 'mock-summary-v1')
+        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 1)
         openai_summary.assert_not_called()
 
     def test_real_summary_missing_api_key_returns_clear_error(self):

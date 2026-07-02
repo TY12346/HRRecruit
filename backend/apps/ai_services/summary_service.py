@@ -1,4 +1,4 @@
-"""Interview AI summary service with strict real-LLM behavior.
+"""Interview AI summary service with optional real-LLM and local mock behavior.
 
 The current backend stores and validates ``communication_score`` on a 0-10 scale.
 This service preserves that scale for API compatibility instead of adopting the
@@ -221,13 +221,36 @@ def run_real_summary(cleaned_transcript):
         raise SummaryGenerationUnavailable(f'Real summary generation failed: {exc.__class__.__name__}') from exc
 
 
+def build_mock_summary(cleaned_transcript):
+    """Return a deterministic local summary for early development/demo use."""
+    excerpt = cleaned_transcript[:240] or 'No transcript text was available.'
+    metadata = build_summary_transparency_metadata(
+        cleaned_transcript,
+        provider='mock',
+        model='mock-summary-v1',
+        generation_mode='local_development',
+    )
+    metadata['mock_reason'] = 'USE_REAL_SUMMARY is not enabled'
+    return validate_structured_summary({
+        'strengths': 'Mock draft: the candidate provided relevant interview responses that should be reviewed by the interviewer.',
+        'weaknesses': 'Mock draft: verify the transcript manually and replace this draft if more specific weaknesses are identified.',
+        'communication_score': Decimal('7.00'),
+        'overall_impression': 'Mock draft generated for local development. Review the transcript before using this summary in evaluation.',
+        'editable_summary_text': (
+            'Mock AI summary draft for interviewer review. Transcript excerpt: '
+            f'{excerpt}'
+        ),
+        'summary_json': metadata,
+    })
+
+
 def generate_summary_payload(transcript):
     """Return unsaved structured summary payload for a transcript."""
     cleaned_transcript = preprocess_transcript_text(transcript)
 
-    if not use_real_summary_enabled():
-        raise SummaryGenerationUnavailable('Real summary generation is disabled. Set USE_REAL_SUMMARY=True and configure OPENAI_API_KEY.')
-    return run_real_summary(cleaned_transcript)
+    if use_real_summary_enabled():
+        return run_real_summary(cleaned_transcript)
+    return build_mock_summary(cleaned_transcript)
 
 
 # Compatibility name for older imports/tests.

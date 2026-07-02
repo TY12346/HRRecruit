@@ -1,4 +1,4 @@
-"""Interview audio transcription service with strict real-ASR behavior."""
+"""Interview audio transcription service with local mock fallback behavior."""
 
 from __future__ import annotations
 
@@ -118,15 +118,41 @@ def run_real_transcription(audio_file):
     }
 
 
+def build_mock_transcription(recording, audio_file):
+    """Return a deterministic local transcript for early development/demo use."""
+    interview = getattr(recording, 'interview', None)
+    application = getattr(interview, 'application', None)
+    job = getattr(application, 'job', None)
+    applicant = getattr(application, 'applicant', None)
+    job_title = getattr(job, 'title', '') or 'the role'
+    applicant_name = getattr(applicant, 'full_name', '') or 'the candidate'
+    return {
+        'text': (
+            f'Mock transcript for {applicant_name} interviewing for {job_title}. '
+            'The interviewer asked about relevant experience, communication, role fit, '
+            'and follow-up areas for human evaluation. Replace this mock transcript with '
+            'real transcription when USE_REAL_TRANSCRIPTION=True and OPENAI_API_KEY is configured.'
+        ),
+        'metadata': {
+            'provider': 'mock',
+            'mode': 'local_development',
+            'model': 'mock-transcription-v1',
+            'preprocessing': 'skipped_for_local_fyp_development',
+            'mock_reason': 'USE_REAL_TRANSCRIPTION is not enabled',
+            'audio_file_name': audio_file.name,
+        },
+    }
+
+
 def transcribe_recording_payload(recording):
-    """Return unsaved transcript payload, failing clearly if real ASR is unavailable."""
+    """Return unsaved transcript payload using real ASR only when explicitly enabled."""
     audio_file = validate_recording_audio_file(recording)
     processed_audio = preprocess_audio(audio_file)
 
-    if not use_real_transcription_enabled():
-        raise TranscriptionUnavailable('Real transcription is disabled. Set USE_REAL_TRANSCRIPTION=True and configure OPENAI_API_KEY.')
-
-    result = run_real_transcription(processed_audio)
+    if use_real_transcription_enabled():
+        result = run_real_transcription(processed_audio)
+    else:
+        result = build_mock_transcription(recording, processed_audio)
     result['metadata']['recording_id'] = recording.id
 
     cleaned_text = post_process_transcript(result['text'])

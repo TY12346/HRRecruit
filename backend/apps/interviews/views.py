@@ -133,7 +133,7 @@ def base_interview_queryset():
         'organization',
         'recruiter',
         'interviewer',
-    ).prefetch_related('status_history', 'calendar_events')
+    ).prefetch_related('application__job__interview_evaluation_form__criteria', 'status_history', 'calendar_events')
 
 
 def visible_interviews_for(user):
@@ -315,7 +315,7 @@ def change_application_status(application, new_status, changed_by, note):
 
 
 def create_interview_booking_side_effects(scheduling_request, interview, applicant):
-    """Create booking notifications after strict calendar sync has succeeded."""
+    """Create booking notifications after an applicant selects a slot."""
     notification_payloads = [
         (
             scheduling_request.recruiter,
@@ -668,8 +668,11 @@ def book_scheduling_request(request, scheduling_request):
     )
     try:
         sync_calendar_event_for_interview(interview)
-    except (GoogleCalendarConfigurationError, GoogleCalendarSyncError) as exc:
-        raise ValidationError({'google_calendar': str(exc)}) from exc
+    except (GoogleCalendarConfigurationError, GoogleCalendarSyncError):
+        logger.exception(
+            'Skipping Google Calendar sync for self-scheduled interview %s.',
+            interview.id,
+        )
 
     transaction.on_commit(
         lambda: create_interview_booking_side_effects(scheduling_request, interview, request.user)

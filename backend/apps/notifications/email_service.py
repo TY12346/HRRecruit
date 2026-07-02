@@ -1,17 +1,18 @@
-"""SendGrid email delivery helpers for HRRecruit notifications."""
+"""Email delivery helpers for HRRecruit notifications."""
 
 import json
 from urllib import request as urlrequest
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
+from django.core.mail import send_mail
 
 
 SENDGRID_MAIL_SEND_URL = 'https://api.sendgrid.com/v3/mail/send'
 
 
 class SendGridConfigurationError(RuntimeError):
-    """Raised when SendGrid email delivery is requested without credentials."""
+    """Raised when required email delivery settings are missing."""
 
 
 def _from_email():
@@ -52,12 +53,27 @@ def _send_via_sendgrid(subject, message, recipient_list):
 
 
 def send_email(subject, message, recipient_list):
-    """Send a plain-text email through SendGrid only."""
+    """Send a plain-text email through SendGrid when configured, otherwise Django email.
+
+    Early HRRecruit development uses Django's console email backend by default, so
+    account-creation flows must not fail just because SendGrid credentials are
+    absent or only partially configured in a local/demo environment.
+    """
     recipients = [email for email in recipient_list if email]
     if not recipients:
-        raise SendGridConfigurationError('At least one recipient email is required for SendGrid delivery.')
+        raise SendGridConfigurationError('At least one recipient email is required for email delivery.')
 
-    return _send_via_sendgrid(subject, message, recipients)
+    if _sendgrid_api_key() and _from_email():
+        return _send_via_sendgrid(subject, message, recipients)
+
+    sent_count = send_mail(
+        subject=subject,
+        message=message,
+        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+        recipient_list=recipients,
+        fail_silently=False,
+    )
+    return {'provider': 'django_email_backend', 'sent_count': sent_count}
 
 
 def _web_password_reset_base_url():
