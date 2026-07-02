@@ -168,15 +168,11 @@ class ApplicantAuthService {
 
   Future<ApplicantProfile> updateResume({
     required int resumeId,
-    String? title,
-    bool? isDefault,
+    required String title,
   }) async {
     await _apiClient.dio.patch<Map<String, dynamic>>(
       'auth/resumes/$resumeId/',
-      data: {
-        if (title != null) 'title': title,
-        if (isDefault != null) 'is_default': isDefault,
-      },
+      data: {'title': title},
     );
     return getProfile();
   }

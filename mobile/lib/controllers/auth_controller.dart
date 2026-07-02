@@ -212,17 +212,6 @@ class AuthController extends ChangeNotifier {
     });
   }
 
-  Future<void> setDefaultResume({required int resumeId}) async {
-    await _runAuthAction(() async {
-      final profile = await _authService.updateResume(
-        resumeId: resumeId,
-        isDefault: true,
-      );
-      _ensureApplicant(profile);
-      _profile = profile;
-    });
-  }
-
   Future<void> deleteResume({required int resumeId}) async {
     await _runAuthAction(() async {
       final profile = await _authService.deleteResume(resumeId: resumeId);

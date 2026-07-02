@@ -130,21 +130,6 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
     }
   }
 
-  Future<void> _setDefault(ApplicantResume resume) async {
-    try {
-      await context.read<AuthController>().setDefaultResume(resumeId: resume.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_resumeLabel(resume)} is now your default resume.'),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      showErrorSnackBar(context, error);
-    }
-  }
-
   Future<void> _renameResume(ApplicantResume resume) async {
     final controller = TextEditingController(text: _resumeLabel(resume));
     final newLabel = await showDialog<String>(
@@ -331,19 +316,16 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
       child: ListTile(
         leading: const Icon(Icons.description_outlined),
         title: Text(_resumeLabel(resume)),
-        subtitle: Text(resume.isDefault ? 'Default resume' : 'Available resume'),
+        subtitle: const Text('Available for job applications'),
         trailing: PopupMenuButton<String>(
           enabled: !isLoading,
           onSelected: (value) {
             if (value == 'view') _viewResume(resume);
-            if (value == 'default') _setDefault(resume);
             if (value == 'rename') _renameResume(resume);
             if (value == 'delete') _deleteResume(resume);
           },
           itemBuilder: (context) => [
             const PopupMenuItem(value: 'view', child: Text('View')),
-            if (!resume.isDefault)
-              const PopupMenuItem(value: 'default', child: Text('Make default')),
             const PopupMenuItem(value: 'rename', child: Text('Edit label')),
             const PopupMenuItem(value: 'delete', child: Text('Delete')),
           ],
