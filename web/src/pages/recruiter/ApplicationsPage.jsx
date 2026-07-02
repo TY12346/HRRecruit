@@ -20,6 +20,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { getApplications, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
+import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
 import { candidateFitFromScore } from './candidateFit.js';
 import { applicationName, formatDateTime, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 import { renderApplicationTemplate } from './communicationTemplates.js';
@@ -222,9 +223,9 @@ export default function ApplicationsPage() {
           <TableBody>
             {applications.map((app) => (
               <TableRow key={app.id}>
-                <TableCell>{applicationName(app)}</TableCell>
+                <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{applicationName(app)}</Typography><Typography variant="caption" color="text.secondary">{getApplicationStatusInfo(app.status, 'recruiter').nextAction}</Typography></TableCell>
                 <TableCell>{app.job_title}</TableCell>
-                <TableCell><Chip label={titleize(app.status)} size="small" /></TableCell>
+                <TableCell><Tooltip title={getApplicationStatusInfo(app.status, 'recruiter').description}><Chip label={getApplicationStatusInfo(app.status, 'recruiter').label} size="small" /></Tooltip></TableCell>
                 <TableCell><FitChip score={app.final_score} /></TableCell>
                 <TableCell>{scoreText(app.final_score)}</TableCell>
                 <TableCell>{formatDateTime(app.applied_at)}</TableCell>

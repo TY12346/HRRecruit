@@ -3,7 +3,9 @@ import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Tab
 import { useParams } from 'react-router-dom';
 import { getApplications, submitHiringDecision } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
-import { applicationName, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
+import { applicationName, getApiErrorMessage, scoreText } from './recruiterUtils.js';
+import ApplicationFlowSummary from '../../components/ApplicationFlowSummary.jsx';
+import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
 
 const EVALUATED_STATUS = 'evaluation_submitted';
 
@@ -75,7 +77,7 @@ export default function HiringDecisionPage() {
             ) : null}
             {selected && !selectedIsEligible ? (
               <Alert severity="warning">
-                {applicationName(selected)} is currently {titleize(selected.status)}. Hiring decisions are enabled only for candidates with completed interview evaluations.
+                {applicationName(selected)} is currently {getApplicationStatusInfo(selected.status, 'recruiter').label}. Hiring decisions are enabled only after the interviewer submits the evaluation.
               </Alert>
             ) : null}
             <Box component="form" onSubmit={submit}>
@@ -98,7 +100,7 @@ export default function HiringDecisionPage() {
                   ))}
                 </TextField>
                 {selectedIsEligible ? (
-                  <Alert severity="info">Status: {titleize(selected.status)} • Final AI score: {scoreText(selected.final_score)}</Alert>
+                  <ApplicationFlowSummary status={selected.status} role="recruiter" compact />
                 ) : null}
                 <TextField label="Decision" select value={decision} onChange={(e) => setDecision(e.target.value)} disabled={!selectedIsEligible}>
                   <MenuItem value="hire">Recommend hire</MenuItem>
@@ -126,7 +128,7 @@ export default function HiringDecisionPage() {
                   <TableRow key={app.id}>
                     <TableCell>{applicationName(app)}</TableCell>
                     <TableCell>{app.job_title}</TableCell>
-                    <TableCell><Chip label={titleize(app.status)} size="small" color="success" /></TableCell>
+                    <TableCell><Chip label={getApplicationStatusInfo(app.status, 'recruiter').label} size="small" color="success" /></TableCell>
                     <TableCell>{scoreText(app.final_score)}</TableCell>
                   </TableRow>
                 ))}

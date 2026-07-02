@@ -17,6 +17,8 @@ import {
 import { approveHiringDecision, getPendingHiringDecisions, rejectHiringDecision } from '../../api/client.js';
 import HRHeadNav from './HRHeadNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import ApplicationFlowSummary from '../../components/ApplicationFlowSummary.jsx';
+import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
 
 export default function PendingHiringDecisionsPage() {
   const [decisions, setDecisions] = useState([]);
@@ -153,7 +155,8 @@ export default function PendingHiringDecisionsPage() {
                   </Stack>
                   <Typography><strong>Recruiter justification:</strong> {decision.recruiter_justification}</Typography>
                   <Typography><strong>Applicant:</strong> {applicant.email ?? '—'} {applicant.phone_number ? `• ${applicant.phone_number}` : ''}</Typography>
-                  <Typography><strong>Application status:</strong> {titleize(application.status)}</Typography>
+                  <Typography><strong>Application status:</strong> {getApplicationStatusInfo(application.status, 'hr_head').label}</Typography>
+                  <ApplicationFlowSummary status={application.status} role="hr_head" compact />
                   <Typography><strong>AI final score:</strong> {application.final_score ?? '—'}</Typography>
                 </Stack>
               </CardContent>

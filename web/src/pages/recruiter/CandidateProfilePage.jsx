@@ -20,6 +20,8 @@ import {
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { getApplicationStatusHistory, getCandidateProfile, openApplicationResume, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
+import ApplicationFlowSummary from '../../components/ApplicationFlowSummary.jsx';
+import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
 import { applicationName, formatDateTime, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 import { renderApplicationTemplate } from './communicationTemplates.js';
 import { buildScreeningExplainability } from './screeningExplainability.js';
@@ -226,7 +228,7 @@ export default function CandidateProfilePage() {
               <Box>
                 <Typography variant="h5" sx={{ fontWeight: 700 }}>{applicationName(profile)}</Typography>
                 <Typography color="text.secondary">{applicant?.email} • {applicant?.phone_number || 'No phone'}</Typography>
-                <Chip label={titleize(profile.status)} sx={{ mt: 1 }} />
+                <Chip label={getApplicationStatusInfo(profile.status, 'recruiter').label} sx={{ mt: 1 }} />
               </Box>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 {profile.status !== 'rejected' ? <Button component={RouterLink} to={`/recruiter/applications/${applicationId}/assign-interview`} variant="outlined">Assign interviewer</Button> : null}
@@ -234,6 +236,8 @@ export default function CandidateProfilePage() {
                 {profile.status !== 'rejected' ? <Button color="error" onClick={reject} variant="outlined">Reject</Button> : null}
               </Stack>
             </Stack>
+
+            <ApplicationFlowSummary status={profile.status} role="recruiter" />
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
@@ -258,7 +262,7 @@ export default function CandidateProfilePage() {
                 {history.map((item) => (
                   <ListItem key={item.id}>
                     <ListItemText
-                      primary={`${titleize(item.from_stage)} → ${titleize(item.to_stage)}`}
+                      primary={`${getApplicationStatusInfo(item.from_stage, 'recruiter').label} → ${getApplicationStatusInfo(item.to_stage, 'recruiter').label}`}
                       secondary={`${item.note || 'No note'} • ${item.changed_by_name || 'System'} • ${formatDateTime(item.changed_at)}`}
                     />
                   </ListItem>
