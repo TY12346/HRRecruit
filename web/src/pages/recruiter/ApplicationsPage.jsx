@@ -231,10 +231,9 @@ export default function ApplicationsPage() {
                 <TableCell>{formatDateTime(app.applied_at)}</TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Button component={RouterLink} to={`/recruiter/applications/${app.id}`} size="small">Profile</Button>
                     {app.status !== 'rejected' ? (
                       <Button component={RouterLink} to={`/recruiter/applications/${app.id}/assign-interview`} size="small">
-                        Assign
+                        Assign interviewer
                       </Button>
                     ) : null}
                     {app.status !== 'rejected' ? (
