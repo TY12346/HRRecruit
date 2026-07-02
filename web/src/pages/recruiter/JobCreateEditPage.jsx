@@ -3,10 +3,8 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
   CircularProgress,
   FormControl,
-  FormControlLabel,
   InputLabel,
   MenuItem,
   Paper,
@@ -66,10 +64,8 @@ export default function JobCreateEditPage() {
   const [form, setForm] = useState(blankJob);
   const [activeStep, setActiveStep] = useState(0);
   const [requirements, setRequirements] = useState([cloneRequirement()]);
-  const [normalizeRequirements, setNormalizeRequirements] = useState(true);
   const [evaluationTitle, setEvaluationTitle] = useState('Interview Evaluation Form');
   const [criteria, setCriteria] = useState([cloneCriterion()]);
-  const [normalizeCriteria, setNormalizeCriteria] = useState(true);
   const [createdJobId, setCreatedJobId] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(isEdit);
@@ -169,7 +165,7 @@ export default function JobCreateEditPage() {
       try {
         await configureJobRequirements(job.id, {
           requirements: prepareRequirementsForApi(requirements),
-          normalize_weights: normalizeRequirements,
+          normalize_weights: true,
         });
       } catch (err) {
         setActiveStep(1);
@@ -178,7 +174,7 @@ export default function JobCreateEditPage() {
 
       await createJobEvaluationForm(job.id, {
         title: evaluationTitle,
-        criteria: prepareCriteriaForApi(criteria, { normalizeImportance: normalizeCriteria }),
+        criteria: prepareCriteriaForApi(criteria),
       });
       navigate(`/recruiter/jobs/${job.id}`);
     } catch (err) {
@@ -263,13 +259,6 @@ export default function JobCreateEditPage() {
           </Stack>
         </Paper>
       ))}
-      <FormControlLabel
-        control={<Checkbox checked={normalizeRequirements} onChange={(event) => setNormalizeRequirements(event.target.checked)} />}
-        label="Auto-balance importance values so the AI scoring weights add up correctly"
-      />
-      <Typography variant="caption" color="text.secondary">
-        Real recruitment tools usually ask for priorities such as must-have or nice-to-have, then normalize the underlying weights for consistent scoring.
-      </Typography>
       <Button onClick={() => setRequirements((items) => [...items, cloneRequirement()])} variant="outlined">
         Add requirement
       </Button>
@@ -328,13 +317,6 @@ export default function JobCreateEditPage() {
           </Stack>
         </Paper>
       ))}
-      <FormControlLabel
-        control={<Checkbox checked={normalizeCriteria} onChange={(event) => setNormalizeCriteria(event.target.checked)} />}
-        label="Auto-balance interview scoring importance so criterion weights add up correctly"
-      />
-      <Typography variant="caption" color="text.secondary">
-        This mirrors real evaluation forms: HR defines competency priorities, while the system converts them into balanced scoring weights.
-      </Typography>
       <Button onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">
         Add criterion
       </Button>
