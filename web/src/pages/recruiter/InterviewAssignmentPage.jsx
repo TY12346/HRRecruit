@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { assignInterviewer, createInterviewSchedulingRequest, getApplication, getGoogleCalendarConnectUrl, getGoogleCalendarStatus, getOrganizationMembers } from '../../api/client.js';
+import { createInterviewSchedulingRequest, getApplication, getGoogleCalendarConnectUrl, getGoogleCalendarStatus, getOrganizationMembers } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 import { buildApplicationTemplateContext, getCommunicationTemplates, renderCommunicationTemplate } from './communicationTemplates.js';
@@ -14,8 +14,6 @@ export default function InterviewAssignmentPage() {
   const [interviewerId, setInterviewerId] = useState('');
   const [remark, setRemark] = useState('');
   const [templateId, setTemplateId] = useState('self_schedule_standard');
-  const [assignmentMode, setAssignmentMode] = useState('self_scheduling');
-  const [createdInterview, setCreatedInterview] = useState(null);
   const [schedulingRequest, setSchedulingRequest] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -37,16 +35,13 @@ export default function InterviewAssignmentPage() {
       .finally(() => setIsLoading(false));
   }, [applicationId]);
 
-  const templateType = assignmentMode === 'self_scheduling' ? 'interview_self_scheduling' : 'manual_interview_assignment';
-  const templates = getCommunicationTemplates(templateType);
+  const templates = getCommunicationTemplates('interview_self_scheduling');
 
   const applyTemplate = (selectedTemplateId) => {
     setTemplateId(selectedTemplateId);
     const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
     setRemark(renderCommunicationTemplate(selectedTemplate, buildApplicationTemplateContext(application ?? {})));
   };
-
-
 
   const connectGoogleCalendar = async () => {
     setError('');
@@ -68,15 +63,9 @@ export default function InterviewAssignmentPage() {
     setSuccess('');
     setIsSaving(true);
     try {
-      if (assignmentMode === 'self_scheduling') {
-        const request = await createInterviewSchedulingRequest(applicationId, { interviewer_id: Number(interviewerId), remark });
-        setSchedulingRequest(request);
-        setSuccess('Self-scheduling request created. The applicant can now choose from the interviewer availability slots.');
-        return;
-      }
-      const interview = await assignInterviewer(applicationId, { interviewer_id: Number(interviewerId), note: remark });
-      setCreatedInterview(interview);
-      setSuccess('Interviewer assigned successfully. The interviewer can now continue from their portal.');
+      const request = await createInterviewSchedulingRequest(applicationId, { interviewer_id: Number(interviewerId), remark });
+      setSchedulingRequest(request);
+      setSuccess('Self-scheduling request created. The applicant can now choose from the interviewer availability slots.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to assign interviewer.'));
     } finally {
@@ -86,11 +75,7 @@ export default function InterviewAssignmentPage() {
 
   const nextStepMessage = schedulingRequest
     ? `Scheduling request #${schedulingRequest.id} has been created. The interview will be created after the applicant chooses a slot.`
-    : `Interview record ${createdInterview ? `#${createdInterview.id}` : 'will be created after assignment'}.`;
-
-  const nextStepHelp = schedulingRequest
-    ? ''
-    : ' The applicant should use the mobile Schedule interviews page to choose a slot from the interviewer availability.';
+    : 'The applicant should use the mobile Schedule interviews page to choose a slot from the interviewer availability.';
 
   return (
     <Box>
@@ -129,19 +114,15 @@ export default function InterviewAssignmentPage() {
               </Stack>
             </Paper>
 
-            {!createdInterview && !schedulingRequest ? (
+            {!schedulingRequest ? (
               <Box component="form" onSubmit={assign}>
                 <Stack spacing={2}>
-                  <TextField label="Scheduling method" select value={assignmentMode} onChange={(e) => { const nextMode = e.target.value; setAssignmentMode(nextMode); const nextTemplates = getCommunicationTemplates(nextMode === 'self_scheduling' ? 'interview_self_scheduling' : 'manual_interview_assignment'); if (nextTemplates[0]) { setTemplateId(nextTemplates[0].id); setRemark(renderCommunicationTemplate(nextTemplates[0], buildApplicationTemplateContext(application ?? {}))); } }}>
-                    <MenuItem value="self_scheduling">Self-scheduling request</MenuItem>
-                    <MenuItem value="manual_assignment">Manual interviewer assignment</MenuItem>
-                  </TextField>
                   <TextField label="Interviewer" select required value={interviewerId} onChange={(e) => setInterviewerId(e.target.value)}>
                     {interviewers.map((member) => <MenuItem key={member.id} value={member.user_id}>{member.full_name} ({member.email})</MenuItem>)}
                   </TextField>
                   <TextField label="Candidate communication template" select value={templateId} onChange={(e) => applyTemplate(e.target.value)} helperText="Choose a reusable message style, then edit the text before sending.">{templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.label} — {template.tone}</MenuItem>)}</TextField>
-                  <TextField label={assignmentMode === 'self_scheduling' ? 'Candidate scheduling message' : 'Interviewer briefing note'} multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText={assignmentMode === 'self_scheduling' ? 'This remark is shown on the scheduling request.' : 'This remark is stored with the assignment workflow.'} />
-                  <Button type="submit" variant="contained" disabled={isSaving}>{isSaving ? 'Saving…' : assignmentMode === 'self_scheduling' ? 'Create self-scheduling request' : 'Assign interviewer'}</Button>
+                  <TextField label="Candidate scheduling message" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText="This remark is shown on the scheduling request." />
+                  <Button type="submit" variant="contained" disabled={isSaving}>{isSaving ? 'Saving…' : 'Create self-scheduling request'}</Button>
                 </Stack>
               </Box>
             ) : null}
@@ -149,9 +130,8 @@ export default function InterviewAssignmentPage() {
               <Typography variant="h6">Next step</Typography>
               <Typography color="text.secondary">
                 {nextStepMessage}
-                {nextStepHelp}
               </Typography>
-              <Button disabled={!createdInterview && !schedulingRequest} onClick={() => navigate('/recruiter/interviews')} sx={{ mt: 2 }} variant="outlined">View interviews</Button>
+              <Button disabled={!schedulingRequest} onClick={() => navigate('/recruiter/interviews')} sx={{ mt: 2 }} variant="outlined">View interviews</Button>
             </Paper>
           </Stack>
         )}
