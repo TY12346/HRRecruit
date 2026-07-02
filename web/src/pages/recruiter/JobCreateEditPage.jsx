@@ -36,10 +36,8 @@ import {
 } from './evaluationScoring.js';
 import {
   applyImportance,
-  applyMatchThreshold,
   cloneRequirement,
   importanceOptions,
-  matchThresholdOptions,
   prepareRequirementsForApi,
 } from './requirementScoring.js';
 
@@ -116,9 +114,6 @@ export default function JobCreateEditPage() {
       }
       if (field === 'importance_level') {
         return applyImportance(item, value);
-      }
-      if (field === 'match_strictness') {
-        return applyMatchThreshold(item, value);
       }
       return { ...item, [field]: value };
     }));
@@ -254,22 +249,9 @@ export default function JobCreateEditPage() {
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                label="Minimum match required"
-                select
-                helperText="Choose how strong the resume evidence should be before this item counts as matched."
-                value={requirement.match_strictness}
-                onChange={(event) => updateRequirement(index, 'match_strictness', event.target.value)}
-              >
-                {matchThresholdOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label} — {option.description}
-                  </MenuItem>
-                ))}
-              </TextField>
             </Stack>
             <Typography variant="caption" color="text.secondary">
-              HRRecruit converts these choices into AI scoring values: weight {requirement.weight_score}, minimum threshold {requirement.minimum_threshold}.
+              HRRecruit converts this priority into an AI scoring weight: {requirement.weight_score}.
             </Typography>
             <Button
               color="error"
