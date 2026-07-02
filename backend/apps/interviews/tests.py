@@ -711,7 +711,7 @@ class InterviewEvaluationAPITests(APITestCase):
             transcript_json={'provider': 'openai', 'mode': 'real'},
         )
 
-    def test_real_summary_requires_explicit_configuration(self):
+    def test_real_summary_disabled_uses_mock_summary(self):
         transcript = self.create_transcript()
 
         with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'False'}), patch(
@@ -719,9 +719,11 @@ class InterviewEvaluationAPITests(APITestCase):
         ) as openai_summary:
             response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
-        self.assertIn('Real summary generation is disabled', str(response.data['detail']))
-        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 0)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['transparency']['provider'], 'mock')
+        self.assertEqual(response.data['transparency']['generation_mode'], 'local_development')
+        self.assertEqual(response.data['summary_json']['model'], 'mock-summary-v1')
+        self.assertEqual(InterviewAISummary.objects.filter(transcript=transcript).count(), 1)
         openai_summary.assert_not_called()
 
     def test_real_summary_missing_api_key_returns_clear_error(self):
