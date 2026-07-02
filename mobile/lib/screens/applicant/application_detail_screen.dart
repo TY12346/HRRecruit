@@ -76,7 +76,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       child: Scaffold(
         appBar: appScreenAppBar(context, title: 'Application details'),
         body: SafeArea(
-        child: FutureBuilder<_ApplicationDetailData>(
+          child: FutureBuilder<_ApplicationDetailData>(
           future: _detailFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -87,23 +87,36 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
             }
             final data = snapshot.data!;
             final application = data.application;
+            final statusInfo = applicationStatusInfo(application.status);
             return ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                Text(application.jobTitle, style: Theme.of(context).textTheme.headlineSmall),
+                Text(
+                  application.jobTitle,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
                 const SizedBox(height: 6),
-                Text(application.organizationName, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  application.organizationName,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    Chip(label: Text(titleCaseStatus(application.status))),
+                    Chip(label: Text(statusInfo.label)),
                     Chip(label: Text('Applied ${formatDate(application.appliedAt)}')),
                     if (application.finalScore != null)
-                      Chip(label: Text('AI score ${application.finalScore!.toStringAsFixed(2)}')),
+                      Chip(
+                        label: Text(
+                          'AI score ${application.finalScore!.toStringAsFixed(2)}',
+                        ),
+                      ),
                   ],
                 ),
+                const SizedBox(height: 20),
+                ApplicationFlowCard(status: application.status),
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -128,12 +141,18 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                 ),
                 if (application.recruiterRemark.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  Text('Recruiter remark', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Recruiter remark',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   Text(application.recruiterRemark),
                 ],
                 const SizedBox(height: 24),
-                Text('Status history', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Status history',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
                 if (data.history.isEmpty)
                   const Text('No status history is available yet.')
@@ -144,8 +163,57 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               ],
             );
           },
+          ),
         ),
       ),
+    );
+  }
+}
+
+class ApplicationFlowCard extends StatelessWidget {
+  const ApplicationFlowCard({super.key, required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final info = applicationStatusInfo(status);
+    final currentIndex = applicationPhaseIndex(status);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Current stage: ${info.label}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(info.description),
+            const SizedBox(height: 6),
+            Text(
+              'Next action: ${info.nextAction}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < applicationFlowPhases.length; i++)
+                  Chip(
+                    label: Text(applicationFlowPhases[i]),
+                    backgroundColor: i == currentIndex
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : i < currentIndex
+                            ? Theme.of(context).colorScheme.secondaryContainer
+                            : null,
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -158,8 +226,8 @@ class TimelineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fromStage = titleCaseStatus(history.fromStage);
-    final toStage = titleCaseStatus(history.toStage);
+    final fromStage = applicationStatusInfo(history.fromStage).label;
+    final toStage = applicationStatusInfo(history.toStage).label;
     return Card(
       child: ListTile(
         leading: const Icon(Icons.history),

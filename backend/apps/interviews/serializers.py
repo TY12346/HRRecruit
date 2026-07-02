@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.applications.serializers import AssignedInterviewerSerializer, JobApplicationSerializer
+from apps.jobs.serializers import EvaluationCriterionSerializer
 from apps.users.models import User
 from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
 
@@ -37,6 +38,7 @@ class InterviewSerializer(serializers.ModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     interviewer = AssignedInterviewerSerializer(read_only=True)
     calendar_link = serializers.SerializerMethodField()
+    evaluation_criteria = serializers.SerializerMethodField()
     status_history = InterviewStatusHistorySerializer(many=True, read_only=True)
 
     class Meta:
@@ -58,6 +60,7 @@ class InterviewSerializer(serializers.ModelSerializer):
             'location',
             'status',
             'calendar_link',
+            'evaluation_criteria',
             'status_history',
             'created_at',
             'updated_at',
@@ -75,6 +78,12 @@ class InterviewSerializer(serializers.ModelSerializer):
     def get_calendar_link(self, interview):
         event = interview.calendar_events.order_by('-id').first()
         return event.calendar_link if event else ''
+
+    def get_evaluation_criteria(self, interview):
+        form = getattr(interview.application.job, 'interview_evaluation_form', None)
+        if not form:
+            return []
+        return EvaluationCriterionSerializer(form.criteria.all(), many=True).data
 
 
 class InterviewerAvailabilityPatternSerializer(serializers.ModelSerializer):
