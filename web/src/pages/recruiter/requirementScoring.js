@@ -25,38 +25,11 @@ export const importanceOptions = [
   },
 ];
 
-export const matchThresholdOptions = [
-  {
-    value: 'strict',
-    label: 'Strict match',
-    description: 'Expect clear evidence in the resume before treating this requirement as matched.',
-    minimum_threshold: '0.80',
-  },
-  {
-    value: 'standard',
-    label: 'Standard match',
-    description: 'Use normal matching. This is recommended for most requirements.',
-    minimum_threshold: '0.60',
-  },
-  {
-    value: 'flexible',
-    label: 'Flexible match',
-    description: 'Accept partial evidence and keep more candidates available for human review.',
-    minimum_threshold: '0.40',
-  },
-  {
-    value: 'manual_review',
-    label: 'Manual review',
-    description: 'Use the requirement mainly as a recruiter note with very light automated influence.',
-    minimum_threshold: '0.20',
-  },
-];
 
 export const blankRequirement = {
   requirement_type: 'skill',
   description: '',
   importance_level: 'important',
-  match_strictness: 'standard',
   weight_score: '0.30',
   minimum_threshold: '0.60',
 };
@@ -89,7 +62,6 @@ export function hydrateRequirement(requirement = {}) {
     weight_score: weightScore,
     minimum_threshold: minimumThreshold,
     importance_level: requirement.importance_level ?? findClosestOption(weightScore, importanceOptions, 'weight_score').value,
-    match_strictness: requirement.match_strictness ?? findClosestOption(minimumThreshold, matchThresholdOptions, 'minimum_threshold').value,
   };
 }
 
@@ -102,19 +74,11 @@ export function applyImportance(requirement, importanceLevel) {
   };
 }
 
-export function applyMatchThreshold(requirement, matchStrictness) {
-  const option = matchThresholdOptions.find((item) => item.value === matchStrictness) ?? matchThresholdOptions[1];
-  return {
-    ...requirement,
-    match_strictness: option.value,
-    minimum_threshold: option.minimum_threshold,
-  };
-}
 
 export function cloneRequirement() {
   return { ...blankRequirement };
 }
 
 export function prepareRequirementsForApi(requirements) {
-  return requirements.map(({ importance_level, match_strictness, ...requirement }) => requirement);
+  return requirements.map(({ importance_level, ...requirement }) => requirement);
 }
