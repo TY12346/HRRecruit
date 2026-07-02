@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import fitz
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from docx import Document
 
 from .resume_preprocessor import (
@@ -230,32 +230,36 @@ class SkillExtractorTests(SimpleTestCase):
 
 
 class SemanticMatcherTests(SimpleTestCase):
+    def test_semantic_similarity_uses_fast_fallback_by_default(self):
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 66.67)
+
+    @override_settings(AI_USE_SENTENCE_BERT=True)
     @patch('apps.ai_services.semantic_matcher._get_model', side_effect=ModuleNotFoundError)
-    def test_semantic_similarity_raises_when_dependency_is_unavailable(self, _mock_model):
-        with self.assertRaises(AIServiceUnavailable):
-            semantic_similarity('Python Django developer', 'Django Python engineer')
+    def test_semantic_similarity_falls_back_when_dependency_is_unavailable(self, _mock_model):
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 66.67)
 
+    @override_settings(AI_USE_SENTENCE_BERT=True)
     @patch('apps.ai_services.semantic_matcher._get_model', side_effect=OSError('offline model download failed'))
-    def test_semantic_similarity_raises_when_model_loading_fails(self, _mock_model):
-        with self.assertRaises(AIServiceUnavailable):
-            semantic_similarity('Python Django developer', 'Django Python engineer')
+    def test_semantic_similarity_falls_back_when_model_loading_fails(self, _mock_model):
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 66.67)
 
+    @override_settings(AI_USE_SENTENCE_BERT=True)
     @patch('apps.ai_services.semantic_matcher._get_model')
-    def test_semantic_similarity_raises_when_encoding_fails(self, mock_get_model):
+    def test_semantic_similarity_falls_back_when_encoding_fails(self, mock_get_model):
         mock_get_model.return_value.encode.side_effect = RuntimeError('tensor execution failed')
 
-        with self.assertRaises(AIServiceUnavailable):
-            semantic_similarity('Python Django developer', 'Django Python engineer')
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 66.67)
 
+    @override_settings(AI_USE_SENTENCE_BERT=True)
     @patch('apps.ai_services.semantic_matcher._get_model')
-    def test_semantic_similarity_raises_when_tensor_handling_fails(self, mock_get_model):
+    def test_semantic_similarity_falls_back_when_tensor_handling_fails(self, mock_get_model):
         mock_get_model.return_value.encode.return_value = []
 
-        with self.assertRaises(AIServiceUnavailable):
-            semantic_similarity('Python Django developer', 'Django Python engineer')
+        self.assertEqual(semantic_similarity('Python Django developer', 'Django Python engineer'), 66.67)
 
+    @override_settings(AI_USE_SENTENCE_BERT=True)
     @patch('apps.ai_services.semantic_matcher._get_model')
-    def test_semantic_similarity_uses_model_embeddings_when_dependency_is_available(self, mock_get_model):
+    def test_semantic_similarity_uses_model_embeddings_when_enabled_and_available(self, mock_get_model):
         mock_get_model.return_value.encode.return_value = [_Vector(0.75), _Vector(0.75)]
 
         self.assertEqual(semantic_similarity('  Python,   developer!  ', 'Backend\nengineer'), 75.0)
@@ -265,6 +269,7 @@ class SemanticMatcherTests(SimpleTestCase):
             normalize_embeddings=True,
         )
 
+    @override_settings(AI_USE_SENTENCE_BERT=True)
     @patch('apps.ai_services.semantic_matcher._get_model')
     def test_semantic_similarity_normalizes_model_scores_to_zero_to_one_hundred(self, mock_get_model):
         mock_get_model.return_value.encode.return_value = [_Vector(1.5), _Vector(1.5)]

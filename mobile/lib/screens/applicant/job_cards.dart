@@ -24,6 +24,18 @@ String formatMoney(double value) {
   return 'RM ${value.toStringAsFixed(2)}';
 }
 
+
+String formatJobDescriptionText(String value) {
+  if (value.trim().isEmpty) return '';
+  return value
+      .replaceAll(RegExp(r'\r\n?'), '\n')
+      .replaceAllMapped(RegExp(r'\s+(#{1,6}\s+)'), (match) => '\n\n${match.group(1)}')
+      .replaceAllMapped(RegExp(r'([^\n])\s+(\*\s+[A-Z0-9])'), (match) => '${match.group(1)}\n${match.group(2)}')
+      .replaceAllMapped(RegExp(r'([^\n])\s+([•-]\s+[A-Z0-9])'), (match) => '${match.group(1)}\n${match.group(2)}')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+}
+
 String titleCaseStatus(String status) {
   if (status.isEmpty) return 'Unknown';
   return status
