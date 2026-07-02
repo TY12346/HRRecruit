@@ -540,6 +540,21 @@ class InterviewEvaluationAPITests(APITestCase):
             format='json',
         )
 
+    def test_interview_detail_includes_evaluation_criteria_for_interviewer_form(self):
+        self.authenticate(self.interviewer)
+
+        response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        criteria = response.data['evaluation_criteria']
+        self.assertEqual(len(criteria), 2)
+        self.assertEqual(criteria[0]['id'], self.criterion_one.id)
+        self.assertEqual(criteria[0]['criterion_name'], 'Technical Skills')
+        self.assertEqual(criteria[0]['description'], 'Evaluate technical problem solving.')
+        self.assertEqual(criteria[0]['max_score'], '10.00')
+        self.assertEqual(criteria[0]['weight_score'], '0.60')
+        self.assertEqual(criteria[1]['id'], self.criterion_two.id)
+
     def audio_file(self, name='interview.mp3', content_type='audio/mpeg', content=b'audio bytes'):
         return SimpleUploadedFile(name, content, content_type=content_type)
 

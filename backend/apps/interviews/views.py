@@ -133,7 +133,7 @@ def base_interview_queryset():
         'organization',
         'recruiter',
         'interviewer',
-    ).prefetch_related('status_history', 'calendar_events')
+    ).prefetch_related('application__job__interview_evaluation_form__criteria', 'status_history', 'calendar_events')
 
 
 def visible_interviews_for(user):
