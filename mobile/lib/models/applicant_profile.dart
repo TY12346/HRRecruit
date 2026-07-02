@@ -92,6 +92,35 @@ class ApplicantSkill {
   Map<String, dynamic> toJson() => {'skill_name': skillName};
 }
 
+class ApplicantResume {
+  const ApplicantResume({
+    required this.id,
+    required this.title,
+    required this.resumeFile,
+    this.resumeUrl,
+    required this.isDefault,
+    this.uploadedAt,
+  });
+
+  final int id;
+  final String title;
+  final String resumeFile;
+  final String? resumeUrl;
+  final bool isDefault;
+  final DateTime? uploadedAt;
+
+  factory ApplicantResume.fromJson(Map<String, dynamic> json) {
+    return ApplicantResume(
+      id: json['id'] as int,
+      title: json['title'] as String? ?? '',
+      resumeFile: json['resume_file'] as String? ?? '',
+      resumeUrl: json['resume_url'] as String?,
+      isDefault: json['is_default'] as bool? ?? false,
+      uploadedAt: DateTime.tryParse(json['uploaded_at'] as String? ?? ''),
+    );
+  }
+}
+
 class ApplicantProfile {
   const ApplicantProfile({
     required this.id,
@@ -104,6 +133,7 @@ class ApplicantProfile {
     required this.experiences,
     required this.educations,
     required this.skills,
+    required this.resumes,
     this.resumeFile,
   });
 
@@ -117,6 +147,7 @@ class ApplicantProfile {
   final List<ApplicantExperience> experiences;
   final List<ApplicantEducation> educations;
   final List<ApplicantSkill> skills;
+  final List<ApplicantResume> resumes;
   final String? resumeFile;
 
   factory ApplicantProfile.fromJson(Map<String, dynamic> json) {
@@ -128,9 +159,16 @@ class ApplicantProfile {
       role: json['role'] as String? ?? '',
       linkedinUrl: json['linkedin_url'] as String? ?? '',
       personalSummary: json['personal_summary'] as String? ?? '',
-      experiences: _listFromJson(json['experiences'], ApplicantExperience.fromJson),
-      educations: _listFromJson(json['educations'], ApplicantEducation.fromJson),
+      experiences: _listFromJson(
+        json['experiences'],
+        ApplicantExperience.fromJson,
+      ),
+      educations: _listFromJson(
+        json['educations'],
+        ApplicantEducation.fromJson,
+      ),
       skills: _listFromJson(json['skills'], ApplicantSkill.fromJson),
+      resumes: _listFromJson(json['resumes'], ApplicantResume.fromJson),
       resumeFile: json['resume_file'] as String?,
     );
   }

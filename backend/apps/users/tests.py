@@ -503,6 +503,19 @@ class ApplicantResumeLibraryAPITests(APITestCase):
         self.assertFalse(second_response.data['resume']['is_default'])
         self.assertEqual(self.applicant.resumes.count(), 2)
 
+
+    def test_applicant_cannot_upload_more_than_five_resumes(self):
+        self.client.force_authenticate(user=self.applicant)
+        for index in range(5):
+            response = self.upload_resume(f'resume-{index}.pdf', f'Resume {index}')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        response = self.upload_resume('resume-6.pdf', 'Resume 6')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['resumes'][0], 'You can upload a maximum of 5 resumes.')
+        self.assertEqual(self.applicant.resumes.count(), 5)
+
     def test_applicant_can_change_default_resume(self):
         self.client.force_authenticate(user=self.applicant)
         first_response = self.upload_resume('backend.pdf', 'Backend resume')
