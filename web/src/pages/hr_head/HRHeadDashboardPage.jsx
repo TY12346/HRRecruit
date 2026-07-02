@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Alert, Box, Card, CardContent, CircularProgress, Grid, Stack, Typography } from '@mui/material';
 import { getHRHeadAnalytics, getNotifications, getOrganization, getPendingHiringDecisions } from '../../api/client.js';
 import HRHeadNav from './HRHeadNav.jsx';
 import { getApiErrorMessage } from './hrHeadUtils.js';
@@ -129,28 +128,6 @@ export default function HRHeadDashboardPage() {
             <StatCard label="Offer acceptance rate" value={`${metrics.offer_acceptance_rate ?? 0}%`} />
           </Grid>
         </Grid>
-
-        <Card>
-          <CardContent>
-            <Typography component="h3" variant="h6" sx={{ mb: 2 }}>
-              Quick actions
-            </Typography>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <Button component={RouterLink} to="/hr-head/organization" variant="contained">
-                Organization profile
-              </Button>
-              <Button component={RouterLink} to="/hr-head/team/create" variant="outlined">
-                Create team member
-              </Button>
-              <Button component={RouterLink} to="/hr-head/hiring-decisions" variant="outlined">
-                Review decisions
-              </Button>
-              <Button component={RouterLink} to="/hr-head/billing" variant="outlined">
-                Manage billing
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
       </Stack>
     </Box>
   );
