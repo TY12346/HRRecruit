@@ -4,6 +4,11 @@ from apps.organizations.models import Organization
 from apps.users.models import User
 
 
+class PositionStatus(models.TextChoices):
+    NEW_HEADCOUNT = 'new_headcount', 'New Headcount'
+    BACKFILL = 'backfill', 'Backfill'
+
+
 class JobPosting(models.Model):
     class Status(models.TextChoices):
         DRAFT = 'draft', 'Draft'
@@ -24,8 +29,18 @@ class JobPosting(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     employment_type = models.CharField(max_length=100)
-    approximate_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    approximate_salary = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    salary_range = models.CharField(max_length=255, blank=True)
     location = models.CharField(max_length=255)
+    core_responsibilities = models.TextField(blank=True)
+    requirements_qualifications = models.TextField(blank=True)
+    department = models.CharField(max_length=100, blank=True)
+    custom_department = models.CharField(max_length=100, blank=True)
+    target_start_date = models.DateField(blank=True, null=True)
+    benefits_perks = models.TextField(blank=True)
+    position_status = models.CharField(max_length=30, choices=PositionStatus.choices, default=PositionStatus.NEW_HEADCOUNT)
+    reason_for_hire = models.TextField(blank=True)
+    impact_of_not_hiring = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -48,8 +63,18 @@ class JobRequisition(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     employment_type = models.CharField(max_length=100)
-    approximate_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    approximate_salary = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    salary_range = models.CharField(max_length=255, blank=True)
     location = models.CharField(max_length=255)
+    core_responsibilities = models.TextField(blank=True)
+    requirements_qualifications = models.TextField(blank=True)
+    department = models.CharField(max_length=100, blank=True)
+    custom_department = models.CharField(max_length=100, blank=True)
+    target_start_date = models.DateField(blank=True, null=True)
+    benefits_perks = models.TextField(blank=True)
+    position_status = models.CharField(max_length=30, choices=PositionStatus.choices, default=PositionStatus.NEW_HEADCOUNT)
+    reason_for_hire = models.TextField(blank=True)
+    impact_of_not_hiring = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     rejection_reason = models.TextField(blank=True)
     reviewed_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='reviewed_job_requisitions', blank=True, null=True, limit_choices_to={'role': User.Role.HR_HEAD})

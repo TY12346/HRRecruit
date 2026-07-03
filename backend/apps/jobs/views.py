@@ -125,7 +125,17 @@ class JobRequisitionApproveAPIView(APIView):
             description=requisition.description,
             employment_type=requisition.employment_type,
             approximate_salary=requisition.approximate_salary,
+            salary_range=requisition.salary_range,
             location=requisition.location,
+            core_responsibilities=requisition.core_responsibilities,
+            requirements_qualifications=requisition.requirements_qualifications,
+            department=requisition.department,
+            custom_department=requisition.custom_department,
+            target_start_date=requisition.target_start_date,
+            benefits_perks=requisition.benefits_perks,
+            position_status=requisition.position_status,
+            reason_for_hire=requisition.reason_for_hire,
+            impact_of_not_hiring=requisition.impact_of_not_hiring,
             status=JobPosting.Status.OPEN,
         )
         requisition.status = JobRequisition.Status.APPROVED

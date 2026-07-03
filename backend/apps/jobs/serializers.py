@@ -71,7 +71,17 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'description',
             'employment_type',
             'approximate_salary',
+            'salary_range',
             'location',
+            'core_responsibilities',
+            'requirements_qualifications',
+            'department',
+            'custom_department',
+            'target_start_date',
+            'benefits_perks',
+            'position_status',
+            'reason_for_hire',
+            'impact_of_not_hiring',
             'status',
             'requirements',
             'interview_evaluation_form',
@@ -117,8 +127,10 @@ class JobRequisitionSerializer(serializers.ModelSerializer):
         model = JobRequisition
         fields = [
             'id', 'organization', 'organization_name', 'recruiter', 'recruiter_name',
-            'title', 'description', 'employment_type', 'approximate_salary', 'location',
-            'status', 'rejection_reason', 'reviewed_by', 'reviewed_by_name', 'reviewed_at',
+            'title', 'description', 'employment_type', 'salary_range', 'location',
+            'core_responsibilities', 'requirements_qualifications', 'department', 'custom_department',
+            'target_start_date', 'benefits_perks', 'position_status', 'reason_for_hire',
+            'impact_of_not_hiring', 'status', 'rejection_reason', 'reviewed_by', 'reviewed_by_name', 'reviewed_at',
             'job_posting', 'job_posting_id', 'created_at', 'updated_at',
         ]
         read_only_fields = [

@@ -5,6 +5,8 @@ import { getJobRequisitions } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
 
+const departmentName = (item) => (item.department === 'Other' ? item.custom_department : item.department) || '—';
+
 export default function JobRequisitionsPage() {
   const [requisitions, setRequisitions] = useState([]);
   const [error, setError] = useState('');
@@ -30,12 +32,15 @@ export default function JobRequisitionsPage() {
             <Box>
               <Typography sx={{ fontWeight: 700 }}>{item.title}</Typography>
               <Typography color="text.secondary" variant="body2">
-                {item.location} • {titleize(item.employment_type)} • Submitted {formatDateTime(item.created_at)}
+                {departmentName(item)} • {item.location} • {titleize(item.employment_type)} • {item.salary_range || 'Salary range not specified'}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {titleize(item.position_status)} • Target start {item.target_start_date || 'not specified'} • Submitted {formatDateTime(item.created_at)}
               </Typography>
               {item.status === 'rejected' ? <Typography color="error" variant="body2">Reason: {item.rejection_reason}</Typography> : null}
               {item.status === 'approved' && item.job_posting_id ? <Typography color="text.secondary" variant="body2">Posted as job #{item.job_posting_id}</Typography> : null}
             </Box>
-            <Chip label={titleize(item.status)} size="small" color={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'error' : 'warning'} />
+            <Chip label={titleize(item.status)} size="small" color={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'error' : 'warning'} sx={{ alignSelf: { xs: 'flex-start', md: 'center' } }} />
           </Stack>
         ))}
         {!isLoading && requisitions.length === 0 ? <Typography color="text.secondary">No job requisitions yet.</Typography> : null}

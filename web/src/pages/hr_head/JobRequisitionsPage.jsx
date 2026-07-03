@@ -4,6 +4,8 @@ import { approveJobRequisition, getJobRequisitions, rejectJobRequisition } from 
 import HRHeadNav from './HRHeadNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
 
+const departmentName = (item) => (item.department === 'Other' ? item.custom_department : item.department) || '—';
+
 export default function JobRequisitionsPage() {
   const [requisitions, setRequisitions] = useState([]);
   const [error, setError] = useState('');
@@ -42,11 +44,16 @@ export default function JobRequisitionsPage() {
             <Box>
               <Typography sx={{ fontWeight: 700 }}>{item.title}</Typography>
               <Typography color="text.secondary" variant="body2">
-                {item.recruiter_name} • {item.location} • {titleize(item.employment_type)} • Submitted {formatDateTime(item.created_at)}
+                {item.recruiter_name} • {departmentName(item)} • {item.location} • {titleize(item.employment_type)} • {item.salary_range || 'Salary range not specified'}
               </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {titleize(item.position_status)} • Target start {item.target_start_date || 'not specified'} • Submitted {formatDateTime(item.created_at)}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">Reason for hire: {item.reason_for_hire || '—'}</Typography>
+              <Typography color="text.secondary" variant="body2">Impact of not hiring: {item.impact_of_not_hiring || '—'}</Typography>
               {item.status === 'rejected' ? <Typography color="error" variant="body2">Reason: {item.rejection_reason}</Typography> : null}
             </Box>
-            <Stack direction="row" spacing={1} sx={{ ml: { md: 'auto' } }}>
+            <Stack direction="row" spacing={1} sx={{ ml: { md: 'auto' }, alignSelf: { xs: 'flex-start', md: 'center' } }}>
               <Chip label={titleize(item.status)} size="small" color={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'error' : 'warning'} />
               {item.status === 'pending' ? <Button disabled={busyId === item.id} onClick={() => approve(item)} size="small" variant="contained">Approve</Button> : null}
               {item.status === 'pending' ? <Button disabled={busyId === item.id} onClick={() => reject(item)} size="small" color="error" variant="outlined">Reject</Button> : null}
