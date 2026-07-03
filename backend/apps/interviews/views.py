@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -41,7 +42,7 @@ from .calendar_service import (
     sync_calendar_event_for_interview,
     sync_existing_google_events_for_user,
 )
-from .slot_generation import generate_available_slots
+from .slot_generation import generate_common_available_slots
 
 
 logger = logging.getLogger(__name__)
@@ -133,7 +134,7 @@ def base_interview_queryset():
         'organization',
         'recruiter',
         'interviewer',
-    ).prefetch_related('application__job__interview_evaluation_form__criteria', 'status_history', 'calendar_events')
+    ).prefetch_related('application__job__interview_evaluation_form__criteria', 'status_history', 'calendar_events', 'panel_interviewers')
 
 
 def visible_interviews_for(user):
@@ -145,7 +146,7 @@ def visible_interviews_for(user):
     elif user.role == User.Role.INTERVIEWER:
         membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
         if membership:
-            return interviews.filter(organization=membership.organization, interviewer=user)
+            return interviews.filter(Q(interviewer=user) | Q(panel_interviewers=user), organization=membership.organization).distinct()
     elif user.role == User.Role.HR_HEAD:
         membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
         if membership:
@@ -168,7 +169,7 @@ def visible_scheduling_requests_for(user):
         'interviewer',
         'selected_slot',
         'interview',
-    )
+    ).prefetch_related('panel_interviewers')
     if user.role == User.Role.RECRUITER:
         membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
         if membership:
@@ -176,7 +177,7 @@ def visible_scheduling_requests_for(user):
     if user.role == User.Role.INTERVIEWER:
         membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
         if membership:
-            return requests.filter(organization=membership.organization, interviewer=user)
+            return requests.filter(Q(interviewer=user) | Q(panel_interviewers=user), organization=membership.organization).distinct()
     if user.role == User.Role.APPLICANT:
         return requests.filter(application__applicant=user)
     if user.role == User.Role.HR_HEAD:
@@ -201,7 +202,7 @@ def bookable_scheduling_requests_for_applicant(applicant):
         'organization',
         'recruiter',
         'interviewer',
-    ).filter(application__applicant=applicant)
+    ).prefetch_related('panel_interviewers').filter(application__applicant=applicant)
 
 
 def available_slots_for_interviewer(user):
@@ -220,22 +221,33 @@ def pending_scheduling_request_for_applicant_application_or_404(applicant, appli
     )
 
 
+def panel_interviewers_for_scheduling_request(scheduling_request):
+    return list(scheduling_request.panel_interviewers.all()) or [scheduling_request.interviewer]
+
+
 def selectable_slots_for_scheduling_request(scheduling_request, selected_date=None):
-    generated_slots = generate_available_slots(scheduling_request.interviewer, scheduling_request.organization)
+    panel = panel_interviewers_for_scheduling_request(scheduling_request)
+    generated_slots = generate_common_available_slots(panel, scheduling_request.organization)
     if selected_date:
         generated_slots = [slot for slot in generated_slots if slot.date == selected_date]
-    legacy_slots = InterviewerAvailabilitySlot.objects.filter(
-        organization=scheduling_request.organization,
-        interviewer=scheduling_request.interviewer,
-        status=InterviewerAvailabilitySlot.Status.AVAILABLE,
-        start_datetime__gt=timezone.now(),
-    ).order_by('start_datetime')
-    if selected_date:
-        legacy_slots = [slot for slot in legacy_slots if timezone.localdate(slot.start_datetime) == selected_date]
+    legacy_slots = []
+    if len(panel) == 1:
+        legacy_slots = InterviewerAvailabilitySlot.objects.filter(
+            organization=scheduling_request.organization,
+            interviewer=scheduling_request.interviewer,
+            status=InterviewerAvailabilitySlot.Status.AVAILABLE,
+            start_datetime__gt=timezone.now(),
+        ).order_by('start_datetime')
+        if selected_date:
+            legacy_slots = [slot for slot in legacy_slots if timezone.localdate(slot.start_datetime) == selected_date]
     return generated_slots, legacy_slots
 
 
-def serialize_generated_slot_for_selection(slot, interviewer):
+def panel_interviewer_names(panel):
+    return [interviewer.full_name for interviewer in panel if interviewer]
+
+
+def serialize_generated_slot_for_selection(slot, interviewer, panel=None):
     return {
         'slot_id': slot.id,
         'id': slot.id,
@@ -249,12 +261,12 @@ def serialize_generated_slot_for_selection(slot, interviewer):
         'mode': slot.mode,
         'meeting_link': slot.meeting_link,
         'location': slot.location,
-        'interviewer_names': [interviewer.full_name] if interviewer else [],
+        'interviewer_names': panel_interviewer_names(panel or ([interviewer] if interviewer else [])),
         'status': slot.status,
     }
 
 
-def serialize_legacy_slot_for_selection(slot, interviewer):
+def serialize_legacy_slot_for_selection(slot, interviewer, panel=None):
     return {
         'slot_id': slot.id,
         'id': slot.id,
@@ -268,7 +280,7 @@ def serialize_legacy_slot_for_selection(slot, interviewer):
         'mode': Interview.Mode.ONLINE,
         'meeting_link': '',
         'location': '',
-        'interviewer_names': [interviewer.full_name] if interviewer else [],
+        'interviewer_names': panel_interviewer_names(panel or ([interviewer] if interviewer else [])),
         'status': slot.status,
     }
 
@@ -328,6 +340,12 @@ def create_interview_booking_side_effects(scheduling_request, interview, applica
             f'{applicant.full_name} selected your available interview slot.',
         ),
     ]
+    for panel_interviewer in scheduling_request.panel_interviewers.exclude(id=scheduling_request.interviewer_id):
+        notification_payloads.append((
+            panel_interviewer,
+            'Interview slot selected',
+            f'{applicant.full_name} selected a panel interview slot.',
+        ))
     for recipient, title, message in notification_payloads:
         try:
             create_notification(
@@ -486,10 +504,11 @@ class CreateSchedulingRequestAPIView(APIView):
             raise ValidationError({'status': 'Withdrawn or rejected applications cannot be scheduled for interview.'})
         serializer = CreateSchedulingRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        interviewer = active_interviewer_for_organization_or_404(
-            serializer.validated_data['interviewer_id'],
-            application.job.organization,
-        )
+        panel_interviewers = [
+            active_interviewer_for_organization_or_404(interviewer_id, application.job.organization)
+            for interviewer_id in serializer.validated_data['interviewer_ids']
+        ]
+        interviewer = panel_interviewers[0]
 
         application.assigned_interviewer = interviewer
         if application.status != JobApplication.Status.SHORTLISTED:
@@ -523,6 +542,7 @@ class CreateSchedulingRequestAPIView(APIView):
             interview.interviewer = interviewer
             interview.scheduling_method = Interview.SchedulingMethod.SELF_SCHEDULED
             interview.save(update_fields=['organization', 'recruiter', 'interviewer', 'scheduling_method', 'updated_at'])
+        interview.panel_interviewers.set(panel_interviewers)
         if interview_created:
             interview.status_history.create(
                 from_status=Interview.Status.ASSIGNED,
@@ -547,6 +567,7 @@ class CreateSchedulingRequestAPIView(APIView):
             remark=serializer.validated_data.get('remark', ''),
             expires_at=serializer.validated_data.get('expires_at'),
         )
+        scheduling_request.panel_interviewers.set(panel_interviewers)
         create_notification(
             application.applicant,
             'interview_self_scheduling',
@@ -554,13 +575,14 @@ class CreateSchedulingRequestAPIView(APIView):
             f'Please choose an interview slot for {application.job.title}.',
             related_entity=scheduling_request,
         )
-        create_notification(
-            interviewer,
-            'interview_self_scheduling',
-            'Interview scheduling request created',
-            f'{request.user.full_name} invited {application.applicant.full_name} to choose one of your available interview slots.',
-            related_entity=scheduling_request,
-        )
+        for panel_interviewer in panel_interviewers:
+            create_notification(
+                panel_interviewer,
+                'interview_self_scheduling',
+                'Panel interview scheduling request created',
+                f'{request.user.full_name} invited {application.applicant.full_name} to choose a panel interview slot.',
+                related_entity=scheduling_request,
+            )
         return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -586,7 +608,10 @@ def book_scheduling_request(request, scheduling_request):
     selected_mode = serializer.validated_data.get('mode', Interview.Mode.ONLINE)
     selected_meeting_link = serializer.validated_data.get('meeting_link', '')
     selected_location = serializer.validated_data.get('location', '')
+    panel = panel_interviewers_for_scheduling_request(scheduling_request)
     if serializer.validated_data.get('slot_id'):
+        if len(panel) > 1:
+            raise ValidationError({'slot_id': 'Panel interviews must use a common generated availability slot.'})
         slot = get_object_or_404(
             InterviewerAvailabilitySlot.objects.select_for_update(),
             id=serializer.validated_data['slot_id'],
@@ -607,7 +632,7 @@ def book_scheduling_request(request, scheduling_request):
         pattern_id = serializer.validated_data['pattern_id']
         start_time = serializer.validated_data['start_time'].replace(microsecond=0)
         end_time = serializer.validated_data['end_time'].replace(microsecond=0)
-        matching_slots = generate_available_slots(scheduling_request.interviewer, scheduling_request.organization)
+        matching_slots, _legacy_slots = selectable_slots_for_scheduling_request(scheduling_request)
         generated = next((item for item in matching_slots if item.pattern_id == pattern_id and item.date == selected_date and item.start_time == start_time and item.end_time == end_time), None)
         if not generated:
             raise ValidationError({'slot_id': 'Selected generated interview slot is no longer available.'})
@@ -617,13 +642,13 @@ def book_scheduling_request(request, scheduling_request):
         selected_meeting_link = selected_meeting_link or generated.meeting_link
         selected_location = selected_location or generated.location
         if Interview.objects.select_for_update().filter(
+            Q(interviewer__in=panel) | Q(panel_interviewers__in=panel),
             organization=scheduling_request.organization,
-            interviewer=scheduling_request.interviewer,
             interview_date=selected_date,
             start_time=start_time,
             end_time=end_time,
             status__in=[Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
-        ).exists():
+        ).distinct().exists():
             raise ValidationError({'slot_id': 'Selected interview slot is already booked.'})
 
     interview, created = Interview.objects.get_or_create(
@@ -651,6 +676,7 @@ def book_scheduling_request(request, scheduling_request):
         'organization', 'recruiter', 'interviewer', 'scheduled_datetime', 'interview_date', 'start_time', 'end_time', 'availability_slot',
         'scheduling_method', 'mode', 'meeting_link', 'location', 'updated_at',
     ])
+    interview.panel_interviewers.set(scheduling_request.panel_interviewers.all())
     interview.change_status(Interview.Status.SCHEDULED, changed_by=request.user, note='Applicant self-scheduled the interview.')
 
     if slot:
@@ -733,8 +759,9 @@ class ApplicationAvailableInterviewSlotsAPIView(APIView):
             raise ValidationError({'date': 'Date must use YYYY-MM-DD format.'}) from exc
         scheduling_request = pending_scheduling_request_for_applicant_application_or_404(request.user, application_id)
         generated_slots, legacy_slots = selectable_slots_for_scheduling_request(scheduling_request, selected_date=selected_date)
-        data = [serialize_generated_slot_for_selection(slot, scheduling_request.interviewer) for slot in generated_slots]
-        data += [serialize_legacy_slot_for_selection(slot, scheduling_request.interviewer) for slot in legacy_slots]
+        panel = panel_interviewers_for_scheduling_request(scheduling_request)
+        data = [serialize_generated_slot_for_selection(slot, scheduling_request.interviewer, panel) for slot in generated_slots]
+        data += [serialize_legacy_slot_for_selection(slot, scheduling_request.interviewer, panel) for slot in legacy_slots]
         return Response(sorted(data, key=lambda item: item['start_datetime']))
 
 
@@ -829,6 +856,7 @@ class AssignInterviewerAPIView(APIView):
             interview.recruiter = request.user
             interview.interviewer = interviewer
             interview.save(update_fields=['organization', 'recruiter', 'interviewer', 'updated_at'])
+        interview.panel_interviewers.set([interviewer])
         if created:
             interview.change_status(Interview.Status.ASSIGNED, changed_by=request.user, note='Interview assigned.')
         elif previous_interviewer != interviewer:
