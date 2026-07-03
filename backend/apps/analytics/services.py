@@ -2,7 +2,7 @@
 
 from collections import OrderedDict
 
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
 from rest_framework.exceptions import PermissionDenied
 
@@ -409,7 +409,7 @@ def recruiter_dashboard(user):
 
 def interviewer_dashboard(user):
     membership = require_analytics_membership(user, (User.Role.INTERVIEWER,))
-    interviews = Interview.objects.filter(organization=membership.organization, interviewer=user)
+    interviews = Interview.objects.filter(Q(interviewer=user) | Q(panel_interviewers=user), organization=membership.organization).distinct()
     applications = JobApplication.objects.filter(interviews__in=interviews).distinct()
     jobs = JobPosting.objects.filter(organization=membership.organization, applications__in=applications).distinct()
     evaluations = InterviewEvaluation.objects.filter(interview__in=interviews, interviewer=user)
@@ -500,7 +500,7 @@ def interviewer_performance(organization):
     ).distinct()
     rows = []
     for interviewer in interviewers:
-        interviews = Interview.objects.filter(organization=organization, interviewer=interviewer)
+        interviews = Interview.objects.filter(Q(interviewer=interviewer) | Q(panel_interviewers=interviewer), organization=organization).distinct()
         evaluations = InterviewEvaluation.objects.filter(interview__in=interviews, interviewer=interviewer)
         rows.append(
             {

@@ -7,6 +7,7 @@ from apps.applications.serializers import AssignedInterviewerSerializer, JobAppl
 from apps.jobs.serializers import EvaluationCriterionSerializer
 from apps.users.models import User
 from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
+from .slot_generation import generate_common_available_slots
 
 
 class GoogleCalendarOAuthCallbackSerializer(serializers.Serializer):
@@ -37,6 +38,7 @@ class CalendarEventSerializer(serializers.ModelSerializer):
 class InterviewSerializer(serializers.ModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     interviewer = AssignedInterviewerSerializer(read_only=True)
+    panel_interviewers = AssignedInterviewerSerializer(many=True, read_only=True)
     calendar_link = serializers.SerializerMethodField()
     evaluation_criteria = serializers.SerializerMethodField()
     status_history = InterviewStatusHistorySerializer(many=True, read_only=True)
@@ -49,6 +51,7 @@ class InterviewSerializer(serializers.ModelSerializer):
             'organization',
             'recruiter',
             'interviewer',
+            'panel_interviewers',
             'scheduled_datetime',
             'interview_date',
             'start_time',
@@ -73,6 +76,7 @@ class InterviewSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated and request.user.role == User.Role.APPLICANT:
             data.pop('recruiter', None)
             data.pop('interviewer', None)
+            data.pop('panel_interviewers', None)
         return data
 
     def get_calendar_link(self, interview):
@@ -152,13 +156,14 @@ class InterviewerAvailabilitySlotSerializer(serializers.ModelSerializer):
 class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     interviewer = AssignedInterviewerSerializer(read_only=True)
+    panel_interviewers = AssignedInterviewerSerializer(many=True, read_only=True)
     selected_slot = InterviewerAvailabilitySlotSerializer(read_only=True)
     available_slots = serializers.SerializerMethodField()
 
     class Meta:
         model = InterviewSchedulingRequest
         fields = [
-            'id', 'application', 'organization', 'recruiter', 'interviewer', 'remark', 'status',
+            'id', 'application', 'organization', 'recruiter', 'interviewer', 'panel_interviewers', 'remark', 'status',
             'expires_at', 'selected_slot', 'interview', 'available_slots', 'created_at', 'updated_at',
         ]
         read_only_fields = fields
@@ -168,21 +173,39 @@ class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
         include_slots = request and request.query_params.get('include_available_slots') == '1'
         if obj.status != InterviewSchedulingRequest.Status.PENDING or not include_slots:
             return []
-        from .slot_generation import generate_available_slots
-        generated_slots = generate_available_slots(obj.interviewer, obj.organization)
-        legacy_slots = InterviewerAvailabilitySlot.objects.filter(
-            organization=obj.organization,
-            interviewer=obj.interviewer,
-            status=InterviewerAvailabilitySlot.Status.AVAILABLE,
-            start_datetime__gt=timezone.now(),
-        ).order_by('start_datetime')
+        panel = list(obj.panel_interviewers.all()) or [obj.interviewer]
+        generated_slots = generate_common_available_slots(panel, obj.organization)
+        legacy_slots = []
+        if len(panel) == 1:
+            legacy_slots = InterviewerAvailabilitySlot.objects.filter(
+                organization=obj.organization,
+                interviewer=obj.interviewer,
+                status=InterviewerAvailabilitySlot.Status.AVAILABLE,
+                start_datetime__gt=timezone.now(),
+            ).order_by('start_datetime')
         return GeneratedInterviewSlotSerializer(generated_slots, many=True).data + InterviewerAvailabilitySlotSerializer(legacy_slots, many=True).data
 
 
 class CreateSchedulingRequestSerializer(serializers.Serializer):
-    interviewer_id = serializers.IntegerField(required=True)
+    interviewer_id = serializers.IntegerField(required=False)
+    interviewer_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=False,
+    )
     remark = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
     expires_at = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        interviewer_ids = attrs.get('interviewer_ids') or []
+        if attrs.get('interviewer_id'):
+            interviewer_ids = [attrs['interviewer_id'], *interviewer_ids]
+        interviewer_ids = list(dict.fromkeys(interviewer_ids))
+        if not interviewer_ids:
+            raise serializers.ValidationError({'interviewer_ids': 'Select at least one interviewer for the panel.'})
+        attrs['interviewer_ids'] = interviewer_ids
+        attrs['interviewer_id'] = interviewer_ids[0]
+        return attrs
 
 
 class BookSchedulingRequestSerializer(serializers.Serializer):
