@@ -546,6 +546,14 @@ class ResumeContentValidationTests(SimpleTestCase):
         self.assertFalse(result['is_valid'])
         self.assertIn('skills', result['missing_fields'])
 
+    def test_retail_sales_resume_detects_top_skills(self):
+        from .resume_validation import validate_resume_text
+        text = 'Top Skills: Attention To Detail, Accounting, Sales Target Management. Experience: Senior Sales Associate at company for 4 years. Education: Bachelor degree in Economics from University.'
+        result = validate_resume_text(text)
+        self.assertTrue(result['is_valid'])
+        self.assertIn('accounting', result['detected_fields']['skills'])
+        self.assertIn('sales target management', result['detected_fields']['skills'])
+
     def test_invalid_resume_missing_education(self):
         from .resume_validation import validate_resume_text
         text = 'Skills: Python Django SQL. Experience: Worked as developer at Example Company for 2 years building APIs and dashboard systems.'

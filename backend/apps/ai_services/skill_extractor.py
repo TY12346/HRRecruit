@@ -11,6 +11,8 @@ from .resume_preprocessor import preprocess_for_matching
 
 
 SKILLS_DICTIONARY = {
+    'accounting': ('accounting',),
+    'attention to detail': ('attention to detail', 'detail oriented', 'detail-oriented'),
     'aws': ('amazon web services', 'aws'),
     'c#': ('c#', 'c sharp'),
     'c++': ('c++', 'cpp'),
@@ -24,16 +26,21 @@ SKILLS_DICTIONARY = {
     'javascript': ('javascript', 'java script', 'js'),
     'kubernetes': ('kubernetes', 'k8s'),
     'machine learning': ('machine learning', 'ml'),
+    'merchandising': ('merchandising', 'merchandising orders'),
     'mysql': ('mysql',),
     'node.js': ('node.js', 'nodejs', 'node js'),
     'postgresql': ('postgresql', 'postgres', 'postgre sql'),
     'python': ('python', 'py'),
     'react': ('react', 'react.js', 'reactjs'),
+    'sales': ('sales',),
+    'sales target management': ('sales target management', 'sales targets', 'target management'),
     'rest api': ('rest api', 'rest apis', 'restful api', 'restful apis'),
     'sql': ('sql',),
 }
 
 SKILL_DISPLAY_LABELS = {
+    'accounting': 'Accounting',
+    'attention to detail': 'Attention to Detail',
     'aws': 'AWS',
     'c#': 'C#',
     'c++': 'C++',
@@ -47,11 +54,14 @@ SKILL_DISPLAY_LABELS = {
     'javascript': 'JavaScript',
     'kubernetes': 'Kubernetes',
     'machine learning': 'Machine Learning',
+    'merchandising': 'Merchandising',
     'mysql': 'MySQL',
     'node.js': 'Node.js',
     'postgresql': 'PostgreSQL',
     'python': 'Python',
     'react': 'React',
+    'sales': 'Sales',
+    'sales target management': 'Sales Target Management',
     'rest api': 'REST API',
     'sql': 'SQL',
 }
