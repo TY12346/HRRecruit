@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -133,7 +134,7 @@ def base_interview_queryset():
         'organization',
         'recruiter',
         'interviewer',
-    ).prefetch_related('application__job__interview_evaluation_form__criteria', 'status_history', 'calendar_events')
+    ).prefetch_related('application__job__interview_evaluation_form__criteria', 'status_history', 'calendar_events', 'panel_interviewers')
 
 
 def visible_interviews_for(user):
@@ -145,7 +146,7 @@ def visible_interviews_for(user):
     elif user.role == User.Role.INTERVIEWER:
         membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
         if membership:
-            return interviews.filter(organization=membership.organization, interviewer=user)
+            return interviews.filter(Q(interviewer=user) | Q(panel_interviewers=user), organization=membership.organization).distinct()
     elif user.role == User.Role.HR_HEAD:
         membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
         if membership:
@@ -168,7 +169,7 @@ def visible_scheduling_requests_for(user):
         'interviewer',
         'selected_slot',
         'interview',
-    )
+    ).prefetch_related('panel_interviewers')
     if user.role == User.Role.RECRUITER:
         membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
         if membership:
@@ -176,7 +177,7 @@ def visible_scheduling_requests_for(user):
     if user.role == User.Role.INTERVIEWER:
         membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
         if membership:
-            return requests.filter(organization=membership.organization, interviewer=user)
+            return requests.filter(Q(interviewer=user) | Q(panel_interviewers=user), organization=membership.organization).distinct()
     if user.role == User.Role.APPLICANT:
         return requests.filter(application__applicant=user)
     if user.role == User.Role.HR_HEAD:
@@ -201,7 +202,7 @@ def bookable_scheduling_requests_for_applicant(applicant):
         'organization',
         'recruiter',
         'interviewer',
-    ).filter(application__applicant=applicant)
+    ).prefetch_related('panel_interviewers').filter(application__applicant=applicant)
 
 
 def available_slots_for_interviewer(user):
@@ -328,6 +329,12 @@ def create_interview_booking_side_effects(scheduling_request, interview, applica
             f'{applicant.full_name} selected your available interview slot.',
         ),
     ]
+    for panel_interviewer in scheduling_request.panel_interviewers.exclude(id=scheduling_request.interviewer_id):
+        notification_payloads.append((
+            panel_interviewer,
+            'Interview slot selected',
+            f'{applicant.full_name} selected a panel interview slot.',
+        ))
     for recipient, title, message in notification_payloads:
         try:
             create_notification(
@@ -486,10 +493,11 @@ class CreateSchedulingRequestAPIView(APIView):
             raise ValidationError({'status': 'Withdrawn or rejected applications cannot be scheduled for interview.'})
         serializer = CreateSchedulingRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        interviewer = active_interviewer_for_organization_or_404(
-            serializer.validated_data['interviewer_id'],
-            application.job.organization,
-        )
+        panel_interviewers = [
+            active_interviewer_for_organization_or_404(interviewer_id, application.job.organization)
+            for interviewer_id in serializer.validated_data['interviewer_ids']
+        ]
+        interviewer = panel_interviewers[0]
 
         application.assigned_interviewer = interviewer
         if application.status != JobApplication.Status.SHORTLISTED:
@@ -523,6 +531,7 @@ class CreateSchedulingRequestAPIView(APIView):
             interview.interviewer = interviewer
             interview.scheduling_method = Interview.SchedulingMethod.SELF_SCHEDULED
             interview.save(update_fields=['organization', 'recruiter', 'interviewer', 'scheduling_method', 'updated_at'])
+        interview.panel_interviewers.set(panel_interviewers)
         if interview_created:
             interview.status_history.create(
                 from_status=Interview.Status.ASSIGNED,
@@ -547,6 +556,7 @@ class CreateSchedulingRequestAPIView(APIView):
             remark=serializer.validated_data.get('remark', ''),
             expires_at=serializer.validated_data.get('expires_at'),
         )
+        scheduling_request.panel_interviewers.set(panel_interviewers)
         create_notification(
             application.applicant,
             'interview_self_scheduling',
@@ -554,13 +564,14 @@ class CreateSchedulingRequestAPIView(APIView):
             f'Please choose an interview slot for {application.job.title}.',
             related_entity=scheduling_request,
         )
-        create_notification(
-            interviewer,
-            'interview_self_scheduling',
-            'Interview scheduling request created',
-            f'{request.user.full_name} invited {application.applicant.full_name} to choose one of your available interview slots.',
-            related_entity=scheduling_request,
-        )
+        for panel_interviewer in panel_interviewers:
+            create_notification(
+                panel_interviewer,
+                'interview_self_scheduling',
+                'Panel interview scheduling request created',
+                f'{request.user.full_name} invited {application.applicant.full_name} to choose a panel interview slot.',
+                related_entity=scheduling_request,
+            )
         return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -651,6 +662,7 @@ def book_scheduling_request(request, scheduling_request):
         'organization', 'recruiter', 'interviewer', 'scheduled_datetime', 'interview_date', 'start_time', 'end_time', 'availability_slot',
         'scheduling_method', 'mode', 'meeting_link', 'location', 'updated_at',
     ])
+    interview.panel_interviewers.set(scheduling_request.panel_interviewers.all())
     interview.change_status(Interview.Status.SCHEDULED, changed_by=request.user, note='Applicant self-scheduled the interview.')
 
     if slot:
@@ -829,6 +841,7 @@ class AssignInterviewerAPIView(APIView):
             interview.recruiter = request.user
             interview.interviewer = interviewer
             interview.save(update_fields=['organization', 'recruiter', 'interviewer', 'updated_at'])
+        interview.panel_interviewers.set([interviewer])
         if created:
             interview.change_status(Interview.Status.ASSIGNED, changed_by=request.user, note='Interview assigned.')
         elif previous_interviewer != interviewer:

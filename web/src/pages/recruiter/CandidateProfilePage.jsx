@@ -232,7 +232,6 @@ export default function CandidateProfilePage() {
               </Box>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 {profile.status !== 'rejected' ? <Button component={RouterLink} to={`/recruiter/applications/${applicationId}/assign-interview`} variant="outlined">Assign interviewer</Button> : null}
-                {profile.status !== 'rejected' ? <Button component={RouterLink} to={`/recruiter/applications/${applicationId}/hiring-decision`} variant="outlined">Hiring decision</Button> : null}
                 {profile.status !== 'rejected' ? <Button color="error" onClick={reject} variant="outlined">Reject</Button> : null}
               </Stack>
             </Stack>
