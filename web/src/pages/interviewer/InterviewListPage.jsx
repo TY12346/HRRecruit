@@ -54,16 +54,16 @@ export default function InterviewListPage() {
         </Stack>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? <CircularProgress /> : null}
-        <Stack spacing={1}>
+        <Stack spacing={0} sx={{ mt: 3, mx: { xs: 0, md: 2 } }}>
           {filtered.map((interview) => (
-            <Stack key={interview.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1 }}>
+            <Stack key={interview.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%', '&:first-of-type': { borderTop: 0 } }}>
               <Box>
                 <Typography sx={{ fontWeight: 700 }}>{candidateName(interview)} • {jobTitle(interview)}</Typography>
                 <Typography color="text.secondary" variant="body2">
                   {titleize(interview.status)} • {formatDateTime(interview.scheduled_datetime)} • {titleize(interview.mode)} • {interview.meeting_link || interview.location || 'No venue yet'}
                 </Typography>
               </Box>
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ ml: { md: 'auto' }, justifyContent: 'flex-end' }}>
                 <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}`} variant="outlined" size="small">Detail</Button>
                 <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}/recording`} size="small">Upload</Button>
                 <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}/evaluation`} size="small">Evaluate</Button>

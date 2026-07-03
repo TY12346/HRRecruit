@@ -53,9 +53,9 @@ export default function NotificationsPage() {
         </Stack>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? <CircularProgress /> : null}
-        <Stack spacing={1}>
+        <Stack spacing={0} sx={{ mt: 3, mx: { xs: 0, md: 2 } }}>
           {filteredNotifications.map((notification) => (
-            <Stack key={notification.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1 }}>
+            <Stack key={notification.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%', '&:first-of-type': { borderTop: 0 } }}>
               <Box>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography sx={{ fontWeight: 700 }}>{notification.title}</Typography>
@@ -63,7 +63,7 @@ export default function NotificationsPage() {
                 </Stack>
                 <Typography color="text.secondary" variant="body2">{titleize(notification.notification_type)} • {formatDateTime(notification.created_at)} • {notification.message}</Typography>
               </Box>
-              {!notification.is_read ? <Button onClick={() => markOne(notification.id)} variant="contained" size="small">Mark read</Button> : null}
+              {!notification.is_read ? <Button onClick={() => markOne(notification.id)} variant="contained" size="small" sx={{ ml: { md: 'auto' } }}>Mark read</Button> : null}
             </Stack>
           ))}
           {!isLoading && filteredNotifications.length === 0 ? <Typography color="text.secondary">No notifications found.</Typography> : null}
