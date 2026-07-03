@@ -37,6 +37,34 @@ class JobPosting(models.Model):
         return self.title
 
 
+class JobRequisition(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='job_requisitions')
+    recruiter = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_job_requisitions', limit_choices_to={'role': User.Role.RECRUITER})
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    employment_type = models.CharField(max_length=100)
+    approximate_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    location = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    rejection_reason = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='reviewed_job_requisitions', blank=True, null=True, limit_choices_to={'role': User.Role.HR_HEAD})
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    job_posting = models.OneToOneField(JobPosting, on_delete=models.SET_NULL, related_name='source_requisition', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.title} ({self.get_status_display()})'
+
+
 class JobRequirement(models.Model):
     class RequirementType(models.TextChoices):
         SKILL = 'skill', 'Skill'
