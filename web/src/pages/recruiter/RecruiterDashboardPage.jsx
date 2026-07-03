@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Alert, Box, Card, CardContent, CircularProgress, Grid, Stack, Typography } from '@mui/material';
 import { getApplications, getJobs, getNotifications, getRecruiterAnalytics } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
@@ -51,12 +50,6 @@ export default function RecruiterDashboardPage() {
           <Grid item xs={12} sm={6} md={3}><StatCard label="Pending screening" value={pendingScreening} /></Grid>
           <Grid item xs={12} sm={6} md={3}><StatCard label="Unread notifications" value={unread} /></Grid>
         </Grid>
-        <Card><CardContent><Typography variant="h6" sx={{ mb: 2 }}>Quick actions</Typography><Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Button component={RouterLink} to="/recruiter/jobs/create" variant="contained">Create job</Button>
-          <Button component={RouterLink} to="/recruiter/applications" variant="outlined">Review applications</Button>
-          <Button component={RouterLink} to="/recruiter/interviews" variant="outlined">Assign interviews</Button>
-          <Button component={RouterLink} to="/recruiter/hiring-decisions" variant="outlined">Submit decisions</Button>
-        </Stack></CardContent></Card>
       </Stack>
     </Box>
   );
