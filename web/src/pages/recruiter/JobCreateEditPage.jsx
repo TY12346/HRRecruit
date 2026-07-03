@@ -19,7 +19,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   configureJobRequirements,
-  createJob,
+  createJobRequisition,
   createJobEvaluationForm,
   getJob,
   updateJob,
@@ -144,45 +144,19 @@ export default function JobCreateEditPage() {
 
   const handleCreateStepSubmit = async (event) => {
     event.preventDefault();
+    setIsSaving(true);
     setError('');
 
-    if (activeStep < createSteps.length - 1) {
-      setActiveStep((step) => step + 1);
-      return;
-    }
-
-    setIsSaving(true);
     try {
-      let job;
-      try {
-        job = createdJobId ? await updateJob(createdJobId, form) : await createJob(form);
-        setCreatedJobId(job.id);
-      } catch (err) {
-        setActiveStep(0);
-        throw err;
-      }
-
-      try {
-        await configureJobRequirements(job.id, {
-          requirements: prepareRequirementsForApi(requirements),
-          normalize_weights: true,
-        });
-      } catch (err) {
-        setActiveStep(1);
-        throw err;
-      }
-
-      await createJobEvaluationForm(job.id, {
-        title: evaluationTitle,
-        criteria: prepareCriteriaForApi(criteria),
-      });
-      navigate(`/recruiter/jobs/${job.id}`);
+      await createJobRequisition(form);
+      navigate('/recruiter/job-requisitions');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to create job. Please review the highlighted step and try again.'));
+      setError(getApiErrorMessage(err, 'Unable to submit job requisition.'));
     } finally {
       setIsSaving(false);
     }
   };
+
 
   const renderJobDetails = () => (
     <Stack spacing={2}>
@@ -361,26 +335,16 @@ export default function JobCreateEditPage() {
     <Box>
       <RecruiterNav />
       <Paper component="form" onSubmit={handleCreateStepSubmit} sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>Create job</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>Create job requisition</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Fill in the job details, then configure requirements, then configure the evaluation form before creating the job.
+          Submit the job requisition for HR department head approval. Approved requisitions are posted automatically as open jobs.
         </Typography>
-        <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-          {createSteps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         <Stack spacing={2}>
-          {renderCreateStep()}
+          {renderJobDetails()}
           <Stack direction="row" spacing={1}>
-            <Button disabled={activeStep === 0 || isSaving} onClick={() => setActiveStep((step) => step - 1)} variant="outlined">
-              Back
-            </Button>
             <Button disabled={isSaving} type="submit" variant="contained">
-              {isSaving ? 'Creating…' : activeStep === createSteps.length - 1 ? 'Create job' : 'Next'}
+              {isSaving ? 'Submitting…' : 'Submit requisition'}
             </Button>
             <Button disabled={isSaving} onClick={() => navigate(-1)} variant="text">Cancel</Button>
           </Stack>
