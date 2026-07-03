@@ -83,6 +83,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'education_score',
             'final_score',
             'score_explanation',
+            'resume_validation_result',
             'applied_at',
             'updated_at',
         ]
@@ -154,6 +155,7 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
             'extracted_resume_text': application.extracted_resume_text,
             'extracted_experience': application.extracted_experience,
             'extracted_education': application.extracted_education,
+            'resume_validation_result': application.resume_validation_result,
         })
         return resume_payload
 
