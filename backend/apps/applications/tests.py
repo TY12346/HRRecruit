@@ -838,3 +838,22 @@ class JobApplicationModelTests(TestCase):
     def test_applicant_cannot_apply_for_the_same_job_twice(self):
         with self.assertRaises(IntegrityError), transaction.atomic():
             JobApplication.objects.create(job=self.job, applicant=self.applicant)
+
+class ResumeValidationScreeningTests(JobApplicationAPITests):
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
+    @patch('apps.ai_services.resume_screening.extract_resume_text')
+    def test_screening_is_not_executed_when_validation_fails(self, extract_resume_text, build_ml_screening_result):
+        self.attach_resume()
+        application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        extract_resume_text.return_value = 'Skills: Python Django SQL. Experience: Worked as developer at Example Company for 2 years building APIs.'
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(reverse('application-screen', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response.data['resume_validation_result']['is_valid'])
+        self.assertIn('education', response.data['resume_validation_result']['missing_fields'])
+        build_ml_screening_result.assert_not_called()
+        application.refresh_from_db()
+        self.assertIsNone(application.final_score)
+        self.assertFalse(application.resume_validation_result['is_valid'])

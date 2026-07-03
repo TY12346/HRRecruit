@@ -243,6 +243,11 @@ export default function CandidateProfilePage() {
                 <Card>
                   <CardContent>
                     <Typography variant="h6">Resume and AI extraction</Typography>
+                    {profile.resume_info?.resume_validation_result?.is_valid === false ? (
+                      <Alert severity="warning" sx={{ my: 1 }}>
+                        Resume incomplete: {(profile.resume_info.resume_validation_result.missing_fields ?? []).join(', ') || profile.resume_info.resume_validation_result.message}
+                      </Alert>
+                    ) : null}
                     <Typography><strong>Skills:</strong> {(profile.extracted_skills ?? []).join(', ') || '—'}</Typography>
                     <Typography><strong>Experience:</strong> {formatExtractedValue(profile.resume_info?.extracted_experience)}</Typography>
                     <Typography><strong>Education:</strong> {formatExtractedValue(profile.resume_info?.extracted_education)}</Typography>

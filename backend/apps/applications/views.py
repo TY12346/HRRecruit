@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
+from apps.ai_services.resume_validation import ResumeContentValidationError
 from apps.jobs.models import JobPosting
 from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
@@ -232,15 +233,16 @@ class JobApplyAPIView(APIView):
             raise ValidationError({'resume_file': 'Upload a resume before applying so AI screening can run immediately.'})
 
         try:
-            with transaction.atomic():
-                application, created = JobApplication.objects.get_or_create(
-                    job=job,
-                    applicant=request.user,
-                    defaults={'resume': selected_resume},
-                )
-                if not created:
-                    raise ValidationError({'job': 'You have already applied for this job.'})
-                application = screen_job_application(application, changed_by=None)
+            application, created = JobApplication.objects.get_or_create(
+                job=job,
+                applicant=request.user,
+                defaults={'resume': selected_resume},
+            )
+            if not created:
+                raise ValidationError({'job': 'You have already applied for this job.'})
+            application = screen_job_application(application, changed_by=None)
+        except ResumeContentValidationError as exc:
+            return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
 
@@ -310,6 +312,8 @@ class ApplicationScreenAPIView(APIView):
                 raise ValidationError({'resume_file': 'The applicant must upload a resume before screening.'})
             previous_status = application.status
             application = screen_job_application(application, changed_by=request.user)
+        except ResumeContentValidationError as exc:
+            return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
 
