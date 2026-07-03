@@ -77,10 +77,13 @@ const theme = createTheme({
       defaultProps: { elevation: 0 },
       styleOverrides: {
         root: {
-          border: plainBorder,
+          border: 'none',
           borderRadius: 0,
           boxShadow: 'none',
           backgroundImage: 'none',
+        },
+        outlined: {
+          border: plainBorder,
         },
       },
     },
