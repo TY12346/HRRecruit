@@ -148,3 +148,15 @@ Interview scheduling now uses reusable weekly availability patterns instead of r
 4. Generated slots are hidden when they are in the past, fall on an unavailable date, or match an existing active interview booking for the same interviewer/date/start/end time.
 5. Applicants book a real generated slot. The interview stores the actual interview date, start time, end time, mode, and meeting details, and the database constraint prevents duplicate active bookings for the same interviewer and exact time window.
 6. Legacy date-specific availability slots remain supported for existing workflows, but weekly patterns are the preferred scheduling workflow.
+
+## Resume Content Validation
+
+HRRecruit validates uploaded resume content before AI-assisted screening. This validation does **not** use a separate ML/AI model. It reuses local PDF/DOCX text extraction, deterministic keyword/regex checks, and the existing skill extraction utility.
+
+A resume is considered ready for screening only when extracted text contains:
+
+- Skills, detected through the existing skill extractor plus deterministic skill keyword matching.
+- Education evidence, such as Diploma, Degree, Bachelor, Master, PhD, University, College, CGPA, Computer Science, Information Technology, Accounting, Business, or related education keywords.
+- At least one experience-evidence category: work experience, internship experience, or projects. Project details are accepted for fresh graduates.
+
+If text extraction fails, extracted text is empty/too short, or required sections are missing, HRRecruit stores and returns a structured `resume_validation_result` explaining missing fields and warnings. Invalid resumes do not receive AI screening scores until the applicant uploads a corrected resume.

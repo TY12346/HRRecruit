@@ -524,3 +524,52 @@ class ResumeMatchModelTests(SimpleTestCase):
         self.assertEqual(score_to_label(70), 'moderate_match')
         self.assertEqual(score_to_label(50), 'weak_match')
         self.assertEqual(score_to_label(30), 'not_suitable')
+
+class ResumeContentValidationTests(SimpleTestCase):
+    def test_valid_resume_with_skills_education_and_work_experience(self):
+        from .resume_validation import validate_resume_text
+        text = 'Skills: Python Django SQL. Education: Bachelor Degree in Computer Science from Example University. Experience: Worked as developer at Example Company for 2 years building APIs.'
+        result = validate_resume_text(text)
+        self.assertTrue(result['is_valid'])
+
+    def test_valid_fresh_graduate_resume_with_projects(self):
+        from .resume_validation import validate_resume_text
+        text = 'Skills: Python React SQL. Education: Bachelor Degree in Information Technology, CGPA 3.7. Projects: Developed a mobile app and API dashboard system for final year project.'
+        result = validate_resume_text(text)
+        self.assertTrue(result['is_valid'])
+        self.assertTrue(result['detected_fields']['projects'])
+
+    def test_invalid_resume_missing_skills(self):
+        from .resume_validation import validate_resume_text
+        text = 'Education: Bachelor Degree in Business at University. Experience: Worked as executive at Example Company for 2 years managing operations and reports.'
+        result = validate_resume_text(text)
+        self.assertFalse(result['is_valid'])
+        self.assertIn('skills', result['missing_fields'])
+
+    def test_retail_sales_resume_detects_top_skills(self):
+        from .resume_validation import validate_resume_text
+        text = 'Top Skills: Attention To Detail, Accounting, Sales Target Management. Experience: Senior Sales Associate at company for 4 years. Education: Bachelor degree in Economics from University.'
+        result = validate_resume_text(text)
+        self.assertTrue(result['is_valid'])
+        self.assertIn('accounting', result['detected_fields']['skills'])
+        self.assertIn('sales target management', result['detected_fields']['skills'])
+
+    def test_invalid_resume_missing_education(self):
+        from .resume_validation import validate_resume_text
+        text = 'Skills: Python Django SQL. Experience: Worked as developer at Example Company for 2 years building APIs and dashboard systems.'
+        result = validate_resume_text(text)
+        self.assertFalse(result['is_valid'])
+        self.assertIn('education', result['missing_fields'])
+
+    def test_invalid_resume_missing_experience_internship_or_projects(self):
+        from .resume_validation import validate_resume_text
+        text = 'Skills: Python Django SQL. Education: Bachelor Degree in Computer Science from Example University with CGPA 3.5. Professional summary and interests.'
+        result = validate_resume_text(text)
+        self.assertFalse(result['is_valid'])
+        self.assertIn('experience_or_projects', result['missing_fields'])
+
+    def test_unreadable_or_empty_resume_text(self):
+        from .resume_validation import validate_resume_text
+        result = validate_resume_text('')
+        self.assertFalse(result['is_valid'])
+        self.assertIn('Resume text could not be extracted or is too short for screening.', result['warnings'])
