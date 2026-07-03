@@ -23,9 +23,11 @@ class InterviewAdmin(admin.ModelAdmin):
         'application__applicant__email',
         'recruiter__email',
         'interviewer__email',
+        'panel_interviewers__email',
         'meeting_link',
         'location',
     )
+    filter_horizontal = ('panel_interviewers',)
 
 
 @admin.register(InterviewStatusHistory)
@@ -46,7 +48,8 @@ class InterviewerAvailabilitySlotAdmin(admin.ModelAdmin):
 class InterviewSchedulingRequestAdmin(admin.ModelAdmin):
     list_display = ('id', 'application', 'organization', 'recruiter', 'interviewer', 'status', 'expires_at')
     list_filter = ('status', 'organization')
-    search_fields = ('application__job__title', 'application__applicant__email', 'recruiter__email', 'interviewer__email', 'remark')
+    search_fields = ('application__job__title', 'application__applicant__email', 'recruiter__email', 'interviewer__email', 'panel_interviewers__email', 'remark')
+    filter_horizontal = ('panel_interviewers',)
 
 
 @admin.register(CalendarEvent)

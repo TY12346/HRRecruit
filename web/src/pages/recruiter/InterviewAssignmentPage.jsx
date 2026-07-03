@@ -11,7 +11,7 @@ export default function InterviewAssignmentPage() {
   const navigate = useNavigate();
   const [application, setApplication] = useState(null);
   const [interviewers, setInterviewers] = useState([]);
-  const [interviewerId, setInterviewerId] = useState('');
+  const [interviewerIds, setInterviewerIds] = useState([]);
   const [remark, setRemark] = useState('');
   const [templateId, setTemplateId] = useState('self_schedule_standard');
   const [schedulingRequest, setSchedulingRequest] = useState(null);
@@ -32,7 +32,7 @@ export default function InterviewAssignmentPage() {
       .then(([app, members, googleStatus, schedulingRequests]) => {
         setApplication(app);
         setRemark(renderCommunicationTemplate(getCommunicationTemplates('interview_self_scheduling')[0], buildApplicationTemplateContext(app)));
-        setInterviewerId(app.assigned_interviewer?.id ?? '');
+        setInterviewerIds(app.assigned_interviewer?.id ? [app.assigned_interviewer.id] : []);
         setCalendarStatus(googleStatus);
         setInterviewers(members.filter((member) => member.role === 'interviewer' && member.status === 'active' && member.user_id));
         const existingRequest = schedulingRequests
@@ -40,6 +40,7 @@ export default function InterviewAssignmentPage() {
           .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))[0];
         if (existingRequest) {
           setSchedulingRequest(existingRequest);
+          setInterviewerIds((existingRequest.panel_interviewers?.length ? existingRequest.panel_interviewers : [existingRequest.interviewer]).filter(Boolean).map((item) => item.id));
         }
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load assignment data.')))
@@ -74,9 +75,9 @@ export default function InterviewAssignmentPage() {
     setSuccess('');
     setIsSaving(true);
     try {
-      const request = await createInterviewSchedulingRequest(applicationId, { interviewer_id: Number(interviewerId), remark });
+      const request = await createInterviewSchedulingRequest(applicationId, { interviewer_ids: interviewerIds.map(Number), remark });
       setSchedulingRequest(request);
-      setSuccess('Self-scheduling request created. The applicant can now choose from the interviewer availability slots.');
+      setSuccess('Panel self-scheduling request created. The applicant can now choose from the lead interviewer availability slots.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to assign interviewer.'));
     } finally {
@@ -86,13 +87,13 @@ export default function InterviewAssignmentPage() {
 
   const nextStepMessage = schedulingRequest
     ? `Interview-scheduling request #${schedulingRequest.id} has been sent. The interview will be created after the applicant chooses a slot.`
-    : 'The applicant should use the mobile Schedule interviews page to choose a slot from the interviewer availability.';
+    : 'The applicant should use the mobile Schedule interviews page to choose a slot from the lead interviewer availability.';
 
   return (
     <Box>
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Assign interviewer</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>Assign panel interviewers</Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         {isLoading ? <CircularProgress /> : (
@@ -128,12 +129,20 @@ export default function InterviewAssignmentPage() {
             {!schedulingRequest ? (
               <Box component="form" onSubmit={assign}>
                 <Stack spacing={2}>
-                  <TextField label="Interviewer" select required value={interviewerId} onChange={(e) => setInterviewerId(e.target.value)}>
+                  <TextField
+                    label="Panel interviewers"
+                    select
+                    required
+                    value={interviewerIds}
+                    onChange={(e) => setInterviewerIds(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                    SelectProps={{ multiple: true }}
+                    helperText="Select one or more interviewers. The first selected interviewer provides the self-scheduling availability slots."
+                  >
                     {interviewers.map((member) => <MenuItem key={member.id} value={member.user_id}>{member.full_name} ({member.email})</MenuItem>)}
                   </TextField>
                   <TextField label="Candidate communication template" select value={templateId} onChange={(e) => applyTemplate(e.target.value)} helperText="Choose a reusable message style, then edit the text before sending.">{templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.label} — {template.tone}</MenuItem>)}</TextField>
                   <TextField label="Candidate scheduling message" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText="This remark is shown on the scheduling request." />
-                  <Button type="submit" variant="contained" disabled={isSaving}>{isSaving ? 'Saving…' : 'Create self-scheduling request'}</Button>
+                  <Button type="submit" variant="contained" disabled={isSaving || interviewerIds.length === 0}>{isSaving ? 'Saving…' : 'Create self-scheduling request'}</Button>
                 </Stack>
               </Box>
             ) : null}

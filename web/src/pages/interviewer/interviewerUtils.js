@@ -46,7 +46,10 @@ export const getApiErrorMessage = (error, fallback = 'Something went wrong.') =>
 
 export const candidateName = (interview) => interview?.application?.applicant?.full_name ?? 'Candidate';
 export const jobTitle = (interview) => interview?.application?.job_title ?? 'Job';
-
+export const panelInterviewerNames = (interview) => {
+  const panel = interview?.panel_interviewers?.length ? interview.panel_interviewers : [interview?.interviewer].filter(Boolean);
+  return panel.map((member) => member.full_name || member.email).filter(Boolean).join(', ') || '—';
+};
 
 export const getStoredRecordingId = (interviewId) => window.localStorage.getItem(`hrrecruit.interview.${interviewId}.recordingId`) ?? '';
 export const setStoredRecordingId = (interviewId, recordingId) => window.localStorage.setItem(`hrrecruit.interview.${interviewId}.recordingId`, recordingId);

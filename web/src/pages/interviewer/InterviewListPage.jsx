@@ -3,7 +3,7 @@ import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField
 import { Link as RouterLink } from 'react-router-dom';
 import { getAssignedInterviews } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
-import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, titleize } from './interviewerUtils.js';
+import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, panelInterviewerNames, titleize } from './interviewerUtils.js';
 
 export default function InterviewListPage() {
   const [interviews, setInterviews] = useState([]);
@@ -60,7 +60,7 @@ export default function InterviewListPage() {
               <Box>
                 <Typography sx={{ fontWeight: 700 }}>{candidateName(interview)} • {jobTitle(interview)}</Typography>
                 <Typography color="text.secondary" variant="body2">
-                  {titleize(interview.status)} • {formatDateTime(interview.scheduled_datetime)} • {titleize(interview.mode)} • {interview.meeting_link || interview.location || 'No venue yet'}
+                  {titleize(interview.status)} • Panel: {panelInterviewerNames(interview)} • {formatDateTime(interview.scheduled_datetime)} • {titleize(interview.mode)} • {interview.meeting_link || interview.location || 'No venue yet'}
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ ml: { md: 'auto' }, justifyContent: 'flex-end' }}>

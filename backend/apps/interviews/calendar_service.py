@@ -250,6 +250,7 @@ def _event_attendees(interview):
         interview.application.applicant,
         interview.interviewer,
         interview.recruiter,
+        *list(interview.panel_interviewers.all()),
     ]
     seen = set()
     attendees = []
