@@ -64,9 +64,7 @@ export default function InterviewListPage() {
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ ml: { md: 'auto' }, justifyContent: 'flex-end' }}>
-                <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}`} variant="outlined" size="small">Detail</Button>
-                <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}/recording`} size="small">Upload</Button>
-                <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}/evaluation`} size="small">Evaluate</Button>
+                <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}`} variant="outlined" size="small">View detail</Button>
               </Stack>
             </Stack>
           ))}
