@@ -175,7 +175,7 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
         interview = self.context['interview']
         form = getattr(interview.application.job, 'interview_evaluation_form', None)
         if not form:
-            raise serializers.ValidationError({'answers': 'This job does not have an interview evaluation form configured.'})
+            raise serializers.ValidationError({'answers': 'This job does not have an interview evaluation scorecard configured.'})
 
         criteria = list(form.criteria.all())
         criteria_by_id = {criterion.id: criterion for criterion in criteria}
@@ -186,7 +186,7 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
         if len(submitted_ids) != len(submitted_id_set):
             raise serializers.ValidationError({'answers': 'Each evaluation criterion can only be answered once.'})
         if submitted_id_set != expected_ids:
-            raise serializers.ValidationError({'answers': 'Answers must match all criteria configured for this job evaluation form.'})
+            raise serializers.ValidationError({'answers': 'Answers must match all criteria configured for this job evaluation scorecard.'})
 
         for answer in attrs['answers']:
             criterion = criteria_by_id[answer['criterion_id']]

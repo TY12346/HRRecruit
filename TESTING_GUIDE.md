@@ -92,7 +92,7 @@ Use seeded demo data for a fast end-to-end smoke test:
    - Mobile: login as applicant.
 2. Job creation
    - Recruiter creates or opens a job posting.
-   - Recruiter configures requirements and evaluation form.
+   - Recruiter configures requirements and evaluation scorecard.
 3. Applicant application
    - Applicant browses jobs, saves a job if desired, uploads/resuses a resume, and applies.
 4. AI screening

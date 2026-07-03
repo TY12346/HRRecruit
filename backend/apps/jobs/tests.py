@@ -71,21 +71,19 @@ class JobPostingAPITests(APITestCase):
     def authenticate(self, user):
         self.client.force_authenticate(user)
 
-    def test_recruiter_can_create_patch_and_delete_job_for_own_organization(self):
+    def test_recruiter_cannot_create_job_directly_but_can_patch_and_delete_own_job(self):
+        job = self.create_job(status=JobPosting.Status.DRAFT)
         self.authenticate(self.recruiter)
 
         create_response = self.client.post(reverse('job-list-create'), self.job_payload, format='json')
-        job_id = create_response.data['id']
-        patch_response = self.client.patch(reverse('job-detail', args=[job_id]), {'location': 'Remote'}, format='json')
-        delete_response = self.client.delete(reverse('job-detail', args=[job_id]))
+        patch_response = self.client.patch(reverse('job-detail', args=[job.id]), {'location': 'Remote'}, format='json')
+        delete_response = self.client.delete(reverse('job-detail', args=[job.id]))
 
-        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(create_response.data['organization'], self.organization.id)
-        self.assertEqual(create_response.data['recruiter'], self.recruiter.id)
+        self.assertEqual(create_response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
         self.assertEqual(patch_response.data['location'], 'Remote')
         self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(JobPosting.objects.filter(id=job_id).exists())
+        self.assertFalse(JobPosting.objects.filter(id=job.id).exists())
 
     def test_recruiter_cannot_manage_another_organizations_job(self):
         other_head = self.create_user('other-head@example.com', User.Role.HR_HEAD)
@@ -154,7 +152,7 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(job.requirements.count(), 2)
         self.assertEqual(sum(job.requirements.values_list('weight_score', flat=True)), Decimal('1.00'))
 
-    def test_recruiter_can_create_evaluation_form_and_duplicate_complete_job_configuration(self):
+    def test_recruiter_can_create_evaluation_scorecard_but_cannot_duplicate_job_configuration(self):
         job = self.create_job()
         self.authenticate(self.recruiter)
         self.client.post(
@@ -167,9 +165,9 @@ class JobPostingAPITests(APITestCase):
             format='json',
         )
         form_response = self.client.post(
-            reverse('job-evaluation-form', args=[job.id]),
+            reverse('job-evaluation-scorecard', args=[job.id]),
             {
-                'title': 'Technical Interview',
+                'title': 'Technical Interview Scorecard',
                 'criteria': [
                     {'criterion_name': 'API design', 'description': 'Design quality', 'max_score': '10.00', 'weight_score': '1.00'},
                 ],
@@ -180,12 +178,71 @@ class JobPostingAPITests(APITestCase):
         duplicate_response = self.client.post(reverse('job-duplicate', args=[job.id]))
 
         self.assertEqual(form_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(duplicate_response.status_code, status.HTTP_201_CREATED)
-        duplicate = JobPosting.objects.get(id=duplicate_response.data['id'])
-        self.assertEqual(duplicate.status, JobPosting.Status.DRAFT)
-        self.assertEqual(duplicate.requirements.count(), 1)
-        self.assertTrue(InterviewEvaluationForm.objects.filter(job=duplicate).exists())
-        self.assertEqual(duplicate.interview_evaluation_form.criteria.count(), 1)
+        self.assertEqual(duplicate_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(InterviewEvaluationForm.objects.filter(job=job).exists())
+        self.assertEqual(job.interview_evaluation_form.criteria.count(), 1)
+
+
+    def test_hr_approval_creates_draft_job_for_recruiter_configuration(self):
+        self.authenticate(self.recruiter)
+        requisition_payload = {
+            'title': 'Product Designer',
+            'description': 'Design applicant experiences.',
+            'employment_type': 'full_time',
+            'salary_range': 'RM 6,000 - RM 8,000',
+            'location': 'Kuala Lumpur',
+            'core_responsibilities': 'Create flows and prototypes.',
+            'requirements_qualifications': 'Portfolio and product design experience.',
+            'department': 'Product',
+            'target_start_date': str(timezone.localdate() + timedelta(days=30)),
+            'benefits_perks': 'Allowance and bonus.',
+            'position_status': 'new_headcount',
+            'reason_for_hire': 'New product roadmap.',
+            'impact_of_not_hiring': 'Delayed releases.',
+        }
+        create_response = self.client.post(reverse('job-requisition-list-create'), requisition_payload, format='json')
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+        self.authenticate(self.hr_head)
+        approve_response = self.client.post(reverse('job-requisition-approve', args=[create_response.data['id']]))
+
+        self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
+        job = JobPosting.objects.get(id=approve_response.data['job_posting_id'])
+        self.assertEqual(job.status, JobPosting.Status.DRAFT)
+        self.assertEqual(job.salary_range, requisition_payload['salary_range'])
+        self.assertEqual(job.core_responsibilities, requisition_payload['core_responsibilities'])
+
+    def test_recruiter_cannot_open_approved_job_before_requirements_and_scorecard(self):
+        job = self.create_job(status=JobPosting.Status.DRAFT)
+        self.authenticate(self.recruiter)
+
+        no_config_response = self.client.patch(reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json')
+        self.client.post(
+            reverse('job-requirements', args=[job.id]),
+            {
+                'requirements': [
+                    {'requirement_type': 'skill', 'description': 'Python', 'weight_score': '1.00', 'minimum_threshold': '0.50'},
+                ]
+            },
+            format='json',
+        )
+        no_scorecard_response = self.client.patch(reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json')
+        self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {
+                'title': 'Interview Evaluation Scorecard',
+                'criteria': [
+                    {'criterion_name': 'Technical fit', 'description': 'Technical quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                ],
+            },
+            format='json',
+        )
+        open_response = self.client.patch(reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json')
+
+        self.assertEqual(no_config_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(no_scorecard_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(open_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(open_response.data['status'], JobPosting.Status.OPEN)
 
     def test_applicant_can_save_list_and_unsave_open_job(self):
         job = self.create_job()

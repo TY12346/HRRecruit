@@ -422,7 +422,7 @@ Requirements:
 - Applicants can search/filter open jobs by title, location, employment_type.
 - Job requirements can be created with weights.
 - Validate that requirement weights sum to 1.0, or normalize only if explicitly requested.
-- Evaluation form criteria can be created for a job.
+- Evaluation scorecard criteria can be created for a job.
 - Applicants can save/unsave jobs.
 - Do not enforce subscription limits yet; leave a clear TODO hook.
 

@@ -241,7 +241,7 @@ export default function JobCreateEditPage() {
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           {isEdit
             ? 'Update job posting details.'
-            : 'Submit the job requisition for HR department head approval. Approved requisitions are posted automatically as open jobs.'}
+            : 'Submit the job requisition for HR department head approval. Approved requisitions become draft jobs. Configure requirements and the interview evaluation scorecard before posting them as open jobs.'}
         </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? (

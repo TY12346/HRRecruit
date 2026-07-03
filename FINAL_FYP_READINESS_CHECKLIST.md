@@ -96,7 +96,7 @@ flutter run
 | Recruiter can create job posting | Complete | Log in as recruiter and create a job. | `POST /api/jobs/`, React recruiter jobs page | Subscription open-job limits may apply. |
 | Recruiter can update job posting | Complete | Edit an existing job. | `PATCH /api/jobs/<job_id>/` | Recruiter must own the job in own organization. |
 | Recruiter can manage job requirements | Complete | Add/update requirement records. | `POST/PUT /api/jobs/<job_id>/requirements/` | Requirements support screening/ranking. |
-| Recruiter can manage evaluation criteria | Complete | Configure interview evaluation form. | `POST/PUT /api/jobs/<job_id>/eval-form/` | Used by interview evaluation flow. |
+| Recruiter can manage evaluation criteria | Complete | Configure interview evaluation scorecard. | `POST/PUT /api/jobs/<job_id>/eval-form/` | Used by interview evaluation flow. |
 | Applicant can view open jobs | Complete | Log in as applicant and list open jobs. | `GET /api/jobs/`, Flutter jobs screen | Applicants should only see open/active jobs. |
 | Applicant can save/apply for jobs | Complete | Save a job and submit application. | `POST /api/jobs/<job_id>/save/`, `POST /api/jobs/<job_id>/apply/` | Application requires applicant role and resume/application data. |
 

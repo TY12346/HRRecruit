@@ -8,7 +8,7 @@ import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.js
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
 import CandidateProfilePage from '../pages/recruiter/CandidateProfilePage.jsx';
 import CandidateRankingPage from '../pages/recruiter/CandidateRankingPage.jsx';
-import EvaluationFormBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
+import EvaluationScorecardBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
 import HiringDecisionPage from '../pages/recruiter/HiringDecisionPage.jsx';
 import InterviewAssignmentPage from '../pages/recruiter/InterviewAssignmentPage.jsx';
 import GoogleCalendarCallbackPage from '../pages/recruiter/GoogleCalendarCallbackPage.jsx';
@@ -83,7 +83,8 @@ export const router = createBrowserRouter([
           { path: 'recruiter/jobs/:jobId', element: <JobDetailPage /> },
           { path: 'recruiter/jobs/:jobId/edit', element: <JobCreateEditPage /> },
           { path: 'recruiter/jobs/:jobId/requirements', element: <JobRequirementsPage /> },
-          { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationFormBuilderPage /> },
+          { path: 'recruiter/jobs/:jobId/scorecard', element: <EvaluationScorecardBuilderPage /> },
+          { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationScorecardBuilderPage /> },
           { path: 'recruiter/jobs/:jobId/ranking', element: <CandidateRankingPage /> },
           { path: 'recruiter/applications', element: <ApplicationsPage /> },
           { path: 'recruiter/applications/:applicationId', element: <CandidateProfilePage /> },

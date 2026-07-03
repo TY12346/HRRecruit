@@ -318,10 +318,12 @@ export const configureJobRequirements = async (jobId, payload) => {
   return response.data;
 };
 
-export const createJobEvaluationForm = async (jobId, payload) => {
-  const response = await apiClient.post(`/jobs/${jobId}/eval-form/`, payload);
+export const createInterviewEvaluationScorecard = async (jobId, payload) => {
+  const response = await apiClient.post(`/jobs/${jobId}/scorecard/`, payload);
   return response.data;
 };
+
+export const createJobEvaluationForm = createInterviewEvaluationScorecard;
 
 export const getApplications = async (params = {}) => {
   const response = await apiClient.get('/applications/', { params });

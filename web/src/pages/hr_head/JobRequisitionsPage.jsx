@@ -42,7 +42,7 @@ export default function JobRequisitionsPage() {
 
   const approve = async (item) => {
     setBusyId(item.id); setError(''); setSuccess('');
-    try { await approveJobRequisition(item.id); setSuccess('Job requisition approved and posted.'); setSelectedRequisition(null); await load(); } catch (err) { setError(getApiErrorMessage(err, 'Unable to approve requisition.')); } finally { setBusyId(null); }
+    try { await approveJobRequisition(item.id); setSuccess('Job requisition approved. A draft job was created for recruiter configuration.'); setSelectedRequisition(null); await load(); } catch (err) { setError(getApiErrorMessage(err, 'Unable to approve requisition.')); } finally { setBusyId(null); }
   };
   const reject = async (item) => {
     const reason = window.prompt('Reason for rejecting this job requisition');
@@ -112,7 +112,7 @@ export default function JobRequisitionsPage() {
                 <DetailRow label="Reason for hire" value={selectedRequisition.reason_for_hire} />
                 <DetailRow label="Impact of not hiring" value={selectedRequisition.impact_of_not_hiring} />
                 {selectedRequisition.status === 'rejected' ? <DetailRow label="Rejection reason" value={selectedRequisition.rejection_reason} /> : null}
-                {selectedRequisition.status === 'approved' && selectedRequisition.job_posting_id ? <DetailRow label="Posted job" value={`Job #${selectedRequisition.job_posting_id}`} /> : null}
+                {selectedRequisition.status === 'approved' && selectedRequisition.job_posting_id ? <DetailRow label="Draft job" value={`Job #${selectedRequisition.job_posting_id}`} /> : null}
               </Stack>
             </DialogContent>
             <DialogActions>

@@ -77,11 +77,11 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 ## Jobs APIs
 
-**Purpose:** Manage job postings, requirements, evaluation forms, saved jobs, applications, and candidate rankings.
+**Purpose:** Manage job postings, requirements, evaluation scorecards, saved jobs, applications, and candidate rankings.
 
 **Main roles:**
 
-- Recruiter: create/update jobs, requirements, evaluation forms, duplicate jobs, view qualified candidate rankings.
+- Recruiter: create/update jobs, requirements, evaluation scorecards, duplicate jobs, view qualified candidate rankings.
 - Applicant: browse jobs, save jobs, apply.
 - HR head/interviewer: may view organization/assigned job-related data where allowed by the views.
 
@@ -94,7 +94,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/jobs/<job_id>/` | Job detail/update where permitted. |
 | `/api/jobs/<job_id>/duplicate/` | Duplicate a job. |
 | `/api/jobs/<job_id>/requirements/` | Job requirements. |
-| `/api/jobs/<job_id>/eval-form/` | Evaluation form builder data. |
+| `/api/jobs/<job_id>/eval-form/` | Evaluation scorecard builder data. |
 | `/api/jobs/<job_id>/save/` | Save/unsave a job. |
 | `/api/jobs/<job_id>/apply/` | Applicant application submission. |
 | `/api/jobs/<job_id>/ranked-candidates/` | Candidate ranking for a job. |

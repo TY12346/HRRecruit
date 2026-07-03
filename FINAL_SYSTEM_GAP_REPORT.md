@@ -306,7 +306,7 @@ However, several gaps can block or weaken a final FYP demonstration:
 - **Authentication:** JWT authentication is configured globally in DRF, with authenticated access as the default permission class. Public endpoints are limited to registration, login, and password reset.
 - **Roles:** Role constants match the required values: `applicant`, `recruiter`, `interviewer`, and `hr_head`.
 - **Organization isolation:** Major recruiter, interviewer, HR-head, billing, analytics, application, interview, and hiring flows filter by active organization membership.
-- **Job posting:** Recruiters can create, update, duplicate, configure requirements, and configure evaluation forms for their organization jobs. Applicants can search/open/save/apply to open jobs.
+- **Job posting:** Recruiters can create, update, duplicate, configure requirements, and configure evaluation scorecards for their organization jobs. Applicants can search/open/save/apply to open jobs.
 - **Application workflow:** Applicants can apply/withdraw; recruiters can screen, rank, shortlist, assign interviewers, reject, and add remarks.
 - **AI resume screening:** Screening logic remains in `ai_services`, uses the required formula, records component scores/explanations, and auto-rejects low scores due to underqualification while leaving qualified applicants for recruiter review.
 - **Candidate ranking:** Recruiter ranking sorts by final score descending with nulls last and earlier application as tie breaker.

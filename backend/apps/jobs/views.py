@@ -65,6 +65,15 @@ def enforce_job_opening_allowed(organization, requested_status, current_job=None
         raise ValidationError({'status': [str(exc)]}) from exc
 
 
+def enforce_job_ready_for_open(job, requested_status):
+    if requested_status != JobPosting.Status.OPEN or job.status == JobPosting.Status.OPEN:
+        return
+    if not job.requirements.exists():
+        raise ValidationError({'status': ['Configure job requirements before posting this job opening.']})
+    if not hasattr(job, 'interview_evaluation_form'):
+        raise ValidationError({'status': ['Configure an interview evaluation scorecard before posting this job opening.']})
+
+
 def recruiter_job_or_404(user, job_id):
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
@@ -117,7 +126,6 @@ class JobRequisitionApproveAPIView(APIView):
         requisition = hr_requisition_or_404(request.user, requisition_id)
         if requisition.status != JobRequisition.Status.PENDING:
             raise ValidationError({'status': 'Only pending requisitions can be approved.'})
-        enforce_job_opening_allowed(requisition.organization, JobPosting.Status.OPEN)
         job = JobPosting.objects.create(
             organization=requisition.organization,
             recruiter=requisition.recruiter,
@@ -136,7 +144,7 @@ class JobRequisitionApproveAPIView(APIView):
             position_status=requisition.position_status,
             reason_for_hire=requisition.reason_for_hire,
             impact_of_not_hiring=requisition.impact_of_not_hiring,
-            status=JobPosting.Status.OPEN,
+            status=JobPosting.Status.DRAFT,
         )
         requisition.status = JobRequisition.Status.APPROVED
         requisition.reviewed_by = request.user
@@ -198,9 +206,9 @@ class JobDetailAPIView(APIView):
         job = recruiter_job_or_404(request.user, job_id)
         serializer = JobPostingSerializer(job, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        enforce_job_opening_allowed(
-            job.organization, serializer.validated_data.get('status', job.status), current_job=job
-        )
+        requested_status = serializer.validated_data.get('status', job.status)
+        enforce_job_ready_for_open(job, requested_status)
+        enforce_job_opening_allowed(job.organization, requested_status, current_job=job)
         serializer.save()
         return Response(serializer.data)
 
@@ -237,10 +245,10 @@ class JobEvaluationFormAPIView(APIView):
 
     def post(self, request, job_id):
         if request.user.role != User.Role.RECRUITER:
-            raise PermissionDenied('Only recruiters can create job evaluation forms.')
+            raise PermissionDenied('Only recruiters can create interview evaluation scorecards.')
         job = recruiter_job_or_404(request.user, job_id)
         if hasattr(job, 'interview_evaluation_form'):
-            return Response({'detail': 'This job already has an evaluation form.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'This job already has an interview evaluation scorecard.'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = InterviewEvaluationFormSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         form = serializer.save(job=job)

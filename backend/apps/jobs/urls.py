@@ -24,6 +24,7 @@ urlpatterns = [
     path('<int:job_id>/', JobDetailAPIView.as_view(), name='job-detail'),
     path('<int:job_id>/duplicate/', JobDuplicateAPIView.as_view(), name='job-duplicate'),
     path('<int:job_id>/requirements/', JobRequirementsAPIView.as_view(), name='job-requirements'),
+    path('<int:job_id>/scorecard/', JobEvaluationFormAPIView.as_view(), name='job-evaluation-scorecard'),
     path('<int:job_id>/eval-form/', JobEvaluationFormAPIView.as_view(), name='job-evaluation-form'),
     path('<int:job_id>/save/', JobSaveAPIView.as_view(), name='job-save'),
     path('<int:job_id>/apply/', JobApplyAPIView.as_view(), name='job-apply'),

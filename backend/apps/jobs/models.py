@@ -122,6 +122,11 @@ class InterviewEvaluationForm(models.Model):
     title = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
 
+
+    class Meta:
+        verbose_name = 'Interview evaluation scorecard'
+        verbose_name_plural = 'Interview evaluation scorecards'
+
     def __str__(self):
         return self.title
 

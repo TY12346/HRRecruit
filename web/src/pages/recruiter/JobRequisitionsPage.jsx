@@ -38,7 +38,7 @@ export default function JobRequisitionsPage() {
                 {titleize(item.position_status)} • Target start {item.target_start_date || 'not specified'} • Submitted {formatDateTime(item.created_at)}
               </Typography>
               {item.status === 'rejected' ? <Typography color="error" variant="body2">Reason: {item.rejection_reason}</Typography> : null}
-              {item.status === 'approved' && item.job_posting_id ? <Typography color="text.secondary" variant="body2">Posted as job #{item.job_posting_id}</Typography> : null}
+              {item.status === 'approved' && item.job_posting_id ? <Typography color="text.secondary" variant="body2">Draft job #{item.job_posting_id}</Typography> : null}
             </Box>
             <Chip label={titleize(item.status)} size="small" color={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'error' : 'warning'} sx={{ alignSelf: { xs: 'flex-start', md: 'center' } }} />
           </Stack>

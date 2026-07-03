@@ -1,4 +1,4 @@
-"""Serializers for job posting, requirement, evaluation form, and saved-job APIs."""
+"""Serializers for job posting, requirement, evaluation scorecard, and saved-job APIs."""
 
 from decimal import Decimal, ROUND_DOWN
 
@@ -55,6 +55,7 @@ class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
 class JobPostingSerializer(serializers.ModelSerializer):
     requirements = JobRequirementSerializer(many=True, read_only=True)
     interview_evaluation_form = InterviewEvaluationFormSerializer(read_only=True)
+    interview_evaluation_scorecard = InterviewEvaluationFormSerializer(source='interview_evaluation_form', read_only=True)
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     recruiter_name = serializers.CharField(source='recruiter.full_name', read_only=True)
     is_saved = serializers.SerializerMethodField()
@@ -85,6 +86,7 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'status',
             'requirements',
             'interview_evaluation_form',
+            'interview_evaluation_scorecard',
             'is_saved',
             'created_at',
             'updated_at',
@@ -97,6 +99,7 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'recruiter_name',
             'requirements',
             'interview_evaluation_form',
+            'interview_evaluation_scorecard',
             'is_saved',
             'created_at',
             'updated_at',
