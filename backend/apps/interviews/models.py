@@ -147,6 +147,12 @@ class InterviewSchedulingRequest(models.Model):
         related_name='interview_scheduling_requests',
         limit_choices_to={'role': User.Role.INTERVIEWER},
     )
+    panel_interviewers = models.ManyToManyField(
+        User,
+        related_name='panel_interview_scheduling_requests',
+        blank=True,
+        limit_choices_to={'role': User.Role.INTERVIEWER},
+    )
     selected_slot = models.OneToOneField(
         InterviewerAvailabilitySlot,
         on_delete=models.SET_NULL,
@@ -221,6 +227,12 @@ class Interview(models.Model):
         related_name='assigned_interviews',
         blank=True,
         null=True,
+        limit_choices_to={'role': User.Role.INTERVIEWER},
+    )
+    panel_interviewers = models.ManyToManyField(
+        User,
+        related_name='panel_interviews',
+        blank=True,
         limit_choices_to={'role': User.Role.INTERVIEWER},
     )
     scheduled_datetime = models.DateTimeField(blank=True, null=True)

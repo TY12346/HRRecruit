@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import Interview, InterviewerAvailabilityPattern, InterviewerUnavailableDate
@@ -41,11 +42,11 @@ def generate_available_slots(interviewer, organization, days_ahead=28, from_date
         date__range=(start_date, end_date),
     ).values_list('date', flat=True))
     booked = set(Interview.objects.filter(
+        Q(interviewer=interviewer) | Q(panel_interviewers=interviewer),
         organization=organization,
-        interviewer=interviewer,
         interview_date__range=(start_date, end_date),
         status__in=[Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
-    ).values_list('interview_date', 'start_time', 'end_time'))
+    ).distinct().values_list('interview_date', 'start_time', 'end_time'))
     slots = []
     for pattern in patterns:
         day = start_date
@@ -77,3 +78,20 @@ def generate_available_slots(interviewer, organization, days_ahead=28, from_date
 def models_effective_until_filter(start_date):
     from django.db import models
     return models.Q(effective_until__isnull=True) | models.Q(effective_until__gte=start_date)
+
+
+
+def generate_common_available_slots(interviewers, organization, days_ahead=28, from_datetime=None):
+    """Return slots where every interviewer in the panel is available at the same time."""
+    panel = list(dict.fromkeys([interviewer for interviewer in interviewers if interviewer]))
+    if not panel:
+        return []
+    panel_slots = [generate_available_slots(interviewer, organization, days_ahead=days_ahead, from_datetime=from_datetime) for interviewer in panel]
+    if len(panel_slots) == 1:
+        return panel_slots[0]
+    common_keys = None
+    for slots in panel_slots:
+        keys = {(slot.date, slot.start_time, slot.end_time) for slot in slots}
+        common_keys = keys if common_keys is None else common_keys & keys
+    common_keys = common_keys or set()
+    return [slot for slot in panel_slots[0] if (slot.date, slot.start_time, slot.end_time) in common_keys]

@@ -76,7 +76,7 @@ export default function SubmitEvaluationPage() {
         </Alert>
         {criteria.length === 0 && interview ? (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            This job does not have an interview evaluation form configured yet. Ask the recruiter to set up the form before submitting an evaluation.
+            This job does not have an interview evaluation scorecard configured yet. Ask the recruiter to set up the form before submitting an evaluation.
           </Alert>
         ) : null}
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}

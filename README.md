@@ -20,7 +20,7 @@ HRRecruit addresses this by providing one role-based platform where:
 | Role | Main Responsibilities |
 | --- | --- |
 | HR head | Manage organization profile, team members, pending hiring approvals, analytics, reports, and billing/subscription status. |
-| Recruiter | Create and manage jobs, configure requirements and evaluation forms, review automatically screened applications, rank candidates, assign interviewers, submit hiring recommendations, and create job offers. |
+| Recruiter | Create and manage jobs, configure requirements and evaluation scorecards, review automatically screened applications, rank candidates, assign interviewers, submit hiring recommendations, and create job offers. |
 | Interviewer | View assigned interviews/candidates, send or review invitations, upload interview recordings, generate/review transcripts and AI summaries, and submit evaluations. |
 | Applicant | Register/login through the mobile workflow, manage profile/resume, browse and save jobs, apply, track application status, view notifications/interview invitations/offers, and accept or decline offers. |
 
@@ -31,7 +31,7 @@ HRRecruit addresses this by providing one role-based platform where:
 - Authentication and role-based access control using JWT.
 - User profile and applicant resume upload.
 - Organization profile and organization member management.
-- Job posting, job detail, duplication, requirements, evaluation form, saved jobs, and job application flow.
+- Job posting, job detail, duplication, requirements, evaluation scorecard, saved jobs, and job application flow.
 - Application management with status history, remarks, shortlisting, rejection, candidate profile, and automatic AI screening on application submission.
 - Candidate ranking by job.
 - Interview assignment, interview invitation, invitation response, and assigned-interview views.

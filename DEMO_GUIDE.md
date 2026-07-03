@@ -108,7 +108,7 @@ Follow this order for a clear examiner walkthrough:
    - Show organization profile, dashboard, team members, subscription/billing area, and analytics overview.
 2. Recruiter job setup
    - Login as recruiter.
-   - Show job list/detail, job requirements, and evaluation form builder.
+   - Show job list/detail, job requirements, and evaluation scorecard builder.
 3. Applicant application
    - Login as applicant in the mobile app.
    - Show job search, saved jobs if needed, profile/resume, and application status.

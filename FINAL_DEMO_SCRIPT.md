@@ -10,7 +10,7 @@ HRRecruit is an AI-powered recruitment management SaaS for managing the full hir
 
 - Applicants search and apply for jobs from the Flutter mobile app.
 - Recruiters create jobs, review applications, use AI-assisted resume screening, shortlist candidates, and submit hiring recommendations.
-- Interviewers manage assigned interviews, invitations, recordings, transcripts, AI summaries, and evaluation forms.
+- Interviewers manage assigned interviews, invitations, recordings, transcripts, AI summaries, and evaluation scorecards.
 - HR department heads manage organization oversight, billing, analytics, and final hiring approval.
 
 ### Why there are four roles
@@ -247,7 +247,7 @@ Each step includes actor/role, page or app screen, action, expected result, and 
 | B3 | Recruiter | Web `/recruiter/jobs` | Open the `Software Engineer` job or create a new job only if needed. | Seeded `Software Engineer` and `Data Analyst` jobs are listed as open jobs. | Prefer opening seeded data; do not depend on creating new data during final demo. |
 | B4 | Recruiter | Web `/recruiter/jobs/:jobId` | Review Software Engineer posting details. | Job description, location `Kuala Lumpur / Hybrid`, full-time employment, salary around MYR 6500, and open status are visible. | If exact salary is hidden by UI, focus on title/status/description. |
 | B5 | Recruiter | Web `/recruiter/jobs/:jobId/requirements` | Review job requirements. | Requirements show skill, education, experience, and other communication/teamwork criteria with weights/thresholds. | If requirements are not visible on this page, mention seeded requirements from the job setup. |
-| B6 | Recruiter | Web `/recruiter/jobs/:jobId/evaluation-form` | Review evaluation criteria. | Criteria include Technical fit, Communication, Culture and teamwork, and Learning agility. | If form builder is read-only or incomplete, explain evaluation criteria are seeded and used in the interviewer evaluation step. |
+| B6 | Recruiter | Web `/recruiter/jobs/:jobId/scorecard` | Review evaluation criteria. | Criteria include Technical fit, Communication, Culture and teamwork, and Learning agility. | If scorecard builder is read-only or incomplete, explain evaluation criteria are seeded and used in the interviewer evaluation step. |
 | B7 | Recruiter | Job detail/list | Confirm job status. | `Software Engineer` is open/active and ready for applications. | If status display differs by wording, use the seeded open job as the main demo job. |
 
 ### C. Applicant Mobile Flow

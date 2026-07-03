@@ -92,7 +92,7 @@ Recruiter can:
 - Duplicate job posting
 - Configure job requirements
 - Assign weight to each job requirement
-- Create job-specific interview evaluation form
+- Create job-specific interview evaluation scorecard
 - Add evaluation criteria
 
 Applicant can:
@@ -208,7 +208,7 @@ Interviewer can:
 - Generate transcript
 - Generate AI summary
 - Edit AI summary
-- Fill in evaluation form
+- Fill in evaluation scorecard
 - Submit evaluation
 
 Recruiter can:

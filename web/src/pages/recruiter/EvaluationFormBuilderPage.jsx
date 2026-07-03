@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createJobEvaluationForm, getJob } from '../../api/client.js';
+import { createInterviewEvaluationScorecard, getJob } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import {
   applyCriterionImportance,
@@ -15,7 +15,7 @@ import { getApiErrorMessage } from './recruiterUtils.js';
 export default function EvaluationFormBuilderPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const [title, setTitle] = useState('Interview Evaluation Form');
+  const [title, setTitle] = useState('Interview Evaluation Scorecard');
   const [criteria, setCriteria] = useState([cloneCriterion()]);
   const [existing, setExisting] = useState(null);
   const [error, setError] = useState('');
@@ -24,13 +24,14 @@ export default function EvaluationFormBuilderPage() {
   useEffect(() => {
     getJob(jobId)
       .then((job) => {
-        if (job.interview_evaluation_form) {
-          setExisting(job.interview_evaluation_form);
-          setTitle(job.interview_evaluation_form.title);
-          setCriteria((job.interview_evaluation_form.criteria ?? []).map(hydrateCriterion));
+        const scorecard = job.interview_evaluation_scorecard ?? job.interview_evaluation_form;
+        if (scorecard) {
+          setExisting(scorecard);
+          setTitle(scorecard.title);
+          setCriteria((scorecard.criteria ?? []).map(hydrateCriterion));
         }
       })
-      .catch((err) => setError(getApiErrorMessage(err, 'Unable to load evaluation form.')));
+      .catch((err) => setError(getApiErrorMessage(err, 'Unable to load evaluation scorecard.')));
   }, [jobId]);
 
   const update = (index, field, value) => {
@@ -52,12 +53,12 @@ export default function EvaluationFormBuilderPage() {
 
     try {
       const payloadCriteria = prepareCriteriaForApi(criteria);
-      const saved = await createJobEvaluationForm(jobId, { title, criteria: payloadCriteria });
-      setSuccess('Evaluation form created.');
+      const saved = await createInterviewEvaluationScorecard(jobId, { title, criteria: payloadCriteria });
+      setSuccess('Evaluation scorecard created.');
       setExisting(saved);
       setCriteria((saved.criteria ?? payloadCriteria).map(hydrateCriterion));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to create evaluation form.'));
+      setError(getApiErrorMessage(err, 'Unable to create evaluation scorecard.'));
     }
   };
 
@@ -65,15 +66,15 @@ export default function EvaluationFormBuilderPage() {
     <Box>
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Evaluation form builder</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>Evaluation scorecard builder</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Define interviewer scoring criteria using real-world competency importance labels. Existing forms are displayed read-only because the current backend supports creation once.
+          Define interviewer scoring criteria using real-world competency importance labels. Existing scorecards are displayed read-only because the current backend supports creation once.
         </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         <Box component="form" onSubmit={save}>
           <Stack spacing={2}>
-            <TextField disabled={Boolean(existing)} label="Form title" value={title} onChange={(event) => setTitle(event.target.value)} />
+            <TextField disabled={Boolean(existing)} label="Scorecard title" value={title} onChange={(event) => setTitle(event.target.value)} />
             {criteria.map((criterion, index) => (
               <Paper key={index} variant="outlined" sx={{ p: 2 }}>
                 <Stack spacing={2}>

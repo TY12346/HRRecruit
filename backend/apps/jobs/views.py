@@ -12,12 +12,15 @@ from rest_framework.views import APIView
 from apps.billing.services import SubscriptionLimitError, enforce_open_job_limit
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
+from django.utils import timezone
 
-from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, JobRequirement, SavedJobPosting
+from .models import JobPosting, JobRequisition, SavedJobPosting
 from .serializers import (
     InterviewEvaluationFormSerializer,
     JobPostingSerializer,
     JobRequirementConfigurationSerializer,
+    JobRequisitionRejectSerializer,
+    JobRequisitionSerializer,
 )
 
 
@@ -62,11 +65,111 @@ def enforce_job_opening_allowed(organization, requested_status, current_job=None
         raise ValidationError({'status': [str(exc)]}) from exc
 
 
+def enforce_job_ready_for_open(job, requested_status):
+    if requested_status != JobPosting.Status.OPEN or job.status == JobPosting.Status.OPEN:
+        return
+    if not job.requirements.exists():
+        raise ValidationError({'status': ['Configure job requirements before posting this job opening.']})
+    if not hasattr(job, 'interview_evaluation_form'):
+        raise ValidationError({'status': ['Configure an interview evaluation scorecard before posting this job opening.']})
+
+
 def recruiter_job_or_404(user, job_id):
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
         raise PermissionDenied('An active recruiter organization membership is required.')
     return get_object_or_404(JobPosting, id=job_id, organization=membership.organization)
+
+
+def visible_requisitions_for(user):
+    requisitions = JobRequisition.objects.select_related('organization', 'recruiter', 'reviewed_by', 'job_posting')
+    if user.role == User.Role.RECRUITER:
+        membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
+        return requisitions.filter(organization=membership.organization, recruiter=user) if membership else requisitions.none()
+    if user.role == User.Role.HR_HEAD:
+        membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
+        return requisitions.filter(organization=membership.organization) if membership else requisitions.none()
+    return requisitions.none()
+
+
+def hr_requisition_or_404(user, requisition_id):
+    if user.role != User.Role.HR_HEAD:
+        raise PermissionDenied('Only HR department heads can review job requisitions.')
+    return get_object_or_404(visible_requisitions_for(user), id=requisition_id)
+
+
+class JobRequisitionListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in (User.Role.RECRUITER, User.Role.HR_HEAD):
+            raise PermissionDenied('Your role cannot view job requisitions.')
+        return Response(JobRequisitionSerializer(visible_requisitions_for(request.user), many=True, context={'request': request}).data)
+
+    def post(self, request):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can submit job requisitions.')
+        membership = get_active_membership(request.user, OrganizationMembership.Role.RECRUITER)
+        if not membership:
+            raise PermissionDenied('An active recruiter organization membership is required.')
+        serializer = JobRequisitionSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        requisition = serializer.save(organization=membership.organization, recruiter=request.user)
+        return Response(JobRequisitionSerializer(requisition, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class JobRequisitionApproveAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, requisition_id):
+        requisition = hr_requisition_or_404(request.user, requisition_id)
+        if requisition.status != JobRequisition.Status.PENDING:
+            raise ValidationError({'status': 'Only pending requisitions can be approved.'})
+        job = JobPosting.objects.create(
+            organization=requisition.organization,
+            recruiter=requisition.recruiter,
+            title=requisition.title,
+            description=requisition.description,
+            employment_type=requisition.employment_type,
+            approximate_salary=requisition.approximate_salary,
+            salary_range=requisition.salary_range,
+            location=requisition.location,
+            core_responsibilities=requisition.core_responsibilities,
+            requirements_qualifications=requisition.requirements_qualifications,
+            department=requisition.department,
+            custom_department=requisition.custom_department,
+            target_start_date=requisition.target_start_date,
+            benefits_perks=requisition.benefits_perks,
+            position_status=requisition.position_status,
+            reason_for_hire=requisition.reason_for_hire,
+            impact_of_not_hiring=requisition.impact_of_not_hiring,
+            status=JobPosting.Status.DRAFT,
+        )
+        requisition.status = JobRequisition.Status.APPROVED
+        requisition.reviewed_by = request.user
+        requisition.reviewed_at = timezone.now()
+        requisition.job_posting = job
+        requisition.rejection_reason = ''
+        requisition.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'job_posting', 'rejection_reason', 'updated_at'])
+        return Response(JobRequisitionSerializer(requisition, context={'request': request}).data)
+
+
+class JobRequisitionRejectAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, requisition_id):
+        requisition = hr_requisition_or_404(request.user, requisition_id)
+        if requisition.status != JobRequisition.Status.PENDING:
+            raise ValidationError({'status': 'Only pending requisitions can be rejected.'})
+        serializer = JobRequisitionRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        requisition.status = JobRequisition.Status.REJECTED
+        requisition.rejection_reason = serializer.validated_data['reason']
+        requisition.reviewed_by = request.user
+        requisition.reviewed_at = timezone.now()
+        requisition.save(update_fields=['status', 'rejection_reason', 'reviewed_by', 'reviewed_at', 'updated_at'])
+        return Response(JobRequisitionSerializer(requisition, context={'request': request}).data)
 
 
 class JobListCreateAPIView(APIView):
@@ -87,18 +190,7 @@ class JobListCreateAPIView(APIView):
         return Response(JobPostingSerializer(jobs, many=True, context={'request': request}).data)
 
     def post(self, request):
-        if request.user.role != User.Role.RECRUITER:
-            raise PermissionDenied('Only recruiters can create job postings.')
-        membership = get_active_membership(request.user, OrganizationMembership.Role.RECRUITER)
-        if not membership:
-            raise PermissionDenied('An active recruiter organization membership is required.')
-        serializer = JobPostingSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        enforce_job_opening_allowed(
-            membership.organization, serializer.validated_data.get('status', JobPosting.Status.DRAFT)
-        )
-        job = serializer.save(organization=membership.organization, recruiter=request.user)
-        return Response(JobPostingSerializer(job, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        raise PermissionDenied('Recruiters must submit a job requisition for HR approval before a job posting is created.')
 
 
 class JobDetailAPIView(APIView):
@@ -114,9 +206,9 @@ class JobDetailAPIView(APIView):
         job = recruiter_job_or_404(request.user, job_id)
         serializer = JobPostingSerializer(job, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        enforce_job_opening_allowed(
-            job.organization, serializer.validated_data.get('status', job.status), current_job=job
-        )
+        requested_status = serializer.validated_data.get('status', job.status)
+        enforce_job_ready_for_open(job, requested_status)
+        enforce_job_opening_allowed(job.organization, requested_status, current_job=job)
         serializer.save()
         return Response(serializer.data)
 
@@ -131,48 +223,8 @@ class JobDetailAPIView(APIView):
 class JobDuplicateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
     def post(self, request, job_id):
-        if request.user.role != User.Role.RECRUITER:
-            raise PermissionDenied('Only recruiters can duplicate job postings.')
-        source = recruiter_job_or_404(request.user, job_id)
-        duplicate = JobPosting.objects.create(
-            organization=source.organization,
-            recruiter=request.user,
-            title=f'{source.title} (Copy)',
-            description=source.description,
-            employment_type=source.employment_type,
-            approximate_salary=source.approximate_salary,
-            location=source.location,
-            status=JobPosting.Status.DRAFT,
-        )
-        JobRequirement.objects.bulk_create(
-            JobRequirement(
-                job=duplicate,
-                requirement_type=requirement.requirement_type,
-                description=requirement.description,
-                weight_score=requirement.weight_score,
-                minimum_threshold=requirement.minimum_threshold,
-            )
-            for requirement in source.requirements.all()
-        )
-        try:
-            source_form = source.interview_evaluation_form
-        except InterviewEvaluationForm.DoesNotExist:
-            source_form = None
-        if source_form:
-            duplicate_form = InterviewEvaluationForm.objects.create(job=duplicate, title=source_form.title)
-            EvaluationCriterion.objects.bulk_create(
-                EvaluationCriterion(
-                    form=duplicate_form,
-                    criterion_name=criterion.criterion_name,
-                    description=criterion.description,
-                    max_score=criterion.max_score,
-                    weight_score=criterion.weight_score,
-                )
-                for criterion in source_form.criteria.all()
-            )
-        return Response(JobPostingSerializer(duplicate, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        raise PermissionDenied('Recruiters must submit a job requisition for HR approval before a new job posting is created.')
 
 
 class JobRequirementsAPIView(APIView):
@@ -193,10 +245,10 @@ class JobEvaluationFormAPIView(APIView):
 
     def post(self, request, job_id):
         if request.user.role != User.Role.RECRUITER:
-            raise PermissionDenied('Only recruiters can create job evaluation forms.')
+            raise PermissionDenied('Only recruiters can create interview evaluation scorecards.')
         job = recruiter_job_or_404(request.user, job_id)
         if hasattr(job, 'interview_evaluation_form'):
-            return Response({'detail': 'This job already has an evaluation form.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'This job already has an interview evaluation scorecard.'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = InterviewEvaluationFormSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         form = serializer.save(job=job)

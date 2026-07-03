@@ -1,28 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Paper, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
-import { getAssignedInterviews, getInterviewerAnalytics } from '../../api/client.js';
+import { Alert, Box, Card, CardContent, CircularProgress, Grid, Paper, Typography } from '@mui/material';
+import { getInterviewerAnalytics } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
-import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, titleize } from './interviewerUtils.js';
+import { getApiErrorMessage } from './interviewerUtils.js';
 
 export default function InterviewerDashboardPage() {
   const [analytics, setAnalytics] = useState(null);
-  const [interviews, setInterviews] = useState([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getInterviewerAnalytics(), getAssignedInterviews()])
-      .then(([analyticsData, interviewData]) => {
-        setAnalytics(analyticsData);
-        setInterviews(interviewData);
-      })
+    getInterviewerAnalytics()
+      .then((analyticsData) => setAnalytics(analyticsData))
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load interviewer dashboard.')))
       .finally(() => setIsLoading(false));
   }, []);
 
   const metrics = analytics?.metrics ?? {};
-  const upcoming = interviews.filter((interview) => ['assigned', 'scheduled'].includes(interview.status)).slice(0, 5);
 
   return (
     <Box>
@@ -44,27 +38,6 @@ export default function InterviewerDashboardPage() {
             </Grid>
           ))}
         </Grid>
-        <Stack direction="row" spacing={1} sx={{ mb: 2 }} useFlexGap flexWrap="wrap">
-          <Button component={RouterLink} to="/interviewer/candidates" variant="contained">View assigned candidates</Button>
-          <Button component={RouterLink} to="/interviewer/interviews" variant="outlined">Manage interviews</Button>
-        </Stack>
-        <Typography variant="h6" sx={{ mb: 1 }}>Upcoming work</Typography>
-        <Stack spacing={2}>
-          {upcoming.map((interview) => (
-            <Card key={interview.id} variant="outlined">
-              <CardContent>
-                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{candidateName(interview)} • {jobTitle(interview)}</Typography>
-                    <Typography color="text.secondary">{titleize(interview.status)} • {formatDateTime(interview.scheduled_datetime)}</Typography>
-                  </Box>
-                  <Button component={RouterLink} to={`/interviewer/interviews/${interview.id}`} variant="outlined">Open</Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
-          {!isLoading && upcoming.length === 0 ? <Typography color="text.secondary">No upcoming interviews assigned yet.</Typography> : null}
-        </Stack>
       </Paper>
     </Box>
   );

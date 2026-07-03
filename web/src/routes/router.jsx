@@ -8,7 +8,7 @@ import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.js
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
 import CandidateProfilePage from '../pages/recruiter/CandidateProfilePage.jsx';
 import CandidateRankingPage from '../pages/recruiter/CandidateRankingPage.jsx';
-import EvaluationFormBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
+import EvaluationScorecardBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
 import HiringDecisionPage from '../pages/recruiter/HiringDecisionPage.jsx';
 import InterviewAssignmentPage from '../pages/recruiter/InterviewAssignmentPage.jsx';
 import GoogleCalendarCallbackPage from '../pages/recruiter/GoogleCalendarCallbackPage.jsx';
@@ -16,6 +16,7 @@ import InterviewEvaluationDetailPage from '../pages/recruiter/InterviewEvaluatio
 import JobCreateEditPage from '../pages/recruiter/JobCreateEditPage.jsx';
 import JobDetailPage from '../pages/recruiter/JobDetailPage.jsx';
 import JobListPage from '../pages/recruiter/JobListPage.jsx';
+import RecruiterJobRequisitionsPage from '../pages/recruiter/JobRequisitionsPage.jsx';
 import JobOfferPage from '../pages/recruiter/JobOfferPage.jsx';
 import JobRequirementsPage from '../pages/recruiter/JobRequirementsPage.jsx';
 import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.jsx';
@@ -37,6 +38,7 @@ import TeamMembersPage from '../pages/hr_head/TeamMembersPage.jsx';
 import CreateTeamMemberPage from '../pages/hr_head/CreateTeamMemberPage.jsx';
 import BulkImportMembersPage from '../pages/hr_head/BulkImportMembersPage.jsx';
 import PendingHiringDecisionsPage from '../pages/hr_head/PendingHiringDecisionsPage.jsx';
+import HRJobRequisitionsPage from '../pages/hr_head/JobRequisitionsPage.jsx';
 import BillingPage from '../pages/hr_head/BillingPage.jsx';
 import HRAnalyticsPage from '../pages/hr_head/HRAnalyticsPage.jsx';
 import NotificationsPage from '../pages/hr_head/NotificationsPage.jsx';
@@ -76,11 +78,13 @@ export const router = createBrowserRouter([
         children: [
           { path: 'recruiter', element: <RecruiterDashboardPage /> },
           { path: 'recruiter/jobs', element: <JobListPage /> },
+          { path: 'recruiter/job-requisitions', element: <RecruiterJobRequisitionsPage /> },
           { path: 'recruiter/jobs/create', element: <JobCreateEditPage /> },
           { path: 'recruiter/jobs/:jobId', element: <JobDetailPage /> },
           { path: 'recruiter/jobs/:jobId/edit', element: <JobCreateEditPage /> },
           { path: 'recruiter/jobs/:jobId/requirements', element: <JobRequirementsPage /> },
-          { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationFormBuilderPage /> },
+          { path: 'recruiter/jobs/:jobId/scorecard', element: <EvaluationScorecardBuilderPage /> },
+          { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationScorecardBuilderPage /> },
           { path: 'recruiter/jobs/:jobId/ranking', element: <CandidateRankingPage /> },
           { path: 'recruiter/applications', element: <ApplicationsPage /> },
           { path: 'recruiter/applications/:applicationId', element: <CandidateProfilePage /> },
@@ -119,6 +123,7 @@ export const router = createBrowserRouter([
           { path: 'hr-head/team/create', element: <CreateTeamMemberPage /> },
           { path: 'hr-head/team/bulk-import', element: <BulkImportMembersPage /> },
           { path: 'hr-head/hiring-decisions', element: <PendingHiringDecisionsPage /> },
+          { path: 'hr-head/job-requisitions', element: <HRJobRequisitionsPage /> },
           { path: 'hr-head/billing', element: <BillingPage /> },
           { path: 'hr-head/analytics', element: <HRAnalyticsPage /> },
           { path: 'hr-head/notifications', element: <NotificationsPage /> },

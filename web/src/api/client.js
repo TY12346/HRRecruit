@@ -267,6 +267,27 @@ export const getJobs = async () => {
   return response.data;
 };
 
+
+export const getJobRequisitions = async () => {
+  const response = await apiClient.get('/jobs/requisitions/');
+  return response.data;
+};
+
+export const createJobRequisition = async (requisition) => {
+  const response = await apiClient.post('/jobs/requisitions/', requisition);
+  return response.data;
+};
+
+export const approveJobRequisition = async (requisitionId) => {
+  const response = await apiClient.post(`/jobs/requisitions/${requisitionId}/approve/`);
+  return response.data;
+};
+
+export const rejectJobRequisition = async (requisitionId, reason) => {
+  const response = await apiClient.post(`/jobs/requisitions/${requisitionId}/reject/`, { reason });
+  return response.data;
+};
+
 export const getJob = async (jobId) => {
   const response = await apiClient.get(`/jobs/${jobId}/`);
   return response.data;
@@ -297,10 +318,12 @@ export const configureJobRequirements = async (jobId, payload) => {
   return response.data;
 };
 
-export const createJobEvaluationForm = async (jobId, payload) => {
-  const response = await apiClient.post(`/jobs/${jobId}/eval-form/`, payload);
+export const createInterviewEvaluationScorecard = async (jobId, payload) => {
+  const response = await apiClient.post(`/jobs/${jobId}/scorecard/`, payload);
   return response.data;
 };
+
+export const createJobEvaluationForm = createInterviewEvaluationScorecard;
 
 export const getApplications = async (params = {}) => {
   const response = await apiClient.get('/applications/', { params });
@@ -343,6 +366,11 @@ export const assignInterviewer = async (applicationId, payload) => {
 
 export const createInterviewSchedulingRequest = async (applicationId, payload) => {
   const response = await apiClient.post(`/applications/${applicationId}/scheduling-request/`, payload);
+  return response.data;
+};
+
+export const getInterviewSchedulingRequests = async () => {
+  const response = await apiClient.get('/interviews/scheduling-requests/');
   return response.data;
 };
 
