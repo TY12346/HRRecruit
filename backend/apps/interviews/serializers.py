@@ -7,6 +7,7 @@ from apps.applications.serializers import AssignedInterviewerSerializer, JobAppl
 from apps.jobs.serializers import EvaluationCriterionSerializer
 from apps.users.models import User
 from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
+from .slot_generation import generate_common_available_slots
 
 
 class GoogleCalendarOAuthCallbackSerializer(serializers.Serializer):
@@ -172,14 +173,16 @@ class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
         include_slots = request and request.query_params.get('include_available_slots') == '1'
         if obj.status != InterviewSchedulingRequest.Status.PENDING or not include_slots:
             return []
-        from .slot_generation import generate_available_slots
-        generated_slots = generate_available_slots(obj.interviewer, obj.organization)
-        legacy_slots = InterviewerAvailabilitySlot.objects.filter(
-            organization=obj.organization,
-            interviewer=obj.interviewer,
-            status=InterviewerAvailabilitySlot.Status.AVAILABLE,
-            start_datetime__gt=timezone.now(),
-        ).order_by('start_datetime')
+        panel = list(obj.panel_interviewers.all()) or [obj.interviewer]
+        generated_slots = generate_common_available_slots(panel, obj.organization)
+        legacy_slots = []
+        if len(panel) == 1:
+            legacy_slots = InterviewerAvailabilitySlot.objects.filter(
+                organization=obj.organization,
+                interviewer=obj.interviewer,
+                status=InterviewerAvailabilitySlot.Status.AVAILABLE,
+                start_datetime__gt=timezone.now(),
+            ).order_by('start_datetime')
         return GeneratedInterviewSlotSerializer(generated_slots, many=True).data + InterviewerAvailabilitySlotSerializer(legacy_slots, many=True).data
 
 

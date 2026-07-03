@@ -77,7 +77,7 @@ export default function InterviewAssignmentPage() {
     try {
       const request = await createInterviewSchedulingRequest(applicationId, { interviewer_ids: interviewerIds.map(Number), remark });
       setSchedulingRequest(request);
-      setSuccess('Panel self-scheduling request created. The applicant can now choose from the lead interviewer availability slots.');
+      setSuccess('Panel self-scheduling request created. The applicant can now choose from common panel availability slots.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to assign interviewer.'));
     } finally {
@@ -87,7 +87,7 @@ export default function InterviewAssignmentPage() {
 
   const nextStepMessage = schedulingRequest
     ? `Interview-scheduling request #${schedulingRequest.id} has been sent. The interview will be created after the applicant chooses a slot.`
-    : 'The applicant should use the mobile Schedule interviews page to choose a slot from the lead interviewer availability.';
+    : 'The applicant should use the mobile Schedule interviews page to choose a common available panel slot.';
 
   return (
     <Box>
@@ -136,7 +136,7 @@ export default function InterviewAssignmentPage() {
                     value={interviewerIds}
                     onChange={(e) => setInterviewerIds(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
                     SelectProps={{ multiple: true }}
-                    helperText="Select one or more interviewers. The first selected interviewer provides the self-scheduling availability slots."
+                    helperText="Select one or more interviewers. Applicants will only see time slots when every panel interviewer is available."
                   >
                     {interviewers.map((member) => <MenuItem key={member.id} value={member.user_id}>{member.full_name} ({member.email})</MenuItem>)}
                   </TextField>
