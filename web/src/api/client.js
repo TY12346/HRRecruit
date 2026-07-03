@@ -346,6 +346,11 @@ export const createInterviewSchedulingRequest = async (applicationId, payload) =
   return response.data;
 };
 
+export const getInterviewSchedulingRequests = async () => {
+  const response = await apiClient.get('/interviews/scheduling-requests/');
+  return response.data;
+};
+
 export const rejectApplication = async (applicationId, payload) => {
   const response = await apiClient.post(`/applications/${applicationId}/reject/`, payload);
   return response.data;
