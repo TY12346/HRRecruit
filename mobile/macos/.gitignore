@@ -1,3 +1,6 @@
+# macOS Flutter/Xcode generated files only.
+# Do not ignore Runner source, entitlements, assets, or checked-in project configuration.
+
 # Flutter-related
 **/Flutter/ephemeral/
 **/Pods/

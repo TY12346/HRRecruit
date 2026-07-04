@@ -1,3 +1,6 @@
+# Android generated/local files only.
+# Do not ignore Gradle build scripts, AndroidManifest.xml, Kotlin/Java source, or resource files.
+
 gradle-wrapper.jar
 /.gradle
 /captures/
@@ -7,8 +10,7 @@ gradle-wrapper.jar
 GeneratedPluginRegistrant.java
 .cxx/
 
-# Remember to never publicly share your keystore.
-# See https://flutter.dev/to/reference-keystore
+# Never publicly share signing material.
 key.properties
 **/*.keystore
 **/*.jks

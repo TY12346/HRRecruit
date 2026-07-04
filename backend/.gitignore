@@ -1,4 +1,8 @@
-# Python
+# Backend ignore rules.
+# Ignore only generated files, local secrets, local media, and local tooling state.
+# Do not ignore Django apps, migrations, fixtures, docs, tests, or required ML artifacts.
+
+# Python caches / compiled output
 __pycache__/
 *.py[cod]
 *.pyo
@@ -11,15 +15,18 @@ __pycache__/
 venv/
 env/
 
-# Django
+# Django generated/local runtime files
 *.log
 staticfiles/
 media/
+!media/
+!media/.gitkeep
 
-# Environment
+# Local environment secrets. Keep sample env files versioned.
 .env
+!.env.example
 
-# Tooling
+# Tooling/editor state
 .pytest_cache/
 .mypy_cache/
 .vscode/
