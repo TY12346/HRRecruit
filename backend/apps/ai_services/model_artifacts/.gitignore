@@ -1,5 +1,15 @@
-*.joblib
-*.pkl
-*.pickle
-*.metrics.json
+# Keep the trained HRRecruit resume-screening model artifacts versioned.
+# These exact files are required for local/demo resume screening and must not be hidden by Git.
+!resume_match_model.joblib
+!resume_match_model.metrics.json
+
+# Ignore ad-hoc experiments, scratch checkpoints, and temporary model exports.
+*.tmp
+*.bak
+*.old
+experiment_*
+scratch_*
+checkpoint_*
+
+# Keep this ignore policy file versioned.
 !.gitignore

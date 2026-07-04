@@ -1,3 +1,6 @@
+# iOS generated/local files only.
+# Do not ignore project source, plist files, assets, or checked-in Xcode project configuration.
+
 **/dgph
 *.mode1v3
 *.mode2v3
