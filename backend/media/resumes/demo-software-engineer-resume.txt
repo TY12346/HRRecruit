@@ -1,0 +1,2 @@
+Demo Software Engineer Resume
+Bachelor in Computer Science. 2.5 years building Python, Django, REST API, React, PostgreSQL, analytics dashboards, role-based access control, and SaaS workflows.
