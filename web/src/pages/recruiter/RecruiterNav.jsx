@@ -5,6 +5,7 @@ const recruiterLinks = [
   ['⌂', 'Dashboard', '/recruiter'],
   ['▤', 'Jobs', '/recruiter/jobs'],
   ['▧', 'Job Requisitions', '/recruiter/job-requisitions'],
+  ['⌕', 'Candidate Search', '/recruiter/candidate-search'],
   ['◷', 'Interviews', '/recruiter/interviews'],
   ['✓', 'Decisions', '/recruiter/hiring-decisions'],
   ['□', 'Offers', '/recruiter/job-offers'],

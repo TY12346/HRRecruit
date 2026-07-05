@@ -16,6 +16,7 @@ from .views import (
     ApplicationResumeAPIView,
     ApplicationRemarkAPIView,
     ApplicationScreenAPIView,
+    ApplicationSearchAPIView,
     ApplicationShortlistAPIView,
     ApplicationStatusHistoryAPIView,
     CandidateProfileAPIView,
@@ -23,6 +24,7 @@ from .views import (
 
 urlpatterns = [
     path('', ApplicationListAPIView.as_view(), name='application-list'),
+    path('search/', ApplicationSearchAPIView.as_view(), name='application-search'),
     path('<int:application_id>/', ApplicationDetailAPIView.as_view(), name='application-detail'),
     path('<int:application_id>/screen/', ApplicationScreenAPIView.as_view(), name='application-screen'),
     path('<int:application_id>/candidate-profile/', CandidateProfileAPIView.as_view(), name='application-candidate-profile'),

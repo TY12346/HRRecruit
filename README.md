@@ -138,6 +138,21 @@ All seeded records are fake and intended only for FYP demonstration.
 - Demo/fallback behavior is intentional so the project can be reviewed without real SendGrid, Google Calendar, payment gateway, OpenAI, Whisper, or other external-service credentials.
 - Optional integrations should remain disabled unless valid credentials and a suitable deployment environment are configured.
 
+## Role-Based Applicant Search
+
+HRRecruit provides a protected applicant search API and web portal screens for internal hiring roles. The endpoint is `GET /api/applications/search/` and the backend derives the allowed search scope from the authenticated user's role; the frontend does not decide access by itself.
+
+- Recruiters can search applications for job postings they created within their active organization. Supported safe filters include candidate/job text search, application status, job id, skills, education, experience, AI score range, application/interview dates, and sorting.
+- Interviewers can search only candidates assigned to them directly, through interviews, or through interview scheduling requests. Their filters focus on candidate/job text, application status, interview status such as upcoming/completed/pending evaluation, and date range.
+- HR heads can search all applications inside their own organization for oversight. They can filter by candidate/job text, department, recruiter id, application status, hiring decision status, pending HR approval, AI score range, and dates.
+- Applicants cannot use applicant search and cannot browse other applicants.
+
+Web portal entry points:
+
+- Recruiter: **Candidate Search** (`/recruiter/candidate-search`)
+- Interviewer: **Candidate Search** (`/interviewer/candidate-search`)
+- HR head: **Applicant Search** (`/hr-head/applicant-search`)
+
 ## Interview weekly availability scheduling
 
 Interview scheduling now uses reusable weekly availability patterns instead of requiring interviewers to repeatedly create date-specific slots.

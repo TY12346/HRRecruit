@@ -330,6 +330,11 @@ export const getApplications = async (params = {}) => {
   return response.data;
 };
 
+export const getApplicantSearch = async (params = {}) => {
+  const response = await apiClient.get('/applications/search/', { params });
+  return response.data;
+};
+
 export const getApplication = async (applicationId) => {
   const response = await apiClient.get(`/applications/${applicationId}/`);
   return response.data;

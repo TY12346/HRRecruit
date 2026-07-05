@@ -160,6 +160,64 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
         return resume_payload
 
 
+class ApplicationSearchResultSerializer(JobApplicationSerializer):
+    recruiter = AssignedInterviewerSerializer(source='job.recruiter', read_only=True)
+    interview_statuses = serializers.SerializerMethodField()
+    latest_interview = serializers.SerializerMethodField()
+    hiring_decisions = serializers.SerializerMethodField()
+    pending_approval = serializers.SerializerMethodField()
+    department = serializers.CharField(source='job.department', read_only=True)
+
+    class Meta(JobApplicationSerializer.Meta):
+        fields = [
+            *JobApplicationSerializer.Meta.fields,
+            'department',
+            'recruiter',
+            'interview_statuses',
+            'latest_interview',
+            'hiring_decisions',
+            'pending_approval',
+        ]
+        read_only_fields = fields
+
+    def get_interview_statuses(self, application):
+        return sorted({interview.status for interview in application.interviews.all()})
+
+    def get_latest_interview(self, application):
+        latest = sorted(
+            application.interviews.all(),
+            key=lambda interview: interview.scheduled_datetime or interview.created_at,
+            reverse=True,
+        )
+        if not latest:
+            return None
+        interview = latest[0]
+        return {
+            'id': interview.id,
+            'status': interview.status,
+            'scheduled_datetime': interview.scheduled_datetime,
+            'interview_date': interview.interview_date,
+            'interviewer_id': interview.interviewer_id,
+            'interviewer_name': interview.interviewer.full_name if interview.interviewer else '',
+        }
+
+    def get_hiring_decisions(self, application):
+        return [
+            {
+                'id': decision.id,
+                'decision': decision.decision,
+                'status': decision.status,
+                'recruiter_id': decision.recruiter_id,
+                'submitted_at': decision.submitted_at,
+                'reviewed_at': decision.reviewed_at,
+            }
+            for decision in application.hiring_decisions.all()
+        ]
+
+    def get_pending_approval(self, application):
+        return any(decision.status == 'pending_hr_approval' for decision in application.hiring_decisions.all())
+
+
 class ApplicationShortlistSerializer(serializers.Serializer):
     interviewer_id = serializers.IntegerField(required=True)
     remark = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)

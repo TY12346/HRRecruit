@@ -12,6 +12,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from docx import Document
 
+from apps.hiring.models import HiringDecision
+from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting, JobRequirement
 from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
@@ -256,6 +258,121 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(invalid_status_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(invalid_sort_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(invalid_score_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_recruiter_searches_only_allowed_applicants_and_filters_existing_fields(self):
+        backend_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.SCREENED_QUALIFIED,
+            final_score='92.00',
+            recruiter_remark='Shortlist for API team.',
+            extracted_resume_text='Python Django Bachelor developer',
+        )
+        colleague_job = self.create_job(self.other_recruiter, title='Frontend Engineer')
+        JobApplication.objects.create(
+            job=colleague_job,
+            applicant=self.other_applicant,
+            status=JobApplication.Status.SHORTLISTED,
+            final_score='88.00',
+            extracted_resume_text='React developer',
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('application-search'), {
+            'search': 'api',
+            'skills': 'django',
+            'education': 'bachelor',
+            'min_score': '80',
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [backend_application.id])
+        self.assertEqual(response.data[0]['recruiter']['id'], self.recruiter.id)
+
+    def test_recruiter_search_does_not_leak_cross_organization_applicants(self):
+        own_application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        other_head = self.create_user('search-other-head@example.com', User.Role.HR_HEAD)
+        external_recruiter = self.create_user('search-external-recruiter@example.com', User.Role.RECRUITER)
+        other_organization = self.create_organization('Search Other Organization', other_head)
+        self.create_membership(other_head, other_organization, OrganizationMembership.Role.HR_HEAD)
+        self.create_membership(external_recruiter, other_organization, OrganizationMembership.Role.RECRUITER)
+        external_job = self.create_job(external_recruiter, organization=other_organization)
+        JobApplication.objects.create(job=external_job, applicant=self.other_applicant)
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('application-search'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [own_application.id])
+
+    def test_interviewer_searches_only_assigned_candidates(self):
+        assigned_application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            assigned_interviewer=self.interviewer,
+            status=JobApplication.Status.SHORTLISTED,
+        )
+        unassigned_application = JobApplication.objects.create(job=self.job, applicant=self.other_applicant)
+        Interview.objects.create(
+            application=assigned_application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            status=Interview.Status.COMPLETED,
+            scheduled_datetime=timezone.now(),
+        )
+        Interview.objects.create(
+            application=unassigned_application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.external_interviewer,
+            status=Interview.Status.SCHEDULED,
+            scheduled_datetime=timezone.now(),
+        )
+        self.authenticate(self.interviewer)
+
+        response = self.client.get(reverse('application-search'), {'interviewer_status': 'completed'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [assigned_application.id])
+        self.assertEqual(response.data[0]['interview_statuses'], [Interview.Status.COMPLETED])
+
+    def test_hr_head_searches_organization_applicants_with_oversight_filters(self):
+        self.job.department = 'Engineering'
+        self.job.save(update_fields=['department'])
+        application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.DECISION_PENDING,
+            final_score='87.00',
+        )
+        HiringDecision.objects.create(
+            application=application,
+            recruiter=self.recruiter,
+            decision=HiringDecision.Decision.HIRE,
+            recruiter_justification='Strong interview feedback.',
+        )
+        self.authenticate(self.hr_head)
+
+        response = self.client.get(reverse('application-search'), {
+            'department': 'engineering',
+            'recruiter_id': str(self.recruiter.id),
+            'pending_approval': 'true',
+            'final_decision': HiringDecision.Decision.HIRE,
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [application.id])
+        self.assertTrue(response.data[0]['pending_approval'])
+        self.assertEqual(response.data[0]['hiring_decisions'][0]['decision'], HiringDecision.Decision.HIRE)
+
+    def test_applicant_cannot_access_applicant_search(self):
+        JobApplication.objects.create(job=self.job, applicant=self.applicant)
+        self.authenticate(self.applicant)
+
+        response = self.client.get(reverse('application-search'))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_recruiter_views_ranked_candidates_for_own_job_only(self):
         high_score_application = JobApplication.objects.create(
@@ -598,8 +715,25 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             minimum_threshold='60.00',
         )
 
+    def trained_ml_result(self, score, label='strong_match'):
+        return {
+            'ml_suitability_score': score,
+            'ml_match_label': label,
+            'ml_confidence': 0.91,
+            'semantic_embedding_score': 80.0,
+            'rule_based_score': 0.0,
+            'hybrid_final_score': score,
+            'top_positive_factors': ['Trained model identified a suitable match.'],
+            'top_negative_factors': [],
+            'model_version': 'test-trained-model-v1',
+            'feature_names': [],
+            'feature_values': [],
+        }
+
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
-    def test_applying_to_job_runs_resume_screening_immediately(self, _semantic_similarity):
+    def test_applying_to_job_runs_resume_screening_immediately(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(88.25)
         self.create_resume("Bachelor's degree. Python and Django developer with 5 years of experience.")
         self.create_screening_requirements()
         self.authenticate(self.applicant)
@@ -608,12 +742,14 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
-        self.assertEqual(response.data['final_score'], '92.00')
+        self.assertEqual(response.data['final_score'], '88.25')
         application = JobApplication.objects.get(id=response.data['id'])
         self.assertEqual(application.stage_history.get().to_stage, JobApplication.Status.SCREENED_QUALIFIED)
 
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
-    def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity):
+    def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(88.25)
         self.create_resume("Bachelor's degree. Python and Django developer with 5 years of experience.")
         self.create_screening_requirements()
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
@@ -628,7 +764,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertEqual(float(application.skill_score), 100.0)
         self.assertEqual(float(application.experience_score), 100.0)
         self.assertEqual(float(application.education_score), 100.0)
-        self.assertEqual(float(application.final_score), 92.0)
+        self.assertEqual(float(application.final_score), 88.25)
         self.assertEqual(application.extracted_skills, ['django', 'python'])
         self.assertEqual(application.extracted_experience['years'], 5.0)
         self.assertIn('years', application.extracted_experience)
@@ -657,13 +793,21 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertTrue(required_top_level_keys.issubset(explanation.keys()))
         self.assertEqual(
             explanation['formula'],
+            'final_score = trained_resume_match_model(feature_vector)',
+        )
+        self.assertEqual(explanation['score_source'], 'trained_ml_model')
+        self.assertEqual(explanation['model_version'], 'test-trained-model-v1')
+        self.assertEqual(
+            explanation['rule_based_formula'],
             '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score',
         )
         self.assertEqual(explanation['semantic_score'], 80.0)
         self.assertEqual(explanation['skill_score'], 100.0)
         self.assertEqual(explanation['experience_score'], 100.0)
         self.assertEqual(explanation['education_score'], 100.0)
-        self.assertEqual(explanation['final_score'], 92.0)
+        self.assertEqual(explanation['rule_based_score'], 92.0)
+        self.assertEqual(explanation['final_score'], 88.25)
+        self.assertEqual(explanation['ml_screening']['ml_suitability_score'], 88.25)
         self.assertEqual(explanation['matched_skills'], ['django', 'python'])
         self.assertEqual(explanation['missing_skills'], [])
         self.assertTrue(explanation['education_match'])
@@ -678,8 +822,10 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_QUALIFIED)
         self.assertEqual(history.changed_by, self.recruiter)
 
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=50.0)
-    def test_screening_uses_weighted_skill_scoring_from_job_requirements(self, _semantic_similarity):
+    def test_screening_uses_weighted_skill_scoring_from_job_requirements(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(74.0, label='moderate_match')
         self.create_resume('Python developer with 3 years of experience and a Bachelor Degree.')
         JobRequirement.objects.create(
             job=self.job,
@@ -711,8 +857,10 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             {'python': 80.0, 'react': 20.0},
         )
 
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0)
-    def test_low_score_rejects_application_due_to_underqualification(self, _semantic_similarity):
+    def test_low_score_rejects_application_due_to_underqualification(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(42.0, label='not_suitable')
         self.create_resume('High school graduate with Java experience.')
         self.create_screening_requirements()
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
@@ -723,7 +871,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
         self.assertEqual(application.status, JobApplication.Status.REJECTED)
-        self.assertEqual(float(application.final_score), 3.33)
+        self.assertEqual(float(application.final_score), 42.0)
         history = application.stage_history.get()
         self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
         self.assertIn('underqualification', history.note)
@@ -734,7 +882,13 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
         self.authenticate(self.recruiter)
 
-        with patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0):
+        with (
+            patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0),
+            patch(
+                'apps.ai_services.resume_screening.build_ml_screening_result',
+                return_value=self.trained_ml_result(42.0, label='not_suitable'),
+            ),
+        ):
             response = self.client.post(reverse('application-screen', args=[application.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
