@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import re
+from types import SimpleNamespace
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
@@ -19,6 +20,7 @@ from .resume_preprocessor import (
 )
 from .resume_text_extractor import ResumeTextExtractionError, extract_resume_text
 from .resume_screening import (
+    build_resume_screening,
     calculate_education_score,
     calculate_experience_score,
     calculate_skill_score,
@@ -335,6 +337,66 @@ class ScoringTests(SimpleTestCase):
 
 
 class ResumeScreeningScoreComponentTests(SimpleTestCase):
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
+    @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
+    @patch('apps.ai_services.resume_screening.extract_resume_text')
+    def test_build_resume_screening_uses_trained_ml_score_as_final_score(
+        self, extract_resume_text, _semantic_similarity, build_ml_screening_result
+    ):
+        from apps.jobs.models import JobRequirement
+
+        extract_resume_text.return_value = (
+            "Skills: Python Django. Education: Bachelor's degree. "
+            'Experience: Backend developer with 5 years of experience.'
+        )
+        build_ml_screening_result.return_value = {
+            'ml_suitability_score': 88.25,
+            'ml_match_label': 'strong_match',
+            'ml_confidence': 0.92,
+            'model_version': 'test-trained-model-v1',
+        }
+        requirements = [
+            SimpleNamespace(
+                requirement_type=JobRequirement.RequirementType.SKILL,
+                description='Python and Django',
+                weight_score=30,
+            ),
+            SimpleNamespace(
+                requirement_type=JobRequirement.RequirementType.EXPERIENCE,
+                description='At least 3 years of professional experience',
+                weight_score=20,
+            ),
+            SimpleNamespace(
+                requirement_type=JobRequirement.RequirementType.EDUCATION,
+                description="Bachelor's degree",
+                weight_score=10,
+            ),
+        ]
+        application = SimpleNamespace(
+            resume_id=None,
+            applicant=SimpleNamespace(
+                applicant_profile=SimpleNamespace(resume_file=SimpleNamespace(path='/tmp/resume.pdf'))
+            ),
+            job=SimpleNamespace(
+                title='Backend Engineer',
+                description='Build APIs',
+                requirements=SimpleNamespace(all=lambda: requirements),
+            ),
+        )
+
+        result = build_resume_screening(application)
+
+        self.assertEqual(result['final_score'], 88.25)
+        self.assertEqual(result['score_explanation']['final_score'], 88.25)
+        self.assertEqual(result['score_explanation']['score_source'], 'trained_ml_model')
+        self.assertEqual(result['score_explanation']['model_version'], 'test-trained-model-v1')
+        self.assertEqual(result['score_explanation']['rule_based_score'], 92.0)
+        self.assertEqual(
+            result['score_explanation']['formula'],
+            'final_score = trained_resume_match_model(feature_vector)',
+        )
+        build_ml_screening_result.assert_called_once()
+
     def test_extract_experience_uses_highest_explicit_year_value(self):
         result = extract_experience('2 years support and 5+ yrs development')
 

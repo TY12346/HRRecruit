@@ -598,8 +598,25 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             minimum_threshold='60.00',
         )
 
+    def trained_ml_result(self, score, label='strong_match'):
+        return {
+            'ml_suitability_score': score,
+            'ml_match_label': label,
+            'ml_confidence': 0.91,
+            'semantic_embedding_score': 80.0,
+            'rule_based_score': 0.0,
+            'hybrid_final_score': score,
+            'top_positive_factors': ['Trained model identified a suitable match.'],
+            'top_negative_factors': [],
+            'model_version': 'test-trained-model-v1',
+            'feature_names': [],
+            'feature_values': [],
+        }
+
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
-    def test_applying_to_job_runs_resume_screening_immediately(self, _semantic_similarity):
+    def test_applying_to_job_runs_resume_screening_immediately(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(88.25)
         self.create_resume("Bachelor's degree. Python and Django developer with 5 years of experience.")
         self.create_screening_requirements()
         self.authenticate(self.applicant)
@@ -608,12 +625,14 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
-        self.assertEqual(response.data['final_score'], '92.00')
+        self.assertEqual(response.data['final_score'], '88.25')
         application = JobApplication.objects.get(id=response.data['id'])
         self.assertEqual(application.stage_history.get().to_stage, JobApplication.Status.SCREENED_QUALIFIED)
 
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
-    def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity):
+    def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(88.25)
         self.create_resume("Bachelor's degree. Python and Django developer with 5 years of experience.")
         self.create_screening_requirements()
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
@@ -628,7 +647,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertEqual(float(application.skill_score), 100.0)
         self.assertEqual(float(application.experience_score), 100.0)
         self.assertEqual(float(application.education_score), 100.0)
-        self.assertEqual(float(application.final_score), 92.0)
+        self.assertEqual(float(application.final_score), 88.25)
         self.assertEqual(application.extracted_skills, ['django', 'python'])
         self.assertEqual(application.extracted_experience['years'], 5.0)
         self.assertIn('years', application.extracted_experience)
@@ -657,13 +676,21 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertTrue(required_top_level_keys.issubset(explanation.keys()))
         self.assertEqual(
             explanation['formula'],
+            'final_score = trained_resume_match_model(feature_vector)',
+        )
+        self.assertEqual(explanation['score_source'], 'trained_ml_model')
+        self.assertEqual(explanation['model_version'], 'test-trained-model-v1')
+        self.assertEqual(
+            explanation['rule_based_formula'],
             '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score',
         )
         self.assertEqual(explanation['semantic_score'], 80.0)
         self.assertEqual(explanation['skill_score'], 100.0)
         self.assertEqual(explanation['experience_score'], 100.0)
         self.assertEqual(explanation['education_score'], 100.0)
-        self.assertEqual(explanation['final_score'], 92.0)
+        self.assertEqual(explanation['rule_based_score'], 92.0)
+        self.assertEqual(explanation['final_score'], 88.25)
+        self.assertEqual(explanation['ml_screening']['ml_suitability_score'], 88.25)
         self.assertEqual(explanation['matched_skills'], ['django', 'python'])
         self.assertEqual(explanation['missing_skills'], [])
         self.assertTrue(explanation['education_match'])
@@ -678,8 +705,10 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_QUALIFIED)
         self.assertEqual(history.changed_by, self.recruiter)
 
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=50.0)
-    def test_screening_uses_weighted_skill_scoring_from_job_requirements(self, _semantic_similarity):
+    def test_screening_uses_weighted_skill_scoring_from_job_requirements(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(74.0, label='moderate_match')
         self.create_resume('Python developer with 3 years of experience and a Bachelor Degree.')
         JobRequirement.objects.create(
             job=self.job,
@@ -711,8 +740,10 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             {'python': 80.0, 'react': 20.0},
         )
 
+    @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0)
-    def test_low_score_rejects_application_due_to_underqualification(self, _semantic_similarity):
+    def test_low_score_rejects_application_due_to_underqualification(self, _semantic_similarity, build_ml_screening_result):
+        build_ml_screening_result.return_value = self.trained_ml_result(42.0, label='not_suitable')
         self.create_resume('High school graduate with Java experience.')
         self.create_screening_requirements()
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
@@ -723,7 +754,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
         self.assertEqual(application.status, JobApplication.Status.REJECTED)
-        self.assertEqual(float(application.final_score), 3.33)
+        self.assertEqual(float(application.final_score), 42.0)
         history = application.stage_history.get()
         self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
         self.assertIn('underqualification', history.note)
@@ -734,7 +765,13 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
         self.authenticate(self.recruiter)
 
-        with patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0):
+        with (
+            patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0),
+            patch(
+                'apps.ai_services.resume_screening.build_ml_screening_result',
+                return_value=self.trained_ml_result(42.0, label='not_suitable'),
+            ),
+        ):
             response = self.client.post(reverse('application-screen', args=[application.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

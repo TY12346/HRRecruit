@@ -52,7 +52,7 @@ def build_ml_screening_result(
     resume_text: str = "",
     job_text: str = "",
 ) -> dict[str, Any]:
-    """Return ML-enhanced screening fields for recruiter decision support."""
+    """Return trained-model resume-screening fields for recruiter decision support."""
     matched_skill_list = sorted({str(skill) for skill in (matched_skills or []) if skill})
     missing_skill_list = sorted({str(skill) for skill in (missing_skills or []) if skill})
     features = build_feature_vector(
@@ -68,7 +68,7 @@ def build_ml_screening_result(
         resume_text=resume_text,
         job_text=job_text,
     )
-    prediction = _predict_with_optional_model(features)
+    prediction = _predict_with_trained_model(features)
     ml_score = _clamp_score(prediction["ml_suitability_score"])
     hybrid_score = calculate_hybrid_final_score(
         ml_suitability_score=ml_score,
@@ -198,7 +198,7 @@ def build_negative_factors(*, skill_score: float, experience_score: float, educa
     return factors[:5] or ["No major negative factor exceeded the configured threshold."]
 
 
-def _predict_with_optional_model(features: list[float]) -> dict[str, Any]:
+def _predict_with_trained_model(features: list[float]) -> dict[str, Any]:
     artifact = _load_artifact()
     model = artifact["model"]
     feature_names = artifact.get("feature_names", FEATURE_NAMES)
