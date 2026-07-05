@@ -1,8 +1,18 @@
+# Web app ignore rules.
+# Ignore dependencies, build output, logs, and local env secrets only.
+# Do not ignore src/, public/, package.json, lockfiles, or safe env examples.
+
 node_modules
 dist
+
+# Local env secrets. Keep documented examples committed.
 .env
 .env.local
 .env.*.local
+!.env.example
+!.env.*.example
+
+# Package manager logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

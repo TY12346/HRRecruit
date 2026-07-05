@@ -90,15 +90,21 @@ def build_resume_screening(application):
         resume_text=matching_resume_text,
         job_text=matching_comparison_text,
     )
-    formula = '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score'
+    ml_final_score = ml_screening['ml_suitability_score']
+    rule_based_formula = '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score'
+    formula = 'final_score = trained_resume_match_model(feature_vector)'
     explanation = {
         'formula': formula,
+        'score_source': 'trained_ml_model',
+        'model_version': ml_screening.get('model_version'),
         'threshold': SCREENING_THRESHOLD,
         'semantic_score': scores['semantic_score'],
         'skill_score': scores['skill_score'],
         'experience_score': scores['experience_score'],
         'education_score': scores['education_score'],
-        'final_score': scores['final_score'],
+        'rule_based_formula': rule_based_formula,
+        'rule_based_score': scores['final_score'],
+        'final_score': ml_final_score,
         'matched_skills': matched_skills,
         'missing_skills': missing_skills,
         'education_match': education_match,
@@ -143,7 +149,11 @@ def build_resume_screening(application):
         'extracted_skills': extracted_skills,
         'extracted_experience': extracted_experience,
         'extracted_education': extracted_education,
-        **scores,
+        'semantic_score': scores['semantic_score'],
+        'skill_score': scores['skill_score'],
+        'experience_score': scores['experience_score'],
+        'education_score': scores['education_score'],
+        'final_score': ml_final_score,
         'score_explanation': explanation,
         'resume_validation_result': resume_validation_result,
     }

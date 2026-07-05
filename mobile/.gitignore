@@ -1,3 +1,7 @@
+# Flutter mobile ignore rules.
+# Ignore generated Flutter/Dart outputs and editor state only.
+# Do not ignore lib/, test/, pubspec.yaml, pubspec.lock, assets, or platform source files.
+
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -7,9 +11,9 @@
 build/
 coverage/
 
-# Android Studio / IntelliJ
+# Android Studio / IntelliJ local state
 *.iml
 .idea/
 
-# VS Code
+# VS Code local state
 .vscode/
