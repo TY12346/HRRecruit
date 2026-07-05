@@ -9,9 +9,13 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
 from apps.ai_services.resume_validation import ResumeContentValidationError
+from apps.hiring.models import HiringDecision
+from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting
 from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
@@ -23,6 +27,7 @@ from .serializers import (
     ApplicationRemarkSerializer,
     ApplicationShortlistSerializer,
     ApplicationStageHistorySerializer,
+    ApplicationSearchResultSerializer,
     CandidateProfileSerializer,
     JobApplicationSerializer,
 )
@@ -72,6 +77,142 @@ def visible_applications_for(user):
         if membership:
             return applications.filter(job__organization=membership.organization)
     return applications.none()
+
+
+def visible_search_applications_for(user):
+    applications = JobApplication.objects.select_related(
+        'job',
+        'job__organization',
+        'job__recruiter',
+        'applicant',
+        'applicant__applicant_profile',
+        'assigned_interviewer',
+        'resume',
+    ).prefetch_related(
+        'interviews',
+        'interviews__interviewer',
+        'interviews__panel_interviewers',
+        'interview_scheduling_requests',
+        'interview_scheduling_requests__panel_interviewers',
+        'hiring_decisions',
+        'applicant__skills',
+        'applicant__educations',
+        'applicant__experiences',
+    )
+    if user.role == User.Role.RECRUITER:
+        membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
+        if membership:
+            return applications.filter(job__organization=membership.organization, job__recruiter=user)
+    if user.role == User.Role.INTERVIEWER:
+        membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
+        if membership:
+            return applications.filter(
+                Q(assigned_interviewer=user)
+                | Q(interviews__interviewer=user)
+                | Q(interviews__panel_interviewers=user)
+                | Q(interview_scheduling_requests__interviewer=user)
+                | Q(interview_scheduling_requests__panel_interviewers=user),
+                job__organization=membership.organization,
+            ).distinct()
+    if user.role == User.Role.HR_HEAD:
+        membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
+        if membership:
+            return applications.filter(job__organization=membership.organization)
+    return applications.none()
+
+
+def parse_date_filter(value, field_name):
+    if value in (None, ''):
+        return None
+    parsed = parse_date(value)
+    if not parsed:
+        raise ValidationError({field_name: 'Enter a valid date in YYYY-MM-DD format.'})
+    return parsed
+
+
+def parse_bool_filter(value, field_name):
+    if value in (None, ''):
+        return None
+    normalized = str(value).strip().lower()
+    if normalized in ('1', 'true', 'yes'):
+        return True
+    if normalized in ('0', 'false', 'no'):
+        return False
+    raise ValidationError({field_name: 'Enter true or false.'})
+
+
+def apply_applicant_search_filters(applications, query_params, user):
+    applications = apply_application_search_filters(applications, query_params)
+
+    skills = (query_params.get('skills') or '').strip()
+    if skills:
+        for skill in [item.strip() for item in skills.split(',') if item.strip()]:
+            applications = applications.filter(
+                Q(extracted_resume_text__icontains=skill)
+                | Q(applicant__skills__skill_name__icontains=skill)
+            )
+
+    education = (query_params.get('education') or '').strip()
+    if education:
+        applications = applications.filter(
+            Q(extracted_resume_text__icontains=education)
+            | Q(applicant__educations__school_name__icontains=education)
+            | Q(applicant__educations__degree_name__icontains=education)
+            | Q(applicant__educations__field_of_study__icontains=education)
+        )
+
+    experience = (query_params.get('experience') or '').strip()
+    if experience:
+        applications = applications.filter(
+            Q(extracted_resume_text__icontains=experience)
+            | Q(applicant__experiences__job_title__icontains=experience)
+            | Q(applicant__experiences__company_name__icontains=experience)
+        )
+
+    department = (query_params.get('department') or '').strip()
+    if department:
+        applications = applications.filter(Q(job__department__icontains=department) | Q(job__custom_department__icontains=department))
+
+    recruiter_id = (query_params.get('recruiter_id') or '').strip()
+    if recruiter_id:
+        if not recruiter_id.isdigit():
+            raise ValidationError({'recruiter_id': 'Enter a valid recruiter id.'})
+        applications = applications.filter(job__recruiter_id=recruiter_id)
+
+    interviewer_status = (query_params.get('interviewer_status') or query_params.get('interview_status') or '').strip()
+    if interviewer_status:
+        if interviewer_status == 'upcoming':
+            applications = applications.filter(interviews__scheduled_datetime__gte=timezone.now()).exclude(interviews__status__in=[Interview.Status.COMPLETED, Interview.Status.CANCELLED])
+        elif interviewer_status == 'completed':
+            applications = applications.filter(interviews__status=Interview.Status.COMPLETED)
+        elif interviewer_status == 'pending_evaluation':
+            applications = applications.filter(interviews__status=Interview.Status.COMPLETED, interviews__evaluations__isnull=True)
+        elif interviewer_status in Interview.Status.values:
+            applications = applications.filter(interviews__status=interviewer_status)
+        else:
+            raise ValidationError({'interviewer_status': 'Unsupported interview status filter.'})
+
+    pending_approval = parse_bool_filter(query_params.get('pending_approval'), 'pending_approval')
+    if pending_approval is True:
+        applications = applications.filter(hiring_decisions__status=HiringDecision.Status.PENDING_HR_APPROVAL)
+    elif pending_approval is False:
+        applications = applications.exclude(hiring_decisions__status=HiringDecision.Status.PENDING_HR_APPROVAL)
+
+    final_decision = (query_params.get('final_decision') or '').strip()
+    if final_decision:
+        allowed_decisions = set(HiringDecision.Decision.values) | set(HiringDecision.Status.values)
+        if final_decision not in allowed_decisions:
+            raise ValidationError({'final_decision': 'Unsupported final decision filter.'})
+        applications = applications.filter(Q(hiring_decisions__decision=final_decision) | Q(hiring_decisions__status=final_decision))
+
+    date_from = parse_date_filter(query_params.get('date_from'), 'date_from')
+    date_to = parse_date_filter(query_params.get('date_to'), 'date_to')
+    if date_from:
+        applications = applications.filter(Q(applied_at__date__gte=date_from) | Q(interviews__interview_date__gte=date_from))
+    if date_to:
+        applications = applications.filter(Q(applied_at__date__lte=date_to) | Q(interviews__interview_date__lte=date_to))
+
+    return applications.distinct()
 
 
 APPLICATION_SORT_OPTIONS = {
@@ -277,6 +418,22 @@ class ApplicationListAPIView(APIView):
             request.query_params,
         )
         return Response(JobApplicationSerializer(applications, many=True, context={'request': request}).data)
+
+
+class ApplicationSearchAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role == User.Role.APPLICANT:
+            raise PermissionDenied('Applicants cannot search or view other applicants.')
+        if request.user.role not in (User.Role.RECRUITER, User.Role.INTERVIEWER, User.Role.HR_HEAD):
+            raise PermissionDenied('Your role cannot search applicants.')
+        applications = apply_applicant_search_filters(
+            visible_search_applications_for(request.user),
+            request.query_params,
+            request.user,
+        )
+        return Response(ApplicationSearchResultSerializer(applications, many=True, context={'request': request}).data)
 
 
 class ApplicationDetailAPIView(APIView):

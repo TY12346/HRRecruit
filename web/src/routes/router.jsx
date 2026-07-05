@@ -6,6 +6,7 @@ import ResetPasswordPage from '../pages/auth/ResetPasswordPage.jsx';
 import RegisterHRHeadPage from '../pages/auth/RegisterHRHeadPage.jsx';
 import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.jsx';
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
+import RoleBasedApplicantSearchPage from '../pages/applications/RoleBasedApplicantSearchPage.jsx';
 import CandidateProfilePage from '../pages/recruiter/CandidateProfilePage.jsx';
 import CandidateRankingPage from '../pages/recruiter/CandidateRankingPage.jsx';
 import EvaluationScorecardBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
@@ -87,6 +88,7 @@ export const router = createBrowserRouter([
           { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationScorecardBuilderPage /> },
           { path: 'recruiter/jobs/:jobId/ranking', element: <CandidateRankingPage /> },
           { path: 'recruiter/applications', element: <ApplicationsPage /> },
+          { path: 'recruiter/candidate-search', element: <RoleBasedApplicantSearchPage role="recruiter" /> },
           { path: 'recruiter/applications/:applicationId', element: <CandidateProfilePage /> },
           { path: 'recruiter/applications/:applicationId/assign-interview', element: <InterviewAssignmentPage /> },
           { path: 'recruiter/applications/:applicationId/hiring-decision', element: <HiringDecisionPage /> },
@@ -103,6 +105,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'interviewer', element: <InterviewerDashboardPage /> },
           { path: 'interviewer/candidates', element: <AssignedCandidatesPage /> },
+          { path: 'interviewer/candidate-search', element: <RoleBasedApplicantSearchPage role="interviewer" /> },
           { path: 'interviewer/candidates/:applicationId', element: <CandidateDetailPage /> },
           { path: 'interviewer/interviews', element: <InterviewListPage /> },
           { path: 'interviewer/interviews/:interviewId', element: <InterviewerInterviewDetailPage /> },
@@ -123,6 +126,7 @@ export const router = createBrowserRouter([
           { path: 'hr-head/team/create', element: <CreateTeamMemberPage /> },
           { path: 'hr-head/team/bulk-import', element: <BulkImportMembersPage /> },
           { path: 'hr-head/hiring-decisions', element: <PendingHiringDecisionsPage /> },
+          { path: 'hr-head/applicant-search', element: <RoleBasedApplicantSearchPage role="hr_head" /> },
           { path: 'hr-head/job-requisitions', element: <HRJobRequisitionsPage /> },
           { path: 'hr-head/billing', element: <BillingPage /> },
           { path: 'hr-head/analytics', element: <HRAnalyticsPage /> },

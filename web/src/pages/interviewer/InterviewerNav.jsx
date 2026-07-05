@@ -4,6 +4,7 @@ import { Link as RouterLink } from 'react-router-dom';
 const links = [
   ['⌂', 'Dashboard', '/interviewer'],
   ['☷', 'Candidates', '/interviewer/candidates'],
+  ['⌕', 'Candidate Search', '/interviewer/candidate-search'],
   ['◷', 'Interviews', '/interviewer/interviews'],
   ['▣', 'Availability', '/interviewer/availability'],
   ['◔', 'Analytics', '/interviewer/analytics'],
