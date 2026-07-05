@@ -1,7 +1,7 @@
 {
-  "mae": 11.7497,
-  "rmse": 15.6603,
-  "r2": 0.5872,
-  "training_pairs": 1000,
+  "mae": 12.1292,
+  "rmse": 16.1589,
+  "r2": 0.5928,
+  "training_pairs": 2500,
   "test_size": 0.2
 }
