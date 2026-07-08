@@ -1,0 +1,1 @@
+backend/apps/ai_services/model_artifacts/*.joblib filter=lfs diff=lfs merge=lfs -text
