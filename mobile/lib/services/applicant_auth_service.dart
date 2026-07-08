@@ -141,7 +141,9 @@ class ApplicantAuthService {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'auth/linkedin-profile/import/',
       data: formData,
-      options: Options(contentType: 'multipart/form-data'),
+      options: _apiClient.longRunningRequestOptions().copyWith(
+            contentType: 'multipart/form-data',
+          ),
     );
 
     final data = response.data!;
@@ -160,7 +162,9 @@ class ApplicantAuthService {
     await _apiClient.dio.post<Map<String, dynamic>>(
       'auth/resumes/',
       data: formData,
-      options: Options(contentType: 'multipart/form-data'),
+      options: _apiClient.longRunningRequestOptions().copyWith(
+            contentType: 'multipart/form-data',
+          ),
     );
 
     return getProfile();
