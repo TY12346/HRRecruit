@@ -154,9 +154,12 @@ def store_google_calendar_credentials(user, code, state):
     """Exchange an OAuth authorization code and persist refreshable credentials."""
     validate_google_calendar_oauth_state(state, user)
     flow = _flow_from_client_config(state=state)
-    flow.fetch_token(code=code)
-    credentials = flow.credentials
-    email = _fetch_google_calendar_primary_email(credentials)
+    try:
+        flow.fetch_token(code=code)
+        credentials = flow.credentials
+        email = _fetch_google_calendar_primary_email(credentials)
+    except Exception as exc:
+        raise GoogleCalendarSyncError('Failed to complete Google Calendar OAuth connection.') from exc
     credential, _ = GoogleCalendarCredential.objects.update_or_create(
         user=user,
         defaults={
@@ -364,10 +367,14 @@ def sync_existing_google_events_for_user(user):
         interviews = interviews.none()
 
     synced = 0
+    failed = 0
     for interview in interviews:
-        _sync_real_google_calendar_event(interview, credential)
-        synced += 1
-    return {'synced': synced, 'failed': 0}
+        try:
+            _sync_real_google_calendar_event(interview, credential)
+            synced += 1
+        except Exception:
+            failed += 1
+    return {'synced': synced, 'failed': failed}
 
 
 def sync_calendar_event_for_interview(interview):
