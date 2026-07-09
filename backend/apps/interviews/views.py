@@ -675,6 +675,8 @@ def book_scheduling_request(request, scheduling_request):
             raise ValidationError({'slot_id': 'Selected generated interview slot is no longer available.'})
         selected_start = generated.start_datetime
         selected_end = generated.end_datetime
+        if selected_start <= timezone.now():
+            raise ValidationError({'slot_id': 'Selected interview slot is in the past.'})
         selected_mode = generated.mode
         selected_meeting_link = selected_meeting_link or generated.meeting_link
         selected_location = selected_location or generated.location

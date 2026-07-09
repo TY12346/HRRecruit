@@ -44,9 +44,11 @@ class ApplicantWorkflowService {
       'applications/$applicationId/interview-available-slots/',
       queryParameters: {'date': date},
     );
+    final now = DateTime.now();
     return (response.data ?? [])
         .whereType<Map<String, dynamic>>()
         .map(InterviewerAvailabilitySlot.fromJson)
+        .where((slot) => slot.startDatetime == null || slot.startDatetime!.isAfter(now))
         .toList();
   }
 
