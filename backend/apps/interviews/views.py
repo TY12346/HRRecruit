@@ -6,6 +6,7 @@ from datetime import datetime
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -216,11 +217,18 @@ def available_slots_for_interviewer(user):
 
 
 def pending_scheduling_request_for_applicant_application_or_404(applicant, application_id):
-    return get_object_or_404(
-        bookable_scheduling_requests_for_applicant(applicant),
-        application_id=application_id,
-        status=InterviewSchedulingRequest.Status.PENDING,
+    scheduling_request = (
+        bookable_scheduling_requests_for_applicant(applicant)
+        .filter(
+            application_id=application_id,
+            status=InterviewSchedulingRequest.Status.PENDING,
+        )
+        .order_by('-created_at', '-id')
+        .first()
     )
+    if not scheduling_request:
+        raise Http404
+    return scheduling_request
 
 
 def panel_interviewers_for_scheduling_request(scheduling_request):
