@@ -107,6 +107,28 @@ class InterviewManagementAPITests(APITestCase):
         ):
             validate_google_calendar_oauth_state('not-a-signed-state', self.recruiter)
 
+    @patch('apps.interviews.calendar_service._flow_from_client_config')
+    @patch('apps.interviews.calendar_service.secrets.token_urlsafe', return_value='pkce-code-verifier')
+    def test_google_calendar_authorization_state_preserves_pkce_code_verifier(self, _token_urlsafe, flow_from_config):
+        from apps.interviews.calendar_service import (
+            build_google_calendar_authorization_url,
+            validate_google_calendar_oauth_state,
+        )
+
+        flow = Mock()
+        flow.authorization_url.return_value = ('https://accounts.google.com/o/oauth2/auth', 'unused-state')
+        flow_from_config.return_value = flow
+
+        authorization_url = build_google_calendar_authorization_url(self.recruiter)
+
+        self.assertEqual(authorization_url, 'https://accounts.google.com/o/oauth2/auth')
+        signed_state = flow_from_config.call_args.kwargs['state']
+        self.assertEqual(flow_from_config.call_args.kwargs['code_verifier'], 'pkce-code-verifier')
+        self.assertEqual(
+            validate_google_calendar_oauth_state(signed_state, self.recruiter)['code_verifier'],
+            'pkce-code-verifier',
+        )
+
     @patch('apps.interviews.views.store_google_calendar_credentials')
     def test_google_calendar_callback_returns_clean_error_when_token_exchange_fails(self, store_credentials):
         from apps.interviews.calendar_service import GoogleCalendarSyncError
@@ -147,13 +169,14 @@ class InterviewManagementAPITests(APITestCase):
         flow_from_config.return_value = flow
         fetch_email.side_effect = RuntimeError('insufficient permissions')
 
-        state = build_google_calendar_oauth_state(self.recruiter)
+        state = build_google_calendar_oauth_state(self.recruiter, code_verifier='stored-code-verifier')
 
         credential = store_google_calendar_credentials(self.recruiter, code='code', state=state)
 
         self.assertEqual(credential.user, self.recruiter)
         self.assertEqual(credential.google_account_email, '')
         self.assertEqual(credential.access_token, 'access-token')
+        self.assertEqual(flow_from_config.call_args.kwargs['code_verifier'], 'stored-code-verifier')
         flow.fetch_token.assert_called_once_with(code='code')
 
     def test_calendar_sync_requires_real_google_oauth_configuration(self):
