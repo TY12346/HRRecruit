@@ -416,9 +416,7 @@ class InterviewManagementAPITests(APITestCase):
     @patch('apps.interviews.views.create_notification')
     @patch('apps.interviews.views.sync_calendar_event_for_interview')
     def test_booking_succeeds_when_calendar_sync_fails(self, sync_calendar_event, create_notification_mock):
-        from apps.interviews.calendar_service import GoogleCalendarConfigurationError
-
-        sync_calendar_event.side_effect = GoogleCalendarConfigurationError('Google Calendar API is not ready.')
+        sync_calendar_event.side_effect = RuntimeError('Unexpected Google Calendar client failure.')
         create_notification_mock.side_effect = RuntimeError('Notification service unavailable')
         slot = InterviewerAvailabilitySlot.objects.create(
             organization=self.organization,
