@@ -841,18 +841,18 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['transcript_text'], 'Real provider transcript text.')
         self.assertEqual(response.data['transcript_json']['provider'], 'openai')
-        self.assertEqual(response.data['transcript_json']['model'], 'whisper-1')
+        self.assertEqual(response.data['transcript_json']['model'], 'gpt-4o-transcribe')
         self.assertEqual(InterviewTranscript.objects.filter(recording=recording).count(), 1)
         openai_transcription.assert_called_once()
 
-    def test_openai_api_key_alone_uses_mock_transcription(self):
+    def test_openai_api_key_alone_uses_real_transcription(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
         original_flag = os.environ.pop('USE_REAL_TRANSCRIPTION', None)
         try:
             with patch.dict('os.environ', {'OPENAI_API_KEY': 'test-key'}), patch(
                 'apps.ai_services.transcription_service._call_openai_transcription',
-                return_value='Real transcript should not be used by key alone.',
+                return_value='Real transcript used by configured key.',
             ) as openai_transcription:
                 response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
         finally:
@@ -860,9 +860,9 @@ class InterviewEvaluationAPITests(APITestCase):
                 os.environ['USE_REAL_TRANSCRIPTION'] = original_flag
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['transcript_json']['provider'], 'mock')
-        self.assertIn('Mock transcript', response.data['transcript_text'])
-        openai_transcription.assert_not_called()
+        self.assertEqual(response.data['transcript_json']['provider'], 'openai')
+        self.assertEqual(response.data['transcript_text'], 'Real transcript used by configured key.')
+        openai_transcription.assert_called_once()
 
     def test_real_transcription_missing_api_key_returns_clear_error(self):
         upload_response = self.upload_recording()
