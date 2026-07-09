@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createInterviewSchedulingRequest, getApplication, getGoogleCalendarConnectUrl, getGoogleCalendarStatus, getInterviewSchedulingRequests, getOrganizationMembers } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
@@ -48,6 +48,7 @@ export default function InterviewAssignmentPage() {
   }, [applicationId]);
 
   const templates = getCommunicationTemplates('interview_self_scheduling');
+  const selectedInterviewers = interviewers.filter((member) => interviewerIds.includes(member.user_id));
 
   const applyTemplate = (selectedTemplateId) => {
     setTemplateId(selectedTemplateId);
@@ -129,17 +130,27 @@ export default function InterviewAssignmentPage() {
             {!schedulingRequest ? (
               <Box component="form" onSubmit={assign}>
                 <Stack spacing={2}>
-                  <TextField
-                    label="Panel interviewers"
-                    select
-                    required
-                    value={interviewerIds}
-                    onChange={(e) => setInterviewerIds(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
-                    SelectProps={{ multiple: true }}
-                    helperText="Select one or more interviewers. Applicants will only see time slots when every panel interviewer is available."
-                  >
-                    {interviewers.map((member) => <MenuItem key={member.id} value={member.user_id}>{member.full_name} ({member.email})</MenuItem>)}
-                  </TextField>
+                  <Autocomplete
+                    multiple
+                    disableCloseOnSelect
+                    options={interviewers}
+                    value={selectedInterviewers}
+                    isOptionEqualToValue={(option, value) => option.user_id === value.user_id}
+                    getOptionLabel={(option) => `${option.full_name} (${option.email})`}
+                    onChange={(_, selectedMembers) => setInterviewerIds(selectedMembers.map((member) => member.user_id))}
+                    renderTags={(selectedMembers, getTagProps) => selectedMembers.map((member, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return <Chip key={key} label={member.full_name} {...tagProps} />;
+                    })}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Panel interviewers"
+                        required={interviewerIds.length === 0}
+                        helperText="Select one or more interviewers. Applicants will only see time slots when every panel interviewer is available."
+                      />
+                    )}
+                  />
                   <TextField label="Candidate communication template" select value={templateId} onChange={(e) => applyTemplate(e.target.value)} helperText="Choose a reusable message style, then edit the text before sending.">{templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.label} — {template.tone}</MenuItem>)}</TextField>
                   <TextField label="Candidate scheduling message" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText="This remark is shown on the scheduling request." />
                   <Button type="submit" variant="contained" disabled={isSaving || interviewerIds.length === 0}>{isSaving ? 'Saving…' : 'Create self-scheduling request'}</Button>
