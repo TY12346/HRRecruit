@@ -5,15 +5,18 @@ OAuth, credentials, dependencies, or a connected account are missing, scheduling
 raises a clear error instead of creating placeholder events.
 """
 
+import logging
 from datetime import datetime, timedelta
-from uuid import uuid4
 from importlib import import_module, util
+from uuid import uuid4
 
 from django.conf import settings
 from django.core import signing
 from django.utils import timezone
 
 from .models import CalendarEvent, GoogleCalendarCredential, Interview
+
+logger = logging.getLogger(__name__)
 
 GOOGLE_CALENDAR_TOKEN_URI = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
@@ -157,9 +160,15 @@ def store_google_calendar_credentials(user, code, state):
     try:
         flow.fetch_token(code=code)
         credentials = flow.credentials
-        email = _fetch_google_calendar_primary_email(credentials)
     except Exception as exc:
-        raise GoogleCalendarSyncError('Failed to complete Google Calendar OAuth connection.') from exc
+        raise GoogleCalendarSyncError(
+            f'Failed to exchange Google Calendar authorization code: {_google_error_message(exc)}'
+        ) from exc
+    try:
+        email = _fetch_google_calendar_primary_email(credentials)
+    except Exception:
+        logger.exception('Unable to fetch primary Google Calendar email for user %s.', user.id)
+        email = ''
     credential, _ = GoogleCalendarCredential.objects.update_or_create(
         user=user,
         defaults={
@@ -174,6 +183,11 @@ def store_google_calendar_credentials(user, code, state):
         },
     )
     return credential
+
+
+def _google_error_message(exc):
+    message = str(exc).strip()
+    return message or exc.__class__.__name__
 
 
 def disconnect_google_calendar(user):
