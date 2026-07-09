@@ -257,6 +257,33 @@ def panel_interviewer_names(panel):
     return [interviewer.full_name for interviewer in panel if interviewer]
 
 
+def active_interview_conflict_exists(panel, organization, selected_date, start_time, end_time):
+    """Return whether any panel member is already booked for the selected time.
+
+    Keep the primary-interviewer and panel-interviewer checks separate. A
+    single OR query across Interview.interviewer and Interview.panel_interviewers
+    can introduce an outer join; PostgreSQL rejects SELECT FOR UPDATE on the
+    nullable side of that join during applicant self-booking.
+    """
+    base_filters = {
+        'organization': organization,
+        'interview_date': selected_date,
+        'start_time': start_time,
+        'end_time': end_time,
+        'status__in': [Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
+    }
+    primary_conflict = Interview.objects.select_for_update().filter(
+        interviewer__in=panel,
+        **base_filters,
+    ).exists()
+    if primary_conflict:
+        return True
+    return Interview.objects.select_for_update().filter(
+        panel_interviewers__in=panel,
+        **base_filters,
+    ).distinct().exists()
+
+
 def serialize_generated_slot_for_selection(slot, interviewer, panel=None):
     return {
         'slot_id': slot.id,
@@ -653,14 +680,13 @@ def book_scheduling_request(request, scheduling_request):
         selected_location = selected_location or generated.location
         if selected_mode == Interview.Mode.PHYSICAL and not selected_location:
             selected_location = 'To be confirmed'
-        if Interview.objects.select_for_update().filter(
-            Q(interviewer__in=panel) | Q(panel_interviewers__in=panel),
-            organization=scheduling_request.organization,
-            interview_date=selected_date,
-            start_time=start_time,
-            end_time=end_time,
-            status__in=[Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
-        ).distinct().exists():
+        if active_interview_conflict_exists(
+            panel,
+            scheduling_request.organization,
+            selected_date,
+            start_time,
+            end_time,
+        ):
             raise ValidationError({'slot_id': 'Selected interview slot is already booked.'})
 
     interview, created = Interview.objects.get_or_create(
