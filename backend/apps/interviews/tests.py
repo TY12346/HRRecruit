@@ -542,6 +542,54 @@ class InterviewManagementAPITests(APITestCase):
         interview = Interview.objects.get(application=self.application)
         self.assertEqual(interview.location, 'To be confirmed')
 
+
+    @patch('apps.interviews.views.sync_calendar_event_for_interview')
+    def test_applicant_booking_reuses_latest_interview_when_duplicates_exist(self, _mock_sync_calendar):
+        older_interview = Interview.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            status=Interview.Status.ASSIGNED,
+        )
+        latest_interview = Interview.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            status=Interview.Status.ASSIGNED,
+        )
+        slot = InterviewerAvailabilitySlot.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            start_datetime=timezone.now() + timedelta(days=2),
+            end_datetime=timezone.now() + timedelta(days=2, hours=1),
+        )
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            remark='Choose one slot.',
+        )
+        self.authenticate(self.applicant)
+
+        response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_request.id]),
+            {
+                'slot_id': slot.id,
+                'mode': Interview.Mode.ONLINE,
+                'meeting_link': 'https://meet.example.com/reuse-latest',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        scheduling_request.refresh_from_db()
+        self.assertEqual(scheduling_request.interview, latest_interview)
+        older_interview.refresh_from_db()
+        self.assertEqual(older_interview.status, Interview.Status.ASSIGNED)
+
     def test_applicant_cannot_book_unavailable_slot(self):
         slot = InterviewerAvailabilitySlot.objects.create(
             organization=self.organization,

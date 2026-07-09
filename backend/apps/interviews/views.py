@@ -260,10 +260,8 @@ def panel_interviewer_names(panel):
 def active_interview_conflict_exists(panel, organization, selected_date, start_time, end_time):
     """Return whether any panel member is already booked for the selected time.
 
-    Keep the primary-interviewer and panel-interviewer checks separate. A
-    single OR query across Interview.interviewer and Interview.panel_interviewers
-    can introduce an outer join; PostgreSQL rejects SELECT FOR UPDATE on the
-    nullable side of that join during applicant self-booking.
+    Keep the primary-interviewer and panel-interviewer checks separate to avoid
+    outer-join SQL shapes during applicant self-booking.
     """
     base_filters = {
         'organization': organization,
@@ -272,16 +270,30 @@ def active_interview_conflict_exists(panel, organization, selected_date, start_t
         'end_time': end_time,
         'status__in': [Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
     }
-    primary_conflict = Interview.objects.select_for_update().filter(
+    primary_conflict = Interview.objects.filter(
         interviewer__in=panel,
         **base_filters,
     ).exists()
     if primary_conflict:
         return True
-    return Interview.objects.select_for_update().filter(
+    return Interview.objects.filter(
         panel_interviewers__in=panel,
         **base_filters,
     ).distinct().exists()
+
+
+def get_or_create_application_interview(application, defaults):
+    """Return one interview for an application without assuming historical uniqueness.
+
+    Older flows can leave more than one Interview row for an application. Django's
+    get_or_create(application=...) raises MultipleObjectsReturned in that state,
+    which surfaces to Flutter as a generic 500 during slot booking. Prefer the
+    newest row and only create one when none exists.
+    """
+    interview = Interview.objects.filter(application=application).order_by('-id').first()
+    if interview:
+        return interview, False
+    return Interview.objects.create(application=application, **defaults), True
 
 
 def serialize_generated_slot_for_selection(slot, interviewer, panel=None):
@@ -562,9 +574,9 @@ class CreateSchedulingRequestAPIView(APIView):
         else:
             application.save(update_fields=['assigned_interviewer', 'updated_at'])
 
-        interview, interview_created = Interview.objects.get_or_create(
-            application=application,
-            defaults={
+        interview, interview_created = get_or_create_application_interview(
+            application,
+            {
                 'organization': application.job.organization,
                 'recruiter': request.user,
                 'interviewer': interviewer,
@@ -691,9 +703,9 @@ def book_scheduling_request(request, scheduling_request):
         ):
             raise ValidationError({'slot_id': 'Selected interview slot is already booked.'})
 
-    interview, created = Interview.objects.get_or_create(
-        application=scheduling_request.application,
-        defaults={
+    interview, created = get_or_create_application_interview(
+        scheduling_request.application,
+        {
             'organization': scheduling_request.organization,
             'recruiter': scheduling_request.recruiter,
             'interviewer': scheduling_request.interviewer,
