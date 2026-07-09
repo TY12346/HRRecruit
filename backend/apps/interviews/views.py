@@ -696,7 +696,7 @@ def book_scheduling_request(request, scheduling_request):
     )
     try:
         sync_calendar_event_for_interview(interview)
-    except (GoogleCalendarConfigurationError, GoogleCalendarSyncError):
+    except Exception:
         logger.exception(
             'Skipping Google Calendar sync for self-scheduled interview %s.',
             interview.id,
