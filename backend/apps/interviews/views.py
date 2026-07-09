@@ -94,9 +94,11 @@ class GoogleCalendarOAuthCallbackAPIView(APIView):
                 code=serializer.validated_data['code'],
                 state=serializer.validated_data['state'],
             )
+            sync_result = sync_existing_google_events_for_user(request.user)
         except GoogleCalendarConfigurationError as exc:
             raise ValidationError({'google_calendar': str(exc)}) from exc
-        sync_result = sync_existing_google_events_for_user(request.user)
+        except GoogleCalendarSyncError as exc:
+            raise ValidationError({'google_calendar': str(exc)}) from exc
         return Response({
             'connected': True,
             'connected_email': credential.google_account_email,
