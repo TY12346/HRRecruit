@@ -224,8 +224,6 @@ class BookSchedulingRequestSerializer(serializers.Serializer):
         mode = attrs.get('mode', Interview.Mode.ONLINE)
         if mode == Interview.Mode.ONLINE and not attrs.get('meeting_link', ''):
             raise serializers.ValidationError({'meeting_link': 'Online interviews require a meeting link placeholder.'})
-        if mode == Interview.Mode.PHYSICAL and not attrs.get('location', ''):
-            raise serializers.ValidationError({'location': 'Physical interviews require a location.'})
         return attrs
 
 
