@@ -214,7 +214,6 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
     try {
       await context.read<ApplicantWorkflowService>().bookInterviewSchedulingRequest(
             requestId: widget.request.id,
-            applicationId: _applicationId,
             slot: slot,
             mode: slot.mode.isEmpty ? 'online' : slot.mode,
             meetingLink: slot.meetingLink.isEmpty ? 'https://meet.example.com/hrrecruit-interview' : slot.meetingLink,
