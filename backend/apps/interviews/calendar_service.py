@@ -5,15 +5,18 @@ OAuth, credentials, dependencies, or a connected account are missing, scheduling
 raises a clear error instead of creating placeholder events.
 """
 
+import logging
 from datetime import datetime, timedelta
-from uuid import uuid4
 from importlib import import_module, util
+from uuid import uuid4
 
 from django.conf import settings
 from django.core import signing
 from django.utils import timezone
 
 from .models import CalendarEvent, GoogleCalendarCredential, Interview
+
+logger = logging.getLogger(__name__)
 
 GOOGLE_CALENDAR_TOKEN_URI = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
@@ -154,9 +157,18 @@ def store_google_calendar_credentials(user, code, state):
     """Exchange an OAuth authorization code and persist refreshable credentials."""
     validate_google_calendar_oauth_state(state, user)
     flow = _flow_from_client_config(state=state)
-    flow.fetch_token(code=code)
-    credentials = flow.credentials
-    email = _fetch_google_calendar_primary_email(credentials)
+    try:
+        flow.fetch_token(code=code)
+        credentials = flow.credentials
+    except Exception as exc:
+        raise GoogleCalendarSyncError(
+            f'Failed to exchange Google Calendar authorization code: {_google_error_message(exc)}'
+        ) from exc
+    try:
+        email = _fetch_google_calendar_primary_email(credentials)
+    except Exception:
+        logger.exception('Unable to fetch primary Google Calendar email for user %s.', user.id)
+        email = ''
     credential, _ = GoogleCalendarCredential.objects.update_or_create(
         user=user,
         defaults={
@@ -171,6 +183,11 @@ def store_google_calendar_credentials(user, code, state):
         },
     )
     return credential
+
+
+def _google_error_message(exc):
+    message = str(exc).strip()
+    return message or exc.__class__.__name__
 
 
 def disconnect_google_calendar(user):
@@ -364,10 +381,14 @@ def sync_existing_google_events_for_user(user):
         interviews = interviews.none()
 
     synced = 0
+    failed = 0
     for interview in interviews:
-        _sync_real_google_calendar_event(interview, credential)
-        synced += 1
-    return {'synced': synced, 'failed': 0}
+        try:
+            _sync_real_google_calendar_event(interview, credential)
+            synced += 1
+        except Exception:
+            failed += 1
+    return {'synced': synced, 'failed': failed}
 
 
 def sync_calendar_event_for_interview(interview):
