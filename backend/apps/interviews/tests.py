@@ -98,6 +98,15 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('google_calendar', response.data)
 
+    def test_google_calendar_state_validation_returns_actionable_invalid_state_error(self):
+        from apps.interviews.calendar_service import GoogleCalendarConfigurationError, validate_google_calendar_oauth_state
+
+        with self.assertRaisesMessage(
+            GoogleCalendarConfigurationError,
+            'Invalid Google Calendar OAuth state. Start the connection again from the same HRRecruit browser session',
+        ):
+            validate_google_calendar_oauth_state('not-a-signed-state', self.recruiter)
+
     @patch('apps.interviews.views.store_google_calendar_credentials')
     def test_google_calendar_callback_returns_clean_error_when_token_exchange_fails(self, store_credentials):
         from apps.interviews.calendar_service import GoogleCalendarSyncError

@@ -22,6 +22,7 @@ GOOGLE_CALENDAR_TOKEN_URI = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 GOOGLE_CALENDAR_STATE_SALT = 'hrrecruit.google-calendar-oauth'
 DEFAULT_INTERVIEW_DURATION_MINUTES = 60
+DEFAULT_OAUTH_STATE_MAX_AGE_SECONDS = 1800
 
 
 class GoogleCalendarConfigurationError(RuntimeError):
@@ -133,9 +134,24 @@ def build_google_calendar_oauth_state(user, next_url=''):
 
 def validate_google_calendar_oauth_state(state, user):
     try:
-        payload = signing.loads(state, salt=GOOGLE_CALENDAR_STATE_SALT, max_age=600)
+        payload = signing.loads(
+            state,
+            salt=GOOGLE_CALENDAR_STATE_SALT,
+            max_age=int(getattr(
+                settings,
+                'GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS',
+                DEFAULT_OAUTH_STATE_MAX_AGE_SECONDS,
+            )),
+        )
+    except signing.SignatureExpired as exc:
+        raise GoogleCalendarConfigurationError(
+            'Google Calendar OAuth state expired. Start the Google Calendar connection again from HRRecruit.'
+        ) from exc
     except signing.BadSignature as exc:
-        raise GoogleCalendarConfigurationError('Invalid or expired Google Calendar OAuth state.') from exc
+        raise GoogleCalendarConfigurationError(
+            'Invalid Google Calendar OAuth state. Start the connection again from the same HRRecruit browser session; '
+            'if this keeps happening, verify the backend DJANGO_SECRET_KEY is stable and the callback is hitting the same backend.'
+        ) from exc
     if payload.get('user_id') != user.id:
         raise GoogleCalendarConfigurationError('Google Calendar OAuth state does not match the signed-in user.')
     return payload

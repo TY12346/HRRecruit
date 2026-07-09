@@ -92,6 +92,7 @@ GOOGLE_CALENDAR_CLIENT_ID=
 GOOGLE_CALENDAR_CLIENT_SECRET=
 GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:5173/recruiter/calendar/google/callback
 GOOGLE_CALENDAR_DEFAULT_DURATION_MINUTES=60
+GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS=1800
 OPENAI_API_KEY=
 TRANSCRIPTION_MODEL=whisper-1
 USE_REAL_TRANSCRIPTION=True
@@ -283,6 +284,7 @@ python manage.py seed_demo_data --no-update-password
 - Create a Google Cloud OAuth client and enable the Google Calendar API.
 - Set `GOOGLE_CALENDAR_ENABLED=True`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, and `GOOGLE_CALENDAR_REDIRECT_URI`.
 - Add the same redirect URI to the Google Cloud OAuth client. For local React development, use `http://localhost:5173/recruiter/calendar/google/callback`.
+- Keep `DJANGO_SECRET_KEY` stable while completing OAuth. If it changes between starting Google OAuth and returning to the callback, the signed OAuth state is invalid.
 - Recruiters can connect Google Calendar from the interview assignment page; booked interview slots then create/update real Google Calendar events with attendees and Google Meet links when needed.
 
 ### Missing AI/payment/email/calendar keys
