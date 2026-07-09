@@ -651,6 +651,8 @@ def book_scheduling_request(request, scheduling_request):
         selected_mode = generated.mode
         selected_meeting_link = selected_meeting_link or generated.meeting_link
         selected_location = selected_location or generated.location
+        if selected_mode == Interview.Mode.PHYSICAL and not selected_location:
+            selected_location = 'To be confirmed'
         if Interview.objects.select_for_update().filter(
             Q(interviewer__in=panel) | Q(panel_interviewers__in=panel),
             organization=scheduling_request.organization,

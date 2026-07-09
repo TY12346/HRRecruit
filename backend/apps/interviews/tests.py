@@ -498,6 +498,50 @@ class InterviewManagementAPITests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
 
+
+    @patch('apps.interviews.views.sync_calendar_event_for_interview')
+    def test_applicant_books_physical_generated_slot_without_location(self, _mock_sync_calendar):
+        next_monday = timezone.localdate() + timedelta(days=(7 - timezone.localdate().weekday()) % 7 + 1)
+        InterviewerAvailabilityPattern.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            day_of_week=next_monday.weekday(),
+            start_time='20:00',
+            end_time='21:00',
+            slot_duration_minutes=30,
+            mode=Interview.Mode.PHYSICAL,
+            location='',
+            effective_from=timezone.localdate(),
+        )
+        scheduling_request = InterviewSchedulingRequest.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            remark='Choose one physical generated slot.',
+        )
+        scheduling_request.panel_interviewers.set([self.interviewer])
+        self.authenticate(self.applicant)
+        slots_response = self.client.get(reverse('application-interview-available-slots', args=[self.application.id]), {'date': next_monday.isoformat()})
+        self.assertEqual(slots_response.status_code, status.HTTP_200_OK)
+        slot = slots_response.data[0]
+        response = self.client.post(
+            reverse('interview-scheduling-request-book', args=[scheduling_request.id]),
+            {
+                'pattern_id': slot['pattern_id'],
+                'interview_date': slot['interview_date'],
+                'start_time': slot['start_time'],
+                'end_time': slot['end_time'],
+                'mode': slot['mode'],
+                'meeting_link': slot['meeting_link'],
+                'location': slot['location'],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        interview = Interview.objects.get(application=self.application)
+        self.assertEqual(interview.location, 'To be confirmed')
+
     def test_applicant_cannot_book_unavailable_slot(self):
         slot = InterviewerAvailabilitySlot.objects.create(
             organization=self.organization,
