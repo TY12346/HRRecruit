@@ -98,6 +98,64 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('google_calendar', response.data)
 
+    def test_google_calendar_state_validation_returns_actionable_invalid_state_error(self):
+        from apps.interviews.calendar_service import GoogleCalendarConfigurationError, validate_google_calendar_oauth_state
+
+        with self.assertRaisesMessage(
+            GoogleCalendarConfigurationError,
+            'Invalid Google Calendar OAuth state. Start the connection again from the same HRRecruit browser session',
+        ):
+            validate_google_calendar_oauth_state('not-a-signed-state', self.recruiter)
+
+    @patch('apps.interviews.views.store_google_calendar_credentials')
+    def test_google_calendar_callback_returns_clean_error_when_token_exchange_fails(self, store_credentials):
+        from apps.interviews.calendar_service import GoogleCalendarSyncError
+
+        self.authenticate(self.recruiter)
+        store_credentials.side_effect = GoogleCalendarSyncError(
+            'Failed to exchange Google Calendar authorization code: invalid_grant'
+        )
+
+        response = self.client.post(
+            reverse('google-calendar-callback'),
+            {'code': 'bad-code', 'state': 'signed-state'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data['google_calendar'][0],
+            'Failed to exchange Google Calendar authorization code: invalid_grant',
+        )
+
+    @patch('apps.interviews.calendar_service._fetch_google_calendar_primary_email')
+    @patch('apps.interviews.calendar_service._flow_from_client_config')
+    def test_google_calendar_credentials_are_stored_when_primary_email_lookup_fails(self, flow_from_config, fetch_email):
+        from apps.interviews.calendar_service import build_google_calendar_oauth_state, store_google_calendar_credentials
+
+        credentials = SimpleNamespace(
+            token='access-token',
+            refresh_token='refresh-token',
+            token_uri='https://oauth2.googleapis.com/token',
+            client_id='client-id',
+            client_secret='client-secret',
+            scopes=['https://www.googleapis.com/auth/calendar.events'],
+            expiry=None,
+        )
+        flow = Mock()
+        flow.credentials = credentials
+        flow_from_config.return_value = flow
+        fetch_email.side_effect = RuntimeError('insufficient permissions')
+
+        state = build_google_calendar_oauth_state(self.recruiter)
+
+        credential = store_google_calendar_credentials(self.recruiter, code='code', state=state)
+
+        self.assertEqual(credential.user, self.recruiter)
+        self.assertEqual(credential.google_account_email, '')
+        self.assertEqual(credential.access_token, 'access-token')
+        flow.fetch_token.assert_called_once_with(code='code')
+
     def test_calendar_sync_requires_real_google_oauth_configuration(self):
         from apps.interviews.calendar_service import GoogleCalendarConfigurationError, sync_calendar_event_for_interview
 

@@ -5,9 +5,10 @@ OAuth, credentials, dependencies, or a connected account are missing, scheduling
 raises a clear error instead of creating placeholder events.
 """
 
+import logging
 from datetime import datetime, timedelta
-from uuid import uuid4
 from importlib import import_module, util
+from uuid import uuid4
 
 from django.conf import settings
 from django.core import signing
@@ -15,10 +16,13 @@ from django.utils import timezone
 
 from .models import CalendarEvent, GoogleCalendarCredential, Interview
 
+logger = logging.getLogger(__name__)
+
 GOOGLE_CALENDAR_TOKEN_URI = 'https://oauth2.googleapis.com/token'
 GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 GOOGLE_CALENDAR_STATE_SALT = 'hrrecruit.google-calendar-oauth'
 DEFAULT_INTERVIEW_DURATION_MINUTES = 60
+DEFAULT_OAUTH_STATE_MAX_AGE_SECONDS = 1800
 
 
 class GoogleCalendarConfigurationError(RuntimeError):
@@ -130,9 +134,24 @@ def build_google_calendar_oauth_state(user, next_url=''):
 
 def validate_google_calendar_oauth_state(state, user):
     try:
-        payload = signing.loads(state, salt=GOOGLE_CALENDAR_STATE_SALT, max_age=600)
+        payload = signing.loads(
+            state,
+            salt=GOOGLE_CALENDAR_STATE_SALT,
+            max_age=int(getattr(
+                settings,
+                'GOOGLE_CALENDAR_OAUTH_STATE_MAX_AGE_SECONDS',
+                DEFAULT_OAUTH_STATE_MAX_AGE_SECONDS,
+            )),
+        )
+    except signing.SignatureExpired as exc:
+        raise GoogleCalendarConfigurationError(
+            'Google Calendar OAuth state expired. Start the Google Calendar connection again from HRRecruit.'
+        ) from exc
     except signing.BadSignature as exc:
-        raise GoogleCalendarConfigurationError('Invalid or expired Google Calendar OAuth state.') from exc
+        raise GoogleCalendarConfigurationError(
+            'Invalid Google Calendar OAuth state. Start the connection again from the same HRRecruit browser session; '
+            'if this keeps happening, verify the backend DJANGO_SECRET_KEY is stable and the callback is hitting the same backend.'
+        ) from exc
     if payload.get('user_id') != user.id:
         raise GoogleCalendarConfigurationError('Google Calendar OAuth state does not match the signed-in user.')
     return payload
@@ -154,9 +173,18 @@ def store_google_calendar_credentials(user, code, state):
     """Exchange an OAuth authorization code and persist refreshable credentials."""
     validate_google_calendar_oauth_state(state, user)
     flow = _flow_from_client_config(state=state)
-    flow.fetch_token(code=code)
-    credentials = flow.credentials
-    email = _fetch_google_calendar_primary_email(credentials)
+    try:
+        flow.fetch_token(code=code)
+        credentials = flow.credentials
+    except Exception as exc:
+        raise GoogleCalendarSyncError(
+            f'Failed to exchange Google Calendar authorization code: {_google_error_message(exc)}'
+        ) from exc
+    try:
+        email = _fetch_google_calendar_primary_email(credentials)
+    except Exception:
+        logger.exception('Unable to fetch primary Google Calendar email for user %s.', user.id)
+        email = ''
     credential, _ = GoogleCalendarCredential.objects.update_or_create(
         user=user,
         defaults={
@@ -171,6 +199,11 @@ def store_google_calendar_credentials(user, code, state):
         },
     )
     return credential
+
+
+def _google_error_message(exc):
+    message = str(exc).strip()
+    return message or exc.__class__.__name__
 
 
 def disconnect_google_calendar(user):
@@ -364,10 +397,14 @@ def sync_existing_google_events_for_user(user):
         interviews = interviews.none()
 
     synced = 0
+    failed = 0
     for interview in interviews:
-        _sync_real_google_calendar_event(interview, credential)
-        synced += 1
-    return {'synced': synced, 'failed': 0}
+        try:
+            _sync_real_google_calendar_event(interview, credential)
+            synced += 1
+        except Exception:
+            failed += 1
+    return {'synced': synced, 'failed': failed}
 
 
 def sync_calendar_event_for_interview(interview):
