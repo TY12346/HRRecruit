@@ -6,6 +6,7 @@ from datetime import datetime
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -216,11 +217,18 @@ def available_slots_for_interviewer(user):
 
 
 def pending_scheduling_request_for_applicant_application_or_404(applicant, application_id):
-    return get_object_or_404(
-        bookable_scheduling_requests_for_applicant(applicant),
-        application_id=application_id,
-        status=InterviewSchedulingRequest.Status.PENDING,
+    scheduling_request = (
+        bookable_scheduling_requests_for_applicant(applicant)
+        .filter(
+            application_id=application_id,
+            status=InterviewSchedulingRequest.Status.PENDING,
+        )
+        .order_by('-created_at', '-id')
+        .first()
     )
+    if not scheduling_request:
+        raise Http404
+    return scheduling_request
 
 
 def panel_interviewers_for_scheduling_request(scheduling_request):
@@ -643,6 +651,8 @@ def book_scheduling_request(request, scheduling_request):
         selected_mode = generated.mode
         selected_meeting_link = selected_meeting_link or generated.meeting_link
         selected_location = selected_location or generated.location
+        if selected_mode == Interview.Mode.PHYSICAL and not selected_location:
+            selected_location = 'To be confirmed'
         if Interview.objects.select_for_update().filter(
             Q(interviewer__in=panel) | Q(panel_interviewers__in=panel),
             organization=scheduling_request.organization,
@@ -696,7 +706,7 @@ def book_scheduling_request(request, scheduling_request):
     )
     try:
         sync_calendar_event_for_interview(interview)
-    except (GoogleCalendarConfigurationError, GoogleCalendarSyncError):
+    except Exception:
         logger.exception(
             'Skipping Google Calendar sync for self-scheduled interview %s.',
             interview.id,

@@ -52,17 +52,13 @@ class ApplicantWorkflowService {
 
   Future<InterviewSchedulingRequest> bookInterviewSchedulingRequest({
     required int requestId,
-    int? applicationId,
     required InterviewerAvailabilitySlot slot,
     String mode = 'online',
     String meetingLink = 'https://meet.example.com/hrrecruit-interview',
     String location = '',
   }) async {
-    final endpoint = applicationId != null
-        ? 'applications/$applicationId/book-interview-slot/'
-        : 'interviews/scheduling-requests/$requestId/book/';
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      endpoint,
+      'interviews/scheduling-requests/$requestId/book/',
       data: {
         if (slot.patternId > 0) ...{
           'pattern_id': slot.patternId,
