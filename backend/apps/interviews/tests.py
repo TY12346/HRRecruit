@@ -98,6 +98,25 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('google_calendar', response.data)
 
+    @patch('apps.interviews.views.store_google_calendar_credentials')
+    def test_google_calendar_callback_returns_clean_error_when_token_exchange_fails(self, store_credentials):
+        from apps.interviews.calendar_service import GoogleCalendarSyncError
+
+        self.authenticate(self.recruiter)
+        store_credentials.side_effect = GoogleCalendarSyncError('Failed to complete Google Calendar OAuth connection.')
+
+        response = self.client.post(
+            reverse('google-calendar-callback'),
+            {'code': 'bad-code', 'state': 'signed-state'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data['google_calendar'][0],
+            'Failed to complete Google Calendar OAuth connection.',
+        )
+
     def test_calendar_sync_requires_real_google_oauth_configuration(self):
         from apps.interviews.calendar_service import GoogleCalendarConfigurationError, sync_calendar_event_for_interview
 
