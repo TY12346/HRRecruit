@@ -1,4 +1,4 @@
-"""Interview audio transcription service with local mock fallback behavior."""
+"""Interview audio transcription service with OpenAI transcription and mock fallback behavior."""
 
 from __future__ import annotations
 
@@ -22,14 +22,20 @@ class TranscriptionUnavailable(AIServiceUnavailable):
 
 
 def use_real_transcription_enabled():
-    """Return whether required real ASR is explicitly enabled."""
-    explicit_setting = os.getenv('USE_REAL_TRANSCRIPTION', 'False')
-    return explicit_setting.strip().lower() in TRANSCRIPTION_TRUTHY_VALUES
+    """Return whether real ASR should run.
+
+    A configured OPENAI_API_KEY now enables real transcription by default.
+    Set USE_REAL_TRANSCRIPTION=False to force the local mock fallback for demos/tests.
+    """
+    explicit_setting = os.getenv('USE_REAL_TRANSCRIPTION')
+    if explicit_setting is not None:
+        return explicit_setting.strip().lower() in TRANSCRIPTION_TRUTHY_VALUES
+    return bool(get_openai_api_key())
 
 
 def get_transcription_model():
-    """Return configured ASR model name, defaulting to Whisper per ALGORITHMS.md."""
-    return os.getenv('TRANSCRIPTION_MODEL', 'whisper-1').strip() or 'whisper-1'
+    """Return configured ASR model name, defaulting to OpenAI's current transcription model."""
+    return os.getenv('TRANSCRIPTION_MODEL', 'gpt-4o-transcribe').strip() or 'gpt-4o-transcribe'
 
 
 def get_openai_api_key():
@@ -131,14 +137,14 @@ def build_mock_transcription(recording, audio_file):
             f'Mock transcript for {applicant_name} interviewing for {job_title}. '
             'The interviewer asked about relevant experience, communication, role fit, '
             'and follow-up areas for human evaluation. Replace this mock transcript with '
-            'real transcription when USE_REAL_TRANSCRIPTION=True and OPENAI_API_KEY is configured.'
+            'real transcription when OPENAI_API_KEY is configured.'
         ),
         'metadata': {
             'provider': 'mock',
             'mode': 'local_development',
             'model': 'mock-transcription-v1',
             'preprocessing': 'skipped_for_local_fyp_development',
-            'mock_reason': 'USE_REAL_TRANSCRIPTION is not enabled',
+            'mock_reason': 'OPENAI_API_KEY is not configured or USE_REAL_TRANSCRIPTION is disabled',
             'audio_file_name': audio_file.name,
         },
     }
