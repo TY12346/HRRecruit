@@ -6,6 +6,7 @@ from datetime import datetime
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -216,11 +217,18 @@ def available_slots_for_interviewer(user):
 
 
 def pending_scheduling_request_for_applicant_application_or_404(applicant, application_id):
-    return get_object_or_404(
-        bookable_scheduling_requests_for_applicant(applicant),
-        application_id=application_id,
-        status=InterviewSchedulingRequest.Status.PENDING,
+    scheduling_request = (
+        bookable_scheduling_requests_for_applicant(applicant)
+        .filter(
+            application_id=application_id,
+            status=InterviewSchedulingRequest.Status.PENDING,
+        )
+        .order_by('-created_at', '-id')
+        .first()
     )
+    if not scheduling_request:
+        raise Http404
+    return scheduling_request
 
 
 def panel_interviewers_for_scheduling_request(scheduling_request):
@@ -247,6 +255,45 @@ def selectable_slots_for_scheduling_request(scheduling_request, selected_date=No
 
 def panel_interviewer_names(panel):
     return [interviewer.full_name for interviewer in panel if interviewer]
+
+
+def active_interview_conflict_exists(panel, organization, selected_date, start_time, end_time):
+    """Return whether any panel member is already booked for the selected time.
+
+    Keep the primary-interviewer and panel-interviewer checks separate to avoid
+    outer-join SQL shapes during applicant self-booking.
+    """
+    base_filters = {
+        'organization': organization,
+        'interview_date': selected_date,
+        'start_time': start_time,
+        'end_time': end_time,
+        'status__in': [Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
+    }
+    primary_conflict = Interview.objects.filter(
+        interviewer__in=panel,
+        **base_filters,
+    ).exists()
+    if primary_conflict:
+        return True
+    return Interview.objects.filter(
+        panel_interviewers__in=panel,
+        **base_filters,
+    ).distinct().exists()
+
+
+def get_or_create_application_interview(application, defaults):
+    """Return one interview for an application without assuming historical uniqueness.
+
+    Older flows can leave more than one Interview row for an application. Django's
+    get_or_create(application=...) raises MultipleObjectsReturned in that state,
+    which surfaces to Flutter as a generic 500 during slot booking. Prefer the
+    newest row and only create one when none exists.
+    """
+    interview = Interview.objects.filter(application=application).order_by('-id').first()
+    if interview:
+        return interview, False
+    return Interview.objects.create(application=application, **defaults), True
 
 
 def serialize_generated_slot_for_selection(slot, interviewer, panel=None):
@@ -527,9 +574,9 @@ class CreateSchedulingRequestAPIView(APIView):
         else:
             application.save(update_fields=['assigned_interviewer', 'updated_at'])
 
-        interview, interview_created = Interview.objects.get_or_create(
-            application=application,
-            defaults={
+        interview, interview_created = get_or_create_application_interview(
+            application,
+            {
                 'organization': application.job.organization,
                 'recruiter': request.user,
                 'interviewer': interviewer,
@@ -640,22 +687,25 @@ def book_scheduling_request(request, scheduling_request):
             raise ValidationError({'slot_id': 'Selected generated interview slot is no longer available.'})
         selected_start = generated.start_datetime
         selected_end = generated.end_datetime
+        if selected_start <= timezone.now():
+            raise ValidationError({'slot_id': 'Selected interview slot is in the past.'})
         selected_mode = generated.mode
         selected_meeting_link = selected_meeting_link or generated.meeting_link
         selected_location = selected_location or generated.location
-        if Interview.objects.select_for_update().filter(
-            Q(interviewer__in=panel) | Q(panel_interviewers__in=panel),
-            organization=scheduling_request.organization,
-            interview_date=selected_date,
-            start_time=start_time,
-            end_time=end_time,
-            status__in=[Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
-        ).distinct().exists():
+        if selected_mode == Interview.Mode.PHYSICAL and not selected_location:
+            selected_location = 'To be confirmed'
+        if active_interview_conflict_exists(
+            panel,
+            scheduling_request.organization,
+            selected_date,
+            start_time,
+            end_time,
+        ):
             raise ValidationError({'slot_id': 'Selected interview slot is already booked.'})
 
-    interview, created = Interview.objects.get_or_create(
-        application=scheduling_request.application,
-        defaults={
+    interview, created = get_or_create_application_interview(
+        scheduling_request.application,
+        {
             'organization': scheduling_request.organization,
             'recruiter': scheduling_request.recruiter,
             'interviewer': scheduling_request.interviewer,
@@ -696,7 +746,7 @@ def book_scheduling_request(request, scheduling_request):
     )
     try:
         sync_calendar_event_for_interview(interview)
-    except (GoogleCalendarConfigurationError, GoogleCalendarSyncError):
+    except Exception:
         logger.exception(
             'Skipping Google Calendar sync for self-scheduled interview %s.',
             interview.id,

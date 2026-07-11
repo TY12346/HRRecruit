@@ -1,4 +1,4 @@
-"""Interview audio transcription service with local mock fallback behavior."""
+"""Interview audio transcription service with OpenAI transcription and mock fallback behavior."""
 
 from __future__ import annotations
 
@@ -15,25 +15,42 @@ from apps.evaluations.models import ALLOWED_INTERVIEW_AUDIO_EXTENSIONS, Intervie
 
 TRANSCRIPTION_TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
 ALLOWED_AUDIO_MIME_PREFIXES = ('audio/', 'video/webm')
+TRANSCRIPTION_PROVIDER_OPENAI = 'openai'
+TRANSCRIPTION_PROVIDER_LOCAL_WHISPER = 'local_whisper'
+TRANSCRIPTION_PROVIDER_MOCK = 'mock'
+REAL_TRANSCRIPTION_PROVIDERS = {TRANSCRIPTION_PROVIDER_OPENAI, TRANSCRIPTION_PROVIDER_LOCAL_WHISPER}
 
 
 class TranscriptionUnavailable(AIServiceUnavailable):
     """Raised when required real transcription cannot be used."""
 
 
+def get_transcription_provider():
+    """Return the configured transcription provider."""
+    return os.getenv('TRANSCRIPTION_PROVIDER', TRANSCRIPTION_PROVIDER_LOCAL_WHISPER).strip().lower() or TRANSCRIPTION_PROVIDER_LOCAL_WHISPER
+
+
 def use_real_transcription_enabled():
-    """Return whether required real ASR is explicitly enabled."""
-    explicit_setting = os.getenv('USE_REAL_TRANSCRIPTION', 'False')
-    return explicit_setting.strip().lower() in TRANSCRIPTION_TRUTHY_VALUES
+    """Return whether real ASR should run.
+
+    Local Whisper is the default real provider. Set USE_REAL_TRANSCRIPTION=False
+    or TRANSCRIPTION_PROVIDER=mock to force the local mock fallback for demos/tests.
+    """
+    explicit_setting = os.getenv('USE_REAL_TRANSCRIPTION')
+    if explicit_setting is not None and explicit_setting.strip().lower() not in TRANSCRIPTION_TRUTHY_VALUES:
+        return False
+    return get_transcription_provider() in REAL_TRANSCRIPTION_PROVIDERS
 
 
 def get_transcription_model():
-    """Return configured ASR model name, defaulting to Whisper per ALGORITHMS.md."""
-    return os.getenv('TRANSCRIPTION_MODEL', 'whisper-1').strip() or 'whisper-1'
+    """Return configured ASR model name for the selected provider."""
+    provider = get_transcription_provider()
+    default_model = 'base' if provider == TRANSCRIPTION_PROVIDER_LOCAL_WHISPER else 'gpt-4o-transcribe'
+    return os.getenv('TRANSCRIPTION_MODEL', default_model).strip() or default_model
 
 
 def get_openai_api_key():
-    """Return the optional OpenAI API key used only when real transcription is enabled."""
+    """Return the optional OpenAI API key used only when the OpenAI provider is selected."""
     return os.getenv('OPENAI_API_KEY', '').strip()
 
 
@@ -93,15 +110,48 @@ def _call_openai_transcription(audio_file, api_key, model):
     return _extract_transcription_text(response)
 
 
-def run_real_transcription(audio_file):
-    """Run optional real provider or raise a safe unavailability error."""
-    api_key = get_openai_api_key()
-    if not api_key:
-        raise TranscriptionUnavailable('OPENAI_API_KEY is required for real transcription.')
+def _call_local_whisper_transcription(audio_file, model):
+    """Run a local Whisper model from the openai-whisper package."""
+    if importlib.util.find_spec('whisper') is None:
+        raise TranscriptionUnavailable('The openai-whisper package is not installed; local Whisper transcription cannot run.')
 
+    whisper = importlib.import_module('whisper')
+    whisper_model = whisper.load_model(model)
+    audio_path = getattr(audio_file, 'path', None)
+    close_temporary_file = None
+    if not audio_path:
+        import tempfile
+
+        suffix = Path(audio_file.name).suffix or '.audio'
+        temporary_file = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+        close_temporary_file = temporary_file.name
+        with audio_file.open('rb') as audio_stream:
+            for chunk in iter(lambda: audio_stream.read(1024 * 1024), b''):
+                temporary_file.write(chunk)
+        temporary_file.close()
+        audio_path = close_temporary_file
+    try:
+        result = whisper_model.transcribe(audio_path)
+    finally:
+        if close_temporary_file:
+            Path(close_temporary_file).unlink(missing_ok=True)
+    return result.get('text', '') if isinstance(result, dict) else getattr(result, 'text', '')
+
+
+def run_real_transcription(audio_file):
+    """Run the configured real provider or raise a safe unavailability error."""
+    provider = get_transcription_provider()
     model = get_transcription_model()
     try:
-        transcript_text = _call_openai_transcription(audio_file, api_key, model)
+        if provider == TRANSCRIPTION_PROVIDER_LOCAL_WHISPER:
+            transcript_text = _call_local_whisper_transcription(audio_file, model)
+        elif provider == TRANSCRIPTION_PROVIDER_OPENAI:
+            api_key = get_openai_api_key()
+            if not api_key:
+                raise TranscriptionUnavailable('OPENAI_API_KEY is required for OpenAI transcription.')
+            transcript_text = _call_openai_transcription(audio_file, api_key, model)
+        else:
+            raise TranscriptionUnavailable(f'Unsupported transcription provider: {provider}.')
     except TranscriptionUnavailable:
         raise
     except Exception as exc:
@@ -110,7 +160,7 @@ def run_real_transcription(audio_file):
     return {
         'text': post_process_transcript(transcript_text),
         'metadata': {
-            'provider': 'openai',
+            'provider': provider,
             'mode': 'real',
             'model': model,
             'preprocessing': 'skipped_for_local_fyp_development',
@@ -131,14 +181,14 @@ def build_mock_transcription(recording, audio_file):
             f'Mock transcript for {applicant_name} interviewing for {job_title}. '
             'The interviewer asked about relevant experience, communication, role fit, '
             'and follow-up areas for human evaluation. Replace this mock transcript with '
-            'real transcription when USE_REAL_TRANSCRIPTION=True and OPENAI_API_KEY is configured.'
+            'real transcription when TRANSCRIPTION_PROVIDER=local_whisper or another real provider is configured.'
         ),
         'metadata': {
             'provider': 'mock',
             'mode': 'local_development',
             'model': 'mock-transcription-v1',
             'preprocessing': 'skipped_for_local_fyp_development',
-            'mock_reason': 'USE_REAL_TRANSCRIPTION is not enabled',
+            'mock_reason': 'USE_REAL_TRANSCRIPTION is disabled or TRANSCRIPTION_PROVIDER=mock',
             'audio_file_name': audio_file.name,
         },
     }
