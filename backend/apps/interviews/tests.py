@@ -932,6 +932,41 @@ class InterviewEvaluationAPITests(APITestCase):
         openai_transcription.assert_not_called()
         local_whisper_transcription.assert_not_called()
 
+    def test_transcription_api_response_includes_speaker_diarization_fields(self):
+        upload_response = self.upload_recording()
+        recording = InterviewRecording.objects.get(id=upload_response.data['id'])
+
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'TRANSCRIPTION_PROVIDER': 'local_whisper'}), patch(
+            'apps.ai_services.transcription_service._call_local_whisper_transcription',
+            return_value={
+                'text': 'Can you explain your work? I built APIs.',
+                'segments': [
+                    {'start': 0.0, 'end': 2.0, 'text': 'Can you explain your work?'},
+                    {'start': 2.0, 'end': 5.0, 'text': 'I built APIs.'},
+                ],
+            },
+        ), patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            return_value=[
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 2.0, 'end_time': 5.0},
+            ],
+        ):
+            response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('transcript', response.data)
+        self.assertIn('speaker_labelled_transcript', response.data)
+        self.assertIn('speaker_segments', response.data)
+        self.assertIn('diarization_status', response.data)
+        self.assertIn('diarization_warning', response.data)
+        self.assertEqual(response.data['diarization_status'], 'completed')
+        self.assertIn('Interviewer:', response.data['transcript_text'])
+        self.assertIn('Candidate:', response.data['speaker_labelled_transcript'])
+        transcript = InterviewTranscript.objects.get(id=response.data['id'])
+        self.assertEqual(transcript.transcript_text, response.data['transcript_text'])
+        self.assertEqual(transcript.transcript_json['segments'][0]['role'], 'Interviewer')
+
     def create_transcript(self, text='Candidate communicated clearly and discussed Django API experience.'):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
