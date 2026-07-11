@@ -51,6 +51,27 @@ def normalize_transcript_segments(raw_segments):
     return segments
 
 
+def _load_pyannote_pipeline(pyannote_audio, model_name, token):
+    """Load pyannote pipeline across supported pyannote/Hugging Face versions."""
+    from_pretrained = pyannote_audio.Pipeline.from_pretrained
+    if token:
+        try:
+            return from_pretrained(model_name, token=token)
+        except TypeError as token_error:
+            try:
+                return from_pretrained(model_name, use_auth_token=token)
+            except TypeError:
+                raise token_error
+    return from_pretrained(model_name)
+
+
+def _format_diarization_error(exc):
+    detail = str(exc).strip()
+    if detail:
+        return f'Speaker diarization failed: {exc.__class__.__name__}: {detail}'
+    return f'Speaker diarization failed: {exc.__class__.__name__}'
+
+
 def run_speaker_diarization(audio_file):
     """Return diarized speaker turns or raise DiarizationUnavailable.
 
@@ -59,19 +80,19 @@ def run_speaker_diarization(audio_file):
     PYANNOTE_AUTH_TOKEN for the configured model.
     """
     if not diarization_enabled():
-        raise DiarizationUnavailable('Speaker diarization is not configured. Set USE_SPEAKER_DIARIZATION=True and install optional diarization dependencies.')
+        raise DiarizationUnavailable('Speaker diarization is not configured for this environment.')
     try:
         pyannote_available = importlib.util.find_spec('pyannote.audio') is not None
     except ModuleNotFoundError:
         pyannote_available = False
     if not pyannote_available:
-        raise DiarizationUnavailable('pyannote.audio is not installed; speaker diarization is unavailable.')
+        raise DiarizationUnavailable('Speaker diarization dependencies are not installed for this environment.')
 
     token = os.getenv('PYANNOTE_AUTH_TOKEN', '').strip()
     model_name = os.getenv('DIARIZATION_MODEL', 'pyannote/speaker-diarization-3.1').strip()
     try:
         pyannote_audio = importlib.import_module('pyannote.audio')
-        pipeline = pyannote_audio.Pipeline.from_pretrained(model_name, use_auth_token=token or None)
+        pipeline = _load_pyannote_pipeline(pyannote_audio, model_name, token)
         audio_path = getattr(audio_file, 'path', None)
         if not audio_path:
             raise DiarizationUnavailable('Speaker diarization requires a local audio file path in this development implementation.')
@@ -85,7 +106,7 @@ def run_speaker_diarization(audio_file):
     except DiarizationUnavailable:
         raise
     except Exception as exc:
-        raise DiarizationUnavailable(f'Speaker diarization failed: {exc.__class__.__name__}') from exc
+        raise DiarizationUnavailable(_format_diarization_error(exc)) from exc
 
 
 def calculate_overlap(start_a, end_a, start_b, end_b):

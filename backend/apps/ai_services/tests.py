@@ -637,6 +637,8 @@ class ResumeContentValidationTests(SimpleTestCase):
         self.assertIn('Resume text could not be extracted or is too short for screening.', result['warnings'])
 
 from apps.ai_services.speaker_diarization import (
+    _format_diarization_error,
+    _load_pyannote_pipeline,
     align_transcript_segments_to_speakers,
     apply_role_mapping,
     format_speaker_labelled_transcript,
@@ -646,6 +648,42 @@ from apps.ai_services.transcription_service import build_speaker_aware_transcrip
 
 
 class InterviewSpeakerDiarizationTests(SimpleTestCase):
+    def test_load_pyannote_pipeline_uses_token_keyword_for_current_versions(self):
+        calls = []
+
+        class FakePipeline:
+            @staticmethod
+            def from_pretrained(model_name, **kwargs):
+                calls.append((model_name, kwargs))
+                return 'pipeline'
+
+        pyannote_audio = SimpleNamespace(Pipeline=FakePipeline)
+
+        self.assertEqual(_load_pyannote_pipeline(pyannote_audio, 'pyannote/model', 'hf-token'), 'pipeline')
+        self.assertEqual(calls, [('pyannote/model', {'token': 'hf-token'})])
+
+    def test_load_pyannote_pipeline_falls_back_to_legacy_use_auth_token_keyword(self):
+        calls = []
+
+        class FakePipeline:
+            @staticmethod
+            def from_pretrained(model_name, **kwargs):
+                calls.append((model_name, kwargs))
+                if 'token' in kwargs:
+                    raise TypeError("from_pretrained() got an unexpected keyword argument 'token'")
+                return 'pipeline'
+
+        pyannote_audio = SimpleNamespace(Pipeline=FakePipeline)
+
+        self.assertEqual(_load_pyannote_pipeline(pyannote_audio, 'pyannote/model', 'hf-token'), 'pipeline')
+        self.assertEqual(calls[-1], ('pyannote/model', {'use_auth_token': 'hf-token'}))
+
+    def test_diarization_error_includes_type_and_message(self):
+        error = _format_diarization_error(TypeError("from_pretrained() got an unexpected keyword argument 'use_auth_token'"))
+
+        self.assertIn('TypeError', error)
+        self.assertIn('use_auth_token', error)
+
     def test_formats_structured_speaker_segments_and_merges_consecutive_roles(self):
         formatted = format_speaker_labelled_transcript([
             {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 0.0, 'end_time': 1.0, 'text': 'Good afternoon.'},
