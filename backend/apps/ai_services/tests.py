@@ -637,6 +637,9 @@ class ResumeContentValidationTests(SimpleTestCase):
         self.assertIn('Resume text could not be extracted or is too short for screening.', result['warnings'])
 
 from apps.ai_services.speaker_diarization import (
+    DIARIZATION_STATUS_NOT_CONFIGURED,
+    DIARIZATION_STATUS_UNAVAILABLE,
+    DiarizationUnavailable,
     _format_diarization_error,
     _load_pyannote_pipeline,
     align_transcript_segments_to_speakers,
@@ -648,6 +651,29 @@ from apps.ai_services.transcription_service import build_speaker_aware_transcrip
 
 
 class InterviewSpeakerDiarizationTests(SimpleTestCase):
+    def test_diarization_unavailable_carries_fallback_status(self):
+        not_configured = DiarizationUnavailable('disabled', status=DIARIZATION_STATUS_NOT_CONFIGURED)
+        unavailable = DiarizationUnavailable('missing dependency', status=DIARIZATION_STATUS_UNAVAILABLE)
+
+        self.assertEqual(not_configured.status, 'not_configured')
+        self.assertEqual(unavailable.status, 'unavailable')
+
+    def test_fallback_payload_uses_diarization_exception_status(self):
+        with patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            side_effect=DiarizationUnavailable('missing dependency', status=DIARIZATION_STATUS_UNAVAILABLE),
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Plain transcript text.',
+                transcript_segments=[{'start_time': 0.0, 'end_time': 1.0, 'text': 'Plain transcript text.'}],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_text'], 'Plain transcript text.')
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'unavailable')
+        self.assertEqual(payload['transcript_json']['diarization_warning'], 'missing dependency')
+
     def test_load_pyannote_pipeline_uses_token_keyword_for_current_versions(self):
         calls = []
 
