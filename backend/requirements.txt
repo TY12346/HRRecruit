@@ -42,6 +42,9 @@ joblib>=1.4,<2.0
 numpy>=1.26,<3.0
 sentence-transformers>=3.0,<4.0
 
+# Optional real local Whisper transcription support
+openai-whisper>=20250625
+
 # Optional real OpenAI transcription/summary support
 openai>=1.90,<2.0
 

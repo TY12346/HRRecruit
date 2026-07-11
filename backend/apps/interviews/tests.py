@@ -792,7 +792,7 @@ class InterviewEvaluationAPITests(APITestCase):
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
         self.assertEqual(recording.uploaded_by, self.interviewer)
 
-        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'TRANSCRIPTION_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.transcription_service._call_openai_transcription',
             return_value='Candidate discussed Django API experience and communicated clearly.',
         ):
@@ -832,7 +832,7 @@ class InterviewEvaluationAPITests(APITestCase):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
-        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'TRANSCRIPTION_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.transcription_service._call_openai_transcription',
             return_value='Real provider transcript text.',
         ) as openai_transcription:
@@ -845,30 +845,37 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(InterviewTranscript.objects.filter(recording=recording).count(), 1)
         openai_transcription.assert_called_once()
 
-    def test_openai_api_key_alone_uses_real_transcription(self):
+    def test_default_real_transcription_uses_local_whisper_without_api_key(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
         original_flag = os.environ.pop('USE_REAL_TRANSCRIPTION', None)
+        original_provider = os.environ.pop('TRANSCRIPTION_PROVIDER', None)
+        original_api_key = os.environ.pop('OPENAI_API_KEY', None)
         try:
-            with patch.dict('os.environ', {'OPENAI_API_KEY': 'test-key'}), patch(
-                'apps.ai_services.transcription_service._call_openai_transcription',
-                return_value='Real transcript used by configured key.',
-            ) as openai_transcription:
+            with patch(
+                'apps.ai_services.transcription_service._call_local_whisper_transcription',
+                return_value='Local Whisper transcript text.',
+            ) as local_whisper_transcription:
                 response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
         finally:
             if original_flag is not None:
                 os.environ['USE_REAL_TRANSCRIPTION'] = original_flag
+            if original_provider is not None:
+                os.environ['TRANSCRIPTION_PROVIDER'] = original_provider
+            if original_api_key is not None:
+                os.environ['OPENAI_API_KEY'] = original_api_key
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['transcript_json']['provider'], 'openai')
-        self.assertEqual(response.data['transcript_text'], 'Real transcript used by configured key.')
-        openai_transcription.assert_called_once()
+        self.assertEqual(response.data['transcript_json']['provider'], 'local_whisper')
+        self.assertEqual(response.data['transcript_json']['model'], 'base')
+        self.assertEqual(response.data['transcript_text'], 'Local Whisper transcript text.')
+        local_whisper_transcription.assert_called_once()
 
     def test_real_transcription_missing_api_key_returns_clear_error(self):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
-        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': ''}), patch(
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'TRANSCRIPTION_PROVIDER': 'openai', 'OPENAI_API_KEY': ''}), patch(
             'apps.ai_services.transcription_service._call_openai_transcription'
         ) as openai_transcription:
             response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
@@ -881,7 +888,7 @@ class InterviewEvaluationAPITests(APITestCase):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
-        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'TRANSCRIPTION_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.transcription_service._call_openai_transcription',
             side_effect=RuntimeError('provider unavailable'),
         ) as openai_transcription:
@@ -896,7 +903,7 @@ class InterviewEvaluationAPITests(APITestCase):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
-        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'TRANSCRIPTION_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.transcription_service._call_openai_transcription',
             return_value='Saved real transcript text.',
         ):
@@ -912,15 +919,18 @@ class InterviewEvaluationAPITests(APITestCase):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
 
-        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'False', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'False', 'TRANSCRIPTION_PROVIDER': 'local_whisper'}), patch(
             'apps.ai_services.transcription_service._call_openai_transcription'
-        ) as openai_transcription:
+        ) as openai_transcription, patch(
+            'apps.ai_services.transcription_service._call_local_whisper_transcription'
+        ) as local_whisper_transcription:
             response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['transcript_json']['provider'], 'mock')
         self.assertTrue(InterviewTranscript.objects.filter(recording=recording).exists())
         openai_transcription.assert_not_called()
+        local_whisper_transcription.assert_not_called()
 
     def create_transcript(self, text='Candidate communicated clearly and discussed Django API experience.'):
         upload_response = self.upload_recording()
