@@ -635,3 +635,84 @@ class ResumeContentValidationTests(SimpleTestCase):
         result = validate_resume_text('')
         self.assertFalse(result['is_valid'])
         self.assertIn('Resume text could not be extracted or is too short for screening.', result['warnings'])
+
+from apps.ai_services.speaker_diarization import (
+    align_transcript_segments_to_speakers,
+    apply_role_mapping,
+    format_speaker_labelled_transcript,
+    map_speakers_to_roles,
+)
+from apps.ai_services.transcription_service import build_speaker_aware_transcript_payload
+
+
+class InterviewSpeakerDiarizationTests(SimpleTestCase):
+    def test_formats_structured_speaker_segments_and_merges_consecutive_roles(self):
+        formatted = format_speaker_labelled_transcript([
+            {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 0.0, 'end_time': 1.0, 'text': 'Good afternoon.'},
+            {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 1.0, 'end_time': 2.0, 'text': 'Please have a seat.'},
+            {'speaker_id': 'SPEAKER_01', 'role': 'Candidate', 'start_time': 2.0, 'end_time': 3.0, 'text': 'Thank you.'},
+        ])
+
+        self.assertEqual(formatted, 'Interviewer: Good afternoon. Please have a seat.\n\nCandidate: Thank you.')
+        self.assertNotIn('Interviewee', formatted)
+
+    def test_maps_question_asking_speaker_to_interviewer_and_other_to_candidate(self):
+        aligned_segments = [
+            {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0, 'text': 'Can you explain your Django experience?'},
+            {'speaker_id': 'SPEAKER_00', 'start_time': 6.0, 'end_time': 8.0, 'text': 'What projects did you lead?'},
+            {'speaker_id': 'SPEAKER_01', 'start_time': 2.0, 'end_time': 6.0, 'text': 'I built several APIs and led a final year project.'},
+        ]
+
+        mapping, warning = map_speakers_to_roles(aligned_segments)
+        self.assertIsNone(warning)
+        self.assertEqual(mapping['SPEAKER_00'], 'Interviewer')
+        self.assertEqual(mapping['SPEAKER_01'], 'Candidate')
+        self.assertNotIn('Interviewee', mapping.values())
+
+    def test_aligns_transcript_segment_to_largest_timestamp_overlap(self):
+        aligned = align_transcript_segments_to_speakers(
+            [{'start_time': 1.0, 'end_time': 4.0, 'text': 'I worked with Django.'}],
+            [
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 1.5},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 1.5, 'end_time': 4.0},
+            ],
+        )
+
+        self.assertEqual(aligned[0]['speaker_id'], 'SPEAKER_01')
+
+    def test_fallback_payload_keeps_plain_transcript_when_diarization_unavailable(self):
+        with patch('apps.ai_services.transcription_service.run_speaker_diarization', side_effect=Exception('missing diarization')):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Plain transcript text.',
+                transcript_segments=[{'start_time': 0.0, 'end_time': 1.0, 'text': 'Plain transcript text.'}],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_text'], 'Plain transcript text.')
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'failed')
+        self.assertTrue(payload['transcript_json']['diarization_warning'])
+        self.assertEqual(payload['transcript_json']['segments'], [])
+
+    def test_completed_payload_saves_readable_and_structured_transcript(self):
+        with patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            return_value=[
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 2.0, 'end_time': 5.0},
+            ],
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Can you explain your work? I built APIs.',
+                transcript_segments=[
+                    {'start_time': 0.0, 'end_time': 2.0, 'text': 'Can you explain your work?'},
+                    {'start_time': 2.0, 'end_time': 5.0, 'text': 'I built APIs.'},
+                ],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertIn('Interviewer:', payload['transcript_text'])
+        self.assertIn('Candidate:', payload['transcript_text'])
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
+        self.assertEqual(len(payload['transcript_json']['segments']), 2)

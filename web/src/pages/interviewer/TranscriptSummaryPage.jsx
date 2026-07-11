@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { useLocation, useParams } from 'react-router-dom';
 import { transcribeRecording, uploadInterviewRecording } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
@@ -7,14 +7,44 @@ import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStor
 
 function TranscriptResult({ transcript }) {
   if (!transcript) return null;
+
+  const displayTranscript = transcript.speaker_labelled_transcript || transcript.transcript_text || transcript.transcript || '';
+  const speakerSegments = Array.isArray(transcript.speaker_segments) ? transcript.speaker_segments : [];
+  const diarizationStatus = transcript.diarization_status || transcript.transcript_json?.diarization_status || 'unavailable';
+  const diarizationWarning = transcript.diarization_warning || transcript.transcript_json?.diarization_warning || '';
+  const showSpeakerUnavailable = diarizationStatus !== 'completed';
+
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-        Generated transcript
-      </Typography>
-      <Typography variant="body1" whiteSpace="pre-line">
-        {transcript.transcript_text || 'No transcript text returned.'}
-      </Typography>
+      <Stack spacing={1.5}>
+        <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Generated transcript
+          </Typography>
+          <Chip size="small" label={`Speaker separation: ${diarizationStatus}`} />
+        </Stack>
+        {showSpeakerUnavailable ? (
+          <Alert severity="info">
+            Speaker separation is not available for this transcript.{diarizationWarning ? ` ${diarizationWarning}` : ''}
+          </Alert>
+        ) : null}
+        {speakerSegments.length ? (
+          <Stack spacing={1}>
+            {speakerSegments.map((segment, index) => (
+              <Box key={`${segment.speaker_id || 'speaker'}-${segment.start_time || index}-${index}`}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {segment.role === 'Interviewer' || segment.role === 'Candidate' ? segment.role : 'Unknown'}
+                </Typography>
+                <Typography variant="body1">{segment.text}</Typography>
+              </Box>
+            ))}
+          </Stack>
+        ) : (
+          <Typography variant="body1" whiteSpace="pre-line">
+            {displayTranscript || 'No transcript text returned.'}
+          </Typography>
+        )}
+      </Stack>
     </Paper>
   );
 }
