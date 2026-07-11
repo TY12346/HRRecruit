@@ -15,6 +15,7 @@ from apps.ai_services.speaker_diarization import (
     DIARIZATION_STATUS_COMPLETED,
     DIARIZATION_STATUS_FAILED,
     DIARIZATION_STATUS_NOT_CONFIGURED,
+    DIARIZATION_STATUS_UNAVAILABLE,
     DiarizationUnavailable,
     align_transcript_segments_to_speakers,
     apply_role_mapping,
@@ -244,7 +245,7 @@ def build_speaker_aware_transcript_payload(plain_transcript, transcript_segments
             diarization_status = DIARIZATION_STATUS_COMPLETED if speaker_labelled_transcript else DIARIZATION_STATUS_FAILED
             diarization_warning = diarization_warning or mapping_warning
         except DiarizationUnavailable as exc:
-            diarization_status = DIARIZATION_STATUS_NOT_CONFIGURED
+            diarization_status = getattr(exc, 'status', DIARIZATION_STATUS_UNAVAILABLE)
             diarization_warning = str(exc)
         except Exception as exc:
             diarization_status = DIARIZATION_STATUS_FAILED

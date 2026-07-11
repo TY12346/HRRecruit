@@ -26,6 +26,10 @@ INTERVIEWER_KEYWORDS = ('manager', 'recruiter', 'interviewer', 'hr ', 'human res
 class DiarizationUnavailable(AIServiceUnavailable):
     """Raised when optional diarization cannot run."""
 
+    def __init__(self, message, status=DIARIZATION_STATUS_UNAVAILABLE):
+        super().__init__(message)
+        self.status = status
+
 
 def diarization_enabled():
     return os.getenv('USE_SPEAKER_DIARIZATION', 'False').strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -80,13 +84,19 @@ def run_speaker_diarization(audio_file):
     PYANNOTE_AUTH_TOKEN for the configured model.
     """
     if not diarization_enabled():
-        raise DiarizationUnavailable('Speaker diarization is not configured for this environment.')
+        raise DiarizationUnavailable(
+            'Speaker diarization is not configured for this environment.',
+            status=DIARIZATION_STATUS_NOT_CONFIGURED,
+        )
     try:
         pyannote_available = importlib.util.find_spec('pyannote.audio') is not None
     except ModuleNotFoundError:
         pyannote_available = False
     if not pyannote_available:
-        raise DiarizationUnavailable('Speaker diarization dependencies are not installed for this environment.')
+        raise DiarizationUnavailable(
+            'Speaker diarization dependencies are not installed for this environment.',
+            status=DIARIZATION_STATUS_UNAVAILABLE,
+        )
 
     token = os.getenv('PYANNOTE_AUTH_TOKEN', '').strip()
     model_name = os.getenv('DIARIZATION_MODEL', 'pyannote/speaker-diarization-3.1').strip()
@@ -95,13 +105,19 @@ def run_speaker_diarization(audio_file):
         pipeline = _load_pyannote_pipeline(pyannote_audio, model_name, token)
         audio_path = getattr(audio_file, 'path', None)
         if not audio_path:
-            raise DiarizationUnavailable('Speaker diarization requires a local audio file path in this development implementation.')
+            raise DiarizationUnavailable(
+                'Speaker diarization requires a local audio file path in this development implementation.',
+                status=DIARIZATION_STATUS_UNAVAILABLE,
+            )
         diarization = pipeline(audio_path)
         turns = []
         for turn, _track, speaker in diarization.itertracks(yield_label=True):
             turns.append({'speaker_id': str(speaker), 'start_time': float(turn.start), 'end_time': float(turn.end)})
         if not turns:
-            raise DiarizationUnavailable('Speaker diarization returned no speaker turns.')
+            raise DiarizationUnavailable(
+                'Speaker diarization returned no speaker turns.',
+                status=DIARIZATION_STATUS_UNAVAILABLE,
+            )
         return turns
     except DiarizationUnavailable:
         raise

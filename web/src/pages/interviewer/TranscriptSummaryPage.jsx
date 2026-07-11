@@ -5,12 +5,27 @@ import { transcribeRecording, uploadInterviewRecording } from '../../api/client.
 import InterviewerNav from './InterviewerNav.jsx';
 import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredTranscriptId } from './interviewerUtils.js';
 
+const speakerSeparationLabels = {
+  completed: 'Speaker separated',
+  not_configured: 'Plain transcript',
+  unavailable: 'Plain transcript',
+  failed: 'Plain transcript',
+};
+
+const speakerSeparationMessages = {
+  not_configured: 'Speaker separation is turned off in backend settings. The plain transcript was generated successfully.',
+  unavailable: 'Speaker separation is unavailable for this transcript. The plain transcript was generated successfully.',
+  failed: 'Speaker separation could not be completed for this transcript. The plain transcript was generated successfully.',
+};
+
 function TranscriptResult({ transcript }) {
   if (!transcript) return null;
 
   const displayTranscript = transcript.speaker_labelled_transcript || transcript.transcript_text || transcript.transcript || '';
   const speakerSegments = Array.isArray(transcript.speaker_segments) ? transcript.speaker_segments : [];
   const diarizationStatus = transcript.diarization_status || transcript.transcript_json?.diarization_status || 'unavailable';
+  const speakerSeparationLabel = speakerSeparationLabels[diarizationStatus] || 'Plain transcript';
+  const speakerSeparationMessage = speakerSeparationMessages[diarizationStatus] || 'Speaker separation is not available for this transcript. The plain transcript was generated successfully.';
   const showSpeakerUnavailable = diarizationStatus !== 'completed';
 
   return (
@@ -20,11 +35,11 @@ function TranscriptResult({ transcript }) {
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Generated transcript
           </Typography>
-          <Chip size="small" label={`Speaker separation: ${diarizationStatus}`} />
+          <Chip size="small" label={speakerSeparationLabel} />
         </Stack>
         {showSpeakerUnavailable ? (
           <Alert severity="info">
-            Speaker separation is not available for this transcript. Showing the plain transcript instead.
+            {speakerSeparationMessage}
           </Alert>
         ) : null}
         {speakerSegments.length ? (
