@@ -29,6 +29,12 @@ SUMMARY_REQUIRED_FIELDS = {
 COMMUNICATION_SCORE_MIN = Decimal('0.00')
 COMMUNICATION_SCORE_MAX = Decimal('10.00')
 SUMMARY_TRANSPARENCY_VERSION = 'interview-summary-transparency-v1'
+SUMMARY_PROVIDER_OPENAI = 'openai'
+SUMMARY_PROVIDER_GEMINI = 'gemini'
+SUMMARY_DEFAULT_MODELS = {
+    SUMMARY_PROVIDER_OPENAI: 'gpt-4o-mini',
+    SUMMARY_PROVIDER_GEMINI: 'gemini-2.5-flash',
+}
 
 
 def build_summary_transparency_metadata(
@@ -68,14 +74,26 @@ def use_real_summary_enabled():
     return os.getenv('USE_REAL_SUMMARY', 'False').strip().lower() in SUMMARY_TRUTHY_VALUES
 
 
-def get_summary_model():
-    """Return the configured optional summary model name."""
-    return os.getenv('SUMMARY_MODEL', 'gpt-4o-mini').strip() or 'gpt-4o-mini'
+def get_summary_provider():
+    """Return the configured real-summary provider."""
+    return os.getenv('SUMMARY_PROVIDER', SUMMARY_PROVIDER_OPENAI).strip().lower() or SUMMARY_PROVIDER_OPENAI
+
+
+def get_summary_model(provider=None):
+    """Return the configured optional summary model name for the selected provider."""
+    provider = provider or get_summary_provider()
+    default_model = SUMMARY_DEFAULT_MODELS.get(provider, SUMMARY_DEFAULT_MODELS[SUMMARY_PROVIDER_OPENAI])
+    return os.getenv('SUMMARY_MODEL', default_model).strip() or default_model
 
 
 def get_openai_api_key():
     """Return the optional OpenAI API key used only when real summary is enabled."""
     return os.getenv('OPENAI_API_KEY', '').strip()
+
+
+def get_gemini_api_key():
+    """Return the optional Gemini API key used only when Gemini summary is enabled."""
+    return os.getenv('GEMINI_API_KEY', '').strip()
 
 
 def preprocess_transcript_text(transcript):
@@ -197,20 +215,69 @@ def _call_openai_summary(prompt, api_key, model):
     return _extract_message_content(response)
 
 
+def _extract_gemini_text(response):
+    """Extract generated text from common Google Gen AI SDK response shapes."""
+    if isinstance(response, str):
+        return response
+    if isinstance(response, dict):
+        return response.get('text') or response.get('content') or ''
+    return getattr(response, 'text', '') or getattr(response, 'content', '') or ''
+
+
+def _build_gemini_config(genai_module):
+    """Build a JSON-mode config compatible with current and older google-genai SDKs."""
+    genai_types = getattr(genai_module, 'types', None)
+    config_class = getattr(genai_types, 'GenerateContentConfig', None) if genai_types else None
+    if config_class is None:
+        return {'response_mime_type': 'application/json', 'temperature': 0.2}
+    return config_class(response_mime_type='application/json', temperature=0.2)
+
+
+def _call_gemini_summary(prompt, api_key, model):
+    """Call Google Gemini only when explicitly enabled and configured."""
+    try:
+        genai = importlib.import_module('google.genai')
+    except ImportError as exc:
+        raise SummaryGenerationUnavailable(
+            'The google-genai Python package is not installed; Gemini summary generation cannot run.'
+        ) from exc
+
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=_build_gemini_config(genai),
+    )
+    return _extract_gemini_text(response)
+
+
 def run_real_summary(cleaned_transcript):
     """Run real LLM summary generation or raise a clear unavailability error."""
-    api_key = get_openai_api_key()
-    if not api_key:
-        raise SummaryGenerationUnavailable('OPENAI_API_KEY is required for real summary generation.')
-
-    model = get_summary_model()
+    provider = get_summary_provider()
+    model = get_summary_model(provider)
     prompt = build_structured_summary_prompt(cleaned_transcript)
+
+    if provider == SUMMARY_PROVIDER_OPENAI:
+        api_key = get_openai_api_key()
+        if not api_key:
+            raise SummaryGenerationUnavailable('OPENAI_API_KEY is required for OpenAI summary generation.')
+        summary_call = _call_openai_summary
+    elif provider == SUMMARY_PROVIDER_GEMINI:
+        api_key = get_gemini_api_key()
+        if not api_key:
+            raise SummaryGenerationUnavailable('GEMINI_API_KEY is required for Gemini summary generation.')
+        summary_call = _call_gemini_summary
+    else:
+        raise SummaryGenerationUnavailable(
+            f'Unsupported SUMMARY_PROVIDER "{provider}". Use "openai" or "gemini".'
+        )
+
     try:
-        content = _call_openai_summary(prompt, api_key, model)
+        content = summary_call(prompt, api_key, model)
         parsed = _parse_summary_content(content)
         parsed['summary_json'] = build_summary_transparency_metadata(
             cleaned_transcript,
-            provider='openai',
+            provider=provider,
             model=model,
             generation_mode='real_llm',
         )

@@ -42,6 +42,9 @@ class InterviewSerializer(serializers.ModelSerializer):
     calendar_link = serializers.SerializerMethodField()
     evaluation_criteria = serializers.SerializerMethodField()
     status_history = InterviewStatusHistorySerializer(many=True, read_only=True)
+    latest_recording = serializers.SerializerMethodField()
+    transcript = serializers.SerializerMethodField()
+    ai_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = Interview
@@ -65,6 +68,9 @@ class InterviewSerializer(serializers.ModelSerializer):
             'calendar_link',
             'evaluation_criteria',
             'status_history',
+            'latest_recording',
+            'transcript',
+            'ai_summary',
             'created_at',
             'updated_at',
         ]
@@ -82,6 +88,27 @@ class InterviewSerializer(serializers.ModelSerializer):
     def get_calendar_link(self, interview):
         event = interview.calendar_events.order_by('-id').first()
         return event.calendar_link if event else ''
+
+    def get_latest_recording(self, interview):
+        from apps.evaluations.models import InterviewRecording
+        from apps.evaluations.serializers import InterviewRecordingSerializer
+
+        recording = InterviewRecording.objects.filter(interview=interview).order_by('-uploaded_at').first()
+        return InterviewRecordingSerializer(recording, context=self.context).data if recording else None
+
+    def get_transcript(self, interview):
+        from apps.evaluations.models import InterviewTranscript
+        from apps.evaluations.serializers import InterviewTranscriptSerializer
+
+        transcript = InterviewTranscript.objects.filter(recording__interview=interview).order_by('-generated_at').first()
+        return InterviewTranscriptSerializer(transcript, context=self.context).data if transcript else None
+
+    def get_ai_summary(self, interview):
+        from apps.evaluations.models import InterviewAISummary
+        from apps.evaluations.serializers import InterviewAISummarySerializer
+
+        summary = InterviewAISummary.objects.filter(transcript__recording__interview=interview).order_by('-updated_at').first()
+        return InterviewAISummarySerializer(summary, context=self.context).data if summary else None
 
     def get_evaluation_criteria(self, interview):
         form = getattr(interview.application.job, 'interview_evaluation_form', None)
