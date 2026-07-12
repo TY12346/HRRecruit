@@ -1,9 +1,51 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { useLocation, useParams } from 'react-router-dom';
-import { transcribeRecording, uploadInterviewRecording } from '../../api/client.js';
+import { generateTranscriptSummary, getInterview, transcribeRecording, uploadInterviewRecording } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
-import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredTranscriptId } from './interviewerUtils.js';
+import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredSummaryId, setStoredTranscriptId } from './interviewerUtils.js';
+
+const speakerSeparationLabels = {
+  completed: 'Speaker separated',
+  not_configured: 'Plain transcript',
+  unavailable: 'Plain transcript',
+  failed: 'Plain transcript',
+};
+
+const speakerSeparationMessages = {
+  not_configured: 'Speaker separation is turned off in backend settings. The plain transcript was generated successfully.',
+  unavailable: 'Speaker separation is unavailable for this transcript. The plain transcript was generated successfully.',
+  failed: 'Speaker separation could not be completed for this transcript. The plain transcript was generated successfully.',
+};
+
+
+function getDisplayRole(role) {
+  return role === 'Interviewer' || role === 'Candidate' ? role : 'Unknown';
+}
+
+function mergeConsecutiveSpeakerSegments(segments) {
+  return segments.reduce((groups, segment) => {
+    const text = String(segment.text || '').trim();
+    if (!text) return groups;
+
+    const role = getDisplayRole(segment.role);
+    const previous = groups[groups.length - 1];
+    if (previous?.role === role) {
+      previous.text = `${previous.text} ${text}`;
+      previous.end_time = segment.end_time ?? previous.end_time;
+      return groups;
+    }
+
+    groups.push({
+      role,
+      text,
+      speaker_id: segment.speaker_id || 'UNKNOWN',
+      start_time: segment.start_time,
+      end_time: segment.end_time,
+    });
+    return groups;
+  }, []);
+}
 
 const speakerSeparationLabels = {
   completed: 'Speaker separated',
@@ -59,7 +101,6 @@ function TranscriptResult({ transcript }) {
   const speakerSeparationLabel = speakerSeparationLabels[diarizationStatus] || 'Plain transcript';
   const speakerSeparationMessage = speakerSeparationMessages[diarizationStatus] || 'Speaker separation is not available for this transcript. The plain transcript was generated successfully.';
   const showSpeakerUnavailable = diarizationStatus !== 'completed';
-
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
@@ -102,15 +143,63 @@ function TranscriptResult({ transcript }) {
   );
 }
 
+
+function SummaryResult({ summary }) {
+  if (!summary) return null;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>AI summary</Typography>
+        <Typography><strong>Strengths:</strong> {summary.strengths || '—'}</Typography>
+        <Typography><strong>Weaknesses:</strong> {summary.weaknesses || '—'}</Typography>
+        <Typography><strong>Communication score:</strong> {summary.communication_score ?? '—'}</Typography>
+        <Typography><strong>Overall impression:</strong> {summary.overall_impression || '—'}</Typography>
+        <Typography whiteSpace="pre-line"><strong>Editable summary:</strong> {summary.editable_summary_text || '—'}</Typography>
+      </Stack>
+    </Paper>
+  );
+}
+
 export default function TranscriptSummaryPage() {
   const { interviewId } = useParams();
   const location = useLocation();
   const [recordingId, setRecordingId] = useState(String(location.state?.recordingId ?? getStoredRecordingId(interviewId) ?? ''));
   const [file, setFile] = useState(null);
   const [transcript, setTranscript] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+  const [isSummaryBusy, setIsSummaryBusy] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+    setError('');
+    getInterview(interviewId)
+      .then((interview) => {
+        if (!isActive) return;
+        const storedRecording = interview.latest_recording;
+        const storedTranscript = interview.transcript;
+        const storedSummary = interview.ai_summary;
+        if (storedRecording?.id) {
+          setRecordingId(String(storedRecording.id));
+          setStoredRecordingId(interviewId, storedRecording.id);
+        }
+        if (storedTranscript) {
+          setTranscript(storedTranscript);
+          setStoredTranscriptId(interviewId, storedTranscript.id);
+        }
+        if (storedSummary) {
+          setSummary(storedSummary);
+          setStoredSummaryId(interviewId, storedSummary.id);
+        }
+      })
+      .catch((err) => {
+        if (isActive) setError(getApiErrorMessage(err, 'Unable to load stored transcript and summary.'));
+      });
+    return () => { isActive = false; };
+  }, [interviewId]);
 
   const generateTranscript = async () => {
     setError('');
@@ -130,12 +219,34 @@ export default function TranscriptSummaryPage() {
       }
       const data = await transcribeRecording(activeRecordingId);
       setTranscript(data);
+      setSummary(null);
       setStoredTranscriptId(interviewId, data.id);
-      setSuccess('Transcript generated successfully.');
+      setSuccess('Transcript generated and stored successfully.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to generate transcript.'));
     } finally {
       setIsBusy(false);
+    }
+  };
+
+
+  const generateSummary = async () => {
+    if (!transcript?.id) {
+      setError('Generate or load a transcript before generating the AI summary.');
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setIsSummaryBusy(true);
+    try {
+      const data = await generateTranscriptSummary(transcript.id);
+      setSummary(data);
+      setStoredSummaryId(interviewId, data.id);
+      setSuccess('AI summary generated and stored successfully.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to generate AI summary.'));
+    } finally {
+      setIsSummaryBusy(false);
     }
   };
 
@@ -162,16 +273,22 @@ export default function TranscriptSummaryPage() {
                 Choose audio file
                 <input hidden type="file" accept="audio/*,video/webm" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
               </Button>
-              <Typography color={file ? 'text.primary' : 'text.secondary'}>
-                {file ? file.name : 'No audio file selected'}
+              <Typography color={file ? 'text.primary' : recordingId ? 'text.primary' : 'text.secondary'}>
+                {file ? file.name : recordingId ? `Stored recording #${recordingId} loaded` : 'No audio file selected'}
               </Typography>
-              <Button variant="contained" disabled={isBusy || (!file && !recordingId)} onClick={generateTranscript} sx={{ alignSelf: 'flex-start' }}>
-                {isBusy ? 'Generating transcript…' : 'Generate transcript'}
-              </Button>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button variant="contained" disabled={isBusy || (!file && !recordingId)} onClick={generateTranscript}>
+                  {isBusy ? 'Generating transcript…' : transcript ? 'Regenerate transcript' : 'Generate transcript'}
+                </Button>
+                <Button variant="outlined" disabled={isSummaryBusy || !transcript?.id} onClick={generateSummary}>
+                  {isSummaryBusy ? 'Generating summary…' : summary ? 'Regenerate AI summary' : 'Generate AI summary'}
+                </Button>
+              </Stack>
             </Stack>
           </Paper>
 
           <TranscriptResult transcript={transcript} />
+          <SummaryResult summary={summary} />
         </Stack>
       </Paper>
     </Box>
