@@ -24,6 +24,8 @@ function TranscriptResult({ transcript }) {
   const displayTranscript = transcript.speaker_labelled_transcript || transcript.transcript_text || transcript.transcript || '';
   const speakerSegments = Array.isArray(transcript.speaker_segments) ? transcript.speaker_segments : [];
   const diarizationStatus = transcript.diarization_status || transcript.transcript_json?.diarization_status || 'unavailable';
+  const diarizationWarning = transcript.diarization_warning || transcript.transcript_json?.diarization_warning || '';
+  const showDiarizationWarningDetail = diarizationWarning && diarizationStatus !== 'not_configured';
   const speakerSeparationLabel = speakerSeparationLabels[diarizationStatus] || 'Plain transcript';
   const speakerSeparationMessage = speakerSeparationMessages[diarizationStatus] || 'Speaker separation is not available for this transcript. The plain transcript was generated successfully.';
   const showSpeakerUnavailable = diarizationStatus !== 'completed';
@@ -39,7 +41,14 @@ function TranscriptResult({ transcript }) {
         </Stack>
         {showSpeakerUnavailable ? (
           <Alert severity="info">
-            {speakerSeparationMessage}
+            <Stack spacing={0.5}>
+              <Typography variant="body2">{speakerSeparationMessage}</Typography>
+              {showDiarizationWarningDetail ? (
+                <Typography variant="body2" color="text.secondary">
+                  Detail: {diarizationWarning}
+                </Typography>
+              ) : null}
+            </Stack>
           </Alert>
         ) : null}
         {speakerSegments.length ? (
