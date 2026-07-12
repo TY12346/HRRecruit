@@ -635,3 +635,303 @@ class ResumeContentValidationTests(SimpleTestCase):
         result = validate_resume_text('')
         self.assertFalse(result['is_valid'])
         self.assertIn('Resume text could not be extracted or is too short for screening.', result['warnings'])
+
+from apps.ai_services.speaker_diarization import (
+    DIARIZATION_STATUS_NOT_CONFIGURED,
+    DIARIZATION_STATUS_UNAVAILABLE,
+    DiarizationUnavailable,
+    _extract_speaker_turns,
+    _format_diarization_error,
+    _is_torchcodec_audio_read_error,
+    _load_pyannote_pipeline,
+    _run_diarization_pipeline,
+    align_transcript_segments_to_speakers,
+    apply_role_mapping,
+    format_speaker_labelled_transcript,
+    map_speakers_to_roles,
+)
+from apps.ai_services.transcription_service import TranscriptionUnavailable, build_speaker_aware_transcript_payload
+from apps.ai_services.summary_service import SummaryGenerationUnavailable, run_real_summary
+
+
+class InterviewSpeakerDiarizationTests(SimpleTestCase):
+    def test_extract_speaker_turns_supports_new_diarize_output_shape(self):
+        turn = SimpleNamespace(start=0.5, end=2.25)
+        diarization = SimpleNamespace(speaker_diarization=[(turn, 0)])
+
+        self.assertEqual(
+            _extract_speaker_turns(diarization),
+            [{'speaker_id': 'SPEAKER_00', 'start_time': 0.5, 'end_time': 2.25}],
+        )
+
+    def test_extract_speaker_turns_supports_legacy_annotation_itertracks_shape(self):
+        turn = SimpleNamespace(start=1.0, end=3.0)
+
+        class FakeAnnotation:
+            def itertracks(self, yield_label=False):
+                self.yield_label = yield_label
+                return [(turn, 'track', 'SPEAKER_01')]
+
+        self.assertEqual(
+            _extract_speaker_turns(FakeAnnotation()),
+            [{'speaker_id': 'SPEAKER_01', 'start_time': 1.0, 'end_time': 3.0}],
+        )
+
+    def test_required_diarization_raises_instead_of_saving_plain_fallback(self):
+        with patch.dict('os.environ', {'REQUIRE_SPEAKER_DIARIZATION': 'True'}):
+            with self.assertRaisesMessage(TranscriptionUnavailable, 'Speaker diarization is required but did not complete'):
+                build_speaker_aware_transcript_payload(
+                    plain_transcript='Plain transcript text.',
+                    transcript_segments=[],
+                    audio_file=SimpleNamespace(name='interview.wav'),
+                    metadata={'provider': 'local_whisper'},
+                )
+
+    def test_required_diarization_allows_completed_payload(self):
+        with patch.dict('os.environ', {'REQUIRE_SPEAKER_DIARIZATION': 'True'}), patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            return_value=[
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 1.0},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 1.0, 'end_time': 3.0},
+            ],
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='What did you build? I built APIs.',
+                transcript_segments=[
+                    {'start_time': 0.0, 'end_time': 1.0, 'text': 'What did you build?'},
+                    {'start_time': 1.0, 'end_time': 3.0, 'text': 'I built APIs.'},
+                ],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
+        self.assertIn('Interviewer:', payload['transcript_text'])
+
+    def test_detects_torchcodec_audio_read_error(self):
+        error = RuntimeError('torchcodec is not available. Cannot read audio file.')
+
+        self.assertTrue(_is_torchcodec_audio_read_error(error))
+        self.assertFalse(_is_torchcodec_audio_read_error(RuntimeError('other failure')))
+
+    def test_run_diarization_pipeline_falls_back_to_waveform_input_when_torchcodec_is_missing(self):
+        calls = []
+        waveform_input = {'waveform': 'tensor', 'sample_rate': 16000}
+
+        def fake_pipeline(audio_input):
+            calls.append(audio_input)
+            if isinstance(audio_input, str):
+                raise RuntimeError('torchcodec is not available. Cannot read audio file.')
+            return 'diarization'
+
+        with patch('apps.ai_services.speaker_diarization._load_audio_waveform_with_whisper', return_value=waveform_input) as loader:
+            result = _run_diarization_pipeline(fake_pipeline, 'interview.mp3')
+
+        self.assertEqual(result, 'diarization')
+        self.assertEqual(calls, ['interview.mp3', waveform_input])
+        loader.assert_called_once_with('interview.mp3')
+
+    def test_diarization_unavailable_carries_fallback_status(self):
+        not_configured = DiarizationUnavailable('disabled', status=DIARIZATION_STATUS_NOT_CONFIGURED)
+        unavailable = DiarizationUnavailable('missing dependency', status=DIARIZATION_STATUS_UNAVAILABLE)
+
+        self.assertEqual(not_configured.status, 'not_configured')
+        self.assertEqual(unavailable.status, 'unavailable')
+
+    def test_fallback_payload_uses_diarization_exception_status(self):
+        with patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            side_effect=DiarizationUnavailable('missing dependency', status=DIARIZATION_STATUS_UNAVAILABLE),
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Plain transcript text.',
+                transcript_segments=[{'start_time': 0.0, 'end_time': 1.0, 'text': 'Plain transcript text.'}],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_text'], 'Plain transcript text.')
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'unavailable')
+        self.assertEqual(payload['transcript_json']['diarization_warning'], 'missing dependency')
+
+    def test_load_pyannote_pipeline_uses_token_keyword_for_current_versions(self):
+        calls = []
+
+        class FakePipeline:
+            @staticmethod
+            def from_pretrained(model_name, **kwargs):
+                calls.append((model_name, kwargs))
+                return 'pipeline'
+
+        pyannote_audio = SimpleNamespace(Pipeline=FakePipeline)
+
+        self.assertEqual(_load_pyannote_pipeline(pyannote_audio, 'pyannote/model', 'hf-token'), 'pipeline')
+        self.assertEqual(calls, [('pyannote/model', {'token': 'hf-token'})])
+
+    def test_load_pyannote_pipeline_falls_back_to_legacy_use_auth_token_keyword(self):
+        calls = []
+
+        class FakePipeline:
+            @staticmethod
+            def from_pretrained(model_name, **kwargs):
+                calls.append((model_name, kwargs))
+                if 'token' in kwargs:
+                    raise TypeError("from_pretrained() got an unexpected keyword argument 'token'")
+                return 'pipeline'
+
+        pyannote_audio = SimpleNamespace(Pipeline=FakePipeline)
+
+        self.assertEqual(_load_pyannote_pipeline(pyannote_audio, 'pyannote/model', 'hf-token'), 'pipeline')
+        self.assertEqual(calls[-1], ('pyannote/model', {'use_auth_token': 'hf-token'}))
+
+    def test_diarization_error_includes_type_and_message(self):
+        error = _format_diarization_error(TypeError("from_pretrained() got an unexpected keyword argument 'use_auth_token'"))
+
+        self.assertIn('TypeError', error)
+        self.assertIn('use_auth_token', error)
+
+    def test_formats_structured_speaker_segments_and_merges_consecutive_roles(self):
+        formatted = format_speaker_labelled_transcript([
+            {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 0.0, 'end_time': 1.0, 'text': 'Good afternoon.'},
+            {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 1.0, 'end_time': 2.0, 'text': 'Please have a seat.'},
+            {'speaker_id': 'SPEAKER_01', 'role': 'Candidate', 'start_time': 2.0, 'end_time': 3.0, 'text': 'Thank you.'},
+        ])
+
+        self.assertEqual(formatted, 'Interviewer: Good afternoon. Please have a seat.\n\nCandidate: Thank you.')
+        self.assertNotIn('Interviewee', formatted)
+
+    def test_maps_question_asking_speaker_to_interviewer_and_other_to_candidate(self):
+        aligned_segments = [
+            {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0, 'text': 'Can you explain your Django experience?'},
+            {'speaker_id': 'SPEAKER_00', 'start_time': 6.0, 'end_time': 8.0, 'text': 'What projects did you lead?'},
+            {'speaker_id': 'SPEAKER_01', 'start_time': 2.0, 'end_time': 6.0, 'text': 'I built several APIs and led a final year project.'},
+        ]
+
+        mapping, warning = map_speakers_to_roles(aligned_segments)
+        self.assertIsNone(warning)
+        self.assertEqual(mapping['SPEAKER_00'], 'Interviewer')
+        self.assertEqual(mapping['SPEAKER_01'], 'Candidate')
+        self.assertNotIn('Interviewee', mapping.values())
+
+    def test_aligns_transcript_segment_to_largest_timestamp_overlap(self):
+        aligned = align_transcript_segments_to_speakers(
+            [{'start_time': 1.0, 'end_time': 4.0, 'text': 'I worked with Django.'}],
+            [
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 1.5},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 1.5, 'end_time': 4.0},
+            ],
+        )
+
+        self.assertEqual(aligned[0]['speaker_id'], 'SPEAKER_01')
+
+    def test_fallback_payload_keeps_plain_transcript_when_diarization_unavailable(self):
+        with patch('apps.ai_services.transcription_service.run_speaker_diarization', side_effect=Exception('missing diarization')):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Plain transcript text.',
+                transcript_segments=[{'start_time': 0.0, 'end_time': 1.0, 'text': 'Plain transcript text.'}],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_text'], 'Plain transcript text.')
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'failed')
+        self.assertTrue(payload['transcript_json']['diarization_warning'])
+        self.assertEqual(payload['transcript_json']['segments'], [])
+
+    def test_completed_payload_saves_readable_and_structured_transcript(self):
+        with patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            return_value=[
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 2.0, 'end_time': 5.0},
+            ],
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Can you explain your work? I built APIs.',
+                transcript_segments=[
+                    {'start_time': 0.0, 'end_time': 2.0, 'text': 'Can you explain your work?'},
+                    {'start_time': 2.0, 'end_time': 5.0, 'text': 'I built APIs.'},
+                ],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertIn('Interviewer:', payload['transcript_text'])
+        self.assertIn('Candidate:', payload['transcript_text'])
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
+        self.assertEqual(len(payload['transcript_json']['segments']), 2)
+
+
+class InterviewSummaryGeminiTests(SimpleTestCase):
+    def _summary_json(self):
+        return json.dumps({
+            'strengths': 'Clear examples of relevant project experience.',
+            'weaknesses': 'Could provide more measurable impact details.',
+            'communication_score': 8,
+            'overall_impression': 'Professional and concise interview responses.',
+            'editable_summary_text': 'Candidate communicated relevant experience clearly.',
+        })
+
+    def test_real_summary_can_use_gemini_provider(self):
+        with patch.dict('os.environ', {
+            'USE_REAL_SUMMARY': 'True',
+            'SUMMARY_PROVIDER': 'gemini',
+            'GEMINI_API_KEY': 'test-gemini-key',
+            'SUMMARY_MODEL': 'gemini-3.5-flash',
+        }), patch(
+            'apps.ai_services.summary_service._call_gemini_summary',
+            return_value=self._summary_json(),
+        ) as gemini_call:
+            payload = run_real_summary('Interviewer: Tell me about your projects. Candidate: I built APIs.')
+
+        gemini_call.assert_called_once()
+        self.assertEqual(payload['summary_json']['provider'], 'gemini')
+        self.assertEqual(payload['summary_json']['model'], 'gemini-3.5-flash')
+        self.assertEqual(payload['communication_score'], 8)
+        self.assertNotIn('final hiring decision', payload['editable_summary_text'].lower())
+
+    def test_retired_gemini_model_is_replaced_with_current_default(self):
+        with patch.dict('os.environ', {
+            'USE_REAL_SUMMARY': 'True',
+            'SUMMARY_PROVIDER': 'gemini',
+            'GEMINI_API_KEY': 'test-gemini-key',
+            'SUMMARY_MODEL': 'gemini-2.5-flash',
+        }), patch(
+            'apps.ai_services.summary_service._call_gemini_summary',
+            return_value=self._summary_json(),
+        ) as gemini_call:
+            payload = run_real_summary('Transcript text')
+
+        self.assertEqual(gemini_call.call_args.args[2], 'gemini-3.5-flash')
+        self.assertEqual(payload['summary_json']['model'], 'gemini-3.5-flash')
+
+    def test_gemini_summary_requires_gemini_api_key(self):
+        with patch.dict('os.environ', {
+            'USE_REAL_SUMMARY': 'True',
+            'SUMMARY_PROVIDER': 'gemini',
+            'GEMINI_API_KEY': '',
+        }, clear=False):
+            with self.assertRaisesMessage(SummaryGenerationUnavailable, 'GEMINI_API_KEY is required'):
+                run_real_summary('Transcript text')
+
+    def test_gemini_provider_failure_includes_client_error_details(self):
+        class ClientError(Exception):
+            message = 'API key not valid. Please pass a valid API key.'
+            code = 400
+
+        with patch.dict('os.environ', {
+            'USE_REAL_SUMMARY': 'True',
+            'SUMMARY_PROVIDER': 'gemini',
+            'GEMINI_API_KEY': 'bad-key',
+            'SUMMARY_MODEL': 'gemini-3.5-flash',
+        }), patch(
+            'apps.ai_services.summary_service._call_gemini_summary',
+            side_effect=ClientError('API key not valid. Please pass a valid API key.'),
+        ):
+            with self.assertRaises(SummaryGenerationUnavailable) as error_context:
+                run_real_summary('Transcript text')
+
+        error_message = str(error_context.exception)
+        self.assertIn('Gemini summary generation failed for model gemini-3.5-flash', error_message)
+        self.assertIn('ClientError', error_message)
+        self.assertIn('API key not valid', error_message)

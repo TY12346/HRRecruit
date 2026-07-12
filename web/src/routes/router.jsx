@@ -32,7 +32,6 @@ import InterviewerAnalyticsPage from '../pages/interviewer/InterviewerAnalyticsP
 import InterviewerNotificationsPage from '../pages/interviewer/NotificationsPage.jsx';
 import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx';
 import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
-import UploadRecordingPage from '../pages/interviewer/UploadRecordingPage.jsx';
 import HRHeadDashboardPage from '../pages/hr_head/HRHeadDashboardPage.jsx';
 import OrganizationProfilePage from '../pages/hr_head/OrganizationProfilePage.jsx';
 import TeamMembersPage from '../pages/hr_head/TeamMembersPage.jsx';
@@ -109,7 +108,6 @@ export const router = createBrowserRouter([
           { path: 'interviewer/candidates/:applicationId', element: <CandidateDetailPage /> },
           { path: 'interviewer/interviews', element: <InterviewListPage /> },
           { path: 'interviewer/interviews/:interviewId', element: <InterviewerInterviewDetailPage /> },
-          { path: 'interviewer/interviews/:interviewId/recording', element: <UploadRecordingPage /> },
           { path: 'interviewer/interviews/:interviewId/transcript-summary', element: <TranscriptSummaryPage /> },
           { path: 'interviewer/interviews/:interviewId/evaluation', element: <SubmitEvaluationPage /> },
           { path: 'interviewer/availability', element: <AvailabilityPage /> },

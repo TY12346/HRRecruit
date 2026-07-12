@@ -336,7 +336,7 @@ The summary must support human evaluation and must not automatically make hiring
 1. Load the interview transcript.
 2. Clean and preprocess the transcript text.
 3. Construct a structured prompt when real summary generation is enabled.
-4. If real summary generation is enabled and available, call the configured language model.
+4. If real summary generation is enabled and available, call the configured language model provider (`openai` or `gemini`).
 5. If real summary generation is disabled or unavailable, use a mock structured summary.
 6. Validate that all required summary fields exist.
 7. Save the structured summary.
@@ -357,13 +357,17 @@ The AI summary should return these structured fields:
 
 For FYP development, real LLM summary generation should be optional. Mock/fallback summary behavior must remain available for FYP demo reliability.
 
-Recommended environment variables:
+Recommended environment variables for mock/demo mode and real provider selection:
 
 ```env
 USE_REAL_SUMMARY=False
+SUMMARY_PROVIDER=gemini
+GEMINI_API_KEY=
 OPENAI_API_KEY=
-SUMMARY_MODEL=gpt-4o-mini
+SUMMARY_MODEL=gemini-3.5-flash
 ```
+
+Set `USE_REAL_SUMMARY=True` and `SUMMARY_PROVIDER=gemini` to generate interview AI summaries through Google Gemini. Set `SUMMARY_PROVIDER=openai` to keep the earlier OpenAI path. Both real providers must still return the required editable JSON fields and must not make hiring decisions.
 
 If real summary is disabled or unavailable, return a structured mock summary such as:
 
@@ -453,3 +457,13 @@ After implementing AI backend features, create or update `AI_ALGORITHM_VALIDATIO
 - known limitations
 - fallback behavior
 - future enhancement
+
+## Interview transcription with optional speaker diarization
+
+1. HRRecruit runs the configured speech-to-text provider. Local Whisper is the default real provider and can return timestamped transcript segments.
+2. Speaker diarization is a separate optional local layer that detects speaker turns such as `SPEAKER_00` with start and end timestamps.
+3. HRRecruit aligns Whisper transcript segments to diarization turns by selecting the speaker turn with the largest timestamp overlap.
+4. HRRecruit maps internal speaker ids to the user-facing interview roles `Interviewer` and `Candidate`. The role mapping favors the speaker who asks the most questions or uses recruiter/HR/interviewer language as `Interviewer`, and maps the other primary speaker to `Candidate`.
+5. `InterviewTranscript.transcript_text` stores the readable transcript. When diarization succeeds this is speaker-labelled text; otherwise it remains the plain transcript.
+6. `InterviewTranscript.transcript_json` stores the plain transcript, optional speaker-labelled transcript, diarization status/warning, and structured speaker segments.
+7. If diarization dependencies are missing or fail, the system must fall back to plain transcript mode and preserve AI summary compatibility.

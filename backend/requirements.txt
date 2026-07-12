@@ -48,6 +48,9 @@ openai-whisper>=20250625
 # Optional real OpenAI transcription/summary support
 openai>=1.90,<2.0
 
+# Optional real Google Gemini summary support
+google-genai>=1.0,<2.0
+
 # Firebase Cloud Messaging push notifications
 firebase-admin>=6.5,<7.0
 

@@ -48,6 +48,7 @@ HRRecruit addresses this by providing one role-based platform where:
 - Semantic matching can fall back to local lexical scoring if optional semantic model dependencies are not available.
 - Interview transcription can run in demo/fallback mode when no external ASR/LLM credentials are configured.
 - AI summary generation can run in mock/demo mode when no LLM credentials are configured.
+- Interview AI summaries support Google Gemini by setting `USE_REAL_SUMMARY=True`, `SUMMARY_PROVIDER=gemini`, `GEMINI_API_KEY`, and a Gemini `SUMMARY_MODEL` such as `gemini-3.5-flash`; mock/demo summary remains available when real summary is disabled.
 - Email currently uses the Django console email backend for local/demo workflows.
 - Payment uses a demo flow unless valid Stripe credentials are configured.
 - Calendar integration is not enabled by default and should be treated as optional/future integration unless credentials and code support are explicitly configured.
@@ -175,3 +176,13 @@ A resume is considered ready for screening only when extracted text contains:
 - At least one experience-evidence category: work experience, internship experience, or projects. Project details are accepted for fresh graduates.
 
 If text extraction fails, extracted text is empty/too short, or required sections are missing, HRRecruit stores and returns a structured `resume_validation_result` explaining missing fields and warnings. Invalid resumes do not receive AI screening scores until the applicant uploads a corrected resume.
+
+## Speaker-separated interview transcription
+
+HRRecruit keeps interview transcription local/offline-friendly by default. Whisper performs speech-to-text transcription and, when available, returns timestamped transcript segments. Speaker diarization is a separate optional step that detects who spoke when. HRRecruit aligns Whisper segments with diarization speaker turns using timestamp overlap, maps internal speaker ids such as `SPEAKER_00` and `SPEAKER_01` to the display roles `Interviewer` and `Candidate`, and stores both readable and structured transcript data.
+
+Storage follows the interview ERD flow: `Interview` → `InterviewRecording` → `InterviewTranscript` → `InterviewAISummary`. The uploaded audio stays on `InterviewRecording.audio_file`. `InterviewTranscript.transcript_text` stores the readable transcript, using speaker labels when speaker separation succeeds. `InterviewTranscript.transcript_json` stores metadata including `plain_transcript`, `speaker_labelled_transcript`, `diarization_status`, `diarization_warning`, and structured speaker `segments`.
+
+If optional diarization dependencies are not installed or configured, HRRecruit falls back to the existing plain transcript behavior and saves a clear diarization status such as `not_configured`, `unavailable`, or `failed` with a warning. Full local diarization can be enabled later by installing optional diarization packages such as `pyannote.audio`, accepting any required local model terms, and setting `USE_SPEAKER_DIARIZATION=True` plus the required local/model token configuration. No paid external API is required for the fallback path. For development environments that must require real speaker separation, set `REQUIRE_SPEAKER_DIARIZATION=True`; transcript generation will then return an error instead of saving a plain-transcript fallback when diarization does not complete.
+
+If the transcript metadata shows a Hugging Face `GatedRepoError` or `403 Client Error`, the backend token is valid syntactically but the Hugging Face account has not been granted access to the gated pyannote model files being downloaded. Log in to Hugging Face with the account that owns `PYANNOTE_AUTH_TOKEN`, open the model page named in the warning, accept/request access, then create/use a read token from that same account and restart Django. Newer pyannote versions may download `pyannote/speaker-diarization-community-1`, so that model's access conditions may also need to be accepted even when `DIARIZATION_MODEL` is set to `pyannote/speaker-diarization-3.1`.
