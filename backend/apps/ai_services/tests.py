@@ -898,3 +898,25 @@ class InterviewSummaryGeminiTests(SimpleTestCase):
         }, clear=False):
             with self.assertRaisesMessage(SummaryGenerationUnavailable, 'GEMINI_API_KEY is required'):
                 run_real_summary('Transcript text')
+
+    def test_gemini_provider_failure_includes_client_error_details(self):
+        class ClientError(Exception):
+            message = 'API key not valid. Please pass a valid API key.'
+            code = 400
+
+        with patch.dict('os.environ', {
+            'USE_REAL_SUMMARY': 'True',
+            'SUMMARY_PROVIDER': 'gemini',
+            'GEMINI_API_KEY': 'bad-key',
+            'SUMMARY_MODEL': 'gemini-2.5-flash',
+        }), patch(
+            'apps.ai_services.summary_service._call_gemini_summary',
+            side_effect=ClientError('API key not valid. Please pass a valid API key.'),
+        ):
+            with self.assertRaises(SummaryGenerationUnavailable) as error_context:
+                run_real_summary('Transcript text')
+
+        error_message = str(error_context.exception)
+        self.assertIn('Gemini summary generation failed for model gemini-2.5-flash', error_message)
+        self.assertIn('ClientError', error_message)
+        self.assertIn('API key not valid', error_message)

@@ -251,6 +251,23 @@ def _call_gemini_summary(prompt, api_key, model):
     return _extract_gemini_text(response)
 
 
+def _format_summary_provider_error(provider, model, error):
+    """Return a clean but actionable error message from an LLM provider exception."""
+    details = str(error).strip()
+    for attr in ('message', 'status', 'code'):
+        value = getattr(error, attr, None)
+        if value and str(value) not in details:
+            details = f'{details}; {attr}={value}' if details else f'{attr}={value}'
+
+    if not details:
+        details = error.__class__.__name__
+
+    return (
+        f'{provider.title()} summary generation failed for model {model}: '
+        f'{error.__class__.__name__}: {details}'
+    )
+
+
 def run_real_summary(cleaned_transcript):
     """Run real LLM summary generation or raise a clear unavailability error."""
     provider = get_summary_provider()
@@ -285,7 +302,7 @@ def run_real_summary(cleaned_transcript):
     except SummaryGenerationUnavailable:
         raise
     except Exception as exc:
-        raise SummaryGenerationUnavailable(f'Real summary generation failed: {exc.__class__.__name__}') from exc
+        raise SummaryGenerationUnavailable(_format_summary_provider_error(provider, model, exc)) from exc
 
 
 def build_mock_summary(cleaned_transcript):
