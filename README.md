@@ -175,3 +175,11 @@ A resume is considered ready for screening only when extracted text contains:
 - At least one experience-evidence category: work experience, internship experience, or projects. Project details are accepted for fresh graduates.
 
 If text extraction fails, extracted text is empty/too short, or required sections are missing, HRRecruit stores and returns a structured `resume_validation_result` explaining missing fields and warnings. Invalid resumes do not receive AI screening scores until the applicant uploads a corrected resume.
+
+## Speaker-separated interview transcription
+
+HRRecruit keeps interview transcription local/offline-friendly by default. Whisper performs speech-to-text transcription and, when available, returns timestamped transcript segments. Speaker diarization is a separate optional step that detects who spoke when. HRRecruit aligns Whisper segments with diarization speaker turns using timestamp overlap, maps internal speaker ids such as `SPEAKER_00` and `SPEAKER_01` to the display roles `Interviewer` and `Candidate`, and stores both readable and structured transcript data.
+
+Storage follows the interview ERD flow: `Interview` → `InterviewRecording` → `InterviewTranscript` → `InterviewAISummary`. The uploaded audio stays on `InterviewRecording.audio_file`. `InterviewTranscript.transcript_text` stores the readable transcript, using speaker labels when speaker separation succeeds. `InterviewTranscript.transcript_json` stores metadata including `plain_transcript`, `speaker_labelled_transcript`, `diarization_status`, `diarization_warning`, and structured speaker `segments`.
+
+If optional diarization dependencies are not installed or configured, HRRecruit falls back to the existing plain transcript behavior and saves a clear diarization status such as `not_configured`, `unavailable`, or `failed` with a warning. Full local diarization can be enabled later by installing optional diarization packages such as `pyannote.audio`, accepting any required local model terms, and setting `USE_SPEAKER_DIARIZATION=True` plus the required local/model token configuration. No paid external API is required for the fallback path.

@@ -635,3 +635,148 @@ class ResumeContentValidationTests(SimpleTestCase):
         result = validate_resume_text('')
         self.assertFalse(result['is_valid'])
         self.assertIn('Resume text could not be extracted or is too short for screening.', result['warnings'])
+
+from apps.ai_services.speaker_diarization import (
+    DIARIZATION_STATUS_NOT_CONFIGURED,
+    DIARIZATION_STATUS_UNAVAILABLE,
+    DiarizationUnavailable,
+    _format_diarization_error,
+    _load_pyannote_pipeline,
+    align_transcript_segments_to_speakers,
+    apply_role_mapping,
+    format_speaker_labelled_transcript,
+    map_speakers_to_roles,
+)
+from apps.ai_services.transcription_service import build_speaker_aware_transcript_payload
+
+
+class InterviewSpeakerDiarizationTests(SimpleTestCase):
+    def test_diarization_unavailable_carries_fallback_status(self):
+        not_configured = DiarizationUnavailable('disabled', status=DIARIZATION_STATUS_NOT_CONFIGURED)
+        unavailable = DiarizationUnavailable('missing dependency', status=DIARIZATION_STATUS_UNAVAILABLE)
+
+        self.assertEqual(not_configured.status, 'not_configured')
+        self.assertEqual(unavailable.status, 'unavailable')
+
+    def test_fallback_payload_uses_diarization_exception_status(self):
+        with patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            side_effect=DiarizationUnavailable('missing dependency', status=DIARIZATION_STATUS_UNAVAILABLE),
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Plain transcript text.',
+                transcript_segments=[{'start_time': 0.0, 'end_time': 1.0, 'text': 'Plain transcript text.'}],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_text'], 'Plain transcript text.')
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'unavailable')
+        self.assertEqual(payload['transcript_json']['diarization_warning'], 'missing dependency')
+
+    def test_load_pyannote_pipeline_uses_token_keyword_for_current_versions(self):
+        calls = []
+
+        class FakePipeline:
+            @staticmethod
+            def from_pretrained(model_name, **kwargs):
+                calls.append((model_name, kwargs))
+                return 'pipeline'
+
+        pyannote_audio = SimpleNamespace(Pipeline=FakePipeline)
+
+        self.assertEqual(_load_pyannote_pipeline(pyannote_audio, 'pyannote/model', 'hf-token'), 'pipeline')
+        self.assertEqual(calls, [('pyannote/model', {'token': 'hf-token'})])
+
+    def test_load_pyannote_pipeline_falls_back_to_legacy_use_auth_token_keyword(self):
+        calls = []
+
+        class FakePipeline:
+            @staticmethod
+            def from_pretrained(model_name, **kwargs):
+                calls.append((model_name, kwargs))
+                if 'token' in kwargs:
+                    raise TypeError("from_pretrained() got an unexpected keyword argument 'token'")
+                return 'pipeline'
+
+        pyannote_audio = SimpleNamespace(Pipeline=FakePipeline)
+
+        self.assertEqual(_load_pyannote_pipeline(pyannote_audio, 'pyannote/model', 'hf-token'), 'pipeline')
+        self.assertEqual(calls[-1], ('pyannote/model', {'use_auth_token': 'hf-token'}))
+
+    def test_diarization_error_includes_type_and_message(self):
+        error = _format_diarization_error(TypeError("from_pretrained() got an unexpected keyword argument 'use_auth_token'"))
+
+        self.assertIn('TypeError', error)
+        self.assertIn('use_auth_token', error)
+
+    def test_formats_structured_speaker_segments_and_merges_consecutive_roles(self):
+        formatted = format_speaker_labelled_transcript([
+            {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 0.0, 'end_time': 1.0, 'text': 'Good afternoon.'},
+            {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 1.0, 'end_time': 2.0, 'text': 'Please have a seat.'},
+            {'speaker_id': 'SPEAKER_01', 'role': 'Candidate', 'start_time': 2.0, 'end_time': 3.0, 'text': 'Thank you.'},
+        ])
+
+        self.assertEqual(formatted, 'Interviewer: Good afternoon. Please have a seat.\n\nCandidate: Thank you.')
+        self.assertNotIn('Interviewee', formatted)
+
+    def test_maps_question_asking_speaker_to_interviewer_and_other_to_candidate(self):
+        aligned_segments = [
+            {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0, 'text': 'Can you explain your Django experience?'},
+            {'speaker_id': 'SPEAKER_00', 'start_time': 6.0, 'end_time': 8.0, 'text': 'What projects did you lead?'},
+            {'speaker_id': 'SPEAKER_01', 'start_time': 2.0, 'end_time': 6.0, 'text': 'I built several APIs and led a final year project.'},
+        ]
+
+        mapping, warning = map_speakers_to_roles(aligned_segments)
+        self.assertIsNone(warning)
+        self.assertEqual(mapping['SPEAKER_00'], 'Interviewer')
+        self.assertEqual(mapping['SPEAKER_01'], 'Candidate')
+        self.assertNotIn('Interviewee', mapping.values())
+
+    def test_aligns_transcript_segment_to_largest_timestamp_overlap(self):
+        aligned = align_transcript_segments_to_speakers(
+            [{'start_time': 1.0, 'end_time': 4.0, 'text': 'I worked with Django.'}],
+            [
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 1.5},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 1.5, 'end_time': 4.0},
+            ],
+        )
+
+        self.assertEqual(aligned[0]['speaker_id'], 'SPEAKER_01')
+
+    def test_fallback_payload_keeps_plain_transcript_when_diarization_unavailable(self):
+        with patch('apps.ai_services.transcription_service.run_speaker_diarization', side_effect=Exception('missing diarization')):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Plain transcript text.',
+                transcript_segments=[{'start_time': 0.0, 'end_time': 1.0, 'text': 'Plain transcript text.'}],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_text'], 'Plain transcript text.')
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'failed')
+        self.assertTrue(payload['transcript_json']['diarization_warning'])
+        self.assertEqual(payload['transcript_json']['segments'], [])
+
+    def test_completed_payload_saves_readable_and_structured_transcript(self):
+        with patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            return_value=[
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 2.0, 'end_time': 5.0},
+            ],
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='Can you explain your work? I built APIs.',
+                transcript_segments=[
+                    {'start_time': 0.0, 'end_time': 2.0, 'text': 'Can you explain your work?'},
+                    {'start_time': 2.0, 'end_time': 5.0, 'text': 'I built APIs.'},
+                ],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertIn('Interviewer:', payload['transcript_text'])
+        self.assertIn('Candidate:', payload['transcript_text'])
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
+        self.assertEqual(len(payload['transcript_json']['segments']), 2)
