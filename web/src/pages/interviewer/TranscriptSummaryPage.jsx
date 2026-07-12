@@ -47,6 +47,48 @@ function mergeConsecutiveSpeakerSegments(segments) {
   }, []);
 }
 
+const speakerSeparationLabels = {
+  completed: 'Speaker separated',
+  not_configured: 'Plain transcript',
+  unavailable: 'Plain transcript',
+  failed: 'Plain transcript',
+};
+
+const speakerSeparationMessages = {
+  not_configured: 'Speaker separation is turned off in backend settings. The plain transcript was generated successfully.',
+  unavailable: 'Speaker separation is unavailable for this transcript. The plain transcript was generated successfully.',
+  failed: 'Speaker separation could not be completed for this transcript. The plain transcript was generated successfully.',
+};
+
+
+function getDisplayRole(role) {
+  return role === 'Interviewer' || role === 'Candidate' ? role : 'Unknown';
+}
+
+function mergeConsecutiveSpeakerSegments(segments) {
+  return segments.reduce((groups, segment) => {
+    const text = String(segment.text || '').trim();
+    if (!text) return groups;
+
+    const role = getDisplayRole(segment.role);
+    const previous = groups[groups.length - 1];
+    if (previous?.role === role) {
+      previous.text = `${previous.text} ${text}`;
+      previous.end_time = segment.end_time ?? previous.end_time;
+      return groups;
+    }
+
+    groups.push({
+      role,
+      text,
+      speaker_id: segment.speaker_id || 'UNKNOWN',
+      start_time: segment.start_time,
+      end_time: segment.end_time,
+    });
+    return groups;
+  }, []);
+}
+
 function TranscriptResult({ transcript }) {
   if (!transcript) return null;
 
