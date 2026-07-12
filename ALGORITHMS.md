@@ -364,7 +364,7 @@ USE_REAL_SUMMARY=False
 SUMMARY_PROVIDER=gemini
 GEMINI_API_KEY=
 OPENAI_API_KEY=
-SUMMARY_MODEL=gemini-2.5-flash
+SUMMARY_MODEL=gemini-3.5-flash
 ```
 
 Set `USE_REAL_SUMMARY=True` and `SUMMARY_PROVIDER=gemini` to generate interview AI summaries through Google Gemini. Set `SUMMARY_PROVIDER=openai` to keep the earlier OpenAI path. Both real providers must still return the required editable JSON fields and must not make hiring decisions.

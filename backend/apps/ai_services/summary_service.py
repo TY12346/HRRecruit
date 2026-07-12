@@ -33,7 +33,13 @@ SUMMARY_PROVIDER_OPENAI = 'openai'
 SUMMARY_PROVIDER_GEMINI = 'gemini'
 SUMMARY_DEFAULT_MODELS = {
     SUMMARY_PROVIDER_OPENAI: 'gpt-4o-mini',
-    SUMMARY_PROVIDER_GEMINI: 'gemini-2.5-flash',
+    SUMMARY_PROVIDER_GEMINI: 'gemini-3.5-flash',
+}
+SUMMARY_RETIRED_MODEL_REPLACEMENTS = {
+    SUMMARY_PROVIDER_GEMINI: {
+        'gemini-2.5-flash': 'gemini-3.5-flash',
+        'models/gemini-2.5-flash': 'gemini-3.5-flash',
+    },
 }
 
 
@@ -83,7 +89,8 @@ def get_summary_model(provider=None):
     """Return the configured optional summary model name for the selected provider."""
     provider = provider or get_summary_provider()
     default_model = SUMMARY_DEFAULT_MODELS.get(provider, SUMMARY_DEFAULT_MODELS[SUMMARY_PROVIDER_OPENAI])
-    return os.getenv('SUMMARY_MODEL', default_model).strip() or default_model
+    configured_model = os.getenv('SUMMARY_MODEL', default_model).strip() or default_model
+    return SUMMARY_RETIRED_MODEL_REPLACEMENTS.get(provider, {}).get(configured_model, configured_model)
 
 
 def get_openai_api_key():
