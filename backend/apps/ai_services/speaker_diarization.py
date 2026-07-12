@@ -101,6 +101,45 @@ def _load_audio_waveform_with_whisper(audio_path):
     return {'waveform': waveform, 'sample_rate': 16000}
 
 
+def _normalize_speaker_id(speaker):
+    speaker_text = str(speaker)
+    if speaker_text.startswith('SPEAKER_'):
+        return speaker_text
+    try:
+        return f'SPEAKER_{int(speaker):02d}'
+    except (TypeError, ValueError):
+        return speaker_text
+
+
+def _extract_speaker_turns(diarization):
+    """Extract speaker turns from pyannote 3.x Annotation or newer DiarizeOutput."""
+    speaker_diarization = getattr(diarization, 'speaker_diarization', None)
+    if speaker_diarization is not None:
+        return [
+            {
+                'speaker_id': _normalize_speaker_id(speaker),
+                'start_time': float(turn.start),
+                'end_time': float(turn.end),
+            }
+            for turn, speaker in speaker_diarization
+        ]
+
+    if hasattr(diarization, 'itertracks'):
+        return [
+            {
+                'speaker_id': _normalize_speaker_id(speaker),
+                'start_time': float(turn.start),
+                'end_time': float(turn.end),
+            }
+            for turn, _track, speaker in diarization.itertracks(yield_label=True)
+        ]
+
+    raise DiarizationUnavailable(
+        f'Unsupported diarization output type: {diarization.__class__.__name__}.',
+        status=DIARIZATION_STATUS_FAILED,
+    )
+
+
 def _run_diarization_pipeline(pipeline, audio_path):
     try:
         return pipeline(audio_path)
@@ -145,9 +184,7 @@ def run_speaker_diarization(audio_file):
                 status=DIARIZATION_STATUS_UNAVAILABLE,
             )
         diarization = _run_diarization_pipeline(pipeline, audio_path)
-        turns = []
-        for turn, _track, speaker in diarization.itertracks(yield_label=True):
-            turns.append({'speaker_id': str(speaker), 'start_time': float(turn.start), 'end_time': float(turn.end)})
+        turns = _extract_speaker_turns(diarization)
         if not turns:
             raise DiarizationUnavailable(
                 'Speaker diarization returned no speaker turns.',

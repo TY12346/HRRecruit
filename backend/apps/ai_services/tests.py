@@ -640,6 +640,7 @@ from apps.ai_services.speaker_diarization import (
     DIARIZATION_STATUS_NOT_CONFIGURED,
     DIARIZATION_STATUS_UNAVAILABLE,
     DiarizationUnavailable,
+    _extract_speaker_turns,
     _format_diarization_error,
     _is_torchcodec_audio_read_error,
     _load_pyannote_pipeline,
@@ -653,6 +654,28 @@ from apps.ai_services.transcription_service import TranscriptionUnavailable, bui
 
 
 class InterviewSpeakerDiarizationTests(SimpleTestCase):
+    def test_extract_speaker_turns_supports_new_diarize_output_shape(self):
+        turn = SimpleNamespace(start=0.5, end=2.25)
+        diarization = SimpleNamespace(speaker_diarization=[(turn, 0)])
+
+        self.assertEqual(
+            _extract_speaker_turns(diarization),
+            [{'speaker_id': 'SPEAKER_00', 'start_time': 0.5, 'end_time': 2.25}],
+        )
+
+    def test_extract_speaker_turns_supports_legacy_annotation_itertracks_shape(self):
+        turn = SimpleNamespace(start=1.0, end=3.0)
+
+        class FakeAnnotation:
+            def itertracks(self, yield_label=False):
+                self.yield_label = yield_label
+                return [(turn, 'track', 'SPEAKER_01')]
+
+        self.assertEqual(
+            _extract_speaker_turns(FakeAnnotation()),
+            [{'speaker_id': 'SPEAKER_01', 'start_time': 1.0, 'end_time': 3.0}],
+        )
+
     def test_required_diarization_raises_instead_of_saving_plain_fallback(self):
         with patch.dict('os.environ', {'REQUIRE_SPEAKER_DIARIZATION': 'True'}):
             with self.assertRaisesMessage(TranscriptionUnavailable, 'Speaker diarization is required but did not complete'):
