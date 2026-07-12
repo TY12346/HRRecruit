@@ -56,6 +56,11 @@ def use_real_transcription_enabled():
     return get_transcription_provider() in REAL_TRANSCRIPTION_PROVIDERS
 
 
+def require_speaker_diarization_enabled():
+    """Return whether transcript generation must fail if speaker diarization does not complete."""
+    return os.getenv('REQUIRE_SPEAKER_DIARIZATION', 'False').strip().lower() in TRANSCRIPTION_TRUTHY_VALUES
+
+
 def get_transcription_model():
     """Return configured ASR model name for the selected provider."""
     provider = get_transcription_provider()
@@ -225,6 +230,12 @@ def build_mock_transcription(recording, audio_file):
     }
 
 
+def _raise_if_required_diarization_failed(diarization_status, diarization_warning):
+    if require_speaker_diarization_enabled() and diarization_status != DIARIZATION_STATUS_COMPLETED:
+        detail = diarization_warning or 'Speaker diarization did not complete.'
+        raise TranscriptionUnavailable(f'Speaker diarization is required but did not complete: {detail}')
+
+
 def build_speaker_aware_transcript_payload(plain_transcript, transcript_segments, audio_file, metadata):
     diarization_status = DIARIZATION_STATUS_NOT_CONFIGURED
     diarization_warning = None
@@ -250,6 +261,8 @@ def build_speaker_aware_transcript_payload(plain_transcript, transcript_segments
         except Exception as exc:
             diarization_status = DIARIZATION_STATUS_FAILED
             diarization_warning = f'Speaker diarization failed: {exc.__class__.__name__}'
+
+    _raise_if_required_diarization_failed(diarization_status, diarization_warning)
 
     transcript_json = build_transcript_json_payload(
         plain_transcript=plain_transcript,

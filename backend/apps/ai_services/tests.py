@@ -641,16 +641,72 @@ from apps.ai_services.speaker_diarization import (
     DIARIZATION_STATUS_UNAVAILABLE,
     DiarizationUnavailable,
     _format_diarization_error,
+    _is_torchcodec_audio_read_error,
     _load_pyannote_pipeline,
+    _run_diarization_pipeline,
     align_transcript_segments_to_speakers,
     apply_role_mapping,
     format_speaker_labelled_transcript,
     map_speakers_to_roles,
 )
-from apps.ai_services.transcription_service import build_speaker_aware_transcript_payload
+from apps.ai_services.transcription_service import TranscriptionUnavailable, build_speaker_aware_transcript_payload
 
 
 class InterviewSpeakerDiarizationTests(SimpleTestCase):
+    def test_required_diarization_raises_instead_of_saving_plain_fallback(self):
+        with patch.dict('os.environ', {'REQUIRE_SPEAKER_DIARIZATION': 'True'}):
+            with self.assertRaisesMessage(TranscriptionUnavailable, 'Speaker diarization is required but did not complete'):
+                build_speaker_aware_transcript_payload(
+                    plain_transcript='Plain transcript text.',
+                    transcript_segments=[],
+                    audio_file=SimpleNamespace(name='interview.wav'),
+                    metadata={'provider': 'local_whisper'},
+                )
+
+    def test_required_diarization_allows_completed_payload(self):
+        with patch.dict('os.environ', {'REQUIRE_SPEAKER_DIARIZATION': 'True'}), patch(
+            'apps.ai_services.transcription_service.run_speaker_diarization',
+            return_value=[
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 1.0},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 1.0, 'end_time': 3.0},
+            ],
+        ):
+            payload = build_speaker_aware_transcript_payload(
+                plain_transcript='What did you build? I built APIs.',
+                transcript_segments=[
+                    {'start_time': 0.0, 'end_time': 1.0, 'text': 'What did you build?'},
+                    {'start_time': 1.0, 'end_time': 3.0, 'text': 'I built APIs.'},
+                ],
+                audio_file=SimpleNamespace(name='interview.wav'),
+                metadata={'provider': 'local_whisper'},
+            )
+
+        self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
+        self.assertIn('Interviewer:', payload['transcript_text'])
+
+    def test_detects_torchcodec_audio_read_error(self):
+        error = RuntimeError('torchcodec is not available. Cannot read audio file.')
+
+        self.assertTrue(_is_torchcodec_audio_read_error(error))
+        self.assertFalse(_is_torchcodec_audio_read_error(RuntimeError('other failure')))
+
+    def test_run_diarization_pipeline_falls_back_to_waveform_input_when_torchcodec_is_missing(self):
+        calls = []
+        waveform_input = {'waveform': 'tensor', 'sample_rate': 16000}
+
+        def fake_pipeline(audio_input):
+            calls.append(audio_input)
+            if isinstance(audio_input, str):
+                raise RuntimeError('torchcodec is not available. Cannot read audio file.')
+            return 'diarization'
+
+        with patch('apps.ai_services.speaker_diarization._load_audio_waveform_with_whisper', return_value=waveform_input) as loader:
+            result = _run_diarization_pipeline(fake_pipeline, 'interview.mp3')
+
+        self.assertEqual(result, 'diarization')
+        self.assertEqual(calls, ['interview.mp3', waveform_input])
+        loader.assert_called_once_with('interview.mp3')
+
     def test_diarization_unavailable_carries_fallback_status(self):
         not_configured = DiarizationUnavailable('disabled', status=DIARIZATION_STATUS_NOT_CONFIGURED)
         unavailable = DiarizationUnavailable('missing dependency', status=DIARIZATION_STATUS_UNAVAILABLE)

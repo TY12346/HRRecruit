@@ -76,6 +76,41 @@ def _format_diarization_error(exc):
     return f'Speaker diarization failed: {exc.__class__.__name__}'
 
 
+def _is_torchcodec_audio_read_error(exc):
+    message = str(exc).lower()
+    return 'torchcodec' in message and 'cannot read audio file' in message
+
+
+def _load_audio_waveform_with_whisper(audio_path):
+    """Load audio through Whisper/ffmpeg for pyannote when torchcodec cannot decode it."""
+    if importlib.util.find_spec('whisper') is None:
+        raise DiarizationUnavailable(
+            'Speaker diarization could not decode the audio because torchcodec is unavailable and openai-whisper is not installed for fallback audio loading.',
+            status=DIARIZATION_STATUS_UNAVAILABLE,
+        )
+    if importlib.util.find_spec('torch') is None:
+        raise DiarizationUnavailable(
+            'Speaker diarization could not decode the audio because torch is unavailable for waveform fallback.',
+            status=DIARIZATION_STATUS_UNAVAILABLE,
+        )
+
+    whisper = importlib.import_module('whisper')
+    torch = importlib.import_module('torch')
+    samples = whisper.load_audio(audio_path)
+    waveform = torch.as_tensor(samples, dtype=torch.float32).unsqueeze(0)
+    return {'waveform': waveform, 'sample_rate': 16000}
+
+
+def _run_diarization_pipeline(pipeline, audio_path):
+    try:
+        return pipeline(audio_path)
+    except RuntimeError as exc:
+        if not _is_torchcodec_audio_read_error(exc):
+            raise
+        waveform_input = _load_audio_waveform_with_whisper(audio_path)
+        return pipeline(waveform_input)
+
+
 def run_speaker_diarization(audio_file):
     """Return diarized speaker turns or raise DiarizationUnavailable.
 
@@ -109,7 +144,7 @@ def run_speaker_diarization(audio_file):
                 'Speaker diarization requires a local audio file path in this development implementation.',
                 status=DIARIZATION_STATUS_UNAVAILABLE,
             )
-        diarization = pipeline(audio_path)
+        diarization = _run_diarization_pipeline(pipeline, audio_path)
         turns = []
         for turn, _track, speaker in diarization.itertracks(yield_label=True):
             turns.append({'speaker_id': str(speaker), 'start_time': float(turn.start), 'end_time': float(turn.end)})
