@@ -453,3 +453,13 @@ After implementing AI backend features, create or update `AI_ALGORITHM_VALIDATIO
 - known limitations
 - fallback behavior
 - future enhancement
+
+## Interview transcription with optional speaker diarization
+
+1. HRRecruit runs the configured speech-to-text provider. Local Whisper is the default real provider and can return timestamped transcript segments.
+2. Speaker diarization is a separate optional local layer that detects speaker turns such as `SPEAKER_00` with start and end timestamps.
+3. HRRecruit aligns Whisper transcript segments to diarization turns by selecting the speaker turn with the largest timestamp overlap.
+4. HRRecruit maps internal speaker ids to the user-facing interview roles `Interviewer` and `Candidate`. The role mapping favors the speaker who asks the most questions or uses recruiter/HR/interviewer language as `Interviewer`, and maps the other primary speaker to `Candidate`.
+5. `InterviewTranscript.transcript_text` stores the readable transcript. When diarization succeeds this is speaker-labelled text; otherwise it remains the plain transcript.
+6. `InterviewTranscript.transcript_json` stores the plain transcript, optional speaker-labelled transcript, diarization status/warning, and structured speaker segments.
+7. If diarization dependencies are missing or fail, the system must fall back to plain transcript mode and preserve AI summary compatibility.

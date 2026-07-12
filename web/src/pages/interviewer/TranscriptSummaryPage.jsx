@@ -1,20 +1,73 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { useLocation, useParams } from 'react-router-dom';
 import { transcribeRecording, uploadInterviewRecording } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
 import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredTranscriptId } from './interviewerUtils.js';
 
+const speakerSeparationLabels = {
+  completed: 'Speaker separated',
+  not_configured: 'Plain transcript',
+  unavailable: 'Plain transcript',
+  failed: 'Plain transcript',
+};
+
+const speakerSeparationMessages = {
+  not_configured: 'Speaker separation is turned off in backend settings. The plain transcript was generated successfully.',
+  unavailable: 'Speaker separation is unavailable for this transcript. The plain transcript was generated successfully.',
+  failed: 'Speaker separation could not be completed for this transcript. The plain transcript was generated successfully.',
+};
+
 function TranscriptResult({ transcript }) {
   if (!transcript) return null;
+
+  const displayTranscript = transcript.speaker_labelled_transcript || transcript.transcript_text || transcript.transcript || '';
+  const speakerSegments = Array.isArray(transcript.speaker_segments) ? transcript.speaker_segments : [];
+  const diarizationStatus = transcript.diarization_status || transcript.transcript_json?.diarization_status || 'unavailable';
+  const diarizationWarning = transcript.diarization_warning || transcript.transcript_json?.diarization_warning || '';
+  const showDiarizationWarningDetail = diarizationWarning && diarizationStatus !== 'not_configured';
+  const speakerSeparationLabel = speakerSeparationLabels[diarizationStatus] || 'Plain transcript';
+  const speakerSeparationMessage = speakerSeparationMessages[diarizationStatus] || 'Speaker separation is not available for this transcript. The plain transcript was generated successfully.';
+  const showSpeakerUnavailable = diarizationStatus !== 'completed';
+
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-        Generated transcript
-      </Typography>
-      <Typography variant="body1" whiteSpace="pre-line">
-        {transcript.transcript_text || 'No transcript text returned.'}
-      </Typography>
+      <Stack spacing={1.5}>
+        <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Generated transcript
+          </Typography>
+          <Chip size="small" label={speakerSeparationLabel} />
+        </Stack>
+        {showSpeakerUnavailable ? (
+          <Alert severity="info">
+            <Stack spacing={0.5}>
+              <Typography variant="body2">{speakerSeparationMessage}</Typography>
+              {showDiarizationWarningDetail ? (
+                <Typography variant="body2" color="text.secondary">
+                  Detail: {diarizationWarning}
+                </Typography>
+              ) : null}
+            </Stack>
+          </Alert>
+        ) : null}
+        {speakerSegments.length ? (
+          <Stack spacing={1}>
+            {speakerSegments.map((segment, index) => (
+              <Box key={`${segment.speaker_id || 'speaker'}-${segment.start_time || index}-${index}`}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {segment.role === 'Interviewer' || segment.role === 'Candidate' ? segment.role : 'Unknown'}
+                </Typography>
+                <Typography variant="body1">{segment.text}</Typography>
+              </Box>
+            ))}
+          </Stack>
+        ) : (
+          <Typography variant="body1" whiteSpace="pre-line">
+            {displayTranscript || 'No transcript text returned.'}
+          </Typography>
+        )}
+      </Stack>
     </Paper>
   );
 }
