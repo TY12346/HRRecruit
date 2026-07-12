@@ -18,11 +18,41 @@ const speakerSeparationMessages = {
   failed: 'Speaker separation could not be completed for this transcript. The plain transcript was generated successfully.',
 };
 
+
+function getDisplayRole(role) {
+  return role === 'Interviewer' || role === 'Candidate' ? role : 'Unknown';
+}
+
+function mergeConsecutiveSpeakerSegments(segments) {
+  return segments.reduce((groups, segment) => {
+    const text = String(segment.text || '').trim();
+    if (!text) return groups;
+
+    const role = getDisplayRole(segment.role);
+    const previous = groups[groups.length - 1];
+    if (previous?.role === role) {
+      previous.text = `${previous.text} ${text}`;
+      previous.end_time = segment.end_time ?? previous.end_time;
+      return groups;
+    }
+
+    groups.push({
+      role,
+      text,
+      speaker_id: segment.speaker_id || 'UNKNOWN',
+      start_time: segment.start_time,
+      end_time: segment.end_time,
+    });
+    return groups;
+  }, []);
+}
+
 function TranscriptResult({ transcript }) {
   if (!transcript) return null;
 
   const displayTranscript = transcript.speaker_labelled_transcript || transcript.transcript_text || transcript.transcript || '';
   const speakerSegments = Array.isArray(transcript.speaker_segments) ? transcript.speaker_segments : [];
+  const mergedSpeakerSegments = mergeConsecutiveSpeakerSegments(speakerSegments);
   const diarizationStatus = transcript.diarization_status || transcript.transcript_json?.diarization_status || 'unavailable';
   const diarizationWarning = transcript.diarization_warning || transcript.transcript_json?.diarization_warning || '';
   const showDiarizationWarningDetail = diarizationWarning && diarizationStatus !== 'not_configured';
@@ -51,12 +81,12 @@ function TranscriptResult({ transcript }) {
             </Stack>
           </Alert>
         ) : null}
-        {speakerSegments.length ? (
-          <Stack spacing={1}>
-            {speakerSegments.map((segment, index) => (
+        {mergedSpeakerSegments.length ? (
+          <Stack spacing={2}>
+            {mergedSpeakerSegments.map((segment, index) => (
               <Box key={`${segment.speaker_id || 'speaker'}-${segment.start_time || index}-${index}`}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  {segment.role === 'Interviewer' || segment.role === 'Candidate' ? segment.role : 'Unknown'}
+                  {segment.role}
                 </Typography>
                 <Typography variant="body1">{segment.text}</Typography>
               </Box>
