@@ -666,6 +666,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from apps.evaluations.models import InterviewAISummary, InterviewEvaluation, InterviewRecording, InterviewTranscript
+from apps.notifications.models import Notification
 from apps.jobs.models import EvaluationCriterion, InterviewEvaluationForm
 
 
@@ -1121,7 +1122,86 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('audio_file', response.data)
 
+
+    def create_completed_transcript_summary_deliverables(self):
+        transcript = self.create_transcript()
+        return InterviewAISummary.objects.create(
+            transcript=transcript,
+            strengths='Relevant technical experience.',
+            weaknesses='Needs more architectural depth.',
+            communication_score='8.00',
+            overall_impression='Suitable interview performance.',
+            editable_summary_text='Overall summary reviewed by interviewer.',
+            summary_json={'provider': 'mock'},
+        )
+
+    def test_evaluation_requires_transcript_and_ai_summary_deliverables(self):
+        self.authenticate(self.interviewer)
+
+        response = self.client.post(
+            reverse('interview-evaluation-submit', args=[self.interview.id]),
+            {
+                'overall_comment': 'Strong candidate for the role.',
+                'answers': [
+                    {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
+                    {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('deliverables', response.data)
+
+    def test_evaluation_is_rejected_after_three_day_deliverable_deadline(self):
+        self.interview.scheduled_datetime = timezone.now() - timedelta(days=4)
+        self.interview.save(update_fields=['scheduled_datetime', 'updated_at'])
+        self.create_completed_transcript_summary_deliverables()
+        self.authenticate(self.interviewer)
+
+        response = self.client.post(
+            reverse('interview-evaluation-submit', args=[self.interview.id]),
+            {
+                'overall_comment': 'Late scorecard.',
+                'answers': [
+                    {'criterion_id': self.criterion_one.id, 'score': '8.00'},
+                    {'criterion_id': self.criterion_two.id, 'score': '9.00'},
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('deadline', response.data)
+
+    def test_deadline_command_notifies_almost_late_and_late_interviewer_once(self):
+        from django.core.management import call_command
+
+        self.interview.scheduled_datetime = timezone.now() - timedelta(days=2, hours=12)
+        self.interview.save(update_fields=['scheduled_datetime', 'updated_at'])
+        call_command('send_interview_deliverable_deadline_notifications')
+        call_command('send_interview_deliverable_deadline_notifications')
+
+        self.assertEqual(Notification.objects.filter(
+            recipient=self.interviewer,
+            notification_type='interview_deliverables_almost_late',
+            related_entity_type='interview',
+            related_entity_id=self.interview.id,
+        ).count(), 1)
+
+        self.interview.scheduled_datetime = timezone.now() - timedelta(days=4)
+        self.interview.save(update_fields=['scheduled_datetime', 'updated_at'])
+        call_command('send_interview_deliverable_deadline_notifications')
+
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.interviewer,
+            notification_type='interview_deliverables_late',
+            related_entity_type='interview',
+            related_entity_id=self.interview.id,
+        ).exists())
+
     def test_interviewer_submits_evaluation_and_recruiter_views_detail(self):
+        self.create_completed_transcript_summary_deliverables()
         self.authenticate(self.interviewer)
         response = self.client.post(
             reverse('interview-evaluation-submit', args=[self.interview.id]),
