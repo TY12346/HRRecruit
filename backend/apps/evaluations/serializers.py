@@ -4,10 +4,12 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.applications.models import JobApplication
 from apps.jobs.serializers import EvaluationCriterionSerializer
+from .deliverables import deliverable_deadline_for, latest_ai_summary_for, latest_transcript_for
 from .models import (
     ALLOWED_INTERVIEW_AUDIO_EXTENSIONS,
     MAX_INTERVIEW_AUDIO_SIZE_MB,
@@ -231,6 +233,22 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
             if score > criterion.max_score:
                 raise serializers.ValidationError({'answers': f'Score for {criterion.criterion_name} cannot exceed {criterion.max_score}.'})
             answer['criterion'] = criterion
+
+        missing = []
+        if not latest_transcript_for(interview):
+            missing.append('transcript')
+        if not latest_ai_summary_for(interview):
+            missing.append('AI summary')
+        if missing:
+            raise serializers.ValidationError({
+                'deliverables': f"Submit the interview {' and '.join(missing)} before submitting the evaluation scorecard."
+            })
+
+        deadline = deliverable_deadline_for(interview)
+        if deadline and timezone.now() > deadline:
+            raise serializers.ValidationError({
+                'deadline': 'Interview deliverables must be submitted no later than 3 days after the scheduled interview datetime.'
+            })
 
         return attrs
 

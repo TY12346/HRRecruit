@@ -45,6 +45,7 @@ class InterviewSerializer(serializers.ModelSerializer):
     latest_recording = serializers.SerializerMethodField()
     transcript = serializers.SerializerMethodField()
     ai_summary = serializers.SerializerMethodField()
+    deliverable_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Interview
@@ -71,6 +72,7 @@ class InterviewSerializer(serializers.ModelSerializer):
             'latest_recording',
             'transcript',
             'ai_summary',
+            'deliverable_status',
             'created_at',
             'updated_at',
         ]
@@ -109,6 +111,15 @@ class InterviewSerializer(serializers.ModelSerializer):
 
         summary = InterviewAISummary.objects.filter(transcript__recording__interview=interview).order_by('-updated_at').first()
         return InterviewAISummarySerializer(summary, context=self.context).data if summary else None
+
+    def get_deliverable_status(self, interview):
+        from apps.evaluations.deliverables import deliverable_status_for
+
+        status = deliverable_status_for(interview)
+        return {
+            **status,
+            'deadline': status['deadline'].isoformat() if status['deadline'] else None,
+        }
 
     def get_evaluation_criteria(self, interview):
         form = getattr(interview.application.job, 'interview_evaluation_form', None)
