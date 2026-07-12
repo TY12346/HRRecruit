@@ -72,10 +72,45 @@ class InterviewRecordingUploadSerializer(serializers.ModelSerializer):
 
 
 class InterviewTranscriptSerializer(serializers.ModelSerializer):
+    transcript = serializers.SerializerMethodField()
+    speaker_labelled_transcript = serializers.SerializerMethodField()
+    speaker_segments = serializers.SerializerMethodField()
+    diarization_status = serializers.SerializerMethodField()
+    diarization_warning = serializers.SerializerMethodField()
+
     class Meta:
         model = InterviewTranscript
-        fields = ['id', 'recording', 'transcript_text', 'transcript_json', 'generated_at']
+        fields = [
+            'id',
+            'recording',
+            'transcript_text',
+            'transcript_json',
+            'generated_at',
+            'transcript',
+            'speaker_labelled_transcript',
+            'speaker_segments',
+            'diarization_status',
+            'diarization_warning',
+        ]
         read_only_fields = fields
+
+    def _metadata(self, obj):
+        return obj.transcript_json or {}
+
+    def get_transcript(self, obj):
+        return self._metadata(obj).get('plain_transcript') or obj.transcript_text
+
+    def get_speaker_labelled_transcript(self, obj):
+        return self._metadata(obj).get('speaker_labelled_transcript')
+
+    def get_speaker_segments(self, obj):
+        return self._metadata(obj).get('segments') or []
+
+    def get_diarization_status(self, obj):
+        return self._metadata(obj).get('diarization_status', 'unavailable')
+
+    def get_diarization_warning(self, obj):
+        return self._metadata(obj).get('diarization_warning')
 
 
 class InterviewAISummarySerializer(serializers.ModelSerializer):
