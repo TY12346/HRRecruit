@@ -48,6 +48,7 @@ HRRecruit addresses this by providing one role-based platform where:
 - Semantic matching can fall back to local lexical scoring if optional semantic model dependencies are not available.
 - Interview transcription can run in demo/fallback mode when no external ASR/LLM credentials are configured.
 - AI summary generation can run in mock/demo mode when no LLM credentials are configured.
+- Interview AI summaries support Google Gemini by setting `USE_REAL_SUMMARY=True`, `SUMMARY_PROVIDER=gemini`, `GEMINI_API_KEY`, and a Gemini `SUMMARY_MODEL` such as `gemini-2.5-flash`; mock/demo summary remains available when real summary is disabled.
 - Email currently uses the Django console email backend for local/demo workflows.
 - Payment uses a demo flow unless valid Stripe credentials are configured.
 - Calendar integration is not enabled by default and should be treated as optional/future integration unless credentials and code support are explicitly configured.

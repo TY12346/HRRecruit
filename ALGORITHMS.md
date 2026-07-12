@@ -336,7 +336,7 @@ The summary must support human evaluation and must not automatically make hiring
 1. Load the interview transcript.
 2. Clean and preprocess the transcript text.
 3. Construct a structured prompt when real summary generation is enabled.
-4. If real summary generation is enabled and available, call the configured language model.
+4. If real summary generation is enabled and available, call the configured language model provider (`openai` or `gemini`).
 5. If real summary generation is disabled or unavailable, use a mock structured summary.
 6. Validate that all required summary fields exist.
 7. Save the structured summary.
@@ -357,13 +357,17 @@ The AI summary should return these structured fields:
 
 For FYP development, real LLM summary generation should be optional. Mock/fallback summary behavior must remain available for FYP demo reliability.
 
-Recommended environment variables:
+Recommended environment variables for mock/demo mode and real provider selection:
 
 ```env
 USE_REAL_SUMMARY=False
+SUMMARY_PROVIDER=gemini
+GEMINI_API_KEY=
 OPENAI_API_KEY=
-SUMMARY_MODEL=gpt-4o-mini
+SUMMARY_MODEL=gemini-2.5-flash
 ```
+
+Set `USE_REAL_SUMMARY=True` and `SUMMARY_PROVIDER=gemini` to generate interview AI summaries through Google Gemini. Set `SUMMARY_PROVIDER=openai` to keep the earlier OpenAI path. Both real providers must still return the required editable JSON fields and must not make hiring decisions.
 
 If real summary is disabled or unavailable, return a structured mock summary such as:
 

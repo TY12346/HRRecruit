@@ -651,6 +651,7 @@ from apps.ai_services.speaker_diarization import (
     map_speakers_to_roles,
 )
 from apps.ai_services.transcription_service import TranscriptionUnavailable, build_speaker_aware_transcript_payload
+from apps.ai_services.summary_service import SummaryGenerationUnavailable, run_real_summary
 
 
 class InterviewSpeakerDiarizationTests(SimpleTestCase):
@@ -859,3 +860,41 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
         self.assertIn('Candidate:', payload['transcript_text'])
         self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
         self.assertEqual(len(payload['transcript_json']['segments']), 2)
+
+
+class InterviewSummaryGeminiTests(SimpleTestCase):
+    def _summary_json(self):
+        return json.dumps({
+            'strengths': 'Clear examples of relevant project experience.',
+            'weaknesses': 'Could provide more measurable impact details.',
+            'communication_score': 8,
+            'overall_impression': 'Professional and concise interview responses.',
+            'editable_summary_text': 'Candidate communicated relevant experience clearly.',
+        })
+
+    def test_real_summary_can_use_gemini_provider(self):
+        with patch.dict('os.environ', {
+            'USE_REAL_SUMMARY': 'True',
+            'SUMMARY_PROVIDER': 'gemini',
+            'GEMINI_API_KEY': 'test-gemini-key',
+            'SUMMARY_MODEL': 'gemini-2.5-flash',
+        }), patch(
+            'apps.ai_services.summary_service._call_gemini_summary',
+            return_value=self._summary_json(),
+        ) as gemini_call:
+            payload = run_real_summary('Interviewer: Tell me about your projects. Candidate: I built APIs.')
+
+        gemini_call.assert_called_once()
+        self.assertEqual(payload['summary_json']['provider'], 'gemini')
+        self.assertEqual(payload['summary_json']['model'], 'gemini-2.5-flash')
+        self.assertEqual(payload['communication_score'], 8)
+        self.assertNotIn('final hiring decision', payload['editable_summary_text'].lower())
+
+    def test_gemini_summary_requires_gemini_api_key(self):
+        with patch.dict('os.environ', {
+            'USE_REAL_SUMMARY': 'True',
+            'SUMMARY_PROVIDER': 'gemini',
+            'GEMINI_API_KEY': '',
+        }, clear=False):
+            with self.assertRaisesMessage(SummaryGenerationUnavailable, 'GEMINI_API_KEY is required'):
+                run_real_summary('Transcript text')

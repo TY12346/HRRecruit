@@ -802,7 +802,7 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(transcribe_response.data['transcript_json']['provider'], 'openai')
         transcript = InterviewTranscript.objects.get(id=transcribe_response.data['id'])
 
-        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'SUMMARY_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.summary_service._call_openai_summary',
             return_value=json.dumps({
                 'strengths': 'Strong Django API experience.',
@@ -994,7 +994,7 @@ class InterviewEvaluationAPITests(APITestCase):
     def test_real_summary_missing_api_key_returns_clear_error(self):
         transcript = self.create_transcript()
 
-        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': ''}), patch(
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'SUMMARY_PROVIDER': 'openai', 'OPENAI_API_KEY': ''}), patch(
             'apps.ai_services.summary_service._call_openai_summary'
         ) as openai_summary:
             response = self.client.post(reverse('transcript-generate-summary', args=[transcript.id]))
@@ -1007,7 +1007,7 @@ class InterviewEvaluationAPITests(APITestCase):
     def test_real_summary_provider_failure_returns_clear_error(self):
         transcript = self.create_transcript()
 
-        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'SUMMARY_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.summary_service._call_openai_summary',
             side_effect=RuntimeError('provider unavailable'),
         ) as openai_summary:
@@ -1021,7 +1021,7 @@ class InterviewEvaluationAPITests(APITestCase):
     def test_real_summary_response_contains_required_structured_output_fields(self):
         transcript = self.create_transcript()
 
-        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'SUMMARY_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.summary_service._call_openai_summary',
             return_value=json.dumps({
                 'strengths': 'Clear examples.',
@@ -1050,7 +1050,7 @@ class InterviewEvaluationAPITests(APITestCase):
 
     def test_interviewer_can_edit_generated_summary_before_final_evaluation(self):
         transcript = self.create_transcript()
-        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'OPENAI_API_KEY': 'test-key'}), patch(
+        with patch.dict('os.environ', {'USE_REAL_SUMMARY': 'True', 'SUMMARY_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.summary_service._call_openai_summary',
             return_value=json.dumps({
                 'strengths': 'Original strengths.',
