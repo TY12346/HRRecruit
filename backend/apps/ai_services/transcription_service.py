@@ -11,6 +11,20 @@ from pathlib import Path
 from rest_framework.exceptions import ValidationError
 
 from apps.ai_services.exceptions import AIServiceUnavailable
+from apps.ai_services.speaker_diarization import (
+    DIARIZATION_STATUS_COMPLETED,
+    DIARIZATION_STATUS_FAILED,
+    DIARIZATION_STATUS_NOT_CONFIGURED,
+    DIARIZATION_STATUS_UNAVAILABLE,
+    DiarizationUnavailable,
+    align_transcript_segments_to_speakers,
+    apply_role_mapping,
+    build_transcript_json_payload,
+    format_speaker_labelled_transcript,
+    map_speakers_to_roles,
+    normalize_transcript_segments,
+    run_speaker_diarization,
+)
 from apps.evaluations.models import ALLOWED_INTERVIEW_AUDIO_EXTENSIONS, InterviewTranscript
 
 TRANSCRIPTION_TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
@@ -89,6 +103,12 @@ def post_process_transcript(transcript_text):
     return cleaned
 
 
+def _extract_transcription_segments(response):
+    if isinstance(response, dict):
+        return normalize_transcript_segments(response.get('segments') or [])
+    return normalize_transcript_segments(getattr(response, 'segments', []) or [])
+
+
 def _extract_transcription_text(response):
     """Extract transcript text from common OpenAI SDK response shapes."""
     if isinstance(response, str):
@@ -135,7 +155,12 @@ def _call_local_whisper_transcription(audio_file, model):
     finally:
         if close_temporary_file:
             Path(close_temporary_file).unlink(missing_ok=True)
-    return result.get('text', '') if isinstance(result, dict) else getattr(result, 'text', '')
+    if isinstance(result, dict):
+        return {
+            'text': result.get('text', ''),
+            'segments': normalize_transcript_segments(result.get('segments') or []),
+        }
+    return {'text': getattr(result, 'text', ''), 'segments': normalize_transcript_segments(getattr(result, 'segments', []) or [])}
 
 
 def run_real_transcription(audio_file):
@@ -144,12 +169,16 @@ def run_real_transcription(audio_file):
     model = get_transcription_model()
     try:
         if provider == TRANSCRIPTION_PROVIDER_LOCAL_WHISPER:
-            transcript_text = _call_local_whisper_transcription(audio_file, model)
+            transcript_result = _call_local_whisper_transcription(audio_file, model)
+            transcript_text = _extract_transcription_text(transcript_result)
+            transcript_segments = _extract_transcription_segments(transcript_result)
         elif provider == TRANSCRIPTION_PROVIDER_OPENAI:
             api_key = get_openai_api_key()
             if not api_key:
                 raise TranscriptionUnavailable('OPENAI_API_KEY is required for OpenAI transcription.')
-            transcript_text = _call_openai_transcription(audio_file, api_key, model)
+            transcript_result = _call_openai_transcription(audio_file, api_key, model)
+            transcript_text = _extract_transcription_text(transcript_result)
+            transcript_segments = _extract_transcription_segments(transcript_result)
         else:
             raise TranscriptionUnavailable(f'Unsupported transcription provider: {provider}.')
     except TranscriptionUnavailable:
@@ -159,6 +188,7 @@ def run_real_transcription(audio_file):
 
     return {
         'text': post_process_transcript(transcript_text),
+        'segments': transcript_segments,
         'metadata': {
             'provider': provider,
             'mode': 'real',
@@ -183,6 +213,7 @@ def build_mock_transcription(recording, audio_file):
             'and follow-up areas for human evaluation. Replace this mock transcript with '
             'real transcription when TRANSCRIPTION_PROVIDER=local_whisper or another real provider is configured.'
         ),
+        'segments': [],
         'metadata': {
             'provider': 'mock',
             'mode': 'local_development',
@@ -191,6 +222,46 @@ def build_mock_transcription(recording, audio_file):
             'mock_reason': 'USE_REAL_TRANSCRIPTION is disabled or TRANSCRIPTION_PROVIDER=mock',
             'audio_file_name': audio_file.name,
         },
+    }
+
+
+def build_speaker_aware_transcript_payload(plain_transcript, transcript_segments, audio_file, metadata):
+    diarization_status = DIARIZATION_STATUS_NOT_CONFIGURED
+    diarization_warning = None
+    speaker_segments = []
+    speaker_labelled_transcript = None
+
+    if not transcript_segments:
+        diarization_warning = 'Speaker separation is unavailable because transcription timestamps were not returned.'
+    else:
+        try:
+            speaker_turns = run_speaker_diarization(audio_file)
+            aligned_segments = align_transcript_segments_to_speakers(transcript_segments, speaker_turns)
+            if any(segment.get('speaker_id') == 'UNKNOWN' for segment in aligned_segments):
+                diarization_warning = 'Some transcript segments could not be aligned to a diarized speaker turn.'
+            role_mapping, mapping_warning = map_speakers_to_roles(aligned_segments)
+            speaker_segments = apply_role_mapping(aligned_segments, role_mapping)
+            speaker_labelled_transcript = format_speaker_labelled_transcript(speaker_segments)
+            diarization_status = DIARIZATION_STATUS_COMPLETED if speaker_labelled_transcript else DIARIZATION_STATUS_FAILED
+            diarization_warning = diarization_warning or mapping_warning
+        except DiarizationUnavailable as exc:
+            diarization_status = getattr(exc, 'status', DIARIZATION_STATUS_UNAVAILABLE)
+            diarization_warning = str(exc)
+        except Exception as exc:
+            diarization_status = DIARIZATION_STATUS_FAILED
+            diarization_warning = f'Speaker diarization failed: {exc.__class__.__name__}'
+
+    transcript_json = build_transcript_json_payload(
+        plain_transcript=plain_transcript,
+        speaker_labelled_transcript=speaker_labelled_transcript,
+        diarization_status=diarization_status,
+        diarization_warning=diarization_warning,
+        segments=speaker_segments,
+        metadata=metadata,
+    )
+    return {
+        'transcript_text': speaker_labelled_transcript or plain_transcript,
+        'transcript_json': transcript_json,
     }
 
 
@@ -209,13 +280,16 @@ def transcribe_recording_payload(recording):
     metadata = {
         **result['metadata'],
         'algorithm': 'automatic_speech_recognition',
+        'diarization_algorithm': 'optional_speaker_diarization_timestamp_overlap',
         'audio_file_name': audio_file.name,
         'post_processing': 'collapsed_whitespace_and_trimmed',
     }
-    return {
-        'transcript_text': cleaned_text,
-        'transcript_json': metadata,
-    }
+    return build_speaker_aware_transcript_payload(
+        plain_transcript=cleaned_text,
+        transcript_segments=normalize_transcript_segments(result.get('segments') or []),
+        audio_file=processed_audio,
+        metadata=metadata,
+    )
 
 
 def transcribe_and_save_recording(recording):
