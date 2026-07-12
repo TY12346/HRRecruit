@@ -172,7 +172,7 @@ export default function InterviewerDashboardPage() {
                   <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>Access candidate evidence, transcripts, evaluation forms, and notification updates.</Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     <Button component={RouterLink} to="/interviewer/candidates" variant="outlined">Assigned candidates</Button>
-                    <Button component={RouterLink} to="/interviewer/interviews" variant="outlined">Upload recordings</Button>
+                    <Button component={RouterLink} to="/interviewer/interviews" variant="outlined">View interviews</Button>
                     <Button component={RouterLink} to="/interviewer/analytics" variant="outlined">Review analytics</Button>
                     <Button component={RouterLink} to="/interviewer/notifications" variant="outlined">Check notifications</Button>
                   </Stack>
