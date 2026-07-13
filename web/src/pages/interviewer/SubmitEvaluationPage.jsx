@@ -23,7 +23,7 @@ export default function SubmitEvaluationPage() {
   const criteria = useMemo(() => interview?.evaluation_criteria ?? [], [interview]);
   const deliverableStatus = interview?.deliverable_status;
   const missingDeliverables = deliverableStatus?.missing ?? [];
-  const deliverableDeadline = deliverableStatus?.deadline ? new Date(deliverableStatus.deadline).toLocaleString() : '3 days after the scheduled interview datetime';
+  const deliverableDeadline = deliverableStatus?.deadline ? new Date(deliverableStatus.deadline).toLocaleString() : '';
 
   useEffect(() => {
     getInterview(interviewId)
@@ -74,12 +74,9 @@ export default function SubmitEvaluationPage() {
           </Typography>
         ) : null}
 
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Submit the transcript, AI summary, and evaluation scorecard to the recruiter no later than {deliverableDeadline}. The criterion IDs are handled automatically.
-        </Alert>
-        {missingDeliverables.length ? (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Missing required deliverables before final submission: {missingDeliverables.join(', ')}. Generate the transcript and AI summary first, then submit this evaluation scorecard.
+        {deliverableDeadline ? (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {deliverableDeadline}
           </Alert>
         ) : null}
         {criteria.length === 0 && interview ? (
