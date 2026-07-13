@@ -21,6 +21,9 @@ export default function SubmitEvaluationPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const criteria = useMemo(() => interview?.evaluation_criteria ?? [], [interview]);
+  const deliverableStatus = interview?.deliverable_status;
+  const missingDeliverables = deliverableStatus?.missing ?? [];
+  const deliverableDeadline = deliverableStatus?.deadline ? new Date(deliverableStatus.deadline).toLocaleString() : '';
 
   useEffect(() => {
     getInterview(interviewId)
@@ -71,9 +74,11 @@ export default function SubmitEvaluationPage() {
           </Typography>
         ) : null}
 
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Complete each recruiter-configured evaluation criterion below. The criterion IDs are handled automatically.
-        </Alert>
+        {deliverableDeadline ? (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {deliverableDeadline}
+          </Alert>
+        ) : null}
         {criteria.length === 0 && interview ? (
           <Alert severity="warning" sx={{ mb: 2 }}>
             This job does not have an interview evaluation scorecard configured yet. Ask the recruiter to set up the form before submitting an evaluation.
@@ -132,7 +137,7 @@ export default function SubmitEvaluationPage() {
             );
           })}
 
-          <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0} sx={{ alignSelf: 'flex-start' }}>
+          <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0 || missingDeliverables.includes('transcript') || missingDeliverables.includes('ai_summary')} sx={{ alignSelf: 'flex-start' }}>
             {isSaving ? 'Submitting…' : 'Submit evaluation'}
           </Button>
         </Stack>
