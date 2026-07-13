@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import { getInterview, submitInterviewEvaluation } from '../../api/client.js';
+import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import InterviewerNav from './InterviewerNav.jsx';
 import { candidateName, getApiErrorMessage, jobTitle } from './interviewerUtils.js';
 
@@ -69,9 +70,9 @@ export default function SubmitEvaluationPage() {
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Submit Evaluation</Typography>
         {interview ? (
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            {candidateName(interview)} • {jobTitle(interview)}
-          </Typography>
+          <Box sx={{ mb: 2 }}>
+            <ApplicantJobSummary applicantName={candidateName(interview)} jobTitle={jobTitle(interview)} />
+          </Box>
         ) : null}
 
         {deliverableDeadline ? (

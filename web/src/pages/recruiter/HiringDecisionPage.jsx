@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import { getApplications, submitHiringDecision } from '../../api/client.js';
+import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
 import { applicationName, getApiErrorMessage, scoreText } from './recruiterUtils.js';
 import ApplicationFlowSummary from '../../components/ApplicationFlowSummary.jsx';
@@ -92,11 +93,11 @@ export default function HiringDecisionPage() {
                 >
                   {selected && !selectedIsEligible ? (
                     <MenuItem value={selectedId} disabled>
-                      {applicationName(selected)} — {selected.job_title} (evaluation not complete)
+                      <ApplicantJobSummary applicantName={applicationName(selected)} jobTitle={`${selected.job_title} (evaluation not complete)`} variant="body2" />
                     </MenuItem>
                   ) : null}
                   {evaluatedApplications.map((app) => (
-                    <MenuItem key={app.id} value={app.id}>{applicationName(app)} — {app.job_title}</MenuItem>
+                    <MenuItem key={app.id} value={app.id}><ApplicantJobSummary applicantName={applicationName(app)} jobTitle={app.job_title} variant="body2" /></MenuItem>
                   ))}
                 </TextField>
                 {selectedIsEligible ? (

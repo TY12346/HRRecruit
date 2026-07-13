@@ -17,6 +17,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { getAssignedInterviews, getInterviewerAnalytics, getNotifications } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
+import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, titleize } from './interviewerUtils.js';
 
 function MetricCard({ label, value, helper, tone = 'primary' }) {
@@ -37,7 +38,7 @@ function InterviewRow({ interview }) {
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
       <Box>
-        <Typography sx={{ fontWeight: 700 }}>{candidateName(interview)} • {jobTitle(interview)}</Typography>
+        <ApplicantJobSummary applicantName={candidateName(interview)} jobTitle={jobTitle(interview)} />
         <Typography color="text.secondary" variant="body2">
           {formatDateTime(interview.scheduled_datetime)} • {titleize(interview.mode)} • {interview.meeting_link || interview.location || 'No venue yet'}
         </Typography>

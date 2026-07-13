@@ -3,6 +3,7 @@ import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField
 import { Link as RouterLink } from 'react-router-dom';
 import { getAssignedInterviews } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
+import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, panelInterviewerNames, titleize } from './interviewerUtils.js';
 
 export default function AssignedCandidatesPage() {
@@ -51,7 +52,7 @@ export default function AssignedCandidatesPage() {
           {filteredInterviews.map((interview) => (
             <Stack key={interview.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%', '&:first-of-type': { borderTop: 0 } }}>
               <Box>
-                <Typography sx={{ fontWeight: 700 }}>{candidateName(interview)} • {jobTitle(interview)}</Typography>
+                <ApplicantJobSummary applicantName={candidateName(interview)} jobTitle={jobTitle(interview)} />
                 <Typography color="text.secondary" variant="body2">
                   {titleize(interview.application?.status)} • Scheduled: {formatDateTime(interview.scheduled_datetime)} • Panel: {panelInterviewerNames(interview)} • Remark: {interview.application?.recruiter_remark || '—'}
                 </Typography>
