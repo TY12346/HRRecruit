@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Autocomplete, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createInterviewSchedulingRequest, getApplication, getGoogleCalendarConnectUrl, getGoogleCalendarStatus, getInterviewSchedulingRequests, getOrganizationMembers } from '../../api/client.js';
+import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 import { buildApplicationTemplateContext, getCommunicationTemplates, renderCommunicationTemplate } from './communicationTemplates.js';
@@ -99,7 +100,7 @@ export default function InterviewAssignmentPage() {
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         {isLoading ? <CircularProgress /> : (
           <Stack spacing={3}>
-            <Typography><strong>Candidate:</strong> {application?.applicant?.full_name} for {application?.job_title}</Typography>
+            <ApplicantJobSummary applicantName={application?.applicant?.full_name} jobTitle={application?.job_title} />
 
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Stack spacing={1}>

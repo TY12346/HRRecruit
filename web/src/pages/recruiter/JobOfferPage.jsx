@@ -17,6 +17,7 @@ import {
   Typography,
 } from '@mui/material';
 import { getApplications, getJobOffers, sendJobOffer, withdrawJobOffer } from '../../api/client.js';
+import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
 import { applicationName, formatDate, formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
 import { getCommunicationTemplates, renderApplicationTemplate } from './communicationTemplates.js';
@@ -134,7 +135,7 @@ export default function JobOfferPage() {
             <Box component="form" onSubmit={submit}>
               <Stack spacing={2}>
                 <TextField label="HR-approved candidate" select required value={applicationId} onChange={(e) => setApplicationId(e.target.value)}>
-                  {applications.map((app) => <MenuItem key={app.id} value={app.id}>{applicationName(app)} — {app.job_title}</MenuItem>)}
+                  {applications.map((app) => <MenuItem key={app.id} value={app.id}><ApplicantJobSummary applicantName={applicationName(app)} jobTitle={app.job_title} variant="body2" /></MenuItem>)}
                 </TextField>
                 <TextField
                   label="Candidate communication template"

@@ -113,7 +113,7 @@ function SummaryResult({ summary }) {
         <Typography><strong>Weaknesses:</strong> {summary.weaknesses || '—'}</Typography>
         <Typography><strong>Communication score:</strong> {summary.communication_score ?? '—'}</Typography>
         <Typography><strong>Overall impression:</strong> {summary.overall_impression || '—'}</Typography>
-        <Typography whiteSpace="pre-line"><strong>Editable summary:</strong> {summary.editable_summary_text || '—'}</Typography>
+        <Typography whiteSpace="pre-line"><strong>Overall summary:</strong> {summary.editable_summary_text || '—'}</Typography>
       </Stack>
     </Paper>
   );
