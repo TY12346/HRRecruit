@@ -40,6 +40,10 @@ When running on a physical phone or tablet:
    If you omit `:8000`, Android will try port `80` and the app will show the
    API-unreachable message even though `:8000` works in a browser.
 
+   Saving the URL now runs a five-second connectivity check against
+   `/api/health/`. A successful message confirms that the phone can reach
+   Django; it does not validate applicant login credentials.
+
 You can also pass the URL at launch time:
 
 ```bash
