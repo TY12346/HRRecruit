@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 
 const navItems = [
   { icon: '⌂', label: 'Dashboard', to: '/hr-head' },
-  { icon: '☷', label: 'Submitted Hiring Decisions', to: '/hr-head/hiring-decisions' },
+  { icon: '☷', label: 'Hiring Recommendations', to: '/hr-head/hiring-decisions' },
   { icon: '⌕', label: 'Applicant Search', to: '/hr-head/applicant-search' },
   { icon: '▧', label: 'Job Requisitions', to: '/hr-head/job-requisitions' },
   { icon: '◔', label: 'Analytics', to: '/hr-head/analytics' },

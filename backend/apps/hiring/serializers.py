@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.applications.serializers import JobApplicationSerializer
 from apps.users.models import User
-from .models import HiringDecision, JobOffer
+from .models import HiringDecision, JobHiringRecommendation, JobHiringRecommendationItem, JobOffer
 
 
 ALLOWED_OFFER_LETTER_CONTENT_TYPES = {
@@ -20,6 +20,47 @@ class HiringDecisionSubmitSerializer(serializers.Serializer):
 
 class HRDecisionReviewSerializer(serializers.Serializer):
     justification = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+
+
+class JobRecommendationSubmitSerializer(serializers.Serializer):
+    recommendation_type = serializers.ChoiceField(choices=JobHiringRecommendation.RecommendationType.choices)
+    justification = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+    application_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
+    reasons = serializers.DictField(child=serializers.CharField(allow_blank=True), required=False, default=dict)
+
+
+class JobRecommendationReviewSerializer(serializers.Serializer):
+    hr_remarks = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True, default='')
+
+
+class JobHiringRecommendationItemSerializer(serializers.ModelSerializer):
+    application = JobApplicationSerializer(read_only=True)
+
+    class Meta:
+        model = JobHiringRecommendationItem
+        fields = ['id', 'application', 'selection_order', 'reason', 'selected_for_offer']
+        read_only_fields = fields
+
+
+class JobHiringRecommendationSerializer(serializers.ModelSerializer):
+    job_title = serializers.CharField(source='job_posting.title', read_only=True)
+    organization_name = serializers.CharField(source='job_posting.organization.name', read_only=True)
+    vacancies = serializers.IntegerField(source='job_posting.vacancies', read_only=True)
+    recruiter_name = serializers.CharField(source='recruiter.full_name', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.full_name', read_only=True)
+    items = JobHiringRecommendationItemSerializer(many=True, read_only=True)
+    candidate_pool = serializers.SerializerMethodField()
+
+    class Meta:
+        model = JobHiringRecommendation
+        fields = ['id', 'job_posting', 'job_title', 'organization_name', 'vacancies', 'recruiter', 'recruiter_name',
+                  'recommendation_type', 'justification', 'status', 'items', 'candidate_pool', 'submitted_at', 'reviewed_by',
+                  'reviewed_by_name', 'reviewed_at', 'hr_remarks', 'created_at', 'updated_at']
+        read_only_fields = fields
+
+    def get_candidate_pool(self, recommendation):
+        applications = recommendation.job_posting.applications.select_related('applicant', 'assigned_interviewer').order_by('-final_score', 'applied_at')
+        return JobApplicationSerializer(applications, many=True, context=self.context).data
 
 
 class HiringDecisionSerializer(serializers.ModelSerializer):

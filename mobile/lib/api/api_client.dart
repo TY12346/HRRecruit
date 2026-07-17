@@ -223,6 +223,18 @@ class ApiClient {
     );
   }
 
+  Future<void> checkConnection() async {
+    await dio.get<void>(
+      'health/',
+      options: Options(
+        connectTimeout: const Duration(seconds: 5),
+        sendTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+        extra: const {_retriedWithDefaultBaseUrlKey: true},
+      ),
+    );
+  }
+
   Future<Uri> resolveBackendFileUri(String fileUrlOrPath) async {
     final trimmed = fileUrlOrPath.trim();
     final parsedUri = Uri.tryParse(trimmed);

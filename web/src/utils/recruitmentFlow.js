@@ -88,7 +88,7 @@ const STATUS_DETAILS = {
     label: 'Evaluation submitted',
     description: 'The interviewer submitted the structured evaluation for recruiter review.',
     nextActions: {
-      recruiter: 'Submit a hire or reject recommendation for HR approval.',
+      recruiter: 'After intake closes, compare the job candidate pool and submit one job-level hiring recommendation.',
       interviewer: 'No further action is needed unless the recruiter asks for clarification.',
       applicant: 'Wait for the hiring decision review.',
     },

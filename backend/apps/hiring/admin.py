@@ -1,6 +1,18 @@
 from django.contrib import admin
 
-from .models import HiringDecision, JobOffer
+from .models import HiringDecision, JobHiringRecommendation, JobHiringRecommendationItem, JobOffer
+
+
+class JobHiringRecommendationItemInline(admin.TabularInline):
+    model = JobHiringRecommendationItem
+    extra = 0
+
+
+@admin.register(JobHiringRecommendation)
+class JobHiringRecommendationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'job_posting', 'recommendation_type', 'status', 'recruiter', 'submitted_at', 'reviewed_by')
+    list_filter = ('recommendation_type', 'status')
+    inlines = [JobHiringRecommendationItemInline]
 
 
 @admin.register(HiringDecision)
