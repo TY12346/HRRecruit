@@ -349,6 +349,8 @@ def top_jobs_chart(rows):
     return Chart.single_dataset([row['job_title'] for row in rows], [row['applications'] for row in rows], 'Applications')
 
 def base_application_metrics(jobs, applications):
+    from apps.hiring.models import JobHiringRecommendation
+    from apps.jobs.models import JobPosting
     total_applications = applications.count()
     shortlisted_count = applications.filter(status=JobApplication.Status.SHORTLISTED).count()
     rejected_count = applications.filter(status__in=REJECTED_STATUSES).count()
@@ -357,6 +359,8 @@ def base_application_metrics(jobs, applications):
     offers = JobOffer.objects.filter(application__in=applications)
     total_offers = offers.count()
     accepted_offers = offers.filter(offer_status=JobOffer.OfferStatus.ACCEPTED).count()
+    declined_offers = offers.filter(offer_status=JobOffer.OfferStatus.DECLINED).count()
+    recommendations = JobHiringRecommendation.objects.filter(job_posting__in=jobs)
 
     return {
         'total_job_postings': jobs.count(),
@@ -370,6 +374,11 @@ def base_application_metrics(jobs, applications):
         'offer_acceptance_rate': rate(accepted_offers, total_offers),
         'total_offers': total_offers,
         'accepted_offers': accepted_offers,
+        'declined_offers': declined_offers,
+        'pending_hr_approval_count': recommendations.filter(status=JobHiringRecommendation.Status.PENDING_HR_APPROVAL).count(),
+        'recommendation_approved_count': recommendations.filter(status=JobHiringRecommendation.Status.APPROVED).count(),
+        'recommendation_rejected_count': recommendations.filter(status=JobHiringRecommendation.Status.REJECTED).count(),
+        'closed_no_hire_count': jobs.filter(status=JobPosting.Status.CLOSED_NO_HIRE).count(),
         'conversion_rates': conversion_rates(applications),
         'score_distribution': score_distribution(applications),
         'applications_over_time': applications_over_time(applications),

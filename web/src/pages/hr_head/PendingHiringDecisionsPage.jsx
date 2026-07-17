@@ -1,192 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { approveHiringDecision, getPendingHiringDecisions, rejectHiringDecision } from '../../api/client.js';
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
+import { approveJobHiringRecommendation, getJobHiringRecommendations, rejectJobHiringRecommendation } from '../../api/client.js';
 import HRHeadNav from './HRHeadNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
-import ApplicationFlowSummary from '../../components/ApplicationFlowSummary.jsx';
-import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
 
 export default function PendingHiringDecisionsPage() {
-  const [decisions, setDecisions] = useState([]);
-  const [selectedDecision, setSelectedDecision] = useState(null);
-  const [reviewAction, setReviewAction] = useState('approve');
-  const [justification, setJustification] = useState('');
+  const [recommendations, setRecommendations] = useState([]);
+  const [review, setReview] = useState(null);
+  const [remarks, setRemarks] = useState('');
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const loadDecisions = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const data = await getPendingHiringDecisions();
-      setDecisions(data);
-    } catch (loadError) {
-      setError(getApiErrorMessage(loadError, 'Unable to load pending hiring decisions.'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadInitialDecisions = async () => {
-      setIsLoading(true);
-      setError('');
-      try {
-        const data = await getPendingHiringDecisions();
-        if (isMounted) {
-          setDecisions(data);
-        }
-      } catch (loadError) {
-        if (isMounted) {
-          setError(getApiErrorMessage(loadError, 'Unable to load pending hiring decisions.'));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadInitialDecisions();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const openReviewDialog = (decision, action) => {
-    setSelectedDecision(decision);
-    setReviewAction(action);
-    setJustification('');
-  };
-
-  const closeReviewDialog = () => {
-    if (!isSubmitting) {
-      setSelectedDecision(null);
-    }
-  };
-
-  const submitReview = async () => {
-    if (!justification.trim()) {
-      setError('A HR head justification is required.');
-      return;
-    }
-
-    setError('');
-    setSuccessMessage('');
-    setIsSubmitting(true);
-    try {
-      if (reviewAction === 'approve') {
-        await approveHiringDecision(selectedDecision.id, justification);
-      } else {
-        await rejectHiringDecision(selectedDecision.id, justification);
-      }
-      setSuccessMessage(`Hiring decision ${reviewAction === 'approve' ? 'approved' : 'rejected'} successfully.`);
-      setSelectedDecision(null);
-      await loadDecisions();
-    } catch (submitError) {
-      setError(getApiErrorMessage(submitError, 'Unable to review hiring decision.'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <Box>
-      <HRHeadNav />
-      <Stack spacing={3}>
-        <Box>
-          <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
-            Pending Hiring Decisions
-          </Typography>
-          <Typography color="text.secondary">
-            Review recruiter hiring or rejection recommendations and provide HR approval justification.
-          </Typography>
-        </Box>
-
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
-        {isLoading ? <CircularProgress aria-label="Loading pending decisions" /> : null}
-
-        {!isLoading && decisions.length === 0 ? <Alert severity="info">No pending hiring decisions.</Alert> : null}
-
-        {decisions.map((decision) => {
-          const application = decision.application ?? {};
-          const applicant = application.applicant ?? {};
-          return (
-            <Card key={decision.id}>
-              <CardContent>
-                <Stack spacing={2}>
-                  <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-                    <Box>
-                      <Typography component="h3" variant="h6">
-                        {titleize(decision.decision)} recommendation for {applicant.full_name ?? 'Applicant'}
-                      </Typography>
-                      <Typography color="text.secondary">
-                        {application.job_title ?? 'Job'} • Submitted by {decision.recruiter_name} on {formatDateTime(decision.submitted_at)}
-                      </Typography>
-                    </Box>
-                    <Stack direction="row" spacing={1}>
-                      <Button color="success" onClick={() => openReviewDialog(decision, 'approve')} variant="contained">
-                        Approve
-                      </Button>
-                      <Button color="error" onClick={() => openReviewDialog(decision, 'reject')} variant="outlined">
-                        Reject
-                      </Button>
-                    </Stack>
-                  </Stack>
-                  <Typography><strong>Recruiter justification:</strong> {decision.recruiter_justification}</Typography>
-                  <Typography><strong>Applicant:</strong> {applicant.email ?? '—'} {applicant.phone_number ? `• ${applicant.phone_number}` : ''}</Typography>
-                  <Typography><strong>Application status:</strong> {getApplicationStatusInfo(application.status, 'hr_head').label}</Typography>
-                  <ApplicationFlowSummary status={application.status} role="hr_head" compact />
-                  <Typography><strong>AI final score:</strong> {application.final_score ?? '—'}</Typography>
-                </Stack>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </Stack>
-
-      <Dialog fullWidth maxWidth="sm" open={Boolean(selectedDecision)} onClose={closeReviewDialog}>
-        <DialogTitle>{reviewAction === 'approve' ? 'Approve hiring decision' : 'Reject hiring decision'}</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            label="HR justification"
-            minRows={4}
-            multiline
-            onChange={(event) => setJustification(event.target.value)}
-            required
-            sx={{ mt: 1 }}
-            value={justification}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button disabled={isSubmitting} onClick={closeReviewDialog}>Cancel</Button>
-          <Button disabled={isSubmitting} onClick={submitReview} variant="contained">
-            {isSubmitting ? 'Submitting…' : reviewAction === 'approve' ? 'Approve' : 'Reject'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => { setLoading(true); try { setRecommendations(await getJobHiringRecommendations({ status: 'pending_hr_approval' })); } catch (err) { setError(getApiErrorMessage(err, 'Unable to load hiring recommendations.')); } finally { setLoading(false); } }, []);
+  useEffect(() => { load(); }, [load]);
+  const submit = async () => { try { if (review.action === 'approve') await approveJobHiringRecommendation(review.item.id, remarks); else await rejectJobHiringRecommendation(review.item.id, remarks); setSuccess(`Hiring recommendation ${review.action === 'approve' ? 'approved' : 'returned for review'}.`); setReview(null); setRemarks(''); await load(); } catch (err) { setError(getApiErrorMessage(err, 'Unable to review recommendation.')); } };
+  return <Box><HRHeadNav /><Stack spacing={3}>
+    <Box><Typography variant="h5" sx={{ fontWeight: 700 }}>Pending Job-level Hiring Recommendations</Typography><Typography color="text.secondary">Approve or reject the recommendation for the job posting as a whole.</Typography></Box>
+    {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}{loading ? <CircularProgress /> : null}
+    {!loading && recommendations.length === 0 ? <Alert severity="info">No job-level recommendations are pending HR approval.</Alert> : null}
+    {recommendations.map((item) => <Card key={item.id}><CardContent><Stack spacing={2}>
+      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between"><Box><Typography variant="h6">{item.job_title}</Typography><Typography color="text.secondary">{titleize(item.recommendation_type)} • {item.vacancies} vacancy/vacancies • {item.organization_name}</Typography><Typography variant="caption">Submitted by {item.recruiter_name} on {formatDateTime(item.submitted_at)}</Typography></Box><Stack direction="row" spacing={1}><Button color="success" variant="contained" onClick={() => setReview({ item, action: 'approve' })}>Approve</Button><Button color="error" variant="outlined" onClick={() => setReview({ item, action: 'reject' })}>Reject</Button></Stack></Stack>
+      <Typography><strong>Recruiter justification:</strong> {item.justification}</Typography>
+      <Typography><strong>Selected candidates:</strong> {item.items.length ? item.items.map((candidate) => candidate.application?.applicant?.full_name).join(', ') : 'None — Recommend No Hire'}</Typography>
+      <Typography><strong>Full candidate comparison:</strong></Typography>
+      {(item.candidate_pool || []).map((candidate) => <Box key={candidate.id} sx={{ pl: 2 }}><Typography variant="body2">{candidate.applicant?.full_name} • {titleize(candidate.status)} • AI resume score {candidate.final_score ?? '—'} • Skills {(candidate.extracted_skills || []).join(', ') || '—'}</Typography></Box>)}
+      {item.items.map((candidate) => <Box key={candidate.id} sx={{ borderLeft: 3, borderColor: 'primary.main', pl: 2 }}><Typography>{candidate.selection_order}. {candidate.application?.applicant?.full_name} <Chip size="small" label={titleize(candidate.application?.status)} /></Typography><Typography variant="body2">AI resume score: {candidate.application?.final_score ?? '—'} • Evaluation evidence completed before submission</Typography></Box>)}
+    </Stack></CardContent></Card>)}
+  </Stack><Dialog open={Boolean(review)} onClose={() => setReview(null)} fullWidth><DialogTitle>{review?.action === 'approve' ? 'Approve' : 'Reject / return'} job-level recommendation</DialogTitle><DialogContent><TextField autoFocus fullWidth multiline minRows={4} sx={{ mt: 1 }} label="HR remarks (optional)" value={remarks} onChange={(event) => setRemarks(event.target.value)} /></DialogContent><DialogActions><Button onClick={() => setReview(null)}>Cancel</Button><Button variant="contained" onClick={submit}>{review?.action === 'approve' ? 'Approve' : 'Reject'}</Button></DialogActions></Dialog></Box>;
 }

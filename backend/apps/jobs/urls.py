@@ -4,6 +4,7 @@ from apps.applications.views import JobApplyAPIView, RankedCandidatesAPIView
 
 from .views import (
     JobDetailAPIView,
+    JobCloseIntakeAPIView,
     JobDuplicateAPIView,
     JobEvaluationFormAPIView,
     JobListCreateAPIView,
@@ -22,6 +23,7 @@ urlpatterns = [
     path('requisitions/<int:requisition_id>/approve/', JobRequisitionApproveAPIView.as_view(), name='job-requisition-approve'),
     path('requisitions/<int:requisition_id>/reject/', JobRequisitionRejectAPIView.as_view(), name='job-requisition-reject'),
     path('<int:job_id>/', JobDetailAPIView.as_view(), name='job-detail'),
+    path('<int:job_id>/close-intake/', JobCloseIntakeAPIView.as_view(), name='job-close-intake'),
     path('<int:job_id>/duplicate/', JobDuplicateAPIView.as_view(), name='job-duplicate'),
     path('<int:job_id>/requirements/', JobRequirementsAPIView.as_view(), name='job-requirements'),
     path('<int:job_id>/scorecard/', JobEvaluationFormAPIView.as_view(), name='job-evaluation-scorecard'),

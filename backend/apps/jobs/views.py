@@ -22,6 +22,7 @@ from .serializers import (
     JobRequisitionRejectSerializer,
     JobRequisitionSerializer,
 )
+from apps.hiring.services import refresh_job_readiness
 
 
 def get_active_membership(user, role=None):
@@ -218,6 +219,22 @@ class JobDetailAPIView(APIView):
         job = recruiter_job_or_404(request.user, job_id)
         job.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class JobCloseIntakeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, job_id):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can close application intake.')
+        job = recruiter_job_or_404(request.user, job_id)
+        if job.status != JobPosting.Status.OPEN:
+            raise ValidationError({'status': 'Application intake can only be closed for an open job posting.'})
+        job.status = JobPosting.Status.APPLICATION_INTAKE_CLOSED
+        job.save(update_fields=['status', 'updated_at'])
+        readiness = refresh_job_readiness(job)
+        return Response({'job': JobPostingSerializer(job, context={'request': request}).data, 'readiness': readiness})
 
 
 class JobDuplicateAPIView(APIView):

@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.applications.models import JobApplication
+from apps.jobs.models import JobPosting
 from apps.users.models import User
 
 
@@ -57,6 +58,45 @@ class HiringDecision(models.Model):
 
     def __str__(self):
         return f'{self.application} - {self.get_decision_display()}'
+
+
+class JobHiringRecommendation(models.Model):
+    class RecommendationType(models.TextChoices):
+        RECOMMEND_HIRE = 'recommend_hire', 'Recommend Hire'
+        RECOMMEND_NO_HIRE = 'recommend_no_hire', 'Recommend No Hire'
+
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        PENDING_HR_APPROVAL = 'pending_hr_approval', 'Pending HR Approval'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected / Returned for Review'
+
+    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE, related_name='hiring_recommendations')
+    recruiter = models.ForeignKey(User, on_delete=models.PROTECT, related_name='submitted_job_hiring_recommendations', limit_choices_to={'role': User.Role.RECRUITER})
+    recommendation_type = models.CharField(max_length=30, choices=RecommendationType.choices)
+    justification = models.TextField()
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.DRAFT)
+    submitted_at = models.DateTimeField(blank=True, null=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='reviewed_job_hiring_recommendations', blank=True, null=True, limit_choices_to={'role': User.Role.HR_HEAD})
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    hr_remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class JobHiringRecommendationItem(models.Model):
+    recommendation = models.ForeignKey(JobHiringRecommendation, on_delete=models.CASCADE, related_name='items')
+    application = models.ForeignKey(JobApplication, on_delete=models.CASCADE, related_name='job_hiring_recommendation_items')
+    selection_order = models.PositiveIntegerField(default=1)
+    reason = models.TextField(blank=True)
+    selected_for_offer = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['selection_order', 'id']
+        constraints = [models.UniqueConstraint(fields=['recommendation', 'application'], name='unique_job_recommendation_application')]
 
 
 class JobOffer(models.Model):
