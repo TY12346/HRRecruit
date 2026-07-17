@@ -46,6 +46,7 @@ class InterviewSerializer(serializers.ModelSerializer):
     transcript = serializers.SerializerMethodField()
     ai_summary = serializers.SerializerMethodField()
     deliverable_status = serializers.SerializerMethodField()
+    evaluation_submitted = serializers.SerializerMethodField()
 
     class Meta:
         model = Interview
@@ -73,6 +74,7 @@ class InterviewSerializer(serializers.ModelSerializer):
             'transcript',
             'ai_summary',
             'deliverable_status',
+            'evaluation_submitted',
             'created_at',
             'updated_at',
         ]
@@ -126,6 +128,9 @@ class InterviewSerializer(serializers.ModelSerializer):
         if not form:
             return []
         return EvaluationCriterionSerializer(form.criteria.all(), many=True).data
+
+    def get_evaluation_submitted(self, interview):
+        return interview.evaluations.exists()
 
 
 class InterviewerAvailabilityPatternSerializer(serializers.ModelSerializer):

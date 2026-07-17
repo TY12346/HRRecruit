@@ -56,6 +56,7 @@ export default function SubmitEvaluationPage() {
           comment: answer.comment,
         })),
       });
+      setInterview((current) => ({ ...current, evaluation_submitted: true }));
       setSuccess('Evaluation submitted successfully.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to submit evaluation. Please complete every rubric score within its allowed maximum.'));
@@ -80,7 +81,7 @@ export default function SubmitEvaluationPage() {
             {deliverableDeadline}
           </Alert>
         ) : null}
-        {criteria.length === 0 && interview ? (
+        {criteria.length === 0 && interview && !interview.evaluation_submitted ? (
           <Alert severity="warning" sx={{ mb: 2 }}>
             This job does not have an interview evaluation scorecard configured yet. Ask the recruiter to set up the form before submitting an evaluation.
           </Alert>
@@ -88,6 +89,11 @@ export default function SubmitEvaluationPage() {
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
 
+        {interview?.evaluation_submitted ? (
+          <Alert severity="success">
+            This evaluation has already been submitted. The evaluation form is no longer available.
+          </Alert>
+        ) : (
         <Stack component="form" spacing={2} onSubmit={submit}>
           <TextField
             label="Overall comment"
@@ -142,6 +148,7 @@ export default function SubmitEvaluationPage() {
             {isSaving ? 'Submitting…' : 'Submit evaluation'}
           </Button>
         </Stack>
+        )}
       </Paper>
     </Box>
   );
