@@ -10,11 +10,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.applications.models import JobApplication
+from apps.jobs.models import JobPosting
+from apps.interviews.models import Interview
 from apps.notifications.email_service import send_job_offer_email
 from apps.notifications.services import create_bulk_notifications, create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
-from .models import HiringDecision, JobOffer
+from .models import HiringDecision, JobHiringRecommendation, JobHiringRecommendationItem, JobOffer
 from .serializers import (
     HiringDecisionSerializer,
     HiringDecisionSubmitSerializer,
@@ -23,7 +25,11 @@ from .serializers import (
     JobOfferCreateSerializer,
     JobOfferDeclineSerializer,
     JobOfferSerializer,
+    JobHiringRecommendationSerializer,
+    JobRecommendationReviewSerializer,
+    JobRecommendationSubmitSerializer,
 )
+from .services import ELIGIBLE_RECOMMENDATION_STATUSES, refresh_job_readiness
 
 
 def get_active_membership(user, role):
@@ -153,60 +159,210 @@ def applicant_offer_for_update_or_404(user, offer_id):
 def change_application_status(application, new_status, changed_by, note):
     return application.change_status(new_status, changed_by=changed_by, note=note)
 
+
+def recruiter_job_or_404(user, job_id):
+    if user.role != User.Role.RECRUITER:
+        raise PermissionDenied('Only recruiters can submit hiring recommendations.')
+    membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
+    if not membership:
+        raise PermissionDenied('Recruiter must belong to an active organization.')
+    return get_object_or_404(
+        JobPosting.objects.select_related('organization', 'recruiter'),
+        id=job_id, organization=membership.organization, recruiter=user,
+    )
+
+
+def recommendation_for_hr_or_404(user, recommendation_id):
+    if user.role != User.Role.HR_HEAD:
+        raise PermissionDenied('Only HR department heads can review hiring recommendations.')
+    membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
+    if not membership:
+        raise PermissionDenied('An active HR head organization membership is required.')
+    return get_object_or_404(
+        JobHiringRecommendation.objects.select_for_update().select_related('job_posting', 'recruiter'),
+        id=recommendation_id, job_posting__organization=membership.organization,
+        status=JobHiringRecommendation.Status.PENDING_HR_APPROVAL,
+    )
+
 # Recruiters may only request HR approval after an interviewer has submitted
 # the interview evaluation. This keeps the FYP demo workflow in the required
 # interview -> evaluation -> hiring-decision order.
 HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES = (JobApplication.Status.EVALUATION_SUBMITTED,)
 
 
-class HiringDecisionSubmitAPIView(APIView):
+class JobCandidateComparisonAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, job_id):
+        if request.user.role == User.Role.RECRUITER:
+            job = recruiter_job_or_404(request.user, job_id)
+        elif request.user.role == User.Role.HR_HEAD:
+            membership = get_active_membership(request.user, OrganizationMembership.Role.HR_HEAD)
+            if not membership:
+                raise PermissionDenied('An active HR head organization membership is required.')
+            job = get_object_or_404(JobPosting, id=job_id, organization=membership.organization)
+        else:
+            raise PermissionDenied('Only recruiters and HR department heads can compare candidates.')
+
+        readiness = refresh_job_readiness(job)
+        applications = job.applications.select_related('applicant', 'assigned_interviewer').prefetch_related(
+            'interviews__evaluations',
+            'interviews__recordings__transcripts__ai_summaries',
+        ).order_by('-final_score', 'applied_at')
+        candidates = []
+        for application in applications:
+            interviews = list(application.interviews.all())
+            evaluations = [evaluation for interview in interviews for evaluation in interview.evaluations.all()]
+            transcripts = [transcript for interview in interviews for recording in interview.recordings.all()
+                           for transcript in recording.transcripts.all()]
+            summaries = [summary for interview in interviews for recording in interview.recordings.all()
+                         for transcript in recording.transcripts.all() for summary in transcript.ai_summaries.all()]
+            candidates.append({
+                'application_id': application.id,
+                'candidate_name': application.applicant.full_name,
+                'application_status': application.status,
+                'ai_resume_score': application.final_score,
+                'extracted_skills': application.extracted_skills,
+                'extracted_education': application.extracted_education,
+                'extracted_experience': application.extracted_experience,
+                'shortlisted': bool(interviews) or application.status in ELIGIBLE_RECOMMENDATION_STATUSES,
+                'interview_statuses': [interview.status for interview in interviews],
+                'evaluation_status': 'submitted' if evaluations else ('not_required' if not interviews else 'pending'),
+                'evaluation_score': evaluations[-1].total_score if evaluations else None,
+                'evaluation_summary': evaluations[-1].overall_comment if evaluations else '',
+                'transcript_status': 'available' if transcripts else 'not_available',
+                'ai_summary_status': 'available' if summaries else 'not_available',
+                'recruiter_remark': application.recruiter_remark,
+                'eligible_for_recommendation': application.status in ELIGIBLE_RECOMMENDATION_STATUSES,
+            })
+        return Response({'job': {'id': job.id, 'title': job.title, 'status': job.status, 'vacancies': job.vacancies},
+                         'readiness': readiness, 'candidates': candidates})
+
+
+class JobHiringRecommendationListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        recommendations = JobHiringRecommendation.objects.select_related('job_posting', 'job_posting__organization', 'recruiter', 'reviewed_by').prefetch_related('items__application__applicant')
+        if request.user.role == User.Role.RECRUITER:
+            membership = get_active_membership(request.user, OrganizationMembership.Role.RECRUITER)
+            recommendations = recommendations.filter(job_posting__organization=membership.organization, recruiter=request.user) if membership else recommendations.none()
+        elif request.user.role == User.Role.HR_HEAD:
+            membership = get_active_membership(request.user, OrganizationMembership.Role.HR_HEAD)
+            recommendations = recommendations.filter(job_posting__organization=membership.organization) if membership else recommendations.none()
+        else:
+            raise PermissionDenied('Your role cannot access job-level hiring recommendations.')
+        if request.query_params.get('status'):
+            recommendations = recommendations.filter(status=request.query_params['status'])
+        return Response(JobHiringRecommendationSerializer(recommendations, many=True, context={'request': request}).data)
+
+    @transaction.atomic
+    def post(self, request):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can submit hiring recommendations.')
+        serializer = JobRecommendationSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        job = recruiter_job_or_404(request.user, request.data.get('job_posting'))
+        readiness = refresh_job_readiness(job)
+        if not readiness['ready'] or job.status not in (JobPosting.Status.READY_FOR_RECOMMENDATION, JobPosting.Status.RECOMMENDATION_REJECTED):
+            raise ValidationError({'readiness': readiness['reasons'] or ['Job is not ready for a hiring recommendation.']})
+        if JobHiringRecommendation.objects.filter(job_posting=job, status=JobHiringRecommendation.Status.PENDING_HR_APPROVAL).exists():
+            raise ValidationError({'job_posting': 'This job already has a recommendation pending HR approval.'})
+
+        recommendation_type = serializer.validated_data['recommendation_type']
+        application_ids = serializer.validated_data['application_ids']
+        if len(application_ids) != len(set(application_ids)):
+            raise ValidationError({'application_ids': 'Each candidate can only be selected once.'})
+        if recommendation_type == JobHiringRecommendation.RecommendationType.RECOMMEND_HIRE:
+            if not application_ids:
+                raise ValidationError({'application_ids': 'Recommend Hire requires at least one selected candidate.'})
+            if len(application_ids) > job.vacancies:
+                raise ValidationError({'application_ids': f'No more than {job.vacancies} candidate(s) may be selected for this job.'})
+        elif application_ids:
+            raise ValidationError({'application_ids': 'Recommend No Hire must not select any candidates.'})
+        applications = list(job.applications.filter(id__in=application_ids))
+        if len(applications) != len(application_ids):
+            raise ValidationError({'application_ids': 'Every selected candidate must belong to this job posting.'})
+        invalid = [application.id for application in applications if application.status not in ELIGIBLE_RECOMMENDATION_STATUSES]
+        if invalid:
+            raise ValidationError({'application_ids': f'Selected candidates are not fully interviewed/evaluated: {invalid}.'})
+
+        recommendation = JobHiringRecommendation.objects.create(
+            job_posting=job, recruiter=request.user, recommendation_type=recommendation_type,
+            justification=serializer.validated_data['justification'], status=JobHiringRecommendation.Status.PENDING_HR_APPROVAL,
+            submitted_at=timezone.now(),
+        )
+        reasons = serializer.validated_data['reasons']
+        JobHiringRecommendationItem.objects.bulk_create([
+            JobHiringRecommendationItem(recommendation=recommendation, application=application,
+                                        selection_order=index, reason=reasons.get(str(application.id), ''), selected_for_offer=True)
+            for index, application in enumerate(applications, start=1)
+        ])
+        job.status = JobPosting.Status.RECOMMENDATION_PENDING
+        job.save(update_fields=['status', 'updated_at'])
+        create_bulk_notifications(list(organization_hr_heads(job.organization)), 'hiring_recommendation_submitted',
+                                  'Job-level hiring recommendation pending approval',
+                                  f'{request.user.full_name} submitted a hiring recommendation for {job.title}.', related_entity=recommendation)
+        return Response(JobHiringRecommendationSerializer(recommendation, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class JobHiringRecommendationApproveAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @transaction.atomic
-    def post(self, request, application_id):
-        application = recruiter_application_or_404(request.user, application_id)
-        if application.status not in HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES:
-            raise ValidationError({
-                'status': (
-                    'Hiring decisions can only be submitted after the interview evaluation is completed. '
-                    f'Current status: {application.status}.'
-                )
-            })
-        if HiringDecision.objects.filter(
-            application=application,
-            status=HiringDecision.Status.PENDING_HR_APPROVAL,
-        ).exists():
-            raise ValidationError({'application': 'This application already has a pending hiring decision.'})
-        if HiringDecision.objects.filter(
-            application=application,
-            decision=HiringDecision.Decision.HIRE,
-            status=HiringDecision.Status.APPROVED,
-        ).exists():
-            raise ValidationError({'application': 'This application already has an approved hire decision.'})
-
-        serializer = HiringDecisionSubmitSerializer(data=request.data)
+    def post(self, request, recommendation_id):
+        recommendation = recommendation_for_hr_or_404(request.user, recommendation_id)
+        serializer = JobRecommendationReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        decision = HiringDecision.objects.create(
-            application=application,
-            recruiter=request.user,
-            decision=serializer.validated_data['decision'],
-            recruiter_justification=serializer.validated_data['justification'],
-        )
-        change_application_status(
-            application,
-            JobApplication.Status.DECISION_PENDING,
-            request.user,
-            f'Recruiter submitted {decision.decision} decision for HR approval.',
-        )
-        hr_heads = list(organization_hr_heads(application.job.organization))
-        create_bulk_notifications(
-            hr_heads,
-            'hiring_decision_submitted',
-            'Hiring decision pending approval',
-            f'{request.user.full_name} submitted a {decision.decision} decision for {application.applicant.full_name}.',
-            related_entity=decision,
-        )
-        return Response(HiringDecisionSerializer(decision, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        recommendation.status = JobHiringRecommendation.Status.APPROVED
+        recommendation.reviewed_by = request.user
+        recommendation.reviewed_at = timezone.now()
+        recommendation.hr_remarks = serializer.validated_data['hr_remarks']
+        recommendation.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'hr_remarks', 'updated_at'])
+        job = recommendation.job_posting
+        if recommendation.recommendation_type == JobHiringRecommendation.RecommendationType.RECOMMEND_NO_HIRE:
+            job.status = JobPosting.Status.CLOSED_NO_HIRE
+        else:
+            job.status = JobPosting.Status.RECOMMENDATION_APPROVED
+            for item in recommendation.items.select_related('application'):
+                change_application_status(item.application, JobApplication.Status.HR_APPROVED, request.user, 'Selected in approved job-level hiring recommendation.')
+        job.save(update_fields=['status', 'updated_at'])
+        create_notification(recommendation.recruiter, 'hiring_recommendation_reviewed', 'Hiring recommendation approved',
+                            f'HR approved the hiring recommendation for {job.title}.', related_entity=recommendation)
+        return Response(JobHiringRecommendationSerializer(recommendation, context={'request': request}).data)
+
+
+class JobHiringRecommendationRejectAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, recommendation_id):
+        recommendation = recommendation_for_hr_or_404(request.user, recommendation_id)
+        serializer = JobRecommendationReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        recommendation.status = JobHiringRecommendation.Status.REJECTED
+        recommendation.reviewed_by = request.user
+        recommendation.reviewed_at = timezone.now()
+        recommendation.hr_remarks = serializer.validated_data['hr_remarks']
+        recommendation.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'hr_remarks', 'updated_at'])
+        job = recommendation.job_posting
+        job.status = JobPosting.Status.RECOMMENDATION_REJECTED
+        job.save(update_fields=['status', 'updated_at'])
+        create_notification(recommendation.recruiter, 'hiring_recommendation_reviewed', 'Hiring recommendation returned for review',
+                            f'HR rejected the hiring recommendation for {job.title}.', related_entity=recommendation)
+        return Response(JobHiringRecommendationSerializer(recommendation, context={'request': request}).data)
+
+
+class HiringDecisionSubmitAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, application_id):
+        raise ValidationError({
+            'detail': (
+                'Applicant-level hiring decisions are no longer accepted. Close application intake and submit '
+                'one job-level Hiring Recommendation.'
+            )
+        })
 
 
 class PendingHiringDecisionListAPIView(APIView):
@@ -311,14 +467,15 @@ class JobOfferCreateAPIView(APIView):
     @transaction.atomic
     def post(self, request, application_id):
         application = recruiter_application_or_404(request.user, application_id)
-        approved_hire_exists = HiringDecision.objects.filter(
+        approved_hire_exists = JobHiringRecommendationItem.objects.filter(
             application=application,
-            recruiter=request.user,
-            decision=HiringDecision.Decision.HIRE,
-            status=HiringDecision.Status.APPROVED,
+            selected_for_offer=True,
+            recommendation__recruiter=request.user,
+            recommendation__recommendation_type=JobHiringRecommendation.RecommendationType.RECOMMEND_HIRE,
+            recommendation__status=JobHiringRecommendation.Status.APPROVED,
         ).exists()
         if not approved_hire_exists or application.status != JobApplication.Status.HR_APPROVED:
-            raise ValidationError({'application': 'A job offer can only be sent after HR approves a hire decision.'})
+            raise ValidationError({'application': 'A job offer can only be sent to a candidate selected in an HR-approved job-level hiring recommendation.'})
         if JobOffer.objects.filter(application=application, offer_status=JobOffer.OfferStatus.SENT).exists():
             raise ValidationError({'application': 'This application already has a sent job offer.'})
 
@@ -326,6 +483,8 @@ class JobOfferCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         offer = JobOffer.objects.create(application=application, **serializer.validated_data)
         change_application_status(application, JobApplication.Status.OFFER_SENT, request.user, 'Recruiter sent job offer.')
+        application.job.status = JobPosting.Status.OFFER_STAGE
+        application.job.save(update_fields=['status', 'updated_at'])
         create_notification(
             application.applicant,
             'job_offer_sent',
@@ -381,6 +540,8 @@ class JobOfferAcceptAPIView(APIView):
             request.user,
             'Applicant accepted job offer; application marked as hired for final lifecycle and analytics.',
         )
+        application.job.status = JobPosting.Status.CLOSED_FILLED
+        application.job.save(update_fields=['status', 'updated_at'])
         create_notification(
             application.job.recruiter,
             'offer_response',

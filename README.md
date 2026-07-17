@@ -1,5 +1,13 @@
 # HRRecruit
 
+## Final recruitment workflow
+
+The final decision is made through a **job-level Hiring Recommendation**, not an applicant-level decision:
+
+`Job open → applicants apply → AI screening/ranking → recruiter shortlists → recruiter closes application intake → interviews → evaluations → Ready for Hiring Recommendation → recruiter compares candidates and submits Recommend Hire or Recommend No Hire → HR Department Head approves/rejects → recruiter sends approved offers → applicant accepts/declines`
+
+Closing application intake prevents new applications while preserving every existing application for interviews, evaluation, comparison, and human review. Recommend Hire may select up to the job's vacancy count. Recommend No Hire selects nobody and requires a justification. Applicants never see internal recommendation or HR review details and are notified only when an approved offer is actually sent.
+
 HRRecruit is a Final Year Project (FYP) recruitment management SaaS prototype. It combines a Django REST Framework backend, a React web portal, and a Flutter applicant mobile app to support the recruitment workflow from job posting to application screening, interviews, hiring approval, offers, notifications, analytics, and subscription demo flows.
 
 The project is designed for examiner review and FYP demonstration. It includes implemented business flows and local/demo fallbacks for external integrations so the system can be demonstrated without paid third-party services.

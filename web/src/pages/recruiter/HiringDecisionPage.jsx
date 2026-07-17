@@ -1,143 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Alert, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
-import { getApplications, submitHiringDecision } from '../../api/client.js';
-import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
+import { getJobCandidateComparison, submitJobHiringRecommendation } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
-import { applicationName, getApiErrorMessage, scoreText } from './recruiterUtils.js';
-import ApplicationFlowSummary from '../../components/ApplicationFlowSummary.jsx';
-import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
-
-const EVALUATED_STATUS = 'evaluation_submitted';
+import { getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 
 export default function HiringDecisionPage() {
-  const { applicationId } = useParams();
-  const [applications, setApplications] = useState([]);
-  const [selectedId, setSelectedId] = useState(applicationId ?? '');
-  const [decision, setDecision] = useState('hire');
+  const { jobId } = useParams();
+  const [data, setData] = useState(null);
+  const [selected, setSelected] = useState([]);
+  const [noHire, setNoHire] = useState(false);
   const [justification, setJustification] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  const evaluatedApplications = useMemo(
-    () => applications.filter((app) => app.status === EVALUATED_STATUS),
-    [applications],
-  );
-  const selected = applications.find((item) => String(item.id) === String(selectedId));
-  const selectedIsEligible = selected?.status === EVALUATED_STATUS;
-
-  useEffect(() => {
-    getApplications()
-      .then((items) => {
-        setApplications(items);
-        const routeSelected = items.find((item) => String(item.id) === String(applicationId));
-        if (routeSelected) {
-          setSelectedId(String(routeSelected.id));
-          return;
-        }
-        const firstEvaluated = items.find((item) => item.status === EVALUATED_STATUS);
-        if (firstEvaluated) setSelectedId(String(firstEvaluated.id));
-      })
-      .catch((err) => setError(getApiErrorMessage(err, 'Unable to load applications.')))
-      .finally(() => setIsLoading(false));
-  }, [applicationId]);
-
-  const submit = async (event) => {
-    event.preventDefault();
+  useEffect(() => { if (jobId) getJobCandidateComparison(jobId).then(setData).catch((err) => setError(getApiErrorMessage(err, 'Unable to load candidate comparison.'))); }, [jobId]);
+  const toggle = (id) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const submit = async () => {
     setError('');
-    setSuccess('');
-    if (!selectedIsEligible) {
-      setError('Select a candidate with a completed interview evaluation before submitting a hiring decision.');
-      return;
-    }
     try {
-      const result = await submitHiringDecision(selectedId, { decision, justification });
-      setSuccess(`Hiring decision #${result.id} submitted for HR approval.`);
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to submit hiring decision.'));
-    }
+      const result = await submitJobHiringRecommendation({ job_posting: Number(jobId), recommendation_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
+      setSuccess(`Hiring Recommendation #${result.id} submitted. Status: Pending HR Approval.`);
+    } catch (err) { setError(getApiErrorMessage(err, 'Unable to submit hiring recommendation.')); }
   };
-
-  return (
-    <Box>
-      <RecruiterNav />
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Hiring decision</Typography>
-        <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Submit hire or reject recommendations only after interview evaluation is complete. AI supports the decision but does not finalize it.
-        </Typography>
-        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
-        {isLoading ? <CircularProgress /> : (
-          <Stack spacing={3}>
-            {evaluatedApplications.length === 0 ? (
-              <Alert severity="info">
-                No evaluated candidates are available yet. Ask the interviewer to submit the interview evaluation before creating a hiring decision.
-              </Alert>
-            ) : null}
-            {selected && !selectedIsEligible ? (
-              <Alert severity="warning">
-                {applicationName(selected)} is currently {getApplicationStatusInfo(selected.status, 'recruiter').label}. Hiring decisions are enabled only after the interviewer submits the evaluation.
-              </Alert>
-            ) : null}
-            <Box component="form" onSubmit={submit}>
-              <Stack spacing={2}>
-                <TextField
-                  label="Evaluated candidate"
-                  select
-                  required
-                  value={selectedId}
-                  onChange={(e) => setSelectedId(e.target.value)}
-                  disabled={evaluatedApplications.length === 0 && !selected}
-                >
-                  {selected && !selectedIsEligible ? (
-                    <MenuItem value={selectedId} disabled>
-                      <ApplicantJobSummary applicantName={applicationName(selected)} jobTitle={`${selected.job_title} (evaluation not complete)`} variant="body2" />
-                    </MenuItem>
-                  ) : null}
-                  {evaluatedApplications.map((app) => (
-                    <MenuItem key={app.id} value={app.id}><ApplicantJobSummary applicantName={applicationName(app)} jobTitle={app.job_title} variant="body2" /></MenuItem>
-                  ))}
-                </TextField>
-                {selectedIsEligible ? (
-                  <ApplicationFlowSummary status={selected.status} role="recruiter" compact />
-                ) : null}
-                <TextField label="Decision" select value={decision} onChange={(e) => setDecision(e.target.value)} disabled={!selectedIsEligible}>
-                  <MenuItem value="hire">Recommend hire</MenuItem>
-                  <MenuItem value="reject">Recommend reject</MenuItem>
-                </TextField>
-                <TextField
-                  label="Justification for HR"
-                  required
-                  multiline
-                  minRows={4}
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  disabled={!selectedIsEligible}
-                />
-                <Button type="submit" variant="contained" disabled={!selectedIsEligible}>Submit for HR approval</Button>
-              </Stack>
-            </Box>
-            <Typography variant="h6">Evaluated candidates</Typography>
-            <Table>
-              <TableHead>
-                <TableRow><TableCell>Candidate</TableCell><TableCell>Job</TableCell><TableCell>Status</TableCell><TableCell>Score</TableCell></TableRow>
-              </TableHead>
-              <TableBody>
-                {evaluatedApplications.slice(0, 8).map((app) => (
-                  <TableRow key={app.id}>
-                    <TableCell>{applicationName(app)}</TableCell>
-                    <TableCell>{app.job_title}</TableCell>
-                    <TableCell><Chip label={getApplicationStatusInfo(app.status, 'recruiter').label} size="small" color="success" /></TableCell>
-                    <TableCell>{scoreText(app.final_score)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Stack>
-        )}
-      </Paper>
-    </Box>
-  );
+  return <Box><RecruiterNav /><Paper sx={{ p: 3 }}><Stack spacing={2}>
+    <Typography variant="h5" sx={{ fontWeight: 700 }}>Job-level Hiring Recommendation</Typography>
+    <Typography color="text.secondary">Compare every candidate for this job. AI and interview evidence support, but do not replace, the human decision.</Typography>
+    {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}
+    {!data ? <CircularProgress /> : <>
+      <Typography><strong>{data.job.title}</strong> • {data.job.vacancies} vacancy/vacancies • {titleize(data.job.status)}</Typography>
+      {!data.readiness.ready ? <Alert severity="warning">Not ready: {data.readiness.reasons.join(' ')}</Alert> : <Alert severity="success">Ready for Hiring Recommendation.</Alert>}
+      <Table><TableHead><TableRow><TableCell>Select</TableCell><TableCell>Candidate</TableCell><TableCell>Application</TableCell><TableCell>AI score</TableCell><TableCell>Interview / evaluation</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
+        {data.candidates.map((candidate) => <TableRow key={candidate.application_id}>
+          <TableCell><Checkbox checked={selected.includes(candidate.application_id)} disabled={noHire || !candidate.eligible_for_recommendation || (!selected.includes(candidate.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(candidate.application_id)} /></TableCell>
+          <TableCell>{candidate.candidate_name}<Typography variant="caption" display="block">{candidate.recruiter_remark || 'No recruiter remarks'}</Typography></TableCell>
+          <TableCell><Chip size="small" label={titleize(candidate.application_status)} /></TableCell><TableCell>{scoreText(candidate.ai_resume_score)}</TableCell>
+          <TableCell>{candidate.interview_statuses.map(titleize).join(', ') || 'No interview'} / {titleize(candidate.evaluation_status)}<Typography variant="caption" display="block">{candidate.evaluation_score ?? 'No evaluation score'} {candidate.evaluation_summary}</Typography></TableCell>
+          <TableCell>Transcript: {titleize(candidate.transcript_status)}<br />AI summary: {titleize(candidate.ai_summary_status)}<br />Skills: {(candidate.extracted_skills || []).join(', ') || '—'}</TableCell>
+        </TableRow>)}
+      </TableBody></Table>
+      <Typography>{selected.length} of {data.job.vacancies} vacancy slots selected.</Typography>
+      <FormControlLabel control={<Checkbox checked={noHire} onChange={(event) => { setNoHire(event.target.checked); if (event.target.checked) setSelected([]); }} />} label="Recommend No Hire (select no candidates)" />
+      <TextField required multiline minRows={4} label="Recruiter justification" value={justification} onChange={(event) => setJustification(event.target.value)} />
+      <Button variant="contained" disabled={!data.readiness.ready || !justification.trim() || (!noHire && selected.length === 0)} onClick={submit}>Submit for HR approval</Button>
+    </>}
+  </Stack></Paper></Box>;
 }

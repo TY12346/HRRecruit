@@ -13,7 +13,16 @@ class JobPosting(models.Model):
     class Status(models.TextChoices):
         DRAFT = 'draft', 'Draft'
         OPEN = 'open', 'Open'
-        CLOSED = 'closed', 'Closed'
+        APPLICATION_INTAKE_CLOSED = 'application_intake_closed', 'Application Intake Closed'
+        INTERVIEWS_IN_PROGRESS = 'interviews_in_progress', 'Interviews In Progress'
+        READY_FOR_RECOMMENDATION = 'ready_for_recommendation', 'Ready for Hiring Recommendation'
+        RECOMMENDATION_PENDING = 'recommendation_pending', 'Recommendation Pending HR Approval'
+        RECOMMENDATION_APPROVED = 'recommendation_approved', 'Recommendation Approved'
+        RECOMMENDATION_REJECTED = 'recommendation_rejected', 'Recommendation Rejected / Returned for Review'
+        OFFER_STAGE = 'offer_stage', 'Offer Stage / Offer Sent'
+        CLOSED_FILLED = 'closed_filled', 'Closed - Filled'
+        CLOSED_NO_HIRE = 'closed_no_hire', 'Closed - No Hire'
+        CLOSED = 'closed', 'Closed (Legacy)'
 
     organization = models.ForeignKey(
         Organization,
@@ -41,7 +50,9 @@ class JobPosting(models.Model):
     position_status = models.CharField(max_length=30, choices=PositionStatus.choices, default=PositionStatus.NEW_HEADCOUNT)
     reason_for_hire = models.TextField(blank=True)
     impact_of_not_hiring = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    vacancies = models.PositiveIntegerField(default=1)
+    application_deadline = models.DateField(blank=True, null=True)
+    status = models.CharField(max_length=40, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

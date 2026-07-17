@@ -9,9 +9,17 @@ from .views import (
     JobOfferListAPIView,
     JobOfferWithdrawAPIView,
     PendingHiringDecisionListAPIView,
+    JobCandidateComparisonAPIView,
+    JobHiringRecommendationListCreateAPIView,
+    JobHiringRecommendationApproveAPIView,
+    JobHiringRecommendationRejectAPIView,
 )
 
 urlpatterns = [
+    path('jobs/<int:job_id>/candidate-comparison/', JobCandidateComparisonAPIView.as_view(), name='job-candidate-comparison'),
+    path('job-hiring-recommendations/', JobHiringRecommendationListCreateAPIView.as_view(), name='job-hiring-recommendation-list-create'),
+    path('job-hiring-recommendations/<int:recommendation_id>/approve/', JobHiringRecommendationApproveAPIView.as_view(), name='job-hiring-recommendation-approve'),
+    path('job-hiring-recommendations/<int:recommendation_id>/reject/', JobHiringRecommendationRejectAPIView.as_view(), name='job-hiring-recommendation-reject'),
     path('hiring-decisions/pending/', PendingHiringDecisionListAPIView.as_view(), name='hiring-decision-pending-list'),
     path('hiring-decisions/<int:decision_id>/', HiringDecisionDetailAPIView.as_view(), name='hiring-decision-detail'),
     path('hiring-decisions/<int:decision_id>/approve/', HiringDecisionApproveAPIView.as_view(), name='hiring-decision-approve'),
