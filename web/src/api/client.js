@@ -303,6 +303,13 @@ export const updateJob = async (jobId, job) => {
   return response.data;
 };
 
+export const closeJobApplicationIntake = async (jobId) => (await apiClient.post(`/jobs/${jobId}/close-intake/`)).data;
+export const getJobCandidateComparison = async (jobId) => (await apiClient.get(`/jobs/${jobId}/candidate-comparison/`)).data;
+export const submitJobHiringRecommendation = async (payload) => (await apiClient.post('/job-hiring-recommendations/', payload)).data;
+export const getJobHiringRecommendations = async (params = {}) => (await apiClient.get('/job-hiring-recommendations/', { params })).data;
+export const approveJobHiringRecommendation = async (id, hr_remarks) => (await apiClient.post(`/job-hiring-recommendations/${id}/approve/`, { hr_remarks })).data;
+export const rejectJobHiringRecommendation = async (id, hr_remarks) => (await apiClient.post(`/job-hiring-recommendations/${id}/reject/`, { hr_remarks })).data;
+
 export const deleteJob = async (jobId) => {
   const response = await apiClient.delete(`/jobs/${jobId}/`);
   return response.data;

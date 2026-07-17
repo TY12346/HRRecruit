@@ -83,6 +83,8 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'position_status',
             'reason_for_hire',
             'impact_of_not_hiring',
+            'vacancies',
+            'application_deadline',
             'status',
             'requirements',
             'interview_evaluation_form',
