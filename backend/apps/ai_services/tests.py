@@ -651,7 +651,11 @@ from apps.ai_services.speaker_diarization import (
     map_speakers_to_roles,
 )
 from apps.ai_services.transcription_service import TranscriptionUnavailable, build_speaker_aware_transcript_payload
-from apps.ai_services.summary_service import SummaryGenerationUnavailable, run_real_summary
+from apps.ai_services.summary_service import (
+    SummaryGenerationUnavailable,
+    _parse_summary_content,
+    run_real_summary,
+)
 
 
 class InterviewSpeakerDiarizationTests(SimpleTestCase):
@@ -871,6 +875,24 @@ class InterviewSummaryGeminiTests(SimpleTestCase):
             'overall_impression': 'Professional and concise interview responses.',
             'editable_summary_text': 'Candidate communicated relevant experience clearly.',
         })
+
+    def test_summary_parser_accepts_json_embedded_in_provider_text(self):
+        content = """Here is the structured summary:
+```json
+{
+  "strengths": "Clear API examples.",
+  "weaknesses": "Needs more metrics.",
+  "communication_score": 8,
+  "overall_impression": "Professional responses.",
+  "editable_summary_text": "Candidate gave clear API examples."
+}
+```
+Please review before saving."""
+
+        parsed = _parse_summary_content(content)
+
+        self.assertEqual(parsed['strengths'], 'Clear API examples.')
+        self.assertEqual(parsed['communication_score'], 8)
 
     def test_real_summary_can_use_gemini_provider(self):
         with patch.dict('os.environ', {
