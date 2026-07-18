@@ -654,6 +654,8 @@ from apps.ai_services.speaker_diarization import (
 from apps.ai_services.transcription_service import TranscriptionUnavailable, build_speaker_aware_transcript_payload
 from apps.ai_services.summary_service import (
     SummaryGenerationUnavailable,
+    _build_gemini_config,
+    _extract_gemini_text,
     _parse_summary_content,
     run_real_summary,
 )
@@ -924,6 +926,53 @@ Please review before saving."""
 
         self.assertEqual(parsed['strengths'], 'Clear API examples.')
         self.assertEqual(parsed['communication_score'], 8)
+
+    def test_summary_parser_repairs_trailing_commas_from_provider_json(self):
+        content = """{
+          "strengths": "Clear API examples.",
+          "weaknesses": "Needs more metrics.",
+          "communication_score": 8,
+          "overall_impression": "Professional responses.",
+          "editable_summary_text": "Candidate gave clear API examples.",
+        }"""
+
+        parsed = _parse_summary_content(content)
+
+        self.assertEqual(parsed['strengths'], 'Clear API examples.')
+        self.assertEqual(parsed['communication_score'], 8)
+
+    def test_extract_gemini_text_reads_candidate_parts_when_text_property_is_empty(self):
+        response = SimpleNamespace(
+            text='',
+            candidates=[
+                SimpleNamespace(
+                    content=SimpleNamespace(
+                        parts=[SimpleNamespace(text=self._summary_json())],
+                    ),
+                ),
+            ],
+        )
+
+        self.assertEqual(_extract_gemini_text(response), self._summary_json())
+
+    def test_gemini_config_requests_json_schema_when_supported(self):
+        class GenerateContentConfig:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        genai = SimpleNamespace(types=SimpleNamespace(GenerateContentConfig=GenerateContentConfig))
+
+        config = _build_gemini_config(genai)
+
+        self.assertEqual(config.kwargs['response_mime_type'], 'application/json')
+        self.assertIn('response_schema', config.kwargs)
+        self.assertEqual(config.kwargs['response_schema']['required'], [
+            'communication_score',
+            'editable_summary_text',
+            'overall_impression',
+            'strengths',
+            'weaknesses',
+        ])
 
     def test_real_summary_can_use_gemini_provider(self):
         with patch.dict('os.environ', {
