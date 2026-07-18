@@ -13,6 +13,7 @@ import importlib
 import importlib.util
 import json
 import os
+import re
 from decimal import Decimal, InvalidOperation
 
 from apps.ai_services.exceptions import AIServiceUnavailable
@@ -34,6 +35,17 @@ SUMMARY_PROVIDER_GEMINI = 'gemini'
 SUMMARY_DEFAULT_MODELS = {
     SUMMARY_PROVIDER_OPENAI: 'gpt-4o-mini',
     SUMMARY_PROVIDER_GEMINI: 'gemini-3.5-flash',
+}
+SUMMARY_RESPONSE_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'strengths': {'type': 'string'},
+        'weaknesses': {'type': 'string'},
+        'communication_score': {'type': 'number'},
+        'overall_impression': {'type': 'string'},
+        'editable_summary_text': {'type': 'string'},
+    },
+    'required': sorted(SUMMARY_REQUIRED_FIELDS),
 }
 SUMMARY_RETIRED_MODEL_REPLACEMENTS = {
     SUMMARY_PROVIDER_GEMINI: {
@@ -190,6 +202,32 @@ def _extract_first_json_object(text):
     return text[start:]
 
 
+def _repair_common_json_mistakes(text):
+    """Repair common LLM JSON formatting mistakes before giving up.
+
+    JSON-mode providers occasionally return almost-valid JSON, most commonly
+    with smart quotes copied from natural-language text or a trailing comma
+    before a closing object/array. Keep this intentionally conservative so the
+    stored AI summary still comes from a structured provider object.
+    """
+    replacements = {
+        '\u201c': '"',
+        '\u201d': '"',
+        '\u2018': "'",
+        '\u2019': "'",
+    }
+    repaired = ''.join(replacements.get(character, character) for character in text)
+    return re.sub(r',\s*([}\]])', r'\1', repaired)
+
+
+def _loads_summary_json(text):
+    """Load summary JSON with a conservative repair fallback."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return json.loads(_repair_common_json_mistakes(text))
+
+
 def _parse_summary_content(content):
     """Parse provider JSON content into a dictionary."""
     if isinstance(content, dict):
@@ -199,10 +237,10 @@ def _parse_summary_content(content):
 
     text = _strip_markdown_json_fence(content)
     try:
-        parsed = json.loads(text)
+        parsed = _loads_summary_json(text)
     except json.JSONDecodeError:
         try:
-            parsed = json.loads(_extract_first_json_object(text))
+            parsed = _loads_summary_json(_extract_first_json_object(text))
         except json.JSONDecodeError as exc:
             raise SummaryGenerationUnavailable('Summary provider returned invalid JSON.') from exc
     if not isinstance(parsed, dict):
@@ -275,16 +313,42 @@ def _extract_gemini_text(response):
         return response
     if isinstance(response, dict):
         return response.get('text') or response.get('content') or ''
-    return getattr(response, 'text', '') or getattr(response, 'content', '') or ''
+
+    for attr in ('text', 'content'):
+        try:
+            value = getattr(response, attr, '')
+        except ValueError:
+            value = ''
+        if isinstance(value, str) and value:
+            return value
+
+    candidates = getattr(response, 'candidates', None) or []
+    if candidates:
+        content = getattr(candidates[0], 'content', None)
+        parts = getattr(content, 'parts', None) or []
+        for part in parts:
+            text = getattr(part, 'text', '')
+            if text:
+                return text
+    return ''
 
 
 def _build_gemini_config(genai_module):
     """Build a JSON-mode config compatible with current and older google-genai SDKs."""
     genai_types = getattr(genai_module, 'types', None)
     config_class = getattr(genai_types, 'GenerateContentConfig', None) if genai_types else None
+    config_kwargs = {
+        'response_mime_type': 'application/json',
+        'response_schema': SUMMARY_RESPONSE_SCHEMA,
+        'temperature': 0.2,
+    }
     if config_class is None:
-        return {'response_mime_type': 'application/json', 'temperature': 0.2}
-    return config_class(response_mime_type='application/json', temperature=0.2)
+        return config_kwargs
+    try:
+        return config_class(**config_kwargs)
+    except TypeError:
+        config_kwargs.pop('response_schema')
+        return config_class(**config_kwargs)
 
 
 def _call_gemini_summary(prompt, api_key, model):
