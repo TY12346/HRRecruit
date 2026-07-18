@@ -130,6 +130,9 @@ class InterviewSerializer(serializers.ModelSerializer):
         return EvaluationCriterionSerializer(form.criteria.all(), many=True).data
 
     def get_evaluation_submitted(self, interview):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user.role == User.Role.INTERVIEWER:
+            return interview.evaluations.filter(interviewer=request.user).exists()
         return interview.evaluations.exists()
 
 
