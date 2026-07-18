@@ -1,14 +1,17 @@
 import RoleNav from '../../components/RoleNav.jsx';
 
-const hrHeadLinks = [
+const navItems = [
   { icon: 'dashboard', label: 'Dashboard', to: '/hr-head', end: true },
-  { icon: 'roles', label: 'Open Roles', to: '/hr-head/job-requisitions' },
-  { icon: 'candidates', label: 'Candidates', to: '/hr-head/applicant-search' },
-  { icon: 'interviews', label: 'Interviews', to: '/hr-head/hiring-decisions' },
-  { icon: 'reports', label: 'Reports', to: '/hr-head/analytics' },
-  { icon: 'settings', label: 'Settings', to: '/hr-head/organization' },
+  { icon: 'recommendations', label: 'Hiring Recommendations', to: '/hr-head/hiring-decisions' },
+  { icon: 'search', label: 'Applicant Search', to: '/hr-head/applicant-search' },
+  { icon: 'requisitions', label: 'Job Requisitions', to: '/hr-head/job-requisitions' },
+  { icon: 'reports', label: 'Analytics', to: '/hr-head/analytics' },
+  { icon: 'team', label: 'Recruiter & Interviewer', to: '/hr-head/team' },
+  { icon: 'organization', label: 'Organization Account', to: '/hr-head/organization' },
+  { icon: 'billing', label: 'Billing', to: '/hr-head/billing' },
+  { icon: 'notifications', label: 'Notifications', to: '/hr-head/notifications' },
 ];
 
 export default function HRHeadNav() {
-  return <RoleNav items={hrHeadLinks} />;
+  return <RoleNav items={navItems} />;
 }

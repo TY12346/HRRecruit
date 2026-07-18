@@ -77,12 +77,21 @@ function SettingsIcon() {
 }
 
 const icons = {
-  dashboard: <DashboardIcon />,
-  roles: <BriefcaseIcon />,
+  availability: <CalendarIcon />,
+  billing: <BriefcaseIcon />,
   candidates: <CandidatesIcon />,
+  dashboard: <DashboardIcon />,
   interviews: <CalendarIcon />,
+  notifications: <SettingsIcon />,
+  offers: <BriefcaseIcon />,
+  organization: <SettingsIcon />,
+  recommendations: <CandidatesIcon />,
   reports: <ReportsIcon />,
+  requisitions: <BriefcaseIcon />,
+  roles: <BriefcaseIcon />,
+  search: <CandidatesIcon />,
   settings: <SettingsIcon />,
+  team: <CandidatesIcon />,
 };
 
 export default function RoleNav({ items }) {
@@ -141,7 +150,7 @@ export default function RoleNav({ items }) {
               },
             }}
           >
-            <Box className="role-nav-icon" component="span">{icons[item.icon]}</Box>
+            <Box className="role-nav-icon" component="span">{icons[item.icon] ?? item.icon}</Box>
             {item.label}
           </Button>
         ))}
