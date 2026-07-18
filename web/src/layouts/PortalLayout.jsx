@@ -27,7 +27,7 @@ export default function PortalLayout() {
       sx={{
         bgcolor: '#ffffff',
         minHeight: '100vh',
-        pl: { xs: 0, md: isAuthenticated ? '230px' : 0 },
+        pl: { xs: 0, md: isAuthenticated ? '370px' : 0 },
         pt: isAuthenticated ? '64px' : 0,
       }}
     >
@@ -39,7 +39,7 @@ export default function PortalLayout() {
           borderBottom: '1px solid #e5e7eb',
           display: 'grid',
           columnGap: { xs: 2, md: 4 },
-          gridTemplateColumns: { xs: '1fr auto', md: '230px 1fr auto' },
+          gridTemplateColumns: { xs: '1fr auto', md: '370px 1fr auto' },
           height: 64,
           left: 0,
           px: { xs: 2, md: 5 },

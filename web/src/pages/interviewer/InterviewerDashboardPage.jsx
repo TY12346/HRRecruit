@@ -1,3 +1,5 @@
+import InterviewerNav from './InterviewerNav.jsx';
+
 export default function InterviewerDashboardPage() {
-  return null;
+  return <InterviewerNav />;
 }

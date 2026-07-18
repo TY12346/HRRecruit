@@ -1,3 +1,5 @@
+import HRHeadNav from './HRHeadNav.jsx';
+
 export default function HRHeadDashboardPage() {
-  return null;
+  return <HRHeadNav />;
 }
