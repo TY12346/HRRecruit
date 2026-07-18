@@ -642,6 +642,7 @@ from apps.ai_services.speaker_diarization import (
     DiarizationUnavailable,
     _extract_speaker_turns,
     _format_diarization_error,
+    _is_pyannote_sample_count_mismatch_error,
     _is_torchcodec_audio_read_error,
     _load_pyannote_pipeline,
     _run_diarization_pipeline,
@@ -717,6 +718,36 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
 
         self.assertTrue(_is_torchcodec_audio_read_error(error))
         self.assertFalse(_is_torchcodec_audio_read_error(RuntimeError('other failure')))
+
+
+    def test_detects_pyannote_sample_count_mismatch_error(self):
+        error = ValueError(
+            'requested chunk [ 00:00:00.000 --> 00:00:10.000] from interview file resulted in '
+            '439895 samples instead of the expected 441000 samples'
+        )
+
+        self.assertTrue(_is_pyannote_sample_count_mismatch_error(error))
+        self.assertFalse(_is_pyannote_sample_count_mismatch_error(ValueError('other failure')))
+
+    def test_run_diarization_pipeline_falls_back_to_waveform_input_when_sample_counts_mismatch(self):
+        calls = []
+        waveform_input = {'waveform': 'tensor', 'sample_rate': 16000}
+
+        def fake_pipeline(audio_input):
+            calls.append(audio_input)
+            if isinstance(audio_input, str):
+                raise ValueError(
+                    'requested chunk [ 00:00:00.000 --> 00:00:10.000] from interview file resulted in '
+                    '439895 samples instead of the expected 441000 samples'
+                )
+            return 'diarization'
+
+        with patch('apps.ai_services.speaker_diarization._load_audio_waveform_with_whisper', return_value=waveform_input) as loader:
+            result = _run_diarization_pipeline(fake_pipeline, 'interview.mp3')
+
+        self.assertEqual(result, 'diarization')
+        self.assertEqual(calls, ['interview.mp3', waveform_input])
+        loader.assert_called_once_with('interview.mp3')
 
     def test_run_diarization_pipeline_falls_back_to_waveform_input_when_torchcodec_is_missing(self):
         calls = []

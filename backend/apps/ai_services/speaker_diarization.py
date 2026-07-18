@@ -81,6 +81,23 @@ def _is_torchcodec_audio_read_error(exc):
     return 'torchcodec' in message and 'cannot read audio file' in message
 
 
+def _is_pyannote_sample_count_mismatch_error(exc):
+    """Return whether pyannote failed while cropping a decoded audio chunk.
+
+    Some uploaded interview files, especially compressed exports, can decode to
+    slightly fewer samples than pyannote expects for a timestamped chunk. In that
+    case pyannote raises a ValueError similar to "resulted in 439895 samples
+    instead of the expected 441000 samples". Retrying with a preloaded waveform
+    avoids pyannote's file-based chunk decoder for the same local file.
+    """
+    message = str(exc).lower()
+    return (
+        isinstance(exc, ValueError)
+        and 'requested chunk' in message
+        and 'samples instead of the expected' in message
+    )
+
+
 def _load_audio_waveform_with_whisper(audio_path):
     """Load audio through Whisper/ffmpeg for pyannote when torchcodec cannot decode it."""
     if importlib.util.find_spec('whisper') is None:
@@ -143,8 +160,8 @@ def _extract_speaker_turns(diarization):
 def _run_diarization_pipeline(pipeline, audio_path):
     try:
         return pipeline(audio_path)
-    except RuntimeError as exc:
-        if not _is_torchcodec_audio_read_error(exc):
+    except (RuntimeError, ValueError) as exc:
+        if not (_is_torchcodec_audio_read_error(exc) or _is_pyannote_sample_count_mismatch_error(exc)):
             raise
         waveform_input = _load_audio_waveform_with_whisper(audio_path)
         return pipeline(waveform_input)
