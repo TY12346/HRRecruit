@@ -127,8 +127,25 @@ class _ApiSettingsButtonState extends State<ApiSettingsButton> {
     _refreshCurrentBaseUrl();
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('API URL saved: $normalizedBaseUrl')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Testing the saved API URL…'),
+      duration: Duration(seconds: 1),
+    ));
+    try {
+      await apiClient.checkConnection();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Connected to HRRecruit API at $normalizedBaseUrl'),
+      ));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'Saved $normalizedBaseUrl, but it is not reachable. Confirm the '
+          'device-specific URL and start Django with runserver 0.0.0.0:8000.',
+        ),
+        duration: const Duration(seconds: 8),
+      ));
+    }
   }
 }

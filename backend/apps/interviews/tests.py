@@ -767,6 +767,7 @@ class InterviewEvaluationAPITests(APITestCase):
         response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['evaluation_submitted'])
         criteria = response.data['evaluation_criteria']
         self.assertEqual(len(criteria), 2)
         self.assertEqual(criteria[0]['id'], self.criterion_one.id)
@@ -1222,6 +1223,10 @@ class InterviewEvaluationAPITests(APITestCase):
         self.interview.refresh_from_db()
         self.assertEqual(self.application.status, JobApplication.Status.EVALUATION_SUBMITTED)
         self.assertEqual(self.interview.status, Interview.Status.COMPLETED)
+
+        interview_response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
+        self.assertEqual(interview_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(interview_response.data['evaluation_submitted'])
 
         self.authenticate(self.recruiter)
         detail_response = self.client.get(reverse('interview-evaluation-detail', args=[self.interview.id]))

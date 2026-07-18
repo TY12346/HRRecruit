@@ -1,9 +1,17 @@
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
 from django.urls import include, path
 
+
+def health_check(request):
+    """Return a data-free response for local mobile connectivity checks."""
+    return JsonResponse({'status': 'ok', 'service': 'HRRecruit API'})
+
+
 urlpatterns = [
+    path('api/health/', health_check, name='api-health'),
     path('admin/', admin.site.urls),
     path('api/', include('apps.users.urls')),
     path('api/org/', include('apps.organizations.urls')),
