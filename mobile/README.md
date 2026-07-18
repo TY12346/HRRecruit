@@ -12,12 +12,14 @@ flutter run
 
 ## Backend API URL
 
-The app now chooses the safest local default for the current Flutter target:
+The app chooses a local default for the current Flutter target:
 
 - Android emulator: `http://10.0.2.2:8000/api/`
 - iOS simulator, desktop, or Flutter web: `http://localhost:8000/api/`
 
-`10.0.2.2` is only valid for the Android emulator.
+`10.0.2.2` is only valid for the Android emulator. The app does not
+automatically retry a failed physical-device LAN URL with `10.0.2.2`, because
+that emulator-only address will also fail on a real phone.
 
 When running on a physical phone or tablet:
 
@@ -57,6 +59,11 @@ If the app still says the API is unreachable after setting the LAN IP, allow
 Python/Django through Windows Firewall or temporarily allow inbound TCP traffic
 on port `8000` for your private Wi-Fi network. A physical phone cannot reach a
 Django server that is bound only to `127.0.0.1` or blocked by the firewall.
+
+If `flutter run` builds successfully but ends with `adb.exe: device ... not
+found`, the phone disconnected from ADB during install/launch. Reconnect the USB
+cable, unlock the phone, confirm the USB debugging prompt, run `flutter devices`,
+and then run `flutter run -d <device-id>` again.
 
 
 ### Android cleartext HTTP note

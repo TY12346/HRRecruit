@@ -4,8 +4,6 @@ import 'package:flutter/foundation.dart';
 import '../services/token_storage.dart';
 
 class ApiClient {
-  static const _retriedWithDefaultBaseUrlKey = 'retried_with_default_base_url';
-
   ApiClient({
     required TokenStorage tokenStorage,
     String? baseUrl,
@@ -25,15 +23,10 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          if (options.extra[_retriedWithDefaultBaseUrlKey] == true) {
-            options.baseUrl = normalizeBaseUrl(options.baseUrl);
-          } else {
-            final configuredBaseUrl = await _tokenStorage.readApiBaseUrl();
-            options.baseUrl = normalizeBaseUrl(
-              _resolveConfiguredBaseUrl(configuredBaseUrl) ??
-                  dio.options.baseUrl,
-            );
-          }
+          final configuredBaseUrl = await _tokenStorage.readApiBaseUrl();
+          options.baseUrl = normalizeBaseUrl(
+            _resolveConfiguredBaseUrl(configuredBaseUrl) ?? dio.options.baseUrl,
+          );
 
           final accessToken = await _tokenStorage.readAccessToken();
           if (accessToken != null && accessToken.isNotEmpty) {
@@ -43,10 +36,6 @@ class ApiClient {
           handler.next(options);
         },
         onError: (error, handler) async {
-          if (await _retryWithDefaultBaseUrl(error, handler)) {
-            return;
-          }
-
           debugPrint(
             'HRRecruit API request failed: '
             '${error.requestOptions.method} '
@@ -151,51 +140,6 @@ class ApiClient {
         (first == 192 && second == 168);
   }
 
-  Future<bool> _retryWithDefaultBaseUrl(
-    DioException error,
-    ErrorInterceptorHandler handler,
-  ) async {
-    if (!_shouldRetryWithDefaultBaseUrl(error)) {
-      return false;
-    }
-
-    final fallbackBaseUrl = normalizeBaseUrl(defaultBaseUrl);
-    final retryOptions = error.requestOptions;
-    retryOptions.baseUrl = fallbackBaseUrl;
-    retryOptions.extra[_retriedWithDefaultBaseUrlKey] = true;
-
-    debugPrint(
-      'HRRecruit API request failed for configured URL; retrying with '
-      '$fallbackBaseUrl',
-    );
-
-    try {
-      final response = await dio.fetch<dynamic>(retryOptions);
-      handler.resolve(response);
-      return true;
-    } on DioException {
-      return false;
-    }
-  }
-
-  bool _shouldRetryWithDefaultBaseUrl(DioException error) {
-    if (error.requestOptions.extra[_retriedWithDefaultBaseUrlKey] == true) {
-      return false;
-    }
-
-    final requestBaseUrl = normalizeBaseUrl(error.requestOptions.baseUrl);
-    final fallbackBaseUrl = normalizeBaseUrl(defaultBaseUrl);
-    if (requestBaseUrl == fallbackBaseUrl) {
-      return false;
-    }
-
-    return error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.connectionError ||
-        error.type == DioExceptionType.sendTimeout ||
-        error.type == DioExceptionType.receiveTimeout ||
-        error.response == null;
-  }
-
   Options longRunningRequestOptions() {
     return Options(
       sendTimeout: const Duration(seconds: 60),
@@ -230,7 +174,6 @@ class ApiClient {
         connectTimeout: const Duration(seconds: 5),
         sendTimeout: const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 5),
-        extra: const {_retriedWithDefaultBaseUrlKey: true},
       ),
     );
   }
