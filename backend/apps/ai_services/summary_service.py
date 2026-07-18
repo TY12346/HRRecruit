@@ -142,6 +142,54 @@ def _extract_message_content(response):
     return getattr(response, 'content', '')
 
 
+def _strip_markdown_json_fence(text):
+    """Return text inside a Markdown JSON fence when the response is fenced."""
+    stripped = text.strip()
+    if not stripped.startswith('```'):
+        return stripped
+
+    lines = stripped.splitlines()
+    body = lines[1:]
+    if body and body[-1].strip().startswith('```'):
+        body = body[:-1]
+    return '\n'.join(body).strip()
+
+
+def _extract_first_json_object(text):
+    """Extract the first balanced JSON object from provider text.
+
+    Some LLM providers can still wrap JSON-mode responses with a short sentence or
+    Markdown despite prompt instructions. The interviewer portal should accept a
+    valid object embedded in that text instead of failing the workflow.
+    """
+    start = text.find('{')
+    if start == -1:
+        return text
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for index, character in enumerate(text[start:], start=start):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == '\\':
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+
+        if character == '"':
+            in_string = True
+        elif character == '{':
+            depth += 1
+        elif character == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:index + 1]
+    return text[start:]
+
+
 def _parse_summary_content(content):
     """Parse provider JSON content into a dictionary."""
     if isinstance(content, dict):
@@ -149,15 +197,14 @@ def _parse_summary_content(content):
     if not isinstance(content, str) or not content.strip():
         raise SummaryGenerationUnavailable('Summary provider returned an empty response.')
 
-    text = content.strip()
-    if text.startswith('```'):
-        text = text.strip('`').strip()
-        if text.lower().startswith('json'):
-            text = text[4:].strip()
+    text = _strip_markdown_json_fence(content)
     try:
         parsed = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise SummaryGenerationUnavailable('Summary provider returned invalid JSON.') from exc
+    except json.JSONDecodeError:
+        try:
+            parsed = json.loads(_extract_first_json_object(text))
+        except json.JSONDecodeError as exc:
+            raise SummaryGenerationUnavailable('Summary provider returned invalid JSON.') from exc
     if not isinstance(parsed, dict):
         raise SummaryGenerationUnavailable('Summary provider JSON response must be an object.')
     return parsed
