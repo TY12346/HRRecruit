@@ -294,6 +294,7 @@ class InterviewEvaluationDetailSerializer(serializers.Serializer):
     transcript = serializers.SerializerMethodField()
     ai_summary = serializers.SerializerMethodField()
     evaluation = serializers.SerializerMethodField()
+    evaluations = serializers.SerializerMethodField()
 
     def get_transcript(self, interview):
         transcript = InterviewTranscript.objects.filter(recording__interview=interview).order_by('-generated_at').first()
@@ -304,5 +305,11 @@ class InterviewEvaluationDetailSerializer(serializers.Serializer):
         return InterviewAISummarySerializer(summary).data if summary else None
 
     def get_evaluation(self, interview):
-        evaluation = interview.evaluations.prefetch_related('answers__criterion').order_by('-submitted_at').first()
+        evaluation = self._evaluations_queryset(interview).first()
         return InterviewEvaluationSerializer(evaluation).data if evaluation else None
+
+    def get_evaluations(self, interview):
+        return InterviewEvaluationSerializer(self._evaluations_queryset(interview), many=True).data
+
+    def _evaluations_queryset(self, interview):
+        return interview.evaluations.select_related('interviewer').prefetch_related('answers__criterion').order_by('-submitted_at')

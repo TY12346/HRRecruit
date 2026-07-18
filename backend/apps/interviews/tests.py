@@ -1234,6 +1234,87 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(detail_response.data['evaluation']['id'], evaluation.id)
         self.assertEqual(len(detail_response.data['evaluation']['answers']), 2)
+        self.assertEqual(len(detail_response.data['evaluations']), 1)
+
+    def test_each_panel_interviewer_can_submit_their_own_evaluation_once(self):
+        panel_interviewer = self.create_user('eval-panel-interviewer@example.com', User.Role.INTERVIEWER)
+        self.create_membership(panel_interviewer, self.organization, OrganizationMembership.Role.INTERVIEWER)
+        self.interview.panel_interviewers.add(panel_interviewer)
+        self.create_completed_transcript_summary_deliverables()
+
+        payload = {
+            'overall_comment': 'Panel scorecard submitted independently.',
+            'answers': [
+                {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
+                {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},
+            ],
+        }
+        self.authenticate(self.interviewer)
+        first_response = self.client.post(
+            reverse('interview-evaluation-submit', args=[self.interview.id]),
+            payload,
+            format='json',
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED, first_response.data)
+
+        self.authenticate(panel_interviewer)
+        second_response = self.client.post(
+            reverse('interview-evaluation-submit', args=[self.interview.id]),
+            payload,
+            format='json',
+        )
+        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED, second_response.data)
+        self.assertEqual(InterviewEvaluation.objects.filter(interview=self.interview).count(), 2)
+        self.assertTrue(InterviewEvaluation.objects.filter(interview=self.interview, interviewer=self.interviewer).exists())
+        self.assertTrue(InterviewEvaluation.objects.filter(interview=self.interview, interviewer=panel_interviewer).exists())
+
+        self.authenticate(self.recruiter)
+        detail_response = self.client.get(reverse('interview-evaluation-detail', args=[self.interview.id]))
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(detail_response.data['evaluations']), 2)
+        self.assertEqual(
+            {evaluation['interviewer'] for evaluation in detail_response.data['evaluations']},
+            {self.interviewer.id, panel_interviewer.id},
+        )
+
+        self.authenticate(panel_interviewer)
+        duplicate_response = self.client.post(
+            reverse('interview-evaluation-submit', args=[self.interview.id]),
+            payload,
+            format='json',
+        )
+        self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(InterviewEvaluation.objects.filter(interview=self.interview).count(), 2)
+
+    def test_panel_interviewer_detail_still_shows_not_submitted_after_other_evaluation(self):
+        panel_interviewer = self.create_user('eval-panel-detail@example.com', User.Role.INTERVIEWER)
+        self.create_membership(panel_interviewer, self.organization, OrganizationMembership.Role.INTERVIEWER)
+        self.interview.panel_interviewers.add(panel_interviewer)
+        self.create_completed_transcript_summary_deliverables()
+
+        payload = {
+            'overall_comment': 'Primary interviewer scorecard.',
+            'answers': [
+                {'criterion_id': self.criterion_one.id, 'score': '8.00'},
+                {'criterion_id': self.criterion_two.id, 'score': '9.00'},
+            ],
+        }
+        self.authenticate(self.interviewer)
+        submit_response = self.client.post(
+            reverse('interview-evaluation-submit', args=[self.interview.id]),
+            payload,
+            format='json',
+        )
+        self.assertEqual(submit_response.status_code, status.HTTP_201_CREATED, submit_response.data)
+
+        own_detail_response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
+        self.assertEqual(own_detail_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(own_detail_response.data['evaluation_submitted'])
+
+        self.authenticate(panel_interviewer)
+        panel_detail_response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
+        self.assertEqual(panel_detail_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(panel_detail_response.data['evaluation_submitted'])
 
     def test_each_panel_interviewer_can_submit_their_own_evaluation_once(self):
         panel_interviewer = self.create_user('eval-panel-interviewer@example.com', User.Role.INTERVIEWER)
