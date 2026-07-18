@@ -110,6 +110,12 @@ class InterviewEvaluation(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['interview', 'interviewer'],
+                name='unique_interview_evaluation_per_interviewer',
+            ),
+        ]
 
     def clean(self):
         super().clean()

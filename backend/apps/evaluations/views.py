@@ -152,8 +152,8 @@ class InterviewEvaluationSubmitAPIView(APIView):
     @transaction.atomic
     def post(self, request, interview_id):
         interview = assigned_interview_or_404(request.user, interview_id)
-        if InterviewEvaluation.objects.filter(interview=interview).exists():
-            raise ValidationError({'interview': 'An evaluation has already been submitted for this interview.'})
+        if InterviewEvaluation.objects.filter(interview=interview, interviewer=request.user).exists():
+            raise ValidationError({'interview': 'You have already submitted an evaluation for this interview.'})
 
         serializer = InterviewEvaluationSubmitSerializer(
             data=request.data,
