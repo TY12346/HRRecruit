@@ -650,7 +650,7 @@ from apps.ai_services.speaker_diarization import (
     format_speaker_labelled_transcript,
     map_speakers_to_roles,
 )
-from apps.ai_services.transcription_service import TranscriptionUnavailable, build_speaker_aware_transcript_payload
+from apps.ai_services.transcription_service import TranscriptionUnavailable, _call_local_whisper_transcription, build_speaker_aware_transcript_payload
 from apps.ai_services.summary_service import (
     SummaryGenerationUnavailable,
     _parse_summary_content,
@@ -712,6 +712,24 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
         self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
         self.assertIn('Interviewer:', payload['transcript_text'])
 
+
+    def test_local_whisper_transcription_disables_fp16_for_cpu_compatibility(self):
+        calls = []
+
+        class FakeWhisperModel:
+            def transcribe(self, audio_path, **kwargs):
+                calls.append((audio_path, kwargs))
+                return {'text': 'Hello world.', 'segments': []}
+
+        fake_whisper = SimpleNamespace(load_model=lambda model: FakeWhisperModel())
+        audio_file = SimpleNamespace(path='interview.wav', name='interview.wav')
+
+        with patch('importlib.util.find_spec', return_value=True), patch('importlib.import_module', return_value=fake_whisper):
+            result = _call_local_whisper_transcription(audio_file, 'base')
+
+        self.assertEqual(result['text'], 'Hello world.')
+        self.assertEqual(calls, [('interview.wav', {'fp16': False})])
+
     def test_detects_torchcodec_audio_read_error(self):
         error = RuntimeError('torchcodec is not available. Cannot read audio file.')
 
@@ -734,6 +752,22 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
         self.assertEqual(result, 'diarization')
         self.assertEqual(calls, ['interview.mp3', waveform_input])
         loader.assert_called_once_with('interview.mp3')
+
+
+    def test_run_diarization_pipeline_suppresses_expected_local_audio_warnings(self):
+        import warnings
+
+        def fake_pipeline(audio_input):
+            warnings.warn('torchcodec is not installed correctly so built-in audio decoding will fail.', UserWarning)
+            warnings.warn('std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor.', UserWarning)
+            return 'diarization'
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            result = _run_diarization_pipeline(fake_pipeline, 'interview.mp3')
+
+        self.assertEqual(result, 'diarization')
+        self.assertEqual(caught, [])
 
     def test_diarization_unavailable_carries_fallback_status(self):
         not_configured = DiarizationUnavailable('disabled', status=DIARIZATION_STATUS_NOT_CONFIGURED)
