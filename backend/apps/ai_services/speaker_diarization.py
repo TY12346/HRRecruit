@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import os
+import warnings
 from collections import defaultdict
 
 from apps.ai_services.exceptions import AIServiceUnavailable
@@ -142,12 +143,29 @@ def _extract_speaker_turns(diarization):
 
 def _run_diarization_pipeline(pipeline, audio_path):
     try:
-        return pipeline(audio_path)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore',
+                message='torchcodec is not installed correctly.*',
+                category=UserWarning,
+            )
+            warnings.filterwarnings(
+                'ignore',
+                message=r'std\(\): degrees of freedom is <= 0.*',
+                category=UserWarning,
+            )
+            return pipeline(audio_path)
     except RuntimeError as exc:
         if not _is_torchcodec_audio_read_error(exc):
             raise
         waveform_input = _load_audio_waveform_with_whisper(audio_path)
-        return pipeline(waveform_input)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore',
+                message=r'std\(\): degrees of freedom is <= 0.*',
+                category=UserWarning,
+            )
+            return pipeline(waveform_input)
 
 
 def run_speaker_diarization(audio_file):

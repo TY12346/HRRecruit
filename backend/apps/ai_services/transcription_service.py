@@ -156,7 +156,7 @@ def _call_local_whisper_transcription(audio_file, model):
         temporary_file.close()
         audio_path = close_temporary_file
     try:
-        result = whisper_model.transcribe(audio_path)
+        result = whisper_model.transcribe(audio_path, fp16=False)
     finally:
         if close_temporary_file:
             Path(close_temporary_file).unlink(missing_ok=True)
