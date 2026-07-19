@@ -64,9 +64,6 @@ export default function LoginPage() {
       <Typography component="h2" variant="h5" sx={{ mb: 1 }}>
         Staff Login
       </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Sign in with your HRRecruit email and password to access your role-specific workspace.
-      </Typography>
 
       {error ? (
         <Alert severity="error" sx={{ mb: 2 }}>

@@ -25,7 +25,7 @@ import RecruiterNav from '../recruiter/RecruiterNav.jsx';
 const ROLE_CONFIG = {
   recruiter: {
     title: 'Applicant Search & Shortlisting',
-    description: 'Search applicants for jobs you created in your organization. Backend scope is limited to your recruiter-owned job postings.',
+    description: 'Search applicants for jobs you created in your organization.',
     nav: RecruiterNav,
     detailBase: '/recruiter/applications',
   },
