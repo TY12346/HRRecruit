@@ -12,7 +12,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 REPORT_TITLES = {
     'recruiter': 'Recruiter Analytics Summary',
     'interviewer': 'Interviewer Analytics Summary',
-    'hr_head': 'HR Head Analytics Summary',
+    'hr_head': 'Hiring Manager Analytics Summary',
 }
 
 METRIC_LABELS = {

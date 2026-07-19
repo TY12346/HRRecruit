@@ -53,8 +53,8 @@ const STATUS_OPTIONS = [
   ['interview_accepted', 'Interview accepted'],
   ['evaluation_submitted', 'Evaluation submitted'],
   ['decision_pending', 'Decision pending'],
-  ['hr_approved', 'HR approved'],
-  ['hr_rejected', 'HR rejected'],
+  ['hr_approved', 'Hiring manager approved'],
+  ['hr_rejected', 'Hiring manager rejected'],
   ['offer_sent', 'Offer sent'],
   ['hired', 'Hired'],
 ];

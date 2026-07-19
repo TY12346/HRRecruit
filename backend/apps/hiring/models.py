@@ -54,7 +54,7 @@ class HiringDecision(models.Model):
         if self.recruiter_id and self.recruiter.role != User.Role.RECRUITER:
             raise ValidationError({'recruiter': 'Hiring decision recruiter must have the recruiter role.'})
         if self.hr_head_id and self.hr_head.role != User.Role.HR_HEAD:
-            raise ValidationError({'hr_head': 'Hiring decision reviewer must have the HR head role.'})
+            raise ValidationError({'hr_head': 'Hiring decision reviewer must have the hiring manager role.'})
 
     def __str__(self):
         return f'{self.application} - {self.get_decision_display()}'

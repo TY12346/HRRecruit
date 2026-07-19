@@ -11,7 +11,7 @@ from apps.users.models import User
 
 class JobLevelHiringRecommendationFlowTests(APITestCase):
     def setUp(self):
-        self.hr = User.objects.create_user(email='hr-flow@example.com', password='pass', full_name='HR Head', role=User.Role.HR_HEAD)
+        self.hr = User.objects.create_user(email='hr-flow@example.com', password='pass', full_name='Hiring Manager', role=User.Role.HR_HEAD)
         self.recruiter = User.objects.create_user(email='recruiter-flow@example.com', password='pass', full_name='Recruiter', role=User.Role.RECRUITER)
         self.applicant = User.objects.create_user(email='applicant-flow@example.com', password='pass', full_name='Applicant', role=User.Role.APPLICANT)
         self.interviewer = User.objects.create_user(email='interviewer-flow@example.com', password='pass', full_name='Interviewer', role=User.Role.INTERVIEWER)

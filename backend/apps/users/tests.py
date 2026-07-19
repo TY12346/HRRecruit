@@ -78,7 +78,7 @@ class RegistrationAPITests(APITestCase):
             reverse('auth-register'),
             {
                 'email': 'head@example.com',
-                'full_name': 'HR Department Head',
+                'full_name': 'Hiring Manager',
                 'phone_number': '+60123456789',
                 'password': 'StrongPass123!',
             },
@@ -117,7 +117,7 @@ class RegistrationAPITests(APITestCase):
         mistaken_user = User.objects.create_user(
             email='mistaken-mobile@example.com',
             password='StrongPass123!',
-            full_name='Mistaken HR Head',
+            full_name='Mistaken Hiring Manager',
             role=User.Role.HR_HEAD,
         )
         self.assertTrue(hasattr(mistaken_user, 'hr_head_profile'))

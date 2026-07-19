@@ -4,7 +4,7 @@ This file converts the FYP algorithm design into practical backend implementatio
 
 Traceability: `ALGORITHMS.md` is derived from `ALGORITHMS_SOURCE.md`, which is the source reference for AI-related algorithm design. Future AI-related backend implementation should follow this file while preserving the intent and constraints from `ALGORITHMS_SOURCE.md`.
 
-AI features in HRRecruit must support recruiter, interviewer, and HR department head decision-making. They must not automatically make final hiring, rejection, or approval decisions.
+AI features in HRRecruit must support recruiter, interviewer, and hiring manager decision-making. They must not automatically make final hiring, rejection, or approval decisions.
 
 ---
 
@@ -397,7 +397,7 @@ Store the structured summary in the interview evaluation or interview summary mo
 
 ### Human Decision Rule
 
-AI must support human decision-making and must not automatically make final hiring decisions. Recruiters, interviewers, and HR department heads remain responsible for recruitment decisions, interview evaluations, hiring decisions, and final approvals.
+AI must support human decision-making and must not automatically make final hiring decisions. Recruiters, interviewers, and hiring managers remain responsible for recruitment decisions, interview evaluations, hiring decisions, and final approvals.
 
 ### Service Layer Rule
 

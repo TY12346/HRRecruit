@@ -729,7 +729,7 @@ If real summary is disabled, return a structured mock summary such as:
 
 The AI summary must not automatically make hiring decisions.
 
-The recruiter and HR department head remain responsible for final decision-making.
+The recruiter and hiring manager remain responsible for final decision-making.
 
 ---
 

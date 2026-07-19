@@ -18,7 +18,7 @@ from .services import send_subscription_reminders
 class BillingAPITests(APITestCase):
     def setUp(self):
         self.hr_head = User.objects.create_user(
-            email='head@example.com', password='StrongPass123!', full_name='HR Head', role=User.Role.HR_HEAD
+            email='head@example.com', password='StrongPass123!', full_name='Hiring Manager', role=User.Role.HR_HEAD
         )
         self.recruiter = User.objects.create_user(
             email='recruiter@example.com', password='StrongPass123!', full_name='Recruiter', role=User.Role.RECRUITER

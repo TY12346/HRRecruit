@@ -14,13 +14,13 @@ from apps.users.models import User
 
 class AnalyticsAPITests(APITestCase):
     def setUp(self):
-        self.hr_head = self.create_user('head@example.com', User.Role.HR_HEAD, 'HR Head')
+        self.hr_head = self.create_user('head@example.com', User.Role.HR_HEAD, 'Hiring Manager')
         self.recruiter = self.create_user('recruiter@example.com', User.Role.RECRUITER, 'Recruiter One')
         self.interviewer = self.create_user('interviewer@example.com', User.Role.INTERVIEWER, 'Interviewer One')
         self.applicant = self.create_user('applicant@example.com', User.Role.APPLICANT, 'Applicant One')
         self.applicant_two = self.create_user('applicant2@example.com', User.Role.APPLICANT, 'Applicant Two')
         self.applicant_three = self.create_user('applicant3@example.com', User.Role.APPLICANT, 'Applicant Three')
-        self.other_hr_head = self.create_user('other-head@example.com', User.Role.HR_HEAD, 'Other HR Head')
+        self.other_hr_head = self.create_user('other-head@example.com', User.Role.HR_HEAD, 'Other Hiring Manager')
         self.other_recruiter = self.create_user('other-recruiter@example.com', User.Role.RECRUITER, 'Other Recruiter')
         self.other_applicant = self.create_user('other-applicant@example.com', User.Role.APPLICANT, 'Other Applicant')
 

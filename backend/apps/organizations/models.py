@@ -32,7 +32,7 @@ class Organization(models.Model):
     def clean(self):
         super().clean()
         if self.created_by_id and self.created_by.role != User.Role.HR_HEAD:
-            raise ValidationError({'created_by': 'Only an HR head can create an organization.'})
+            raise ValidationError({'created_by': 'Only a hiring manager can create an organization.'})
 
     def __str__(self):
         return self.name
@@ -40,7 +40,7 @@ class Organization(models.Model):
 
 class OrganizationMembership(models.Model):
     class Role(models.TextChoices):
-        HR_HEAD = User.Role.HR_HEAD, 'HR Head'
+        HR_HEAD = User.Role.HR_HEAD, 'Hiring Manager'
         RECRUITER = User.Role.RECRUITER, 'Recruiter'
         INTERVIEWER = User.Role.INTERVIEWER, 'Interviewer'
 

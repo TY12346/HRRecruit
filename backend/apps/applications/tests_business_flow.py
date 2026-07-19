@@ -27,7 +27,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.hr_head = User.objects.create_user(
             email='hr-head@example.com',
             password=self.password,
-            full_name='HR Head',
+            full_name='Hiring Manager',
             role=User.Role.HR_HEAD,
         )
         self.plan, _ = SubscriptionPlan.objects.update_or_create(

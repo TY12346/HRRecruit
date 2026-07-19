@@ -16,7 +16,7 @@ Protected endpoints require JWT Bearer token authentication:
 Authorization: Bearer <access_token>
 ```
 
-The backend uses role-based permissions and organization data isolation. Recruiters and HR heads are scoped to their own organization. Interviewers are scoped to assigned interviews/applicants. Applicants are scoped to their own profile, applications, invitations, offers, and notifications.
+The backend uses role-based permissions and organization data isolation. Recruiters and hiring managers are scoped to their own organization. Interviewers are scoped to assigned interviews/applicants. Applicants are scoped to their own profile, applications, invitations, offers, and notifications.
 
 ## Authentication and Account APIs
 
@@ -24,7 +24,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Main roles:**
 
-- Public: HR department head registration, mobile applicant registration, login, password reset request/confirm.
+- Public: hiring manager registration, mobile applicant registration, login, password reset request/confirm.
 - Authenticated users: logout and profile.
 - Applicant: resume upload.
 
@@ -32,7 +32,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 | Method | Endpoint | Notes |
 | --- | --- | --- |
-| `POST` | `/api/auth/register/` | Register an HR department head account. |
+| `POST` | `/api/auth/register/` | Register a hiring manager account. |
 | `POST` | `/api/auth/register-applicant/` | Register a mobile job applicant account. |
 | `POST` | `/api/auth/login/` | Returns JWT tokens and user data. |
 | `POST` | `/api/auth/logout/` | Authenticated logout/token blacklist flow. |
@@ -40,8 +40,8 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `POST` | `/api/auth/password-reset/request/` | Demo/local email reset request. |
 | `POST` | `/api/auth/password-reset/confirm/` | Confirm password reset. |
 | `POST` | `/api/auth/resume/upload/` | Applicant resume upload. |
-| `GET` | `/api/applications/{id}/resume/` | Authenticated resume file view for the applicant, job-owning recruiter, HR head, or assigned interviewer. |
-| `DELETE` | `/api/org/` | HR head soft-deletes their organization account after system validations confirm no active jobs, applications, interviews, hiring approvals/offers, subscriptions, or pending payments remain. |
+| `GET` | `/api/applications/{id}/resume/` | Authenticated resume file view for the applicant, job-owning recruiter, hiring manager, or assigned interviewer. |
+| `DELETE` | `/api/org/` | hiring manager soft-deletes their organization account after system validations confirm no active jobs, applications, interviews, hiring approvals/offers, subscriptions, or pending payments remain. |
 
 **Permission notes:** Protected account endpoints require authentication. Resume upload is limited to applicants.
 
@@ -49,7 +49,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Purpose:** Provide authenticated users with their own profile data and allow profile updates.
 
-**Main roles:** Applicant, recruiter, interviewer, HR head.
+**Main roles:** Applicant, recruiter, interviewer, hiring manager.
 
 **Confirmed example endpoint:**
 
@@ -59,9 +59,9 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 ## Organization APIs
 
-**Purpose:** Allow an HR head to create/manage the organization and team members.
+**Purpose:** Allow a hiring manager to create/manage the organization and team members.
 
-**Main roles:** HR head.
+**Main roles:** hiring manager.
 
 **Confirmed example endpoints:**
 
@@ -73,7 +73,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/org/members/bulk/` | Bulk import members. |
 | `/api/org/members/<member_id>/deactivate/` | Deactivate member. |
 
-**Permission notes:** These endpoints are HR-head controlled and scoped to the HR head's organization.
+**Permission notes:** These endpoints are hiring manager controlled and scoped to the hiring manager's organization.
 
 ## Jobs APIs
 
@@ -83,7 +83,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 - Recruiter: create/update jobs, requirements, evaluation scorecards, duplicate jobs, view qualified applicant rankings.
 - Applicant: browse jobs, save jobs, apply.
-- HR head/interviewer: may view organization/assigned job-related data where allowed by the views.
+- hiring manager/interviewer: may view organization/assigned job-related data where allowed by the views.
 
 **Confirmed example endpoints:**
 
@@ -105,7 +105,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Purpose:** Manage job applications, screening, shortlisting, rejection, remarks, applicant profiles, status history, interviewer assignment, hiring recommendation, and job offer creation.
 
-**Main roles:** Applicant, recruiter, interviewer, HR head depending on endpoint.
+**Main roles:** Applicant, recruiter, interviewer, hiring manager depending on endpoint.
 
 **Confirmed example endpoints:**
 
@@ -123,7 +123,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/applications/<application_id>/hiring-decision/` | Recruiter hiring recommendation. |
 | `/api/applications/<application_id>/job-offer/` | Job offer creation. |
 
-**Permission notes:** Applicants only see their own applications. Recruiters/HR heads are organization-scoped. Interviewer access is limited to assigned applicant/interview contexts.
+**Permission notes:** Applicants only see their own applications. Recruiters/hiring managers are organization-scoped. Interviewer access is limited to assigned applicant/interview contexts.
 
 ## AI Screening and Ranking APIs
 
@@ -182,27 +182,27 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 ## Hiring Decisions APIs
 
-**Purpose:** Let recruiters submit hiring recommendations and HR heads approve or reject them.
+**Purpose:** Let recruiters submit hiring recommendations and hiring managers approve or reject them.
 
-**Main roles:** Recruiter and HR head.
+**Main roles:** Recruiter and hiring manager.
 
 **Confirmed example endpoints:**
 
 | Endpoint | Notes |
 | --- | --- |
 | `/api/applications/<application_id>/hiring-decision/` | Recruiter submits hiring recommendation. |
-| `/api/hiring-decisions/pending/` | HR head views pending decisions. |
+| `/api/hiring-decisions/pending/` | hiring manager views pending decisions. |
 | `/api/hiring-decisions/<decision_id>/` | Hiring decision detail. |
-| `/api/hiring-decisions/<decision_id>/approve/` | HR-head approval. |
-| `/api/hiring-decisions/<decision_id>/reject/` | HR-head rejection. |
+| `/api/hiring-decisions/<decision_id>/approve/` | hiring manager approval. |
+| `/api/hiring-decisions/<decision_id>/reject/` | hiring manager rejection. |
 
-**Permission notes:** HR-head actions are organization-scoped. Final approval remains a human workflow decision.
+**Permission notes:** hiring manager actions are organization-scoped. Final approval remains a human workflow decision.
 
 ## Job Offers APIs
 
 **Purpose:** Create job offers after hiring approval and allow applicants to respond.
 
-**Main roles:** Recruiter, HR head, applicant depending on endpoint.
+**Main roles:** Recruiter, hiring manager, applicant depending on endpoint.
 
 **Confirmed example endpoints:**
 
@@ -219,7 +219,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Purpose:** Provide role-scoped notifications and read/unread status.
 
-**Main roles:** Applicant, recruiter, interviewer, HR head.
+**Main roles:** Applicant, recruiter, interviewer, hiring manager.
 
 **Confirmed example endpoints:**
 
@@ -236,7 +236,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Purpose:** Provide dashboards, organization overview, job funnel analytics, and PDF report exports.
 
-**Main roles:** Recruiter, interviewer, HR head.
+**Main roles:** Recruiter, interviewer, hiring manager.
 
 **Confirmed example endpoints:**
 
@@ -244,12 +244,12 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | --- | --- |
 | `/api/analytics/recruiter/dashboard/` | Recruiter dashboard metrics. |
 | `/api/analytics/interviewer/dashboard/` | Interviewer dashboard metrics. |
-| `/api/analytics/hr-head/dashboard/` | HR-head dashboard metrics. |
+| `/api/analytics/hr-head/dashboard/` | hiring manager dashboard metrics. |
 | `/api/analytics/jobs/<job_id>/funnel/` | Job funnel analytics. |
 | `/api/analytics/organization/overview/` | Organization overview analytics. |
 | `/api/reports/recruiter-summary.pdf` | Recruiter PDF report. |
 | `/api/reports/interviewer-summary.pdf` | Interviewer PDF report. |
-| `/api/reports/hr-head-summary.pdf` | HR-head PDF report. |
+| `/api/reports/hr-head-summary.pdf` | hiring manager PDF report. |
 
 **Permission notes:** Analytics are role-protected and organization-scoped where applicable. PDF export requires the backend environment and ReportLab dependency to be installed.
 
@@ -257,7 +257,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 **Purpose:** Manage subscription plans, current subscription, invoices, upgrades, demo payment success, and optional Stripe checkout/webhook support.
 
-**Main roles:** HR head for protected subscription actions. Stripe webhook endpoint is public for gateway callbacks.
+**Main roles:** hiring manager for protected subscription actions. Stripe webhook endpoint is public for gateway callbacks.
 
 **Confirmed example endpoints:**
 
@@ -272,4 +272,4 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/billing/webhooks/stripe/` | Stripe webhook callback endpoint. |
 | `/api/billing/demo-payment-success/` | Demo payment success endpoint. |
 
-**Permission notes:** HR-head subscription actions are organization-scoped. Demo payment should be used for FYP unless real gateway credentials are configured.
+**Permission notes:** hiring manager subscription actions are organization-scoped. Demo payment should be used for FYP unless real gateway credentials are configured.

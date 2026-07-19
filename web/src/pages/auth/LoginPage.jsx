@@ -101,9 +101,9 @@ export default function LoginPage() {
       </Box>
 
       <Typography color="text.secondary" sx={{ mt: 3 }}>
-        New to HRRecruit?{' '}
+        New hiring manager?{' '}
         <MuiLink component={RouterLink} to="/register">
-          Register an HR department head account here
+          Register your hiring manager account
         </MuiLink>
         .
       </Typography>

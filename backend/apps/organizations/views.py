@@ -1,4 +1,4 @@
-"""HR-head organization and team setup API views."""
+"""hiring manager organization and team setup API views."""
 
 from django.db import transaction
 from django.db.models import Q
@@ -29,7 +29,7 @@ def get_active_membership_organization(user, role):
 
 
 def get_managed_organization(hr_head):
-    """Return the HR head's non-deleted organization, if one exists."""
+    """Return the hiring manager's non-deleted organization, if one exists."""
     return Organization.objects.filter(created_by=hr_head).exclude(status=Organization.Status.DELETED).first()
 
 
@@ -98,7 +98,7 @@ class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
 
     def post(self, request):
         if request.user.role != User.Role.HR_HEAD:
-            return Response({'detail': 'Only HR heads can create organization team members.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'Only hiring managers can create organization team members.'}, status=status.HTTP_403_FORBIDDEN)
         organization = self.get_organization(request)
         if not organization:
             return self.organization_not_found_response()

@@ -492,7 +492,7 @@ The current backend tests cover many basics, but gaps allow algorithm regression
 
 **Required behavior from `ALGORITHMS.md`**
 
-- AI should support recruiter/interviewer/HR head decision-making and must not make final decisions.
+- AI should support recruiter/interviewer/hiring manager decision-making and must not make final decisions.
 - AI output should be exposed/stored where useful for recruiter/interviewer workflows.
 - Interview summary must be editable before final submission.
 

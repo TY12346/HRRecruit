@@ -14,7 +14,7 @@ The system supports the complete recruitment process:
 4. Interviewers manage interviews and submit evaluations.
 5. AI assists interview transcription and summary generation.
 6. Recruiters submit hiring decisions.
-7. HR department heads approve or reject hiring decisions.
+7. Hiring managers approve or reject hiring decisions.
 8. Applicants receive offers or rejection updates.
 9. The system provides notifications, analytics, reporting, and subscription management.
 
@@ -30,7 +30,7 @@ Used by:
 
 - Recruiters
 - Interviewers
-- HR Department Heads
+- Hiring Managers
 
 ### Backend API
 
@@ -50,7 +50,7 @@ Used by both web and mobile apps.
 - Store LinkedIn URL
 - Optional mock LinkedIn import later
 
-### Recruiter / Interviewer / HR Head
+### Recruiter / Interviewer / Hiring Manager
 
 - Login/logout
 - Reset password
@@ -67,7 +67,7 @@ Used by both web and mobile apps.
 
 ## 4. Organization and Team Setup Requirements
 
-HR Department Head can:
+Hiring Manager can:
 
 - Create organization account
 - Update organization details
@@ -80,7 +80,7 @@ HR Department Head can:
 
 Applicants do not belong to an organization.
 
-Recruiters, interviewers, and HR heads belong to an organization.
+Recruiters, interviewers, and hiring managers belong to an organization.
 
 ## 5. Job Posting and Requirement Configuration Requirements
 
@@ -120,7 +120,7 @@ Recruiter can:
 - View applicant profile
 - View status history
 
-HR head can:
+Hiring manager can:
 
 - View organization-level application information if needed
 
@@ -224,11 +224,11 @@ Recruiter can:
 
 - Submit final decision: hire or reject
 - Provide justification
-- Submit decision to HR head
-- View HR head approval result
+- Submit decision to hiring manager
+- View hiring manager approval result
 - Send job offer after approval
 
-HR Department Head can:
+Hiring Manager can:
 
 - View pending hiring decisions
 - Approve hiring decision with justification
@@ -282,7 +282,7 @@ Interviewer analytics:
 - Evaluation submission count
 - Average evaluation score
 
-HR head analytics:
+Hiring manager analytics:
 
 - Organization-level application counts
 - Hiring success rate
@@ -296,7 +296,7 @@ PDF export should be supported later using ReportLab.
 
 ## 14. Subscription and Billing Requirements
 
-HR head can:
+Hiring manager can:
 
 - View subscription plans
 - Select plan

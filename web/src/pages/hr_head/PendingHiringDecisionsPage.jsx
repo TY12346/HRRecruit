@@ -17,7 +17,7 @@ export default function PendingHiringDecisionsPage() {
   return <Box><HRHeadNav /><Stack spacing={3}>
     <Box><Typography variant="h5" sx={{ fontWeight: 700 }}>Pending Job-level Hiring Recommendations</Typography><Typography color="text.secondary">Approve or reject the recommendation for the job posting as a whole.</Typography></Box>
     {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}{loading ? <CircularProgress /> : null}
-    {!loading && recommendations.length === 0 ? <Alert severity="info">No job-level recommendations are pending HR approval.</Alert> : null}
+    {!loading && recommendations.length === 0 ? <Alert severity="info">No job-level recommendations are pending hiring manager approval.</Alert> : null}
     {recommendations.map((item) => <Card key={item.id}><CardContent><Stack spacing={2}>
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between"><Box><Typography variant="h6">{item.job_title}</Typography><Typography color="text.secondary">{titleize(item.recommendation_type)} • {item.vacancies} vacancy/vacancies • {item.organization_name}</Typography><Typography variant="caption">Submitted by {item.recruiter_name} on {formatDateTime(item.submitted_at)}</Typography></Box><Stack direction="row" spacing={1}><Button color="success" variant="contained" onClick={() => setReview({ item, action: 'approve' })}>Approve</Button><Button color="error" variant="outlined" onClick={() => setReview({ item, action: 'reject' })}>Reject</Button></Stack></Stack>
       <Typography><strong>Recruiter justification:</strong> {item.justification}</Typography>

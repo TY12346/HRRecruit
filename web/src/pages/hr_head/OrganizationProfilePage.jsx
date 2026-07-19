@@ -136,7 +136,7 @@ export default function OrganizationProfilePage() {
           Organization Profile
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Create or update the organization account managed by this HR head.
+          Create or update the organization account managed by this hiring manager.
         </Typography>
 
         {isLoading ? <CircularProgress aria-label="Loading organization" sx={{ mb: 2 }} /> : null}

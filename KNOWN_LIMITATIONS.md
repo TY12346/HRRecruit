@@ -14,7 +14,7 @@ This document records known limitations honestly for FYP submission and examiner
 - Scanned-image resumes and OCR are not supported unless OCR is explicitly added and configured.
 - Resume parsing quality depends on file text extraction. Image-only PDFs may produce little or no useful text.
 - Sentence-BERT or other semantic-model behavior may fall back to local lexical matching if the model/dependency is unavailable.
-- AI screening scores are decision-support signals only. The recruiter must make shortlist/reject decisions and the HR head must approve hiring decisions.
+- AI screening scores are decision-support signals only. The recruiter must make shortlist/reject decisions and the hiring manager must approve hiring decisions.
 - The scoring formula is deterministic and documented for FYP transparency, but it is not validated as an industry-grade hiring model.
 - The system does not guarantee bias-free applicant ranking. Human review remains required.
 

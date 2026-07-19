@@ -257,4 +257,4 @@ This report validates the current HRRecruit AI-assisted implementation against `
 3. **Semantic fallback is lexical, not truly semantic.** For best demo quality, either install/cache Sentence-BERT locally or prepare resumes/job descriptions with overlapping relevant keywords.
 4. **Mock interview transcript and summary are intentionally generic.** This is reliable for demo stability, but realistic transcript/summary generation requires an explicitly configured provider or local model.
 5. **Communication score remains 0-10.** Keep frontend/backend messaging consistent, or plan a coordinated migration after the demo.
-6. **AI is advisory only.** Recruiter shortlist/reject decisions and HR approval decisions must still be demonstrated manually after AI screening.
+6. **AI is advisory only.** Recruiter shortlist/reject decisions and hiring manager approval decisions must still be demonstrated manually after AI screening.

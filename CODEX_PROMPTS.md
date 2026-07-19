@@ -210,7 +210,7 @@ Endpoints:
 Requirements:
 - Use JWT using djangorestframework-simplejwt.
 - Applicant self-registration should create a user with role applicant.
-- For now, recruiter/interviewer/hr_head accounts will be created later by HR head or admin.
+- For now, recruiter/interviewer/hr_head accounts will be created later by hiring manager or admin.
 - Use database-backed OTP model instead of Redis for now.
 - OTP should be 6 digits and expire in 10 minutes.
 - Use console email backend for now.
@@ -287,7 +287,7 @@ Models:
    - joined_at
 
 Requirements:
-- One HR head can create an organization.
+- One hiring manager can create an organization.
 - Recruiters and interviewers belong to an organization through OrganizationMembership.
 - Applicants do not need to belong to an organization.
 - Register models in admin.
@@ -320,11 +320,11 @@ Endpoints:
 - POST /api/org/members/bulk/
 
 Requirements:
-- Only HR head can create and manage organization.
-- When HR head creates organization, create OrganizationMembership for that HR head.
+- Only hiring manager can create and manage organization.
+- When hiring manager creates organization, create OrganizationMembership for that hiring manager.
 - For company registration verification, use a mock function for now.
 - For organization deletion, use OTP confirmation if possible; otherwise mark TODO and implement soft delete.
-- HR head can create recruiter and interviewer accounts.
+- hiring manager can create recruiter and interviewer accounts.
 - Bulk import should support CSV first.
 - Excel bulk import can be added later.
 - Temporary passwords should be generated and printed through console email backend.
@@ -417,7 +417,7 @@ Endpoints:
 
 Requirements:
 - Recruiters can create/manage jobs only for their own organization.
-- HR heads can view jobs in their organization.
+- hiring managers can view jobs in their organization.
 - Applicants can view only open jobs.
 - Applicants can search/filter open jobs by title, location, employment_type.
 - Job requirements can be created with weights.
@@ -514,7 +514,7 @@ Requirements:
 - Applicants can withdraw only when status is submitted or screened.
 - Applicants can view only their own applications.
 - Recruiters can view applications only for jobs they created within their organization.
-- HR heads can view applications within their organization.
+- hiring managers can view applications within their organization.
 - Every status change must create ApplicationStageHistory.
 - Do not trigger AI screening automatically yet.
 - Add a placeholder service call or TODO for AI screening.
@@ -871,19 +871,19 @@ Endpoints:
 
 Requirements:
 - Recruiter submits hire/reject decision with justification.
-- HR head can view pending decisions in own organization.
-- HR head approves or rejects with justification.
+- hiring manager can view pending decisions in own organization.
+- hiring manager approves or rejects with justification.
 - If HR approves a hire decision, recruiter can send job offer.
 - Applicant can accept or decline job offer.
 - Every step updates JobApplication status.
 - Every status change creates ApplicationStageHistory.
-- Create notifications for recruiter, HR head, and applicant where appropriate.
+- Create notifications for recruiter, hiring manager, and applicant where appropriate.
 - Do not send real email yet.
 
 After implementation, provide:
 1. list of changed files
 2. endpoint list
-3. Postman examples for recruiter → HR head → applicant flow
+3. Postman examples for recruiter → hiring manager → applicant flow
 ```
 
 ---
@@ -1054,11 +1054,11 @@ Endpoints:
 - POST /api/billing/demo-payment-success/
 
 Requirements:
-- HR head can select a plan.
+- hiring manager can select a plan.
 - Use demo payment flow only.
 - demo-payment-success should activate subscription and create Payment record.
 - Generate invoice_number automatically.
-- HR head can view invoice/payment history.
+- hiring manager can view invoice/payment history.
 - Implement subscription plan enforcement:
   recruiter cannot create more open job postings than max_job_postings.
 - Add this enforcement to job creation endpoint.
@@ -1082,8 +1082,8 @@ Use Django TestCase and DRF APIClient.
 
 Test areas:
 1. Applicant registration and JWT login
-2. HR head organization creation
-3. HR head creates recruiter/interviewer
+2. hiring manager organization creation
+3. hiring manager creates recruiter/interviewer
 4. Recruiter creates job posting
 5. Applicant views open jobs
 6. Applicant applies for job
@@ -1094,7 +1094,7 @@ Test areas:
 11. Applicant accepts/declines invitation
 12. Interviewer uploads recording and submits evaluation
 13. Recruiter submits hiring decision
-14. HR head approves/rejects decision
+14. hiring manager approves/rejects decision
 15. Recruiter sends offer
 16. Applicant accepts/declines offer
 17. Notification unread count
@@ -1179,10 +1179,10 @@ After implementation, provide:
 
 ---
 
-## Prompt 30 — React HR Head Portal
+## Prompt 30 — React Hiring Manager Portal
 
 ```text
-Implement HR head web portal pages.
+Implement hiring manager web portal pages.
 
 Pages:
 - HRHeadDashboardPage
@@ -1197,12 +1197,12 @@ Pages:
 
 Requirements:
 - Use existing backend APIs.
-- HR head can create/update organization.
-- HR head can create recruiter/interviewer accounts.
-- HR head can search/deactivate members.
-- HR head can approve/reject hiring decisions.
-- HR head can select subscription plan and simulate payment.
-- HR head can view analytics.
+- hiring manager can create/update organization.
+- hiring manager can create recruiter/interviewer accounts.
+- hiring manager can search/deactivate members.
+- hiring manager can approve/reject hiring decisions.
+- hiring manager can select subscription plan and simulate payment.
+- hiring manager can view analytics.
 - Keep UI simple and clean.
 - Use Chapter 4 UI design screens only as visual reference if useful.
 
@@ -1246,7 +1246,7 @@ Requirements:
 - Recruiter can assign interviewer.
 - Recruiter can view submitted interview evaluation and AI summary.
 - Recruiter can submit hiring decision.
-- Recruiter can send job offer after HR approval.
+- Recruiter can send job offer after hiring manager approval.
 - Use existing backend APIs.
 - Keep UI practical for FYP demo.
 
@@ -1452,7 +1452,7 @@ Requirements:
 - Ensure all protected APIs require authentication.
 - Ensure each endpoint uses correct role permission.
 - Ensure organization data isolation is enforced.
-- Ensure applicants cannot access recruiter/interviewer/HR head data.
+- Ensure applicants cannot access recruiter/interviewer/hiring manager data.
 - Ensure recruiters cannot access other organizations' jobs/applications.
 - Ensure interviewers cannot access unassigned interviews.
 - Ensure file upload validation checks extension, size, and content type where possible.

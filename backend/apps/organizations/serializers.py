@@ -1,4 +1,4 @@
-"""Serializers for HR-head organization and team management APIs."""
+"""Serializers for hiring manager organization and team management APIs."""
 
 from django.db import transaction
 from rest_framework import serializers

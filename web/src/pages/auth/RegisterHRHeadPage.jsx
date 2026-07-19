@@ -63,10 +63,10 @@ export default function RegisterHRHeadPage() {
   return (
     <Paper sx={{ p: 3, maxWidth: 560, mx: 'auto' }}>
       <Typography component="h2" variant="h5" sx={{ mb: 1 }}>
-        HR Department Head Registration
+        Hiring Manager Registration
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Create the HR department head account for your organization.
+        Create the hiring manager account for your organization. Recruiter and interviewer accounts are created later from the hiring manager workspace.
       </Typography>
 
       {error ? (
@@ -112,7 +112,7 @@ export default function RegisterHRHeadPage() {
             value={formData.password}
           />
           <Button disabled={isSubmitting} type="submit" variant="contained">
-            {isSubmitting ? 'Creating account…' : 'Create HR head account'}
+            {isSubmitting ? 'Creating account…' : 'Create hiring manager account'}
           </Button>
         </Stack>
       </Box>

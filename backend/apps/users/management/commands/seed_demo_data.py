@@ -75,7 +75,7 @@ class Command(BaseCommand):
         user_specs = {
             User.Role.HR_HEAD: {
                 'email': DEMO_EMAILS[User.Role.HR_HEAD],
-                'full_name': 'Demo HR Head',
+                'full_name': 'Demo Hiring Manager',
                 'phone_number': '+60010000001',
             },
             User.Role.RECRUITER: {
@@ -338,7 +338,7 @@ class Command(BaseCommand):
         self._ensure_application_history(application, JobApplication.Status.SCREENED_QUALIFIED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'Recruiter shortlisted applicant for interview.')
         self._ensure_application_history(application, JobApplication.Status.SHORTLISTED, JobApplication.Status.INTERVIEW_ACCEPTED, users[User.Role.APPLICANT], 'Applicant accepted scheduled interview.')
         self._ensure_application_history(application, JobApplication.Status.INTERVIEW_ACCEPTED, JobApplication.Status.EVALUATION_SUBMITTED, users[User.Role.INTERVIEWER], 'Interviewer submitted evaluation.')
-        self._ensure_application_history(application, JobApplication.Status.EVALUATION_SUBMITTED, JobApplication.Status.HIRED, users[User.Role.HR_HEAD], 'HR head approved hiring and applicant accepted offer.')
+        self._ensure_application_history(application, JobApplication.Status.EVALUATION_SUBMITTED, JobApplication.Status.HIRED, users[User.Role.HR_HEAD], 'hiring manager approved hiring and applicant accepted offer.')
         return application
 
     def _ensure_application_history(self, application, from_stage, to_stage, changed_by, note):
@@ -419,7 +419,7 @@ class Command(BaseCommand):
                 'overall_impression': 'Positive fit for the Software Engineer demo role.',
                 'editable_summary_text': (
                     'Mock AI summary for demo only. Applicant communicates clearly, meets the core technical '
-                    'requirements, and should be reviewed by the recruiter and HR head before any final decision.'
+                    'requirements, and should be reviewed by the recruiter and hiring manager before any final decision.'
                 ),
                 'summary_json': {
                     'transparency': build_summary_transparency_metadata(
@@ -468,7 +468,7 @@ class Command(BaseCommand):
                 'decision': HiringDecision.Decision.HIRE,
                 'recruiter_justification': (
                     'Applicant passed AI-assisted screening, interview evaluation, and role-fit review. '
-                    'Recruiter recommends hire; HR head remains final approver.'
+                    'Recruiter recommends hire; hiring manager remains final approver.'
                 ),
                 'status': HiringDecision.Status.APPROVED,
                 'hr_head': users[User.Role.HR_HEAD],
@@ -504,7 +504,7 @@ class Command(BaseCommand):
             (users[User.Role.APPLICANT], 'application_status', 'Application shortlisted', 'Your demo Software Engineer application was shortlisted.', 'JobApplication', application.id),
             (users[User.Role.APPLICANT], 'interview_scheduled', 'Interview scheduled', 'Your demo interview has been scheduled.', 'Interview', interview.id),
             (users[User.Role.APPLICANT], 'job_offer', 'Demo job offer accepted', 'Your fake demo job offer has been accepted.', 'JobOffer', application.job_offers.first().id),
-            (users[User.Role.RECRUITER], 'hiring_decision_update', 'HR approved recommendation', 'The HR head approved the demo hiring recommendation.', 'HiringDecision', application.hiring_decisions.first().id),
+            (users[User.Role.RECRUITER], 'hiring_decision_update', 'Hiring manager approved recommendation', 'The hiring manager approved the demo hiring recommendation.', 'HiringDecision', application.hiring_decisions.first().id),
             (users[User.Role.HR_HEAD], 'hiring_decision_update', 'Offer accepted', 'The applicant accepted the fake demo offer.', 'JobApplication', application.id),
         ]
         for recipient, notification_type, title, message, entity_type, entity_id in notifications:

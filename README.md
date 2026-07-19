@@ -4,7 +4,7 @@
 
 The final decision is made through a **job-level Hiring Recommendation**, not an applicant-level decision:
 
-`Job open → applicants apply → AI screening/ranking → recruiter shortlists → recruiter closes application intake → interviews → evaluations → Ready for Hiring Recommendation → recruiter compares applicants and submits Recommend Hire or Recommend No Hire → HR Department Head approves/rejects → recruiter sends approved offers → applicant accepts/declines`
+`Job open → applicants apply → AI screening/ranking → recruiter shortlists → recruiter closes application intake → interviews → evaluations → Ready for Hiring Recommendation → recruiter compares applicants and submits Recommend Hire or Recommend No Hire → Hiring Manager approves/rejects → recruiter sends approved offers → applicant accepts/declines`
 
 Closing application intake prevents new applications while preserving every existing application for interviews, evaluation, comparison, and human review. Recommend Hire may select up to the job's vacancy count. Recommend No Hire selects nobody and requires a justification. Applicants never see internal recommendation or HR review details and are notified only when an approved offer is actually sent.
 
@@ -21,13 +21,13 @@ HRRecruit addresses this by providing one role-based platform where:
 - Applicants can find jobs, apply, upload resumes, track applications, respond to interviews, and handle job offers.
 - Recruiters can create jobs, screen applications, use AI-assisted ranking, schedule interviews, recommend hiring decisions, and create offers.
 - Interviewers can review assigned applicants, manage interview invitations, upload recordings, review transcripts/summaries, and submit evaluations.
-- HR heads can manage the organization, team members, approvals, analytics, and subscription/demo billing.
+- Hiring managers can manage the organization, team members, approvals, analytics, and subscription/demo billing.
 
 ## User Roles
 
 | Role | Main Responsibilities |
 | --- | --- |
-| HR head | Manage organization profile, team members, pending hiring approvals, analytics, reports, and billing/subscription status. |
+| Hiring Manager | Manage organization profile, team members, pending hiring approvals, analytics, reports, and billing/subscription status. |
 | Recruiter | Create and manage jobs, configure requirements and evaluation scorecards, review automatically screened applications, rank applicants, assign interviewers, submit hiring recommendations, and create job offers. |
 | Interviewer | View assigned interviews/applicants, send or review invitations, upload interview recordings, generate/review transcripts and AI summaries, and submit evaluations. |
 | Applicant | Register/login through the mobile workflow, manage profile/resume, browse and save jobs, apply, track application status, view notifications/interview invitations/offers, and accept or decline offers. |
@@ -45,7 +45,7 @@ HRRecruit addresses this by providing one role-based platform where:
 - Interview assignment, interview invitation, invitation response, and assigned-interview views.
 - Interview recording upload, transcript generation, AI summary generation, and summary editing.
 - Interview evaluation submission and detail review.
-- Hiring decision submission, HR-head approval/rejection, job offer creation, and applicant offer response.
+- Hiring decision submission, hiring manager approval/rejection, job offer creation, and applicant offer response.
 - Notifications and unread-count/read-state APIs.
 - Role dashboards, analytics endpoints, and PDF report exports.
 - Billing plans, current subscription, invoices, demo payment success flow, and optional Stripe checkout/webhook endpoints.
@@ -78,7 +78,7 @@ HRRecruit addresses this by providing one role-based platform where:
 
 ```text
 backend/   Django REST Framework API and management commands
-web/       React web portal for HR head, recruiter, and interviewer roles
+web/       React web portal for hiring manager, recruiter, and interviewer roles
 mobile/    Flutter mobile app for applicants
 docs       Project-level Markdown documentation in the repository root
 ```
@@ -133,7 +133,7 @@ DemoPass123!
 
 | Role | Email |
 | --- | --- |
-| HR Head | demo.hrhead@example.com |
+| Hiring Manager | demo.hrhead@example.com |
 | Recruiter | demo.recruiter@example.com |
 | Interviewer | demo.interviewer@example.com |
 | Applicant | demo.applicant@example.com |
@@ -153,14 +153,14 @@ HRRecruit provides a protected applicant search API and web portal screens for i
 
 - Recruiters can search applications for job postings they created within their active organization. Supported safe filters include applicant/job text search, application status, job id, skills, education, experience, AI score range, application/interview dates, and sorting.
 - Interviewers can search only applicants assigned to them directly, through interviews, or through interview scheduling requests. Their filters focus on applicant/job text, application status, interview status such as upcoming/completed/pending evaluation, and date range.
-- HR heads can search all applications inside their own organization for oversight. They can filter by applicant/job text, department, recruiter id, application status, hiring decision status, pending HR approval, AI score range, and dates.
+- hiring managers can search all applications inside their own organization for oversight. They can filter by applicant/job text, department, recruiter id, application status, hiring decision status, pending hiring manager approval, AI score range, and dates.
 - Applicants cannot use applicant search and cannot browse other applicants.
 
 Web portal entry points:
 
 - Recruiter: **Applicant Search** (`/recruiter/applicant-search`)
 - Interviewer: **Applicant Search** (`/interviewer/applicant-search`)
-- HR head: **Applicant Search** (`/hr-head/applicant-search`)
+- hiring manager: **Applicant Search** (`/hr-head/applicant-search`)
 
 ## Interview weekly availability scheduling
 

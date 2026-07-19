@@ -41,7 +41,7 @@ export default function HiringDecisionPage() {
       <Typography>{selected.length} of {data.job.vacancies} vacancy slots selected.</Typography>
       <FormControlLabel control={<Checkbox checked={noHire} onChange={(event) => { setNoHire(event.target.checked); if (event.target.checked) setSelected([]); }} />} label="Recommend No Hire (select no applicants)" />
       <TextField required multiline minRows={4} label="Recruiter justification" value={justification} onChange={(event) => setJustification(event.target.value)} />
-      <Button variant="contained" disabled={!data.readiness.ready || !justification.trim() || (!noHire && selected.length === 0)} onClick={submit}>Submit for HR approval</Button>
+      <Button variant="contained" disabled={!data.readiness.ready || !justification.trim() || (!noHire && selected.length === 0)} onClick={submit}>Submit for hiring manager approval</Button>
     </>}
   </Stack></Paper></Box>;
 }

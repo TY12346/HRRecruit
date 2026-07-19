@@ -31,7 +31,7 @@ class OrganizationModelTests(SimpleTestCase):
     def test_non_hr_head_cannot_create_organization(self):
         organization = self.organization(self.user(User.Role.RECRUITER))
 
-        with self.assertRaisesMessage(ValidationError, 'Only an HR head can create an organization.'):
+        with self.assertRaisesMessage(ValidationError, 'Only a hiring manager can create an organization.'):
             organization.clean()
 
     def test_team_membership_accepts_matching_organization_role(self):
@@ -65,7 +65,7 @@ class OrganizationAPITests(APITestCase):
         self.hr_head = User.objects.create_user(
             email='head@example.com',
             password='StrongPass123!',
-            full_name='HR Head',
+            full_name='Hiring Manager',
             role=User.Role.HR_HEAD,
         )
         self.client.force_authenticate(self.hr_head)
@@ -212,7 +212,7 @@ class OrganizationAPITests(APITestCase):
         other_head = User.objects.create_user(
             email='other-head@example.com',
             password='StrongPass123!',
-            full_name='Other HR Head',
+            full_name='Other Hiring Manager',
             role=User.Role.HR_HEAD,
         )
         other_organization = Organization.objects.create(

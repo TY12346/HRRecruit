@@ -94,17 +94,17 @@ const STATUS_DETAILS = {
     },
   },
   decision_pending: {
-    label: 'Waiting for HR approval',
+    label: 'Waiting for hiring manager approval',
     description: 'The recruiter submitted a recommendation and HR must approve or reject it.',
     nextActions: {
-      recruiter: 'Wait for the HR department head to review the recommendation.',
+      recruiter: 'Wait for the hiring manager to review the recommendation.',
       hr_head: 'Review the recruiter recommendation and approve or reject it.',
       applicant: 'Your application is in final internal review.',
     },
   },
   hr_approved: {
     label: 'Approved for offer',
-    description: 'HR approved the hire recommendation. The applicant is ready for an offer.',
+    description: 'Hiring manager approved the hire recommendation. The applicant is ready for an offer.',
     nextActions: {
       recruiter: 'Prepare and send the job offer.',
       hr_head: 'Wait for the recruiter to send the offer and for the applicant response.',
@@ -113,7 +113,7 @@ const STATUS_DETAILS = {
   },
   hr_rejected: {
     label: 'HR did not approve recommendation',
-    description: 'HR rejected the recruiter recommendation. This is an internal review outcome.',
+    description: 'Hiring manager rejected the recruiter recommendation. This is an internal review outcome.',
     nextActions: {
       recruiter: 'Review HR feedback and decide the appropriate follow-up.',
       hr_head: 'No further action is needed unless the recruiter resubmits or follows up.',
