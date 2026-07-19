@@ -34,6 +34,8 @@ import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx'
 import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
 import HiringManagerDashboardPage from '../pages/hiring_manager/HiringManagerDashboardPage.jsx';
 import OrganizationProfilePage from '../pages/hiring_manager/OrganizationProfilePage.jsx';
+import OrganizationOnboardingPage from '../pages/hiring_manager/OrganizationOnboardingPage.jsx';
+import SubscriptionOnboardingPage from '../pages/hiring_manager/SubscriptionOnboardingPage.jsx';
 import TeamMembersPage from '../pages/hiring_manager/TeamMembersPage.jsx';
 import CreateTeamMemberPage from '../pages/hiring_manager/CreateTeamMemberPage.jsx';
 import BulkImportMembersPage from '../pages/hiring_manager/BulkImportMembersPage.jsx';
@@ -122,6 +124,8 @@ export const router = createBrowserRouter([
           {
             element: <HiringManagerOnboardingRoute />,
             children: [
+              { path: 'hiring-manager/onboarding/organization', element: <OrganizationOnboardingPage /> },
+              { path: 'hiring-manager/onboarding/subscription', element: <SubscriptionOnboardingPage /> },
               { path: 'hiring-manager', element: <HiringManagerDashboardPage /> },
               { path: 'hiring-manager/organization', element: <OrganizationProfilePage /> },
               { path: 'hiring-manager/team', element: <TeamMembersPage /> },

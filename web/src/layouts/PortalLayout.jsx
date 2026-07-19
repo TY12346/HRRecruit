@@ -1,14 +1,16 @@
 import { Badge, Box, Container, IconButton, Stack, Tooltip, Typography } from '@mui/material';
-import { Link as RouterLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout as logoutRequest } from '../api/client.js';
 import { useAuthStore } from '../store/authStore.js';
 
 export default function PortalLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const refreshToken = useAuthStore((state) => state.refreshToken);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const clearSession = useAuthStore((state) => state.clearSession);
+  const isOnboarding = isAuthenticated && location.pathname.startsWith('/hiring-manager/onboarding/');
 
   const handleLogout = async () => {
     try {
@@ -20,6 +22,10 @@ export default function PortalLayout() {
       navigate('/login', { replace: true });
     }
   };
+
+  if (isOnboarding) {
+    return <Box component="main" sx={{ minHeight: '100vh', p: { xs: 2.5, md: 6 } }}><Outlet /></Box>;
+  }
 
   return (
     <Box

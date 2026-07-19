@@ -38,11 +38,16 @@ export function GuestOnlyRoute() {
 }
 
 export function ProtectedRoute() {
+  const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (user?.role === 'hr_head') {
+    return <HiringManagerOnboardingRoute />;
   }
 
   return <Outlet />;
@@ -101,12 +106,12 @@ export function HiringManagerOnboardingRoute() {
     );
   }
 
-  if (!status.organization_created && location.pathname !== '/hiring-manager/organization') {
-    return <Navigate to="/hiring-manager/organization" replace />;
+  if (!status.organization_created && location.pathname !== '/hiring-manager/onboarding/organization') {
+    return <Navigate to="/hiring-manager/onboarding/organization" replace />;
   }
 
-  if (status.organization_created && !status.subscription_selected && location.pathname !== '/hiring-manager/billing') {
-    return <Navigate to="/hiring-manager/billing" replace />;
+  if (status.organization_created && !status.subscription_selected && location.pathname !== '/hiring-manager/onboarding/subscription') {
+    return <Navigate to="/hiring-manager/onboarding/subscription" replace />;
   }
 
   return <Outlet />;
