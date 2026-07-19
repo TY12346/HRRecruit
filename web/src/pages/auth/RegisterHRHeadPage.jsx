@@ -66,7 +66,7 @@ export default function RegisterHRHeadPage() {
         HR Department Head Registration
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Create the HR department head account for your organization. Recruiter and interviewer accounts are created later from the HR head workspace.
+        Create the HR department head account for your organization.
       </Typography>
 
       {error ? (

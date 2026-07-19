@@ -64,9 +64,6 @@ export default function LoginPage() {
       <Typography component="h2" variant="h5" sx={{ mb: 1 }}>
         Staff Login
       </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Sign in with your HRRecruit email and password to access your role-specific workspace.
-      </Typography>
 
       {error ? (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -104,9 +101,9 @@ export default function LoginPage() {
       </Box>
 
       <Typography color="text.secondary" sx={{ mt: 3 }}>
-        New HR department head?{' '}
+        New to HRRecruit?{' '}
         <MuiLink component={RouterLink} to="/register">
-          Register your HR head account
+          Register an HR department head account here
         </MuiLink>
         .
       </Typography>
