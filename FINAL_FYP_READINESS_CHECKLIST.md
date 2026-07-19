@@ -87,7 +87,7 @@ flutter run
 | Recruiter/interviewer organization membership | Complete | Create members or use seeded members. | `GET/POST /api/org/members/`, `POST /api/org/members/bulk/` | Membership records drive role-specific organization access. |
 | Organization isolation | Complete | Attempt to access another organization's jobs/applications/analytics. | Backend organization filters in apps; `FINAL_SYSTEM_GAP_REPORT.md` | Major flows filter by active membership; production hardening/audit remains a future enhancement. |
 | Users cannot access data from another organization | Manual Verification Required | Run negative manual/API tests with two organizations and users. | `TESTING_GUIDE.md`, API endpoints across jobs/applications/interviews/hiring | Code supports isolation, but final demo should include at least one negative test rehearsal. |
-| Demo hiring manager bootstrap or seed command exists | Complete | Run either bootstrap or full demo seed. | `python manage.py bootstrap_demo_hr_head`, `python manage.py seed_demo_data` | Full seed is recommended for the final demo. |
+| Demo hiring manager bootstrap or seed command exists | Complete | Run either bootstrap or full demo seed. | `python manage.py bootstrap_demo_hiring_manager`, `python manage.py seed_demo_data` | Full seed is recommended for the final demo. |
 
 ## 5. Job Posting Workflow
 
@@ -181,7 +181,7 @@ flutter run
 | Recruiter can send job offer after hiring manager approval | Complete | Approve hire decision, then create offer. | `POST /api/applications/<id>/job-offer/` | Requires approved hire decision and `hr_approved` status. |
 | Applicant can accept/reject offer | Complete | Respond through mobile app or API. | `POST /api/job-offers/<id>/accept/`, `POST /api/job-offers/<id>/decline/` | Applicant ownership enforced. |
 | Accepted offer updates application lifecycle correctly | Complete | Accept offer and inspect application status/history. | `backend/apps/hiring/views.py`, `GET /api/applications/<id>/status-history/` | Acceptance marks the application `hired`. |
-| Hired status is reflected in analytics if implemented | Complete | Accept an offer, then load analytics. | `GET /api/analytics/recruiter/`, `GET /api/analytics/hr-head/` | Analytics count `hired` applications. |
+| Hired status is reflected in analytics if implemented | Complete | Accept an offer, then load analytics. | `GET /api/analytics/recruiter/`, `GET /api/analytics/hiring-manager/` | Analytics count `hired` applications. |
 | Offer deadline validation if implemented | Complete | Try accepting after deadline. | `backend/apps/hiring/views.py` | Accept/decline endpoints check expired sent offers. Creation-time deadline constraints should still be manually checked. |
 
 ## 13. Notifications
@@ -201,8 +201,8 @@ flutter run
 |---|---|---|---|---|
 | Recruiter analytics | Complete | Log in as recruiter and call/load dashboard. | `GET /api/analytics/recruiter/`, React recruiter analytics page | Scoped to recruiter's organization/jobs. |
 | Interviewer analytics | Complete | Log in as interviewer and call/load dashboard. | `GET /api/analytics/interviewer/`, React interviewer analytics page | Scoped to assigned/evaluated interviews. |
-| hiring manager analytics | Complete | Log in as hiring manager and call/load dashboard. | `GET /api/analytics/hr-head/`, React hiring manager analytics page | Organization-scoped. |
-| PDF export endpoints | Complete | Call report endpoints and download/open PDF. | `GET /api/reports/recruiter-summary.pdf`, `GET /api/reports/interviewer-summary.pdf`, `GET /api/reports/hr-head-summary.pdf` | Requires `reportlab`. |
+| hiring manager analytics | Complete | Log in as hiring manager and call/load dashboard. | `GET /api/analytics/hiring-manager/`, React hiring manager analytics page | Organization-scoped. |
+| PDF export endpoints | Complete | Call report endpoints and download/open PDF. | `GET /api/reports/recruiter-summary.pdf`, `GET /api/reports/interviewer-summary.pdf`, `GET /api/reports/hiring-manager-summary.pdf` | Requires `reportlab`. |
 | `reportlab` dependency documented | Complete | Check backend requirements and docs. | `backend/requirements.txt`, `SETUP_GUIDE.md` | Required for PDF generation. |
 | Analytics reflect hired/accepted outcomes correctly | Complete | Accept offer, verify `hired_count` and offer acceptance rate. | `backend/apps/analytics/services.py` | Depends on final lifecycle data. |
 | Manual PDF export verification steps documented | Complete | Read testing/demo docs and perform export. | `TESTING_GUIDE.md`, `DEMO_GUIDE.md` | Manually confirm the PDF opens before demo. |

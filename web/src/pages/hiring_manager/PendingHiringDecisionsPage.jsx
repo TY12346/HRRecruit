@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import { approveJobHiringRecommendation, getJobHiringRecommendations, rejectJobHiringRecommendation } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 export default function PendingHiringDecisionsPage() {
   const [recommendations, setRecommendations] = useState([]);
@@ -14,7 +14,7 @@ export default function PendingHiringDecisionsPage() {
   const load = useCallback(async () => { setLoading(true); try { setRecommendations(await getJobHiringRecommendations({ status: 'pending_hr_approval' })); } catch (err) { setError(getApiErrorMessage(err, 'Unable to load hiring recommendations.')); } finally { setLoading(false); } }, []);
   useEffect(() => { load(); }, [load]);
   const submit = async () => { try { if (review.action === 'approve') await approveJobHiringRecommendation(review.item.id, remarks); else await rejectJobHiringRecommendation(review.item.id, remarks); setSuccess(`Hiring recommendation ${review.action === 'approve' ? 'approved' : 'returned for review'}.`); setReview(null); setRemarks(''); await load(); } catch (err) { setError(getApiErrorMessage(err, 'Unable to review recommendation.')); } };
-  return <Box><HRHeadNav /><Stack spacing={3}>
+  return <Box><HiringManagerNav /><Stack spacing={3}>
     <Box><Typography variant="h5" sx={{ fontWeight: 700 }}>Pending Job-level Hiring Recommendations</Typography><Typography color="text.secondary">Approve or reject the recommendation for the job posting as a whole.</Typography></Box>
     {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}{loading ? <CircularProgress /> : null}
     {!loading && recommendations.length === 0 ? <Alert severity="info">No job-level recommendations are pending hiring manager approval.</Alert> : null}

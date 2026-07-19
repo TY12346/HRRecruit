@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.models import User
-from apps.users.permissions import IsHRHead, IsRecruiterOrHRHead
+from apps.users.permissions import IsHiringManager, IsRecruiterOrHiringManager
 
 from .models import Organization, OrganizationMembership
 from .services import delete_organization_account, get_organization_deletion_blockers
@@ -34,7 +34,7 @@ def get_managed_organization(hr_head):
 
 
 class ManagedOrganizationMixin:
-    permission_classes = [IsHRHead]
+    permission_classes = [IsHiringManager]
 
     def get_organization(self, request):
         return get_managed_organization(request.user)
@@ -87,7 +87,7 @@ class OrganizationAPIView(ManagedOrganizationMixin, APIView):
 
 
 class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
-    permission_classes = [IsRecruiterOrHRHead]
+    permission_classes = [IsRecruiterOrHiringManager]
 
     def get_organization(self, request):
         if request.user.role == User.Role.HR_HEAD:

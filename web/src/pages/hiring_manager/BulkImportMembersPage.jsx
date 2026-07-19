@@ -4,8 +4,8 @@ import * as XLSX from 'xlsx';
 import { Alert, Box, Button, List, ListItem, Paper, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { bulkImportOrganizationMembers } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { getApiErrorMessage } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { getApiErrorMessage } from './hiringManagerUtils.js';
 
 const REQUIRED_HEADERS = ['email', 'full_name', 'role'];
 const OPTIONAL_HEADERS = ['phone_number'];
@@ -128,7 +128,7 @@ export default function BulkImportMembersPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Paper sx={{ p: 3 }}>
         <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
           Bulk Import Members
@@ -159,7 +159,7 @@ export default function BulkImportMembersPage() {
               <Button disabled={isParsing || isSubmitting || !parsedMembers.length} type="submit" variant="contained">
                 {isParsing ? 'Parsing…' : isSubmitting ? 'Importing…' : 'Import members'}
               </Button>
-              <Button component={RouterLink} to="/hr-head/team" variant="outlined">
+              <Button component={RouterLink} to="/hiring-manager/team" variant="outlined">
                 Back to team
               </Button>
             </Stack>

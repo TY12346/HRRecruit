@@ -25,7 +25,7 @@ export const login = async ({ email, password }) => {
   return response.data;
 };
 
-export const registerHRHead = async ({ email, fullName, phoneNumber, password }) => {
+export const registerHiringManager = async ({ email, fullName, phoneNumber, password }) => {
   const response = await apiClient.post('/auth/register/', {
     email,
     full_name: fullName,
@@ -203,8 +203,8 @@ export const reactivateSubscription = async () => {
   return response.data;
 };
 
-export const getHRHeadAnalytics = async () => {
-  const response = await apiClient.get('/analytics/hr-head/dashboard/');
+export const getHiringManagerAnalytics = async () => {
+  const response = await apiClient.get('/analytics/hiring-manager/dashboard/');
   return response.data;
 };
 
@@ -240,7 +240,7 @@ export const downloadAnalyticsReportPdf = async (reportType) => {
   const reportPaths = {
     recruiter: '/reports/recruiter-summary.pdf',
     interviewer: '/reports/interviewer-summary.pdf',
-    hr_head: '/reports/hr-head-summary.pdf',
+    hr_head: '/reports/hiring-manager-summary.pdf',
   };
   const reportPath = reportPaths[reportType];
 

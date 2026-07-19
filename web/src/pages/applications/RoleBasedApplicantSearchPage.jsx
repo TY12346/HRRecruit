@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { getApplicantSearch } from '../../api/client.js';
-import HRHeadNav from '../hr_head/HRHeadNav.jsx';
+import HiringManagerNav from '../hiring_manager/HiringManagerNav.jsx';
 import InterviewerNav from '../interviewer/InterviewerNav.jsx';
 import RecruiterNav from '../recruiter/RecruiterNav.jsx';
 
@@ -38,7 +38,7 @@ const ROLE_CONFIG = {
   hr_head: {
     title: 'Organization Applicant Search',
     description: 'Search applicants across your organization for oversight, approvals, and hiring pipeline review.',
-    nav: HRHeadNav,
+    nav: HiringManagerNav,
   },
 };
 
@@ -232,7 +232,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
                 {role === 'hr_head' ? <TableCell>{application.recruiter?.full_name ?? '—'}</TableCell> : null}
                 <TableCell>{formatDate(application.applied_at)}</TableCell>
                 <TableCell align="right">
-                  {config.detailBase ? <Button component={RouterLink} to={`${config.detailBase}/${application.id}`} size="small">Open</Button> : <Button component={RouterLink} to="/hr-head/hiring-decisions" size="small">Approvals</Button>}
+                  {config.detailBase ? <Button component={RouterLink} to={`${config.detailBase}/${application.id}`} size="small">Open</Button> : <Button component={RouterLink} to="/hiring-manager/hiring-decisions" size="small">Approvals</Button>}
                 </TableCell>
               </TableRow>
             ))}

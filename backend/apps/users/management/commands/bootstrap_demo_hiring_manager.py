@@ -7,7 +7,7 @@ class Command(BaseCommand):
     help = 'Create or update a demo hiring manager account for local FYP demonstrations.'
 
     def add_arguments(self, parser):
-        parser.add_argument('--email', default='hr-head.demo@hrrecruit.test', help='Demo hiring manager login email.')
+        parser.add_argument('--email', default='hiring-manager.demo@hrrecruit.test', help='Demo hiring manager login email.')
         parser.add_argument('--password', default='DemoPass123!', help='Demo hiring manager login password.')
         parser.add_argument('--full-name', default='Demo Hiring Manager', help='Demo hiring manager display name.')
         parser.add_argument('--phone-number', default='+60000000000', help='Demo hiring manager phone number.')

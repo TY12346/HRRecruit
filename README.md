@@ -160,7 +160,7 @@ Web portal entry points:
 
 - Recruiter: **Applicant Search** (`/recruiter/applicant-search`)
 - Interviewer: **Applicant Search** (`/interviewer/applicant-search`)
-- hiring manager: **Applicant Search** (`/hr-head/applicant-search`)
+- hiring manager: **Applicant Search** (`/hiring-manager/applicant-search`)
 
 ## Interview weekly availability scheduling
 

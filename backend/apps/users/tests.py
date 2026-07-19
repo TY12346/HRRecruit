@@ -12,11 +12,11 @@ from rest_framework.test import APITestCase
 from .models import User
 from .permissions import (
     IsApplicant,
-    IsHRHead,
+    IsHiringManager,
     IsInterviewer,
     IsOrganizationMember,
     IsRecruiter,
-    IsRecruiterOrHRHead,
+    IsRecruiterOrHiringManager,
 )
 
 
@@ -38,7 +38,7 @@ class RolePermissionTests(SimpleTestCase):
             (IsApplicant, {User.Role.APPLICANT}),
             (IsRecruiter, {User.Role.RECRUITER}),
             (IsInterviewer, {User.Role.INTERVIEWER}),
-            (IsHRHead, {User.Role.HR_HEAD}),
+            (IsHiringManager, {User.Role.HR_HEAD}),
         )
 
         for permission_class, allowed_roles in permission_roles:
@@ -46,7 +46,7 @@ class RolePermissionTests(SimpleTestCase):
 
     def test_recruiter_or_hr_head_permission_allows_both_roles(self):
         self.assert_allowed_roles(
-            IsRecruiterOrHRHead,
+            IsRecruiterOrHiringManager,
             {User.Role.RECRUITER, User.Role.HR_HEAD},
         )
 
@@ -62,8 +62,8 @@ class RolePermissionTests(SimpleTestCase):
             IsApplicant,
             IsRecruiter,
             IsInterviewer,
-            IsHRHead,
-            IsRecruiterOrHRHead,
+            IsHiringManager,
+            IsRecruiterOrHiringManager,
             IsOrganizationMember,
         )
 

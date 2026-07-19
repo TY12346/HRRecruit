@@ -243,8 +243,8 @@ Permission classes:
 - IsApplicant
 - IsRecruiter
 - IsInterviewer
-- IsHRHead
-- IsRecruiterOrHRHead
+- IsHiringManager
+- IsRecruiterOrHiringManager
 - IsOrganizationMember
 
 Requirements:
@@ -933,7 +933,7 @@ Implement analytics APIs for HRRecruit.
 Endpoints:
 - GET /api/analytics/recruiter/dashboard/
 - GET /api/analytics/interviewer/dashboard/
-- GET /api/analytics/hr-head/dashboard/
+- GET /api/analytics/hiring-manager/dashboard/
 - GET /api/analytics/jobs/{id}/funnel/
 - GET /api/analytics/organization/overview/
 
@@ -974,7 +974,7 @@ Implement PDF report export for HRRecruit analytics.
 Endpoints:
 - GET /api/reports/recruiter-summary.pdf
 - GET /api/reports/interviewer-summary.pdf
-- GET /api/reports/hr-head-summary.pdf
+- GET /api/reports/hiring-manager-summary.pdf
 
 Requirements:
 - Use ReportLab.
@@ -1137,7 +1137,7 @@ Requirements:
   - src/pages/auth/
   - src/pages/recruiter/
   - src/pages/interviewer/
-  - src/pages/hr_head/
+  - src/pages/hiring_manager/
   - src/store/
   - src/routes/
 - Add Axios instance with base URL from .env.
@@ -1185,14 +1185,14 @@ After implementation, provide:
 Implement hiring manager web portal pages.
 
 Pages:
-- HRHeadDashboardPage
+- HiringManagerDashboardPage
 - OrganizationProfilePage
 - TeamMembersPage
 - CreateTeamMemberPage
 - BulkImportMembersPage
 - PendingHiringDecisionsPage
 - BillingPage
-- HRAnalyticsPage
+- HiringManagerAnalyticsPage
 - NotificationsPage
 
 Requirements:

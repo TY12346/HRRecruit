@@ -59,7 +59,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/apps/applications/models.py`
   - `backend/apps/analytics/services.py`
   - `mobile/lib/services/applicant_workflow_service.dart`
-  - `web/src/pages/hr_head/HRAnalyticsPage.jsx`
+  - `web/src/pages/hiring_manager/HiringManagerAnalyticsPage.jsx`
   - `web/src/pages/recruiter/RecruiterAnalyticsPage.jsx`
 - **Affected user role:** Applicant, Recruiter, Hiring Manager
 - **Severity:** High
@@ -217,7 +217,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/apps/billing/views.py`
   - `backend/apps/billing/services.py`
   - `backend/apps/billing/urls.py`
-  - `web/src/pages/hr_head/BillingPage.jsx`
+  - `web/src/pages/hiring_manager/BillingPage.jsx`
 - **Affected user role:** Hiring Manager
 - **Severity:** Low
 - **Recommended fix:** Add explicit cancel/renew endpoints or document that subscription renewal/cancellation is out of scope for the FYP demo.
@@ -232,7 +232,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/requirements.txt`
   - `web/src/pages/recruiter/RecruiterAnalyticsPage.jsx`
   - `web/src/pages/interviewer/InterviewerAnalyticsPage.jsx`
-  - `web/src/pages/hr_head/HRAnalyticsPage.jsx`
+  - `web/src/pages/hiring_manager/HiringManagerAnalyticsPage.jsx`
 - **Affected user role:** Recruiter, Interviewer, Hiring Manager
 - **Severity:** Medium
 - **Recommended fix:** Verify `reportlab` is installed in the final backend environment, add a smoke test for each PDF endpoint, and include PDF export in demo dry runs.

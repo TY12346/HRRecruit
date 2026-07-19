@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { registerHRHead } from '../../api/client.js';
+import { registerHiringManager } from '../../api/client.js';
 import { useAuthStore } from '../../store/authStore.js';
 
 function collectApiErrors(error) {
@@ -24,7 +24,7 @@ function collectApiErrors(error) {
     .join(' ');
 }
 
-export default function RegisterHRHeadPage() {
+export default function RegisterHiringManagerPage() {
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
   const [formData, setFormData] = useState({
@@ -46,13 +46,13 @@ export default function RegisterHRHeadPage() {
     setIsSubmitting(true);
 
     try {
-      const data = await registerHRHead(formData);
+      const data = await registerHiringManager(formData);
       setSession({
         accessToken: data.tokens.access,
         refreshToken: data.tokens.refresh,
         user: data.user,
       });
-      navigate('/hr-head', { replace: true });
+      navigate('/hiring-manager', { replace: true });
     } catch (submitError) {
       setError(collectApiErrors(submitError));
     } finally {

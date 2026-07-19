@@ -132,7 +132,7 @@ The command is designed to be safe to run multiple times. It creates/updates fak
 If you only need an initial hiring manager account instead of the full dataset, the repository also includes:
 
 ```bash
-python manage.py bootstrap_demo_hr_head --email hr-head.demo@hrrecruit.test --password DemoPass123!
+python manage.py bootstrap_demo_hiring_manager --email hr-head.demo@hrrecruit.test --password DemoPass123!
 ```
 
 ### Run the backend server

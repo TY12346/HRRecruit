@@ -16,8 +16,8 @@ import {
   Typography,
 } from '@mui/material';
 import { createOrganization, deleteOrganization, getOrganization, updateOrganization } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { getApiErrorMessage } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { getApiErrorMessage } from './hiringManagerUtils.js';
 
 const emptyForm = {
   name: '',
@@ -130,7 +130,7 @@ export default function OrganizationProfilePage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Paper sx={{ p: 3 }}>
         <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
           Organization Profile

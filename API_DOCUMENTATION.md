@@ -244,12 +244,12 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | --- | --- |
 | `/api/analytics/recruiter/dashboard/` | Recruiter dashboard metrics. |
 | `/api/analytics/interviewer/dashboard/` | Interviewer dashboard metrics. |
-| `/api/analytics/hr-head/dashboard/` | hiring manager dashboard metrics. |
+| `/api/analytics/hiring-manager/dashboard/` | hiring manager dashboard metrics. |
 | `/api/analytics/jobs/<job_id>/funnel/` | Job funnel analytics. |
 | `/api/analytics/organization/overview/` | Organization overview analytics. |
 | `/api/reports/recruiter-summary.pdf` | Recruiter PDF report. |
 | `/api/reports/interviewer-summary.pdf` | Interviewer PDF report. |
-| `/api/reports/hr-head-summary.pdf` | hiring manager PDF report. |
+| `/api/reports/hiring-manager-summary.pdf` | hiring manager PDF report. |
 
 **Permission notes:** Analytics are role-protected and organization-scoped where applicable. PDF export requires the backend environment and ReportLab dependency to be installed.
 

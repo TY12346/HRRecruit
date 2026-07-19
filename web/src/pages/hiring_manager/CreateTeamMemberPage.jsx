@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { createOrganizationMember } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { getApiErrorMessage } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { getApiErrorMessage } from './hiringManagerUtils.js';
 
 const emptyForm = {
   full_name: '',
@@ -33,7 +33,7 @@ export default function CreateTeamMemberPage() {
       const response = await createOrganizationMember(formData);
       setSuccessMessage(response.message ?? 'Team member created successfully. Temporary credentials were sent by email.');
       setFormData(emptyForm);
-      setTimeout(() => navigate('/hr-head/team'), 800);
+      setTimeout(() => navigate('/hiring-manager/team'), 800);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError, 'Unable to create team member.'));
     } finally {
@@ -43,7 +43,7 @@ export default function CreateTeamMemberPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Paper sx={{ p: 3 }}>
         <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
           Create Team Member
@@ -71,7 +71,7 @@ export default function CreateTeamMemberPage() {
               <Button disabled={isSubmitting} type="submit" variant="contained">
                 {isSubmitting ? 'Creating…' : 'Create member'}
               </Button>
-              <Button component={RouterLink} to="/hr-head/team" variant="outlined">
+              <Button component={RouterLink} to="/hiring-manager/team" variant="outlined">
                 Back to team
               </Button>
             </Stack>

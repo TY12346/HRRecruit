@@ -30,7 +30,7 @@ The seed command is safe to run multiple times. It creates/updates fake demo acc
 If only the first hiring manager account is needed, this command is also available:
 
 ```bash
-python manage.py bootstrap_demo_hr_head --email hr-head.demo@hrrecruit.test --password DemoPass123!
+python manage.py bootstrap_demo_hiring_manager --email hr-head.demo@hrrecruit.test --password DemoPass123!
 ```
 
 ### Start backend

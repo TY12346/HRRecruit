@@ -3,7 +3,7 @@ import PortalLayout from '../layouts/PortalLayout.jsx';
 import LoginPage from '../pages/auth/LoginPage.jsx';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage.jsx';
-import RegisterHRHeadPage from '../pages/auth/RegisterHRHeadPage.jsx';
+import RegisterHiringManagerPage from '../pages/auth/RegisterHiringManagerPage.jsx';
 import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.jsx';
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
 import RoleBasedApplicantSearchPage from '../pages/applications/RoleBasedApplicantSearchPage.jsx';
@@ -32,16 +32,16 @@ import InterviewerAnalyticsPage from '../pages/interviewer/InterviewerAnalyticsP
 import InterviewerNotificationsPage from '../pages/interviewer/NotificationsPage.jsx';
 import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx';
 import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
-import HRHeadDashboardPage from '../pages/hr_head/HRHeadDashboardPage.jsx';
-import OrganizationProfilePage from '../pages/hr_head/OrganizationProfilePage.jsx';
-import TeamMembersPage from '../pages/hr_head/TeamMembersPage.jsx';
-import CreateTeamMemberPage from '../pages/hr_head/CreateTeamMemberPage.jsx';
-import BulkImportMembersPage from '../pages/hr_head/BulkImportMembersPage.jsx';
-import PendingHiringDecisionsPage from '../pages/hr_head/PendingHiringDecisionsPage.jsx';
-import HRJobRequisitionsPage from '../pages/hr_head/JobRequisitionsPage.jsx';
-import BillingPage from '../pages/hr_head/BillingPage.jsx';
-import HRAnalyticsPage from '../pages/hr_head/HRAnalyticsPage.jsx';
-import NotificationsPage from '../pages/hr_head/NotificationsPage.jsx';
+import HiringManagerDashboardPage from '../pages/hiring_manager/HiringManagerDashboardPage.jsx';
+import OrganizationProfilePage from '../pages/hiring_manager/OrganizationProfilePage.jsx';
+import TeamMembersPage from '../pages/hiring_manager/TeamMembersPage.jsx';
+import CreateTeamMemberPage from '../pages/hiring_manager/CreateTeamMemberPage.jsx';
+import BulkImportMembersPage from '../pages/hiring_manager/BulkImportMembersPage.jsx';
+import PendingHiringDecisionsPage from '../pages/hiring_manager/PendingHiringDecisionsPage.jsx';
+import HiringManagerJobRequisitionsPage from '../pages/hiring_manager/HiringManagerJobRequisitionsPage.jsx';
+import BillingPage from '../pages/hiring_manager/BillingPage.jsx';
+import HiringManagerAnalyticsPage from '../pages/hiring_manager/HiringManagerAnalyticsPage.jsx';
+import NotificationsPage from '../pages/hiring_manager/NotificationsPage.jsx';
 import ProfilePage from '../pages/profile/ProfilePage.jsx';
 import { DashboardRedirect, GuestOnlyRoute, ProtectedRoute, RoleRoute } from './guards.jsx';
 
@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
           { path: 'login', element: <LoginPage /> },
           { path: 'forgot-password', element: <ForgotPasswordPage /> },
           { path: 'reset-password', element: <ResetPasswordPage /> },
-          { path: 'register', element: <RegisterHRHeadPage /> },
+          { path: 'register', element: <RegisterHiringManagerPage /> },
           { path: 'register-applicant', element: <Navigate to="/register" replace /> },
         ],
       },
@@ -119,17 +119,17 @@ export const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={['hr_head']} />,
         children: [
-          { path: 'hr-head', element: <HRHeadDashboardPage /> },
-          { path: 'hr-head/organization', element: <OrganizationProfilePage /> },
-          { path: 'hr-head/team', element: <TeamMembersPage /> },
-          { path: 'hr-head/team/create', element: <CreateTeamMemberPage /> },
-          { path: 'hr-head/team/bulk-import', element: <BulkImportMembersPage /> },
-          { path: 'hr-head/hiring-decisions', element: <PendingHiringDecisionsPage /> },
-          { path: 'hr-head/applicant-search', element: <RoleBasedApplicantSearchPage role="hr_head" /> },
-          { path: 'hr-head/job-requisitions', element: <HRJobRequisitionsPage /> },
-          { path: 'hr-head/billing', element: <BillingPage /> },
-          { path: 'hr-head/analytics', element: <HRAnalyticsPage /> },
-          { path: 'hr-head/notifications', element: <NotificationsPage /> },
+          { path: 'hiring-manager', element: <HiringManagerDashboardPage /> },
+          { path: 'hiring-manager/organization', element: <OrganizationProfilePage /> },
+          { path: 'hiring-manager/team', element: <TeamMembersPage /> },
+          { path: 'hiring-manager/team/create', element: <CreateTeamMemberPage /> },
+          { path: 'hiring-manager/team/bulk-import', element: <BulkImportMembersPage /> },
+          { path: 'hiring-manager/hiring-decisions', element: <PendingHiringDecisionsPage /> },
+          { path: 'hiring-manager/applicant-search', element: <RoleBasedApplicantSearchPage role="hr_head" /> },
+          { path: 'hiring-manager/job-requisitions', element: <HiringManagerJobRequisitionsPage /> },
+          { path: 'hiring-manager/billing', element: <BillingPage /> },
+          { path: 'hiring-manager/analytics', element: <HiringManagerAnalyticsPage /> },
+          { path: 'hiring-manager/notifications', element: <NotificationsPage /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

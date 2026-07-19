@@ -439,7 +439,7 @@ def interviewer_dashboard(user):
     }
 
 
-def hr_head_dashboard(user):
+def hiring_manager_dashboard(user):
     membership = require_analytics_membership(user, (User.Role.HR_HEAD,))
     jobs = JobPosting.objects.filter(organization=membership.organization)
     applications = JobApplication.objects.filter(job__in=jobs)
@@ -557,6 +557,6 @@ def job_funnel(user, job_id):
 
 def organization_overview(user):
     membership = require_analytics_membership(user, (User.Role.HR_HEAD,))
-    dashboard = hr_head_dashboard(user)
+    dashboard = hiring_manager_dashboard(user)
     dashboard['dashboard'] = 'organization_overview'
     return dashboard

@@ -232,11 +232,11 @@ Each step includes actor/role, page or app screen, action, expected result, and 
 | Step | Actor/role | Page or screen | Action | Expected result | Backup note |
 | --- | --- | --- | --- | --- | --- |
 | A1 | Hiring Manager | Web `/login` | Log in with `demo.hrhead@example.com` / `DemoPass123!`. | hiring manager is redirected to the hiring manager dashboard. | If login fails, rerun `python manage.py seed_demo_data` and retry. |
-| A2 | Hiring Manager | Web `/hr-head` dashboard | View high-level organization/dashboard cards. | Dashboard loads organization-level recruitment overview for TechNova. | If analytics cards are sparse, explain this depends on seeded demo workflow volume. |
-| A3 | Hiring Manager | Web `/hr-head/organization` | Open organization profile. | Organization shows `TechNova Solutions Sdn Bhd` with active status/details. | If page fails, mention the seed created the organization and show Team/Billing as backup evidence. |
-| A4 | Hiring Manager | Web `/hr-head/team` | Confirm hiring manager, recruiter, and interviewer accounts. | Team members include Demo Hiring Manager, Demo Recruiter, and Demo Interviewer with active memberships. | If duplicated local data appears, point out the known demo accounts by email. |
-| A5 | Hiring Manager | Web `/hr-head/billing` | View subscription/billing status. | Active Pro monthly subscription and demo payment status are visible if billing data loads. | If billing API/page fails, explain demo payment data is seeded and real gateways are disabled. |
-| A6 | Hiring Manager | Web `/hr-head/analytics` | View analytics if demo data exists. | Organization analytics display seeded pipeline metrics where available. | If charts are empty, explain limited seeded data may only show one completed workflow. |
+| A2 | Hiring Manager | Web `/hiring-manager` dashboard | View high-level organization/dashboard cards. | Dashboard loads organization-level recruitment overview for TechNova. | If analytics cards are sparse, explain this depends on seeded demo workflow volume. |
+| A3 | Hiring Manager | Web `/hiring-manager/organization` | Open organization profile. | Organization shows `TechNova Solutions Sdn Bhd` with active status/details. | If page fails, mention the seed created the organization and show Team/Billing as backup evidence. |
+| A4 | Hiring Manager | Web `/hiring-manager/team` | Confirm hiring manager, recruiter, and interviewer accounts. | Team members include Demo Hiring Manager, Demo Recruiter, and Demo Interviewer with active memberships. | If duplicated local data appears, point out the known demo accounts by email. |
+| A5 | Hiring Manager | Web `/hiring-manager/billing` | View subscription/billing status. | Active Pro monthly subscription and demo payment status are visible if billing data loads. | If billing API/page fails, explain demo payment data is seeded and real gateways are disabled. |
+| A6 | Hiring Manager | Web `/hiring-manager/analytics` | View analytics if demo data exists. | Organization analytics display seeded pipeline metrics where available. | If charts are empty, explain limited seeded data may only show one completed workflow. |
 
 ### B. Recruiter Job Setup Flow
 
@@ -310,7 +310,7 @@ Each step includes actor/role, page or app screen, action, expected result, and 
 | H1 | Recruiter | Web `/recruiter/hiring-decisions` or application hiring-decision page | Open hiring decision page. | Evaluated Software Engineer applicant is available for decision review. | If already decided, show existing decision record. |
 | H2 | Recruiter | Hiring decision page | Select only evaluated applicant. | Applicant can be considered because evaluation has been submitted. | If selection is locked by completed seed state, explain the rule: only evaluated applicants should proceed. |
 | H3 | Recruiter | Hiring decision page | Submit hire/reject recommendation or review seeded recommendation. | Recruiter recommendation is `hire` with justification. | If already submitted, show seeded recruiter recommendation. |
-| H4 | Hiring Manager | Web `/hr-head/hiring-decisions` | Review pending/approved decision. | hiring manager sees recruiter recommendation and supporting evidence. | If decision is already approved, explain seed data starts at completed state for final demo reliability. |
+| H4 | Hiring Manager | Web `/hiring-manager/hiring-decisions` | Review pending/approved decision. | hiring manager sees recruiter recommendation and supporting evidence. | If decision is already approved, explain seed data starts at completed state for final demo reliability. |
 | H5 | Hiring Manager | Pending hiring decision detail | Approve or reject decision, or review seeded approval. | Seeded hiring manager decision is approved with justification. | If no action button appears because already approved, show approval status. |
 | H6 | Recruiter | Web `/recruiter/job-offers` | Send job offer if approved or review seeded offer. | Job offer exists for Software Engineer after hiring manager approval. | If already accepted, explain the applicant completed the final offer step in seed data. |
 
@@ -331,7 +331,7 @@ Each step includes actor/role, page or app screen, action, expected result, and 
 | J2 | Applicant | Mobile Notifications | Show interview invitation notification. | Notification related to interview invitation/acceptance is visible. | If notification wording differs, identify the interview-related notification. |
 | J3 | Applicant | Mobile Notifications | Show job offer notification. | Notification such as `Demo job offer accepted` is visible. | If not visible, show Job offers page as backup. |
 | J4 | Recruiter | Web `/recruiter/notifications` | Show hiring decision update. | Notification such as `Hiring manager approved recommendation` is visible. | If notification has been read, use all notifications/read-all view if available. |
-| J5 | Hiring Manager | Web `/hr-head/notifications` | Show offer/hiring update. | Notification such as `Offer accepted` is visible. | If empty, explain notification records are seeded and demonstrate applicant/recruiter notifications. |
+| J5 | Hiring Manager | Web `/hiring-manager/notifications` | Show offer/hiring update. | Notification such as `Offer accepted` is visible. | If empty, explain notification records are seeded and demonstrate applicant/recruiter notifications. |
 
 ### K. Analytics and Reports Flow
 
@@ -339,14 +339,14 @@ Each step includes actor/role, page or app screen, action, expected result, and 
 | --- | --- | --- | --- | --- | --- |
 | K1 | Recruiter | Web `/recruiter/analytics` | View recruiter analytics. | Recruiter sees job/application/interview pipeline metrics where available. | If limited charts appear, explain the seed includes one completed workflow and two jobs. |
 | K2 | Interviewer | Web `/interviewer/analytics` | View interviewer analytics. | Interviewer sees assigned/completed interview and evaluation-related metrics where available. | If empty, show interview list/evaluation as supporting data. |
-| K3 | Hiring Manager | Web `/hr-head/analytics` | View hiring manager analytics. | hiring manager sees organization-level analytics where available. | If charts are sparse, mention seeded sample size is intentionally small. |
+| K3 | Hiring Manager | Web `/hiring-manager/analytics` | View hiring manager analytics. | hiring manager sees organization-level analytics where available. | If charts are sparse, mention seeded sample size is intentionally small. |
 | K4 | Any supported web role | Analytics/report export button, if available | Export or download PDF report. | PDF downloads or opens successfully if implemented and configured. | If PDF export is unavailable, explain this optional feature can be shown through analytics pages and note PDF generation is unavailable in the current environment. |
 
 ### L. Billing/Subscription Flow
 
 | Step | Actor/role | Page or screen | Action | Expected result | Backup note |
 | --- | --- | --- | --- | --- | --- |
-| L1 | Hiring Manager | Web `/hr-head/billing` | View subscription plans. | Plans are visible, including the seeded Pro monthly plan. | If plan list is empty, run subscription plan migrations/seeding and rerun demo seed. |
+| L1 | Hiring Manager | Web `/hiring-manager/billing` | View subscription plans. | Plans are visible, including the seeded Pro monthly plan. | If plan list is empty, run subscription plan migrations/seeding and rerun demo seed. |
 | L2 | Hiring Manager | Billing demo payment action, if available | Demonstrate demo payment flow only. | Payment is simulated using demo gateway logic; no real payment is charged. | If action is unavailable because subscription is already paid, show seeded paid demo payment. |
 | L3 | Hiring Manager | Billing page | Explain real gateway status. | Audience understands Stripe/real gateways remain disabled unless configured. | Mention real payment integration is intentionally excluded from the FYP reliability path. |
 | L4 | Hiring Manager | Billing page/subscription status | Show subscription after demo payment. | Active Pro monthly subscription and paid demo payment are visible if billing UI supports it. | If status is not visible, cite the seeded Pro subscription and demo payment reference verbally. |

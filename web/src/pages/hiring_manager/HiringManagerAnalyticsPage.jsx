@@ -28,8 +28,8 @@ import {
   percentageDoughnut,
   singleValueBar,
 } from '../analytics/analyticsChartUtils.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -165,7 +165,7 @@ function PerformanceTable({ rows, type }) {
   );
 }
 
-export default function HRAnalyticsPage() {
+export default function HiringManagerAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -199,7 +199,7 @@ export default function HRAnalyticsPage() {
     setError('');
     try {
       const pdfBlob = await downloadAnalyticsReportPdf('hr_head');
-      downloadBlob(pdfBlob, 'hr-head-summary.pdf');
+      downloadBlob(pdfBlob, 'hiring-manager-summary.pdf');
     } catch (exportError) {
       setError(getApiErrorMessage(exportError, 'Unable to export HR analytics PDF.'));
     } finally {
@@ -220,7 +220,7 @@ export default function HRAnalyticsPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Stack spacing={3}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
           <Box>

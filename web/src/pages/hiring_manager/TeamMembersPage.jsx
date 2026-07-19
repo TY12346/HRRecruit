@@ -17,8 +17,8 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { deactivateOrganizationMember, getOrganizationMembers } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 export default function TeamMembersPage() {
   const [members, setMembers] = useState([]);
@@ -97,7 +97,7 @@ export default function TeamMembersPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Paper sx={{ p: 3 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 3 }}>
           <Box>
@@ -109,10 +109,10 @@ export default function TeamMembersPage() {
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
-            <Button component={RouterLink} to="/hr-head/team/create" variant="contained">
+            <Button component={RouterLink} to="/hiring-manager/team/create" variant="contained">
               Create member
             </Button>
-            <Button component={RouterLink} to="/hr-head/team/bulk-import" variant="outlined">
+            <Button component={RouterLink} to="/hiring-manager/team/bulk-import" variant="outlined">
               Bulk import
             </Button>
           </Stack>

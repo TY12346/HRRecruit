@@ -146,10 +146,10 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.data['metrics']['average_evaluation_score'], 88.5)
         self.assertEqual(response.data['metrics']['total_applications'], 1)
 
-    def test_hr_head_dashboard_and_overview_include_organization_performance_only(self):
+    def test_hiring_manager_dashboard_and_overview_include_organization_performance_only(self):
         self.authenticate(self.hr_head)
 
-        dashboard_response = self.client.get(reverse('analytics-hr-head-dashboard'))
+        dashboard_response = self.client.get(reverse('analytics-hiring-manager-dashboard'))
         overview_response = self.client.get(reverse('analytics-organization-overview'))
 
         self.assertEqual(dashboard_response.status_code, status.HTTP_200_OK)
@@ -222,9 +222,9 @@ class AnalyticsAPITests(APITestCase):
     def test_hr_head_summary_pdf_exports_organization_metrics(self):
         self.authenticate(self.hr_head)
 
-        response = self.client.get(reverse('reports-hr-head-summary-pdf'))
+        response = self.client.get(reverse('reports-hiring-manager-summary-pdf'))
 
-        self.assert_pdf_response(response, 'hr-head-summary.pdf')
+        self.assert_pdf_response(response, 'hiring-manager-summary.pdf')
 
     def test_applicant_cannot_export_analytics_reports(self):
         self.authenticate(self.applicant)

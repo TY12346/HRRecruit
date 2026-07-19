@@ -25,7 +25,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
 
     def setUp(self):
         self.hr_head = User.objects.create_user(
-            email='hr-head@example.com',
+            email='hiring-manager@example.com',
             password=self.password,
             full_name='Hiring Manager',
             role=User.Role.HR_HEAD,
