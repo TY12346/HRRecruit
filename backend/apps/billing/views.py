@@ -31,17 +31,17 @@ from .services import (
 )
 
 
-class BillingHRHeadMixin:
+class BillingHiringManagerMixin:
     def get_organization(self, request):
         if request.user.role != User.Role.HR_HEAD:
-            raise PermissionDenied('Only HR heads can manage subscriptions and billing.')
+            raise PermissionDenied('Only hiring managers can manage subscriptions and billing.')
         membership = get_active_hr_head_membership(request.user)
         if not membership:
-            raise PermissionDenied('An active HR head organization membership is required.')
+            raise PermissionDenied('An active hiring manager organization membership is required.')
         return membership.organization
 
 
-class SubscriptionPlanListAPIView(BillingHRHeadMixin, APIView):
+class SubscriptionPlanListAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -50,7 +50,7 @@ class SubscriptionPlanListAPIView(BillingHRHeadMixin, APIView):
         return Response(SubscriptionPlanSerializer(plans, many=True).data)
 
 
-class SubscribeAPIView(BillingHRHeadMixin, APIView):
+class SubscribeAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -73,7 +73,7 @@ class SubscribeAPIView(BillingHRHeadMixin, APIView):
         )
 
 
-class CurrentSubscriptionAPIView(BillingHRHeadMixin, APIView):
+class CurrentSubscriptionAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -84,7 +84,7 @@ class CurrentSubscriptionAPIView(BillingHRHeadMixin, APIView):
         return Response(SubscriptionSerializer(subscription).data)
 
 
-class CancelSubscriptionAPIView(BillingHRHeadMixin, APIView):
+class CancelSubscriptionAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -109,7 +109,7 @@ class CancelSubscriptionAPIView(BillingHRHeadMixin, APIView):
         )
 
 
-class ReactivateSubscriptionAPIView(BillingHRHeadMixin, APIView):
+class ReactivateSubscriptionAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -150,7 +150,7 @@ class UpgradeSubscriptionAPIView(SubscribeAPIView):
         )
 
 
-class InvoiceListAPIView(BillingHRHeadMixin, APIView):
+class InvoiceListAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -161,7 +161,7 @@ class InvoiceListAPIView(BillingHRHeadMixin, APIView):
         return Response(PaymentSerializer(payments, many=True).data)
 
 
-class CheckoutSessionAPIView(BillingHRHeadMixin, APIView):
+class CheckoutSessionAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -198,7 +198,7 @@ class StripeWebhookAPIView(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-class DemoPaymentSuccessAPIView(BillingHRHeadMixin, APIView):
+class DemoPaymentSuccessAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):

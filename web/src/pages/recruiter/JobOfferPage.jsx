@@ -116,7 +116,7 @@ export default function JobOfferPage() {
     setSuccess('');
     try {
       await withdrawJobOffer(offerId, { internal_notes: 'Withdrawn from recruiter offer management page.' });
-      setSuccess('Job offer withdrawn. You can send a revised offer if the candidate remains HR-approved.');
+      setSuccess('Job offer withdrawn. You can send a revised offer if the applicant remains HR-approved.');
       load();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to withdraw job offer.'));
@@ -134,11 +134,11 @@ export default function JobOfferPage() {
           <Stack spacing={3}>
             <Box component="form" onSubmit={submit}>
               <Stack spacing={2}>
-                <TextField label="HR-approved candidate" select required value={applicationId} onChange={(e) => setApplicationId(e.target.value)}>
+                <TextField label="HR-approved applicant" select required value={applicationId} onChange={(e) => setApplicationId(e.target.value)}>
                   {applications.map((app) => <MenuItem key={app.id} value={app.id}><ApplicantJobSummary applicantName={applicationName(app)} jobTitle={app.job_title} variant="body2" /></MenuItem>)}
                 </TextField>
                 <TextField
-                  label="Candidate communication template"
+                  label="Applicant communication template"
                   select
                   value={templateId}
                   onChange={(e) => applyTemplate(e.target.value)}
@@ -172,7 +172,7 @@ export default function JobOfferPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Candidate</TableCell>
+                  <TableCell>Applicant</TableCell>
                   <TableCell>Job</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Compensation</TableCell>

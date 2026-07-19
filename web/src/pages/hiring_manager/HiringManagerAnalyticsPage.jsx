@@ -28,8 +28,8 @@ import {
   percentageDoughnut,
   singleValueBar,
 } from '../analytics/analyticsChartUtils.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -165,7 +165,7 @@ function PerformanceTable({ rows, type }) {
   );
 }
 
-export default function HRAnalyticsPage() {
+export default function HiringManagerAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -199,7 +199,7 @@ export default function HRAnalyticsPage() {
     setError('');
     try {
       const pdfBlob = await downloadAnalyticsReportPdf('hr_head');
-      downloadBlob(pdfBlob, 'hr-head-summary.pdf');
+      downloadBlob(pdfBlob, 'hiring-manager-summary.pdf');
     } catch (exportError) {
       setError(getApiErrorMessage(exportError, 'Unable to export HR analytics PDF.'));
     } finally {
@@ -220,7 +220,7 @@ export default function HRAnalyticsPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Stack spacing={3}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
           <Box>
@@ -255,8 +255,8 @@ export default function HRAnalyticsPage() {
             </ChartCard>
           </Grid>
           <Grid item xs={12} md={6}>
-            <ChartCard title="Candidate funnel" description="Candidates across the end-to-end recruitment funnel.">
-              {charts.candidate_funnel ? <Bar data={charts.candidate_funnel} options={barChartOptions} /> : <Typography color="text.secondary">No funnel data yet.</Typography>}
+            <ChartCard title="Applicant funnel" description="Applicants across the end-to-end recruitment funnel.">
+              {charts.applicant_funnel ? <Bar data={charts.applicant_funnel} options={barChartOptions} /> : <Typography color="text.secondary">No funnel data yet.</Typography>}
             </ChartCard>
           </Grid>
           <Grid item xs={12} md={4}>
@@ -280,12 +280,12 @@ export default function HRAnalyticsPage() {
             </ChartCard>
           </Grid>
           <Grid item xs={12} md={6}>
-            <ChartCard title="Conversion rates" description="Percentage of candidates reaching each recruitment milestone.">
+            <ChartCard title="Conversion rates" description="Percentage of applicants reaching each recruitment milestone.">
               {conversionRatesChart ? <Bar data={conversionRatesChart} options={barChartOptions} /> : <Typography color="text.secondary">No conversion data yet.</Typography>}
             </ChartCard>
           </Grid>
           <Grid item xs={12} md={6}>
-            <ChartCard title="AI score distribution" description="Distribution of candidates by final AI screening score band.">
+            <ChartCard title="AI score distribution" description="Distribution of applicants by final AI screening score band.">
               {scoreDistributionChart ? <Doughnut data={scoreDistributionChart} options={compactChartOptions} /> : <Typography color="text.secondary">No screening score data yet.</Typography>}
             </ChartCard>
           </Grid>

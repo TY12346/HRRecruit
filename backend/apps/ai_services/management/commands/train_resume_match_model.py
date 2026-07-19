@@ -118,18 +118,18 @@ def _features_for_pair(resume_text: str, job_text: str) -> list[float]:
 
     resume_experience = extract_experience(resume_text)
     job_experience = extract_experience(job_text)
-    candidate_years = float(resume_experience.get("years", 0.0) or 0.0)
+    applicant_years = float(resume_experience.get("years", 0.0) or 0.0)
     required_years = float(job_experience.get("years", 0.0) or 0.0)
-    experience_score = 100.0 if required_years <= 0 else round(min(candidate_years / required_years, 1.0) * 100, 2)
+    experience_score = 100.0 if required_years <= 0 else round(min(applicant_years / required_years, 1.0) * 100, 2)
 
     resume_education = extract_education(resume_text)
     job_education = extract_education(job_text)
-    candidate_level = EDUCATION_LEVELS.get(resume_education.get("level"), 0)
+    applicant_level = EDUCATION_LEVELS.get(resume_education.get("level"), 0)
     required_level = EDUCATION_LEVELS.get(job_education.get("level"), 0)
     if required_level <= 0:
         education_score = 100.0
     else:
-        education_score = 100.0 if candidate_level >= required_level else round((candidate_level / required_level) * 100, 2)
+        education_score = 100.0 if applicant_level >= required_level else round((applicant_level / required_level) * 100, 2)
 
     semantic_score = semantic_similarity(resume_text, job_text)
     scores = calculate_score_breakdown(
@@ -146,8 +146,8 @@ def _features_for_pair(resume_text: str, job_text: str) -> list[float]:
         rule_based_score=scores["final_score"],
         matched_skill_count=len(matched_skills),
         missing_skill_count=len(missing_skills),
-        experience_gap={"gap_years": max(required_years - candidate_years, 0.0)},
-        education_gap={"gap_levels": max(required_level - candidate_level, 0)},
+        experience_gap={"gap_years": max(required_years - applicant_years, 0.0)},
+        education_gap={"gap_levels": max(required_level - applicant_level, 0)},
         resume_text=resume_text,
         job_text=job_text,
     )

@@ -4,13 +4,13 @@ from apps.users.models import User
 
 
 class Command(BaseCommand):
-    help = 'Create or update a demo HR-head account for local FYP demonstrations.'
+    help = 'Create or update a demo hiring manager account for local FYP demonstrations.'
 
     def add_arguments(self, parser):
-        parser.add_argument('--email', default='hr-head.demo@hrrecruit.test', help='Demo HR-head login email.')
-        parser.add_argument('--password', default='DemoPass123!', help='Demo HR-head login password.')
-        parser.add_argument('--full-name', default='Demo HR Head', help='Demo HR-head display name.')
-        parser.add_argument('--phone-number', default='+60000000000', help='Demo HR-head phone number.')
+        parser.add_argument('--email', default='hiring-manager.demo@hrrecruit.test', help='Demo hiring manager login email.')
+        parser.add_argument('--password', default='DemoPass123!', help='Demo hiring manager login password.')
+        parser.add_argument('--full-name', default='Demo Hiring Manager', help='Demo hiring manager display name.')
+        parser.add_argument('--phone-number', default='+60000000000', help='Demo hiring manager phone number.')
         parser.add_argument('--no-update-password', action='store_true', help='Do not reset the password for an existing user.')
 
     def handle(self, *args, **options):
@@ -51,5 +51,5 @@ class Command(BaseCommand):
             user.save(update_fields=sorted(set(update_fields)))
 
         action = 'Created' if created else 'Updated'
-        self.stdout.write(self.style.SUCCESS(f'{action} demo HR-head account: {email}'))
+        self.stdout.write(self.style.SUCCESS(f'{action} demo hiring manager account: {email}'))
         self.stdout.write('Use this account to log in, create the demo organization, and add recruiter/interviewer users.')

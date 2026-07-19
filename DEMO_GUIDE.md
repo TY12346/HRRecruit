@@ -27,10 +27,10 @@ python manage.py seed_demo_data
 
 The seed command is safe to run multiple times. It creates/updates fake demo accounts, organization data, job postings, application data, AI screening scores, interview transcript/summary data, evaluation data, hiring approval data, notifications, and billing demo records.
 
-If only the first HR-head account is needed, this command is also available:
+If only the first hiring manager account is needed, this command is also available:
 
 ```bash
-python manage.py bootstrap_demo_hr_head --email hr-head.demo@hrrecruit.test --password DemoPass123!
+python manage.py bootstrap_demo_hiring_manager --email hr-head.demo@hrrecruit.test --password DemoPass123!
 ```
 
 ### Start backend
@@ -83,8 +83,8 @@ DemoPass123!
 
 | Role | Email | Demo Purpose |
 | --- | --- | --- |
-| HR Head | demo.hrhead@example.com | Organization, subscription, HR approval, offer oversight, analytics. |
-| Recruiter | demo.recruiter@example.com | Job posting, candidate screening, candidate ranking, interview setup, hiring recommendation, offer creation. |
+| Hiring Manager | demo.hrhead@example.com | Organization, subscription, hiring manager approval, offer oversight, analytics. |
+| Recruiter | demo.recruiter@example.com | Job posting, applicant screening, applicant ranking, interview setup, hiring recommendation, offer creation. |
 | Interviewer | demo.interviewer@example.com | Assigned interviews, invitation workflow, transcript/summary review, evaluation submission. |
 | Applicant | demo.applicant@example.com | Job search/application, notifications, interview invitation response, job offer response. |
 
@@ -104,7 +104,7 @@ python manage.py seed_demo_data --no-update-password
 
 Follow this order for a clear examiner walkthrough:
 
-1. HR head overview
+1. hiring manager overview
    - Show organization profile, dashboard, team members, subscription/billing area, and analytics overview.
 2. Recruiter job setup
    - Login as recruiter.
@@ -116,8 +116,8 @@ Follow this order for a clear examiner walkthrough:
    - Return to recruiter.
    - Open an application and show AI-assisted screening score components.
    - Explain that AI supports recruiter review and does not automatically reject/hire.
-5. Candidate ranking
-   - Show ranked candidates for a job.
+5. Applicant ranking
+   - Show ranked applicants for a job.
 6. Interview invitation
    - Assign interviewer and show interview invitation flow.
    - Show applicant invitation response where appropriate.
@@ -127,9 +127,9 @@ Follow this order for a clear examiner walkthrough:
    - Explain mock/fallback behavior for demo mode.
 8. Evaluation submission
    - Submit or review interviewer evaluation.
-9. Hiring decision and HR approval
+9. Hiring decision and hiring manager approval
    - Recruiter submits recommendation.
-   - HR head approves or rejects the pending hiring decision.
+   - hiring manager approves or rejects the pending hiring decision.
 10. Job offer and applicant response
     - Recruiter creates an offer after approval.
     - Applicant accepts or declines in the mobile app.

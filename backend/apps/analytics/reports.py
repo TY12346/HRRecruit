@@ -12,17 +12,17 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 REPORT_TITLES = {
     'recruiter': 'Recruiter Analytics Summary',
     'interviewer': 'Interviewer Analytics Summary',
-    'hr_head': 'HR Head Analytics Summary',
+    'hr_head': 'Hiring Manager Analytics Summary',
 }
 
 METRIC_LABELS = {
     'total_job_postings': 'Total Job Postings',
     'total_applications': 'Total Applications',
-    'shortlisted_count': 'Shortlisted Candidates',
-    'rejected_count': 'Rejected Candidates',
-    'hired_count': 'Hired Candidates',
+    'shortlisted_count': 'Shortlisted Applicants',
+    'rejected_count': 'Rejected Applicants',
+    'hired_count': 'Hired Applicants',
     'average_time_to_hire_days': 'Average Time to Hire (Days)',
-    'dropout_rate': 'Candidate Dropout Rate (%)',
+    'dropout_rate': 'Applicant Dropout Rate (%)',
     'offer_acceptance_rate': 'Offer Acceptance Rate (%)',
     'total_offers': 'Total Offers',
     'accepted_offers': 'Accepted Offers',

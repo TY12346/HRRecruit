@@ -5,7 +5,7 @@ export const roleDashboardPaths = {
   applicant: '/profile',
   recruiter: '/recruiter',
   interviewer: '/interviewer',
-  hr_head: '/hr-head',
+  hr_head: '/hiring-manager',
 };
 
 export function getDashboardPathForRole(role) {

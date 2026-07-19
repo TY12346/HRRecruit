@@ -11,8 +11,8 @@ import {
   Typography,
 } from '@mui/material';
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
@@ -91,7 +91,7 @@ export default function NotificationsPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Stack spacing={3}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
           <Box>
@@ -99,7 +99,7 @@ export default function NotificationsPage() {
               Notifications
             </Typography>
             <Typography color="text.secondary">
-              View HR approval, billing, and organization alerts.
+              View hiring manager approval, billing, and organization alerts.
             </Typography>
           </Box>
           <Button onClick={handleMarkAllRead} variant="outlined">Mark all as read</Button>

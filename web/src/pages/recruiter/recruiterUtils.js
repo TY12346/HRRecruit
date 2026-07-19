@@ -32,4 +32,4 @@ export const getApiErrorMessage = (error, fallback = 'Something went wrong.') =>
 
 export const scoreText = (value) => (value === null || value === undefined || value === '' ? 'Not screened' : `${value}`);
 
-export const applicationName = (application) => application?.applicant?.full_name ?? application?.applicant_profile?.full_name ?? 'Candidate';
+export const applicationName = (application) => application?.applicant?.full_name ?? application?.applicant_profile?.full_name ?? 'Applicant';

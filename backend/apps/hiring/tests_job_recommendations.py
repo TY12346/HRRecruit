@@ -11,9 +11,9 @@ from apps.users.models import User
 
 class JobLevelHiringRecommendationFlowTests(APITestCase):
     def setUp(self):
-        self.hr = User.objects.create_user(email='hr-flow@example.com', password='pass', full_name='HR Head', role=User.Role.HR_HEAD)
+        self.hr = User.objects.create_user(email='hr-flow@example.com', password='pass', full_name='Hiring Manager', role=User.Role.HR_HEAD)
         self.recruiter = User.objects.create_user(email='recruiter-flow@example.com', password='pass', full_name='Recruiter', role=User.Role.RECRUITER)
-        self.applicant = User.objects.create_user(email='applicant-flow@example.com', password='pass', full_name='Candidate', role=User.Role.APPLICANT)
+        self.applicant = User.objects.create_user(email='applicant-flow@example.com', password='pass', full_name='Applicant', role=User.Role.APPLICANT)
         self.interviewer = User.objects.create_user(email='interviewer-flow@example.com', password='pass', full_name='Interviewer', role=User.Role.INTERVIEWER)
         self.organization = Organization.objects.create(name='Flow Org', registration_no='FLOW-1', email='flow@example.com', contact_number='1', address='Address', created_by=self.hr)
         for user, role in ((self.hr, OrganizationMembership.Role.HR_HEAD), (self.recruiter, OrganizationMembership.Role.RECRUITER), (self.interviewer, OrganizationMembership.Role.INTERVIEWER)):
@@ -55,14 +55,14 @@ class JobLevelHiringRecommendationFlowTests(APITestCase):
     def test_comparison_and_recommend_hire_are_job_scoped(self):
         self.close_intake()
         self.client.force_authenticate(self.recruiter)
-        comparison = self.client.get(reverse('job-candidate-comparison', args=[self.job.id]))
+        comparison = self.client.get(reverse('job-applicant-comparison', args=[self.job.id]))
         self.assertEqual(comparison.status_code, status.HTTP_200_OK)
-        self.assertEqual(comparison.data['candidates'][0]['candidate_name'], 'Candidate')
+        self.assertEqual(comparison.data['applicants'][0]['applicant_name'], 'Applicant')
         response = self.submit()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['items'][0]['application']['id'], self.application.id)
 
-    def test_no_hire_requires_no_candidates_and_hr_can_approve(self):
+    def test_no_hire_requires_no_applicants_and_hr_can_approve(self):
         self.close_intake()
         response = self.submit('recommend_no_hire', [])
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -81,7 +81,7 @@ class JobLevelHiringRecommendationFlowTests(APITestCase):
         self.assertEqual(review.data['status'], JobHiringRecommendation.Status.REJECTED)
         self.client.force_authenticate(self.applicant)
         self.assertEqual(self.client.get(reverse('job-hiring-recommendation-list-create')).status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(self.client.get(reverse('job-candidate-comparison', args=[self.job.id])).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(reverse('job-applicant-comparison', args=[self.job.id])).status_code, status.HTTP_403_FORBIDDEN)
 
     def test_interviewer_cannot_submit_or_review(self):
         self.close_intake()

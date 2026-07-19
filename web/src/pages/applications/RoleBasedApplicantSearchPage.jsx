@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { getApplicantSearch } from '../../api/client.js';
-import HRHeadNav from '../hr_head/HRHeadNav.jsx';
+import HiringManagerNav from '../hiring_manager/HiringManagerNav.jsx';
 import InterviewerNav from '../interviewer/InterviewerNav.jsx';
 import RecruiterNav from '../recruiter/RecruiterNav.jsx';
 
@@ -30,15 +30,15 @@ const ROLE_CONFIG = {
     detailBase: '/recruiter/applications',
   },
   interviewer: {
-    title: 'My Interview Candidates',
-    description: 'Search only candidates and interviews assigned to you. Organization-wide applicants are not exposed.',
+    title: 'My Interview Applicants',
+    description: 'Search only applicants and interviews assigned to you. Organization-wide applicants are not exposed.',
     nav: InterviewerNav,
-    detailBase: '/interviewer/candidates',
+    detailBase: '/interviewer/applicants',
   },
   hr_head: {
     title: 'Organization Applicant Search',
     description: 'Search applicants across your organization for oversight, approvals, and hiring pipeline review.',
-    nav: HRHeadNav,
+    nav: HiringManagerNav,
   },
 };
 
@@ -53,8 +53,8 @@ const STATUS_OPTIONS = [
   ['interview_accepted', 'Interview accepted'],
   ['evaluation_submitted', 'Evaluation submitted'],
   ['decision_pending', 'Decision pending'],
-  ['hr_approved', 'HR approved'],
-  ['hr_rejected', 'HR rejected'],
+  ['hr_approved', 'Hiring manager approved'],
+  ['hr_rejected', 'Hiring manager rejected'],
   ['offer_sent', 'Offer sent'],
   ['hired', 'Hired'],
 ];
@@ -74,7 +74,7 @@ const SORT_OPTIONS = [
   ['oldest', 'Oldest first'],
   ['score_desc', 'Highest AI score'],
   ['score_asc', 'Lowest AI score'],
-  ['candidate_az', 'Candidate A-Z'],
+  ['applicant_az', 'Applicant A-Z'],
 ];
 
 const defaultFilters = {
@@ -97,8 +97,8 @@ const defaultFilters = {
 
 const titleize = (value) => String(value ?? '—').replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
-const candidateName = (application) => application?.applicant?.full_name ?? 'Candidate';
-const candidateEmail = (application) => application?.applicant?.email ?? '—';
+const applicantName = (application) => application?.applicant?.full_name ?? 'Applicant';
+const applicantEmail = (application) => application?.applicant?.email ?? '—';
 const scoreText = (score) => (score === null || score === undefined || score === '' ? '—' : Number(score).toFixed(2));
 
 function getApiErrorMessage(error, fallback) {
@@ -128,7 +128,7 @@ function SearchFilters({ role, filters, onChange, onApply, onReset }) {
     <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
       <Stack spacing={2}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-          <TextField fullWidth label="Search candidate, email, job, remark, resume" value={filters.search} onChange={(event) => update('search', event.target.value)} />
+          <TextField fullWidth label="Search applicant, email, job, remark, resume" value={filters.search} onChange={(event) => update('search', event.target.value)} />
           <TextField select label="Application status" value={filters.status} onChange={(event) => update('status', event.target.value)} sx={{ minWidth: 210 }}>
             {STATUS_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
           </TextField>
@@ -209,7 +209,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Candidate</TableCell>
+              <TableCell>Applicant</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Job</TableCell>
               <TableCell>Status</TableCell>
@@ -223,8 +223,8 @@ export default function RoleBasedApplicantSearchPage({ role }) {
           <TableBody>
             {results.map((application) => (
               <TableRow key={application.id}>
-                <TableCell>{candidateName(application)}</TableCell>
-                <TableCell>{candidateEmail(application)}</TableCell>
+                <TableCell>{applicantName(application)}</TableCell>
+                <TableCell>{applicantEmail(application)}</TableCell>
                 <TableCell>{application.job_title}</TableCell>
                 <TableCell><Chip label={titleize(application.status)} size="small" /></TableCell>
                 <TableCell>{scoreText(application.final_score)}</TableCell>
@@ -232,7 +232,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
                 {role === 'hr_head' ? <TableCell>{application.recruiter?.full_name ?? '—'}</TableCell> : null}
                 <TableCell>{formatDate(application.applied_at)}</TableCell>
                 <TableCell align="right">
-                  {config.detailBase ? <Button component={RouterLink} to={`${config.detailBase}/${application.id}`} size="small">Open</Button> : <Button component={RouterLink} to="/hr-head/hiring-decisions" size="small">Approvals</Button>}
+                  {config.detailBase ? <Button component={RouterLink} to={`${config.detailBase}/${application.id}`} size="small">Open</Button> : <Button component={RouterLink} to="/hiring-manager/hiring-decisions" size="small">Approvals</Button>}
                 </TableCell>
               </TableRow>
             ))}

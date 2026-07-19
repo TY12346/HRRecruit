@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from .reports import build_analytics_summary_pdf
 from .services import (
-    hr_head_dashboard,
+    hiring_manager_dashboard,
     interviewer_dashboard,
     job_funnel,
     organization_overview,
@@ -29,11 +29,11 @@ class InterviewerDashboardAPIView(APIView):
         return Response(interviewer_dashboard(request.user))
 
 
-class HRHeadDashboardAPIView(APIView):
+class HiringManagerDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(hr_head_dashboard(request.user))
+        return Response(hiring_manager_dashboard(request.user))
 
 
 class JobFunnelAPIView(APIView):
@@ -76,7 +76,7 @@ class InterviewerSummaryPDFAPIView(AnalyticsReportPDFAPIView):
     filename = 'interviewer-summary.pdf'
 
 
-class HRHeadSummaryPDFAPIView(AnalyticsReportPDFAPIView):
+class HiringManagerSummaryPDFAPIView(AnalyticsReportPDFAPIView):
     report_type = 'hr_head'
-    dashboard_builder = staticmethod(hr_head_dashboard)
-    filename = 'hr-head-summary.pdf'
+    dashboard_builder = staticmethod(hiring_manager_dashboard)
+    filename = 'hiring-manager-summary.pdf'

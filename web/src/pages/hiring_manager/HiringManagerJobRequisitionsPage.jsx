@@ -13,8 +13,8 @@ import {
   Typography,
 } from '@mui/material';
 import { approveJobRequisition, getJobRequisitions, rejectJobRequisition } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 const departmentName = (item) => (item.department === 'Other' ? item.custom_department : item.department) || '—';
 
@@ -53,7 +53,7 @@ export default function JobRequisitionsPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Job Requisitions</Typography>
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}

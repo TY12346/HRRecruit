@@ -72,7 +72,7 @@ flutter run
 | Applicant registration/login | Complete | Register/login as applicant and fetch profile. | `POST /api/auth/register/`, `POST /api/auth/login/`, mobile login screen | Registration is public and returns JWT tokens. |
 | Recruiter login | Complete | Seed demo data and log in with recruiter credentials. | `POST /api/auth/login/`, React `/login` | Demo credentials are documented in demo guide/script after seeding. |
 | Interviewer login | Complete | Seed demo data and log in with interviewer credentials. | `POST /api/auth/login/`, React `/login` | Role-specific dashboard should load after login. |
-| HR head login | Complete | Seed demo data and log in with HR-head credentials. | `POST /api/auth/login/`, React `/login` | HR-head bootstrap and full seed commands exist. |
+| hiring manager login | Complete | Seed demo data and log in with hiring manager credentials. | `POST /api/auth/login/`, React `/login` | hiring manager bootstrap and full seed commands exist. |
 | Profile access | Complete | Call profile endpoint with bearer token. | `GET /api/auth/profile/`, `PATCH /api/auth/profile/` | Protected by authentication. |
 | Role permissions | Complete | Attempt cross-role actions and confirm 403/404 behavior. | Backend role checks in app views; `TESTING_GUIDE.md` | Major flows enforce role checks; continue manual negative testing before demo. |
 | Logout | Complete | Post refresh token to logout and retry protected action with blacklisted refresh flow. | `POST /api/auth/logout/` | Access token remains valid until expiry; refresh token blacklist is used. |
@@ -83,11 +83,11 @@ flutter run
 
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
-| HR head organization setup | Complete | Log in as HR head and create/view organization. | `POST /api/org/create/`, `GET /api/org/` | HR-head-only permission applies. |
+| hiring manager organization setup | Complete | Log in as hiring manager and create/view organization. | `POST /api/org/create/`, `GET /api/org/` | hiring manager-only permission applies. |
 | Recruiter/interviewer organization membership | Complete | Create members or use seeded members. | `GET/POST /api/org/members/`, `POST /api/org/members/bulk/` | Membership records drive role-specific organization access. |
 | Organization isolation | Complete | Attempt to access another organization's jobs/applications/analytics. | Backend organization filters in apps; `FINAL_SYSTEM_GAP_REPORT.md` | Major flows filter by active membership; production hardening/audit remains a future enhancement. |
 | Users cannot access data from another organization | Manual Verification Required | Run negative manual/API tests with two organizations and users. | `TESTING_GUIDE.md`, API endpoints across jobs/applications/interviews/hiring | Code supports isolation, but final demo should include at least one negative test rehearsal. |
-| Demo HR-head bootstrap or seed command exists | Complete | Run either bootstrap or full demo seed. | `python manage.py bootstrap_demo_hr_head`, `python manage.py seed_demo_data` | Full seed is recommended for the final demo. |
+| Demo hiring manager bootstrap or seed command exists | Complete | Run either bootstrap or full demo seed. | `python manage.py bootstrap_demo_hiring_manager`, `python manage.py seed_demo_data` | Full seed is recommended for the final demo. |
 
 ## 5. Job Posting Workflow
 
@@ -124,17 +124,17 @@ flutter run
 | Safe fallback when Sentence-BERT/model is unavailable | Complete | Disable dependency/model and run screening. | `backend/apps/ai_services/semantic_matcher.py`, `AI_ALGORITHM_VALIDATION_REPORT.md` | Fallback prevents crash but is less semantically rich. |
 | Hybrid formula is implemented | Complete | Run scoring tests or inspect scoring service. | `backend/apps/ai_services/scoring.py` | Formula: `0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score`. |
 | Score explanation is stored | Complete | Screen application and inspect serialized fields/model. | `backend/apps/applications/models.py`, `backend/apps/ai_services/resume_screening.py` | Component scores and explanation metadata are persisted. |
-| AI does not automatically make final hiring decisions | Complete | Screen low-score application and confirm it is rejected due to underqualification, while qualified candidates still require recruiter/HR review. | `POST /api/applications/<id>/screen/`, `ALGORITHMS.md` | Low score becomes `rejected`; qualified applicants remain available for recruiter actions such as assign interviewer or reject. |
+| AI does not automatically make final hiring decisions | Complete | Screen low-score application and confirm it is rejected due to underqualification, while qualified applicants still require recruiter/HR review. | `POST /api/applications/<id>/screen/`, `ALGORITHMS.md` | Low score becomes `rejected`; qualified applicants remain available for recruiter actions such as assign interviewer or reject. |
 
-## 8. Candidate Ranking
+## 8. Applicant Ranking
 
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
-| Recruiter can view qualified candidate rankings | Complete | Call ranking endpoint as owning recruiter. | `GET /api/jobs/<job_id>/ranked-candidates/` | Role and organization scoped, and only `screened_qualified` applications are ranked. |
+| Recruiter can view qualified applicant rankings | Complete | Call ranking endpoint as owning recruiter. | `GET /api/jobs/<job_id>/ranked-applicants/` | Role and organization scoped, and only `screened_qualified` applications are ranked. |
 | Ranking uses `final_score` descending | Complete | Create multiple screened applications and compare order. | `backend/apps/applications/views.py` | Uses descending `final_score`, nulls last. |
 | Equal score ordering is stable | Complete | Create equal-score applications and confirm earlier application first. | `backend/apps/applications/views.py` | Tie-breaker uses `applied_at`. |
-| Candidate ranking page displays AI scores | Complete | Open recruiter ranking page after screening. | React recruiter ranking page | Display should be manually checked with seeded/screened data. |
-| Candidate ranking does not replace recruiter decision-making | Complete | Verify shortlist/reject remains a recruiter action. | Ranking endpoint plus shortlist/reject endpoints | Ranking is advisory. |
+| Applicant ranking page displays AI scores | Complete | Open recruiter ranking page after screening. | React recruiter ranking page | Display should be manually checked with seeded/screened data. |
+| Applicant ranking does not replace recruiter decision-making | Complete | Verify shortlist/reject remains a recruiter action. | Ranking endpoint plus shortlist/reject endpoints | Ranking is advisory. |
 
 ## 9. Interview Management
 
@@ -168,8 +168,8 @@ flutter run
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
 | Recruiter can only submit hiring decision after evaluation is complete | Complete | Try submitting before and after `evaluation_submitted`. | `POST /api/applications/<id>/hiring-decision/`, `backend/apps/hiring/views.py` | Backend gate requires evaluation-submitted status. |
-| Recruiter can recommend hire/reject | Complete | Submit recommendation as recruiter. | `POST /api/applications/<id>/hiring-decision/` | Decision remains pending HR approval. |
-| HR head can approve/reject hiring decision | Complete | Log in as HR head and review pending decision. | `POST /api/hiring-decisions/<id>/approve/`, `POST /api/hiring-decisions/<id>/reject/` | Organization-scoped. |
+| Recruiter can recommend hire/reject | Complete | Submit recommendation as recruiter. | `POST /api/applications/<id>/hiring-decision/` | Decision remains pending hiring manager approval. |
+| hiring manager can approve/reject hiring decision | Complete | Log in as hiring manager and review pending decision. | `POST /api/hiring-decisions/<id>/approve/`, `POST /api/hiring-decisions/<id>/reject/` | Organization-scoped. |
 | Application status updates correctly | Complete | Inspect status and stage history after decisions. | `GET /api/applications/<id>/status-history/` | Hire approval moves to HR-approved; offer acceptance moves to hired. |
 | HR rejection notification behavior is documented | Partial | Review docs and test HR rejection path. | `KNOWN_LIMITATIONS.md`, `backend/apps/hiring/views.py` | HR rejection notifies recruiter; applicant-facing HR rejection notification remains a limitation unless business meaning is clarified. |
 | Hiring flow follows correct business order | Complete | Follow final demo script sequence. | `FINAL_DEMO_SCRIPT.md` | Backend now enforces evaluation-before-decision. |
@@ -178,10 +178,10 @@ flutter run
 
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
-| Recruiter can send job offer after HR approval | Complete | Approve hire decision, then create offer. | `POST /api/applications/<id>/job-offer/` | Requires approved hire decision and `hr_approved` status. |
+| Recruiter can send job offer after hiring manager approval | Complete | Approve hire decision, then create offer. | `POST /api/applications/<id>/job-offer/` | Requires approved hire decision and `hr_approved` status. |
 | Applicant can accept/reject offer | Complete | Respond through mobile app or API. | `POST /api/job-offers/<id>/accept/`, `POST /api/job-offers/<id>/decline/` | Applicant ownership enforced. |
 | Accepted offer updates application lifecycle correctly | Complete | Accept offer and inspect application status/history. | `backend/apps/hiring/views.py`, `GET /api/applications/<id>/status-history/` | Acceptance marks the application `hired`. |
-| Hired status is reflected in analytics if implemented | Complete | Accept an offer, then load analytics. | `GET /api/analytics/recruiter/`, `GET /api/analytics/hr-head/` | Analytics count `hired` applications. |
+| Hired status is reflected in analytics if implemented | Complete | Accept an offer, then load analytics. | `GET /api/analytics/recruiter/`, `GET /api/analytics/hiring-manager/` | Analytics count `hired` applications. |
 | Offer deadline validation if implemented | Complete | Try accepting after deadline. | `backend/apps/hiring/views.py` | Accept/decline endpoints check expired sent offers. Creation-time deadline constraints should still be manually checked. |
 
 ## 13. Notifications
@@ -201,8 +201,8 @@ flutter run
 |---|---|---|---|---|
 | Recruiter analytics | Complete | Log in as recruiter and call/load dashboard. | `GET /api/analytics/recruiter/`, React recruiter analytics page | Scoped to recruiter's organization/jobs. |
 | Interviewer analytics | Complete | Log in as interviewer and call/load dashboard. | `GET /api/analytics/interviewer/`, React interviewer analytics page | Scoped to assigned/evaluated interviews. |
-| HR head analytics | Complete | Log in as HR head and call/load dashboard. | `GET /api/analytics/hr-head/`, React HR-head analytics page | Organization-scoped. |
-| PDF export endpoints | Complete | Call report endpoints and download/open PDF. | `GET /api/reports/recruiter-summary.pdf`, `GET /api/reports/interviewer-summary.pdf`, `GET /api/reports/hr-head-summary.pdf` | Requires `reportlab`. |
+| hiring manager analytics | Complete | Log in as hiring manager and call/load dashboard. | `GET /api/analytics/hiring-manager/`, React hiring manager analytics page | Organization-scoped. |
+| PDF export endpoints | Complete | Call report endpoints and download/open PDF. | `GET /api/reports/recruiter-summary.pdf`, `GET /api/reports/interviewer-summary.pdf`, `GET /api/reports/hiring-manager-summary.pdf` | Requires `reportlab`. |
 | `reportlab` dependency documented | Complete | Check backend requirements and docs. | `backend/requirements.txt`, `SETUP_GUIDE.md` | Required for PDF generation. |
 | Analytics reflect hired/accepted outcomes correctly | Complete | Accept offer, verify `hired_count` and offer acceptance rate. | `backend/apps/analytics/services.py` | Depends on final lifecycle data. |
 | Manual PDF export verification steps documented | Complete | Read testing/demo docs and perform export. | `TESTING_GUIDE.md`, `DEMO_GUIDE.md` | Manually confirm the PDF opens before demo. |
@@ -211,8 +211,8 @@ flutter run
 
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
-| HR head can view plans | Complete | Log in as HR head and list plans. | `GET /api/billing/plans/`, React billing page | Seed data creates demo plans. |
-| Subscription creation works | Complete | Subscribe as HR head. | `POST /api/billing/subscribe/` | Organization membership required. |
+| hiring manager can view plans | Complete | Log in as hiring manager and list plans. | `GET /api/billing/plans/`, React billing page | Seed data creates demo plans. |
+| Subscription creation works | Complete | Subscribe as hiring manager. | `POST /api/billing/subscribe/` | Organization membership required. |
 | Demo payment flow works | Complete | Use demo payment success endpoint after subscription. | `POST /api/billing/demo-payment-success/` | No real charge; demo-only. |
 | Real payment gateways remain optional | Complete | Leave Stripe keys blank and use demo flow. | `backend/apps/billing/payment_gateways.py`, `DEPLOYMENT_NOTES.md` | Optional Stripe code exists but is not required for FYP demo. |
 | Stripe/PayPal/FPX keys are not required for demo mode | Complete | Run demo flow with no gateway credentials. | `.env` docs, demo billing endpoints | PayPal/FPX real integrations are not enabled by default. |
@@ -226,7 +226,7 @@ flutter run
 | Web dependencies can be installed | Manual Verification Required | Run dependency install. | `cd web && npm ci` | Prior audit noted missing installed dependencies in workspace; final machine must install them. |
 | Web app can run with `npm run dev` | Manual Verification Required | Start Vite dev server and open web portal. | `cd web && npm run dev` | Requires backend API URL and installed dependencies. |
 | Web build can run with `npm run build` | Manual Verification Required | Build production bundle. | `cd web && npm run build` | Must be verified after `npm ci`. |
-| HR head pages | Complete | Log in as HR head and visit organization, members, analytics, billing, approvals. | React HR-head routes/screens | Manual UI walkthrough recommended. |
+| hiring manager pages | Complete | Log in as hiring manager and visit organization, members, analytics, billing, approvals. | React hiring manager routes/screens | Manual UI walkthrough recommended. |
 | Recruiter pages | Complete | Log in as recruiter and visit jobs, applications, ranking, interviews, hiring, analytics. | React recruiter routes/screens | Some transcript/summary UX may require manual IDs/steps; rehearse the scripted path. |
 | Interviewer pages | Complete | Log in as interviewer and visit assigned interviews, transcript/summary, evaluations, analytics. | React interviewer routes/screens | Verify with seeded/assigned interview. |
 | Authentication flow | Complete | Log in/out as web roles. | React `/login`, auth service | Password reset UI is partial/not a primary demo path. |
@@ -331,10 +331,10 @@ flutter run
 | Job posting | Complete | Low | Prepare recruiter demo job and requirements. |
 | Application workflow | Partial | Medium | Rehearse exact lifecycle and status transitions with seed data. |
 | AI resume screening | Complete | Low | Use text-based PDF/DOCX resumes; explain no OCR and possible lexical fallback. |
-| Candidate ranking | Complete | Low | Pre-screen candidates so ranking page has visible scores. |
+| Applicant ranking | Complete | Low | Pre-screen applicants so ranking page has visible scores. |
 | Interview management | Partial | Medium | Rehearse invitation timing/duplicate cases; avoid invalid date edge cases in live demo. |
 | Transcript and AI summary | Complete | Low | Present mock/demo mode clearly and show editability. |
-| Hiring decision/HR approval | Complete | Low | Follow order: evaluation submitted -> recruiter decision -> HR approval/rejection. |
+| Hiring decision/hiring manager approval | Complete | Low | Follow order: evaluation submitted -> recruiter decision -> hiring manager approval/rejection. |
 | Job offer/final outcome | Complete | Low | Accept offer in mobile and verify `hired` appears in analytics. |
 | Notifications | Partial | Medium | Demonstrate invitation/offer/application notifications; explain HR rejection applicant-notification limitation if asked. |
 | Analytics/PDF reports | Complete | Medium | Confirm reportlab installed and PDFs open on demo machine. |
@@ -358,7 +358,7 @@ flutter run
 2. Run the complete final demo script once without interruption using only demo data.
 3. Verify the React web portal starts and builds after `npm ci`.
 4. Verify the Flutter app runs on the actual demo emulator/device and can reach the backend API base URL.
-5. Pre-screen demo applications so candidate ranking and AI score fields are visible.
+5. Pre-screen demo applications so applicant ranking and AI score fields are visible.
 6. Generate/open each PDF report once on the final machine.
 7. Confirm accepted job offer transitions to `hired` and updates analytics in the demo database.
 

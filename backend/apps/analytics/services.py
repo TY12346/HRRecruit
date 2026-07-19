@@ -186,11 +186,11 @@ def status_chart(applications):
     return Chart.single_dataset(labels, data, 'Applications')
 
 
-def candidate_funnel(applications):
+def applicant_funnel(applications):
     status_counts = applications_by_status(applications)
     labels = list(FUNNEL_STAGES.keys())
     data = [sum(status_counts.get(status, 0) for status in statuses) for statuses in FUNNEL_STAGES.values()]
-    return Chart.single_dataset(labels, data, 'Candidates')
+    return Chart.single_dataset(labels, data, 'Applicants')
 
 
 def average_time_to_hire_days(applications):
@@ -286,7 +286,7 @@ def pipeline_health(applications):
             'bottleneck_count': 0,
             'highest_dropout_status': None,
             'highest_dropout_count': 0,
-            'insights': ['No candidate activity yet. Publish jobs and collect applications to populate analytics.'],
+            'insights': ['No applicant activity yet. Publish jobs and collect applications to populate analytics.'],
         }
 
     bottleneck_status, bottleneck_count = max(status_counts.items(), key=lambda item: item[1])
@@ -297,7 +297,7 @@ def pipeline_health(applications):
     if rates['shortlist_rate'] < 40:
         insights.append('Shortlist conversion is low; review job requirements, screening thresholds, and sourcing channels.')
     if rates['interview_rate'] < 25:
-        insights.append('Interview conversion is low; check recruiter follow-up speed and candidate availability.')
+        insights.append('Interview conversion is low; check recruiter follow-up speed and applicant availability.')
     if rates['offer_rate'] > 0 and rates['hire_rate'] < rates['offer_rate']:
         insights.append('Offer-to-hire drop-off exists; compare compensation, response deadlines, and offer communication.')
     if not insights:
@@ -337,7 +337,7 @@ def conversion_rates_chart(applications):
 def score_distribution_chart(applications):
     values = score_distribution(applications)
     labels = ['Strong fit', 'Possible fit', 'Low fit', 'Unscored']
-    return Chart.single_dataset(labels, list(values.values()), 'Candidates')
+    return Chart.single_dataset(labels, list(values.values()), 'Applicants')
 
 
 def applications_over_time_chart(applications):
@@ -390,7 +390,7 @@ def base_application_metrics(jobs, applications):
 def application_charts(applications):
     return {
         'applications_by_status': status_chart(applications),
-        'candidate_funnel': candidate_funnel(applications),
+        'applicant_funnel': applicant_funnel(applications),
         'conversion_rates': conversion_rates_chart(applications),
         'score_distribution': score_distribution_chart(applications),
         'applications_over_time': applications_over_time_chart(applications),
@@ -439,7 +439,7 @@ def interviewer_dashboard(user):
     }
 
 
-def hr_head_dashboard(user):
+def hiring_manager_dashboard(user):
     membership = require_analytics_membership(user, (User.Role.HR_HEAD,))
     jobs = JobPosting.objects.filter(organization=membership.organization)
     applications = JobApplication.objects.filter(job__in=jobs)
@@ -557,6 +557,6 @@ def job_funnel(user, job_id):
 
 def organization_overview(user):
     membership = require_analytics_membership(user, (User.Role.HR_HEAD,))
-    dashboard = hr_head_dashboard(user)
+    dashboard = hiring_manager_dashboard(user)
     dashboard['dashboard'] = 'organization_overview'
     return dashboard

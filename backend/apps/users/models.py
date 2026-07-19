@@ -34,7 +34,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         APPLICANT = 'applicant', 'Applicant'
         RECRUITER = 'recruiter', 'Recruiter'
         INTERVIEWER = 'interviewer', 'Interviewer'
-        HR_HEAD = 'hr_head', 'HR Head'
+        HR_HEAD = 'hr_head', 'Hiring Manager'
 
     id = models.BigAutoField(primary_key=True)
     email = models.EmailField(unique=True)

@@ -322,9 +322,9 @@ def _extract_gemini_text(response):
         if isinstance(value, str) and value:
             return value
 
-    candidates = getattr(response, 'candidates', None) or []
-    if candidates:
-        content = getattr(candidates[0], 'content', None)
+    response_candidates = getattr(response, 'candidates', None) or []
+    if response_candidates:
+        content = getattr(response_candidates[0], 'content', None)
         parts = getattr(content, 'parts', None) or []
         for part in parts:
             text = getattr(part, 'text', '')
@@ -434,7 +434,7 @@ def build_mock_summary(cleaned_transcript):
     )
     metadata['mock_reason'] = 'USE_REAL_SUMMARY is not enabled'
     return validate_structured_summary({
-        'strengths': 'Mock draft: the candidate provided relevant interview responses that should be reviewed by the interviewer.',
+        'strengths': 'Mock draft: the applicant provided relevant interview responses that should be reviewed by the interviewer.',
         'weaknesses': 'Mock draft: verify the transcript manually and replace this draft if more specific weaknesses are identified.',
         'communication_score': Decimal('7.00'),
         'overall_impression': 'Mock draft generated for local development. Review the transcript before using this summary in evaluation.',

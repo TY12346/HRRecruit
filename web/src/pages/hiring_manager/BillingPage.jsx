@@ -29,8 +29,8 @@ import {
   subscribeToPlan,
   upgradeSubscription,
 } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { formatCurrency, formatDateTime, getApiErrorMessage, titleize } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { formatCurrency, formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 export default function BillingPage() {
   const [plans, setPlans] = useState([]);
@@ -178,7 +178,7 @@ export default function BillingPage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Stack spacing={3}>
         <Box>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>

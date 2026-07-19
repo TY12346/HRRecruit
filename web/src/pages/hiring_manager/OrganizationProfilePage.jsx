@@ -16,8 +16,8 @@ import {
   Typography,
 } from '@mui/material';
 import { createOrganization, deleteOrganization, getOrganization, updateOrganization } from '../../api/client.js';
-import HRHeadNav from './HRHeadNav.jsx';
-import { getApiErrorMessage } from './hrHeadUtils.js';
+import HiringManagerNav from './HiringManagerNav.jsx';
+import { getApiErrorMessage } from './hiringManagerUtils.js';
 
 const emptyForm = {
   name: '',
@@ -130,13 +130,13 @@ export default function OrganizationProfilePage() {
 
   return (
     <Box>
-      <HRHeadNav />
+      <HiringManagerNav />
       <Paper sx={{ p: 3 }}>
         <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
           Organization Profile
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Create or update the organization account managed by this HR head.
+          Create or update the organization account managed by this hiring manager.
         </Typography>
 
         {isLoading ? <CircularProgress aria-label="Loading organization" sx={{ mb: 2 }} /> : null}

@@ -1,4 +1,4 @@
-"""HR-head organization and team setup API views."""
+"""hiring manager organization and team setup API views."""
 
 from django.db import transaction
 from django.db.models import Q
@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.models import User
-from apps.users.permissions import IsHRHead, IsRecruiterOrHRHead
+from apps.users.permissions import IsHiringManager, IsRecruiterOrHiringManager
 
 from .models import Organization, OrganizationMembership
 from .services import delete_organization_account, get_organization_deletion_blockers
@@ -29,12 +29,12 @@ def get_active_membership_organization(user, role):
 
 
 def get_managed_organization(hr_head):
-    """Return the HR head's non-deleted organization, if one exists."""
+    """Return the hiring manager's non-deleted organization, if one exists."""
     return Organization.objects.filter(created_by=hr_head).exclude(status=Organization.Status.DELETED).first()
 
 
 class ManagedOrganizationMixin:
-    permission_classes = [IsHRHead]
+    permission_classes = [IsHiringManager]
 
     def get_organization(self, request):
         return get_managed_organization(request.user)
@@ -87,7 +87,7 @@ class OrganizationAPIView(ManagedOrganizationMixin, APIView):
 
 
 class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
-    permission_classes = [IsRecruiterOrHRHead]
+    permission_classes = [IsRecruiterOrHiringManager]
 
     def get_organization(self, request):
         if request.user.role == User.Role.HR_HEAD:
@@ -98,7 +98,7 @@ class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
 
     def post(self, request):
         if request.user.role != User.Role.HR_HEAD:
-            return Response({'detail': 'Only HR heads can create organization team members.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'Only hiring managers can create organization team members.'}, status=status.HTTP_403_FORBIDDEN)
         organization = self.get_organization(request)
         if not organization:
             return self.organization_not_found_response()

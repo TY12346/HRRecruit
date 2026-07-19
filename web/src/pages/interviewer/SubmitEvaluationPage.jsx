@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { getInterview, submitInterviewEvaluation } from '../../api/client.js';
 import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import InterviewerNav from './InterviewerNav.jsx';
-import { candidateName, getApiErrorMessage, jobTitle } from './interviewerUtils.js';
+import { applicantName, getApiErrorMessage, jobTitle } from './interviewerUtils.js';
 
 const emptyAnswerForCriterion = (criterion) => ({
   criterion_id: criterion.id,
@@ -72,7 +72,7 @@ export default function SubmitEvaluationPage() {
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Submit Evaluation</Typography>
         {interview ? (
           <Box sx={{ mb: 2 }}>
-            <ApplicantJobSummary applicantName={candidateName(interview)} jobTitle={jobTitle(interview)} />
+            <ApplicantJobSummary applicantName={applicantName(interview)} jobTitle={jobTitle(interview)} />
           </Box>
         ) : null}
 
