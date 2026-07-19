@@ -228,7 +228,7 @@ function AIScoresCard({ scores }) {
 
 export default function ApplicantDetailPage() {
   const { applicationId } = useParams();
-  const [applicant, setApplicant] = useState(null);
+  const [applicantData, setApplicantData] = useState(null);
   const [interview, setInterview] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -236,14 +236,14 @@ export default function ApplicantDetailPage() {
   useEffect(() => {
     Promise.all([getApplicantProfile(applicationId), getAssignedInterviews()])
       .then(([profile, interviews]) => {
-        setApplicant(profile);
+        setApplicantData(profile);
         setInterview(interviews.find((item) => String(item.application?.id) === String(applicationId)) ?? null);
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load applicant detail.')))
       .finally(() => setIsLoading(false));
   }, [applicationId]);
 
-  const applicant = applicant?.applicant_profile ?? {};
+  const applicant = applicantData?.applicant_profile ?? null;
   const resume = applicant?.resume_info ?? {};
   const openResume = async () => {
     try {
