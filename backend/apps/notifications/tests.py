@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
@@ -13,7 +13,6 @@ from apps.notifications.email_service import (
     send_password_reset_otp_email,
     send_subscription_reminder_email,
     send_team_account_created_email,
-    SendGridConfigurationError,
 )
 from apps.notifications.models import Notification, PushDevice
 from apps.notifications.services import create_notification
@@ -234,39 +233,26 @@ class NotificationAPITests(APITestCase):
 
 class EmailServiceTests(SimpleTestCase):
     @override_settings(
-        SENDGRID_API_KEY='',
-        SENDGRID_FROM_EMAIL='',
         EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
         DEFAULT_FROM_EMAIL='sender@example.com',
     )
-    def test_send_email_uses_django_email_backend_when_sendgrid_is_not_configured(self):
-        result = send_email('Subject', 'Message', ['recipient@example.com'])
-
-        self.assertEqual(result, {'provider': 'django_email_backend', 'sent_count': 1})
-
-    @override_settings(
-        SENDGRID_API_KEY='',
-        SENDGRID_FROM_EMAIL='sender@example.com',
-        EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-    )
-    def test_send_email_uses_django_backend_if_sendgrid_api_key_is_missing(self):
+    def test_send_email_uses_configured_django_email_backend(self):
         result = send_email('Subject', 'Message', ['recipient@example.com'])
 
         self.assertEqual(result, {'provider': 'django_email_backend', 'sent_count': 1})
 
     @override_settings(
         SENDGRID_API_KEY='SG.test-key',
-        SENDGRID_FROM_EMAIL='',
+        SENDGRID_FROM_EMAIL='sender@example.com',
         EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     )
-    def test_send_email_uses_django_backend_if_sendgrid_from_email_is_missing(self):
+    def test_send_email_uses_configured_backend_when_legacy_sendgrid_values_exist(self):
         result = send_email('Subject', 'Message', ['recipient@example.com'])
 
         self.assertEqual(result, {'provider': 'django_email_backend', 'sent_count': 1})
 
-    @override_settings(SENDGRID_API_KEY='SG.test-key', SENDGRID_FROM_EMAIL='sender@example.com')
-    def test_send_email_requires_recipient_for_sendgrid_delivery(self):
-        with self.assertRaises(SendGridConfigurationError):
+    def test_send_email_requires_a_recipient(self):
+        with self.assertRaises(ValueError):
             send_email('Subject', 'Message', [''])
 
     @override_settings(FRONTEND_PASSWORD_RESET_URL='http://localhost:5173/forgot-password')
@@ -279,25 +265,6 @@ class EmailServiceTests(SimpleTestCase):
             reset_link,
             'http://localhost:5173/reset-password?email=user%40example.com&token=123456',
         )
-
-    @override_settings(
-        SENDGRID_API_KEY='SG.test-key',
-        SENDGRID_FROM_EMAIL='sender@example.com',
-    )
-    @patch('apps.notifications.email_service.urlrequest.urlopen')
-    def test_send_email_uses_sendgrid_when_configured(self, mock_urlopen):
-        mock_response = Mock()
-        mock_response.status = 202
-        mock_urlopen.return_value.__enter__.return_value = mock_response
-
-        result = send_email('Subject', 'Message', ['recipient@example.com'])
-
-        self.assertEqual(result, {'provider': 'sendgrid', 'status_code': 202})
-        request = mock_urlopen.call_args.args[0]
-        self.assertEqual(request.full_url, 'https://api.sendgrid.com/v3/mail/send')
-        self.assertEqual(request.headers['Authorization'], 'Bearer SG.test-key')
-        self.assertEqual(request.headers['Content-type'], 'application/json')
-
 
     @patch('apps.notifications.email_service.send_email')
     def test_mobile_password_reset_email_contains_otp_without_link(self, mock_send_email):
