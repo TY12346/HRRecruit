@@ -1,5 +1,3 @@
-import logging
-
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -34,9 +32,6 @@ from .serializers import (
 from .services import ELIGIBLE_RECOMMENDATION_STATUSES, refresh_job_readiness
 
 
-logger = logging.getLogger(__name__)
-
-
 def get_active_membership(user, role):
     return OrganizationMembership.objects.filter(
         user=user,
@@ -54,17 +49,6 @@ def organization_hr_heads(organization):
         organization_memberships__role=OrganizationMembership.Role.HR_HEAD,
         organization_memberships__status=OrganizationMembership.Status.ACTIVE,
     ).distinct()
-
-
-def send_job_offer_email_after_commit(offer_id):
-    """Deliver an offer email without allowing email outages to reject the offer."""
-    try:
-        offer = JobOffer.objects.select_related('application__job', 'application__applicant').get(id=offer_id)
-        send_job_offer_email(offer)
-    except Exception:
-        # The in-app notification is the reliable delivery channel. Email is a
-        # supplementary notification and must not make the recruiter workflow fail.
-        logger.exception('Unable to send job offer email for offer %s.', offer_id)
 
 
 def base_decision_queryset():
@@ -515,7 +499,7 @@ class JobOfferCreateAPIView(APIView):
             f'{request.user.full_name} sent a job offer to {application.applicant.full_name}.',
             related_entity=offer,
         )
-        transaction.on_commit(lambda offer_id=offer.id: send_job_offer_email_after_commit(offer_id))
+        send_job_offer_email(offer)
         return Response(JobOfferSerializer(offer, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 

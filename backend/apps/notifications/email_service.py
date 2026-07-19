@@ -1,70 +1,16 @@
 """Email delivery helpers for HRRecruit notifications."""
 
-import json
-from urllib import request as urlrequest
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
 from django.core.mail import send_mail
 
 
-SENDGRID_MAIL_SEND_URL = 'https://api.sendgrid.com/v3/mail/send'
-
-
-class SendGridConfigurationError(RuntimeError):
-    """Raised when required email delivery settings are missing."""
-
-
-def _from_email():
-    return getattr(settings, 'SENDGRID_FROM_EMAIL', '').strip()
-
-
-def _sendgrid_api_key():
-    return getattr(settings, 'SENDGRID_API_KEY', '').strip()
-
-
-def _require_sendgrid_configured():
-    if not _sendgrid_api_key():
-        raise SendGridConfigurationError('SENDGRID_API_KEY must be configured for email delivery.')
-    if not _from_email():
-        raise SendGridConfigurationError('SENDGRID_FROM_EMAIL must be configured for email delivery.')
-
-
-def _send_via_sendgrid(subject, message, recipient_list):
-    _require_sendgrid_configured()
-    payload = {
-        'personalizations': [{'to': [{'email': email} for email in recipient_list]}],
-        'from': {'email': _from_email()},
-        'subject': subject,
-        'content': [{'type': 'text/plain', 'value': message}],
-    }
-    encoded_payload = json.dumps(payload).encode('utf-8')
-    mail_request = urlrequest.Request(
-        SENDGRID_MAIL_SEND_URL,
-        data=encoded_payload,
-        headers={
-            'Authorization': f'Bearer {_sendgrid_api_key()}',
-            'Content-Type': 'application/json',
-        },
-        method='POST',
-    )
-    with urlrequest.urlopen(mail_request, timeout=10) as response:
-        return {'provider': 'sendgrid', 'status_code': response.status}
-
-
 def send_email(subject, message, recipient_list):
-    """Send a plain-text email through SendGrid when configured, otherwise Django email.
-
-    Early HRRecruit development uses Django's console email backend by default, so
-    account-creation flows must not fail just because SendGrid credentials are
-    absent or only partially configured in a local/demo environment.
-    """
+    """Send a plain-text email through the configured Django email backend."""
     recipients = [email for email in recipient_list if email]
     if not recipients:
-        raise SendGridConfigurationError('At least one recipient email is required for email delivery.')
-
-    if _sendgrid_api_key() and _from_email():
-        return _send_via_sendgrid(subject, message, recipients)
+        raise ValueError('At least one recipient email is required for email delivery.')
 
     sent_count = send_mail(
         subject=subject,
