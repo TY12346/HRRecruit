@@ -85,7 +85,7 @@ def _split_sections(lines):
 def _header_lines(lines):
     for index, line in enumerate(lines):
         if line.lower() in {"summary", "about"}:
-            return [candidate for candidate in lines[max(0, index - 4):index] if candidate.lower() not in {"contact", "(linkedin)"}]
+            return [applicant for applicant in lines[max(0, index - 4):index] if applicant.lower() not in {"contact", "(linkedin)"}]
     result = []
     for line in lines:
         if _canonical_section(line):

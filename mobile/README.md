@@ -91,7 +91,7 @@ Applicant flow:
 4. Select the LinkedIn profile PDF.
 5. HRRecruit uploads the PDF to the API, extracts text from the PDF, extracts
    profile details such as name, headline, skills, experience, education, and
-   certifications, then fills the candidate profile automatically.
+   certifications, then fills the applicant profile automatically.
 
 The backend uses deterministic local PDF/text extraction for this early FYP
 implementation. No real LinkedIn API or external AI API call is required.

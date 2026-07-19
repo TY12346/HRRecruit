@@ -13,7 +13,7 @@ Audited areas:
 5. Experience extraction
 6. Sentence-BERT semantic matching
 7. Hybrid scoring formula
-8. Candidate ranking API
+8. Applicant ranking API
 9. Interview audio transcription service
 10. Interview AI summary service
 11. Tests for AI behavior
@@ -25,14 +25,14 @@ No code was modified as part of this audit. This file is the only implementation
 
 ## Executive summary
 
-The project already contains a useful early AI-assisted workflow: PDF/DOCX text extraction, dictionary skill extraction, simple education and experience extraction, optional Sentence-BERT matching with a fallback, hybrid scoring, recruiter-triggered screening, candidate ranking, mock transcription, mock interview summary generation, and several backend tests.
+The project already contains a useful early AI-assisted workflow: PDF/DOCX text extraction, dictionary skill extraction, simple education and experience extraction, optional Sentence-BERT matching with a fallback, hybrid scoring, recruiter-triggered screening, applicant ranking, mock transcription, mock interview summary generation, and several backend tests.
 
 However, the current implementation is only partially aligned with `ALGORITHMS.md`. The highest-risk gaps are:
 
 - Skill extraction is not spaCy-based and is not split into the service files recommended by the service-layer rule.
 - Resume preprocessing is minimal and not centralized, so semantic matching and extraction do not share a consistent cleaning pipeline.
 - Sentence-BERT fallback only catches import failures, not model download/load/runtime failures, so screening can still crash in common FYP demo environments.
-- Candidate ranking uses newest application as the tie-breaker, while `ALGORITHMS.md` requires a stable secondary ordering such as `applied_at` ascending.
+- Applicant ranking uses newest application as the tie-breaker, while `ALGORITHMS.md` requires a stable secondary ordering such as `applied_at` ascending.
 - Score explanations are nested and omit several required top-level fields/details (`matched_skills`, `missing_skills`, `education_match`, `experience_match`, gaps, human-readable notes).
 - Interview transcription and summary services are mock-only and do not support optional real providers controlled by environment variables, although mock fallback exists.
 - Some AI API response shapes are likely to break or confuse existing frontend/mobile screens if corrected without a compatibility plan.
@@ -53,7 +53,7 @@ However, the current implementation is only partially aligned with `ALGORITHMS.m
 
 **Required behavior from `ALGORITHMS.md`**
 
-- Load the resume file for the specified candidate.
+- Load the resume file for the specified applicant.
 - Validate file existence and allowed resume type.
 - Extract raw text from PDF or DOCX.
 - Clean and normalize extracted text.
@@ -170,19 +170,19 @@ This directly diverges from the named algorithm requirement. It may still be acc
 - Extract education information using keyword and rule-based matching.
 - Look for education keywords including `Bachelor`, `Degree`, `Diploma`, `Master`, `PhD`, `Computer Science`, `Software Engineering`, and `Information Technology`.
 - Include extracted education in structured output.
-- Candidate scoring should identify `education_match` and `education_gap`.
+- Applicant scoring should identify `education_match` and `education_gap`.
 
 **Affected files**
 
 - `backend/apps/ai_services/resume_screening.py`
 - `backend/apps/applications/models.py`
 - `backend/apps/applications/serializers.py`
-- `web/src/pages/recruiter/CandidateProfilePage.jsx`
+- `web/src/pages/recruiter/ApplicantProfilePage.jsx`
 - Missing/recommended: `backend/apps/ai_services/education_extractor.py`
 
 **Risk level: medium**
 
-The broad level score works for simple demos but lacks field-of-study matching and gap explanation. The React candidate profile currently attempts to render the extracted education object directly, which may break rendering once AI screening has populated it.
+The broad level score works for simple demos but lacks field-of-study matching and gap explanation. The React applicant profile currently attempts to render the extracted education object directly, which may break rendering once AI screening has populated it.
 
 **Recommended fix**
 
@@ -206,19 +206,19 @@ The broad level score works for simple demos but lacks field-of-study matching a
 
 - Extract experience information using regex and rule-based matching.
 - Detect patterns such as `2 years experience`, `3+ years`, `software engineer at ABC Company`, `internship`, and `worked as developer`.
-- Candidate scoring should identify `experience_match` and `experience_gap`.
+- Applicant scoring should identify `experience_match` and `experience_gap`.
 
 **Affected files**
 
 - `backend/apps/ai_services/resume_screening.py`
 - `backend/apps/applications/models.py`
 - `backend/apps/applications/serializers.py`
-- `web/src/pages/recruiter/CandidateProfilePage.jsx`
+- `web/src/pages/recruiter/ApplicantProfilePage.jsx`
 - Missing/recommended: `backend/apps/ai_services/experience_extractor.py`
 
 **Risk level: medium**
 
-Experience scoring may be inaccurate for resumes that describe roles without numeric years. The React candidate profile currently attempts to render the extracted experience object directly, which may break rendering once populated.
+Experience scoring may be inaccurate for resumes that describe roles without numeric years. The React applicant profile currently attempts to render the extracted experience object directly, which may break rendering once populated.
 
 **Recommended fix**
 
@@ -289,7 +289,7 @@ If `sentence-transformers` is installed but the model cannot download or encode,
 
 - Calculate final score exactly as `0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score`.
 - All scores must use a 0-100 scale.
-- Skill score should compare candidate extracted skills with job requirements and any requirement weights.
+- Skill score should compare applicant extracted skills with job requirements and any requirement weights.
 - Store `final_score` and `score_explanation` JSON including formula, component scores, matched/missing skills, education match details, experience match details, and notes.
 - AI screening should auto-reject underqualified applicants while keeping qualified applicants available for recruiter decision-making.
 
@@ -317,32 +317,32 @@ The formula itself is correct, but the explanation shape and requirement weighti
 
 ---
 
-### 8. Candidate ranking API
+### 8. Applicant ranking API
 
 **Current behavior**
 
-- `RankedCandidatesAPIView` is exposed as `GET /jobs/<job_id>/ranked-candidates/`.
+- `RankedApplicantsAPIView` is exposed as `GET /jobs/<job_id>/ranked-applicants/`.
 - It is recruiter-only and organization/job-owner isolated through `recruiter_job_or_404()`.
 - It returns full `JobApplicationSerializer` objects.
 - Ordering is `final_score` descending with nulls last, then `-applied_at` (newest application first).
-- The React page text explicitly says candidates are sorted by final AI score, then newest application.
+- The React page text explicitly says applicants are sorted by final AI score, then newest application.
 
 **Required behavior from `ALGORITHMS.md`**
 
-- Rank candidates by `final_score` descending.
+- Rank applicants by `final_score` descending.
 - If scores are equal, use a stable secondary ordering such as `applied_at` ascending.
 
 **Affected files**
 
 - `backend/apps/applications/views.py`
 - `backend/apps/jobs/urls.py`
-- `web/src/pages/recruiter/CandidateRankingPage.jsx`
+- `web/src/pages/recruiter/ApplicantRankingPage.jsx`
 - `web/src/api/client.js`
 - `backend/apps/applications/tests.py`
 
 **Risk level: medium**
 
-The primary order is correct, but the tie-breaker contradicts `ALGORITHMS.md`. Changing it will alter visible candidate order and will conflict with the current frontend copy and likely existing tests.
+The primary order is correct, but the tie-breaker contradicts `ALGORITHMS.md`. Changing it will alter visible applicant order and will conflict with the current frontend copy and likely existing tests.
 
 **Recommended fix**
 
@@ -482,9 +482,9 @@ The current backend tests cover many basics, but gaps allow algorithm regression
 
 **Current behavior**
 
-- Web recruiter candidate ranking displays semantic, skill, experience, education, and final scores from the ranked candidates API.
+- Web recruiter applicant ranking displays semantic, skill, experience, education, and final scores from the ranked applicants API.
 - Web recruiter applications displays final score and has an AI screening action.
-- Web recruiter candidate profile displays extracted skills and scores, and attempts to display extracted experience and education from `resume_info`.
+- Web recruiter applicant profile displays extracted skills and scores, and attempts to display extracted experience and education from `resume_info`.
 - Web recruiter hiring decision displays final AI score as supporting information.
 - Web interviewer transcript/summary page can generate mock transcripts and mock AI summaries, displays transcript text, displays editable summary fields, and saves edits.
 - Mobile applicant `JobApplication` model has `finalScore`, and application detail displays an `AI score` chip if it is present.
@@ -498,9 +498,9 @@ The current backend tests cover many basics, but gaps allow algorithm regression
 
 **Affected files**
 
-- `web/src/pages/recruiter/CandidateRankingPage.jsx`
+- `web/src/pages/recruiter/ApplicantRankingPage.jsx`
 - `web/src/pages/recruiter/ApplicationsPage.jsx`
-- `web/src/pages/recruiter/CandidateProfilePage.jsx`
+- `web/src/pages/recruiter/ApplicantProfilePage.jsx`
 - `web/src/pages/recruiter/HiringDecisionPage.jsx`
 - `web/src/pages/interviewer/TranscriptSummaryPage.jsx`
 - `web/src/api/client.js`
@@ -510,15 +510,15 @@ The current backend tests cover many basics, but gaps allow algorithm regression
 
 **Risk level: high**
 
-The current candidate profile screen can break when React tries to render structured experience/education objects directly. Changing API shapes to align with `ALGORITHMS.md` could also break existing web screens if not done additively. Mobile has a dormant AI score field because applicant API responses intentionally strip scores.
+The current applicant profile screen can break when React tries to render structured experience/education objects directly. Changing API shapes to align with `ALGORITHMS.md` could also break existing web screens if not done additively. Mobile has a dormant AI score field because applicant API responses intentionally strip scores.
 
 **Recommended fix**
 
-- Fix web candidate profile rendering to format structured objects safely before changing backend structures.
+- Fix web applicant profile rendering to format structured objects safely before changing backend structures.
 - Preserve existing API fields and add new algorithm-compliant fields additively.
 - Decide whether applicants should ever see AI scores. If not, remove/hide the mobile AI score chip or leave it harmlessly inactive; if yes, update the backend privacy policy intentionally.
-- Update candidate ranking page copy when the tie-breaker changes.
-- Add manual testing steps for recruiter ranking, candidate profile, screening, interviewer transcript/summary, and mobile application detail.
+- Update applicant ranking page copy when the tie-breaker changes.
+- Add manual testing steps for recruiter ranking, applicant profile, screening, interviewer transcript/summary, and mobile application detail.
 
 ---
 
@@ -544,7 +544,7 @@ The following changes may break existing APIs or frontend/mobile screens if impl
    - Safe approach: keep lower-case `extracted_skills` initially and add `extracted_skill_labels` or migrate tests/frontend together.
 
 4. **Experience and education object rendering**
-   - Current web candidate profile renders `profile.resume_info?.extracted_experience` and `profile.resume_info?.extracted_education` directly.
+   - Current web applicant profile renders `profile.resume_info?.extracted_experience` and `profile.resume_info?.extracted_education` directly.
    - These are JSON objects after screening and can cause React runtime rendering errors.
    - Safe approach: update web formatting before adding richer backend objects.
 
@@ -566,7 +566,7 @@ The following changes may break existing APIs or frontend/mobile screens if impl
 ## Recommended safe implementation order
 
 1. **Stabilize frontend rendering before backend payload expansion**
-   - Safely format extracted experience/education in the recruiter candidate profile.
+   - Safely format extracted experience/education in the recruiter applicant profile.
    - Update ranking page copy to avoid committing to the wrong tie-breaker.
 
 2. **Add shared resume/job preprocessing service**
@@ -593,7 +593,7 @@ The following changes may break existing APIs or frontend/mobile screens if impl
    - Keep current nested fields for compatibility.
    - Add tests for required explanation keys.
 
-7. **Fix candidate ranking tie-breaker**
+7. **Fix applicant ranking tie-breaker**
    - Change equal-score ordering to `applied_at` ascending.
    - Update web copy and tests together.
 
@@ -617,8 +617,8 @@ The following changes may break existing APIs or frontend/mobile screens if impl
 Read AGENTS.md, FYP_REQUIREMENTS_SUMMARY.md, ALGORITHMS_SOURCE.md, ALGORITHMS.md, and AI_ALGORITHM_GAP_REPORT.md first.
 
 Then implement only the first safe step from the gap report:
-1. Fix the recruiter candidate profile frontend so extracted experience and education JSON objects render safely.
-2. Update candidate ranking page copy so it does not say equal scores use newest applications.
+1. Fix the recruiter applicant profile frontend so extracted experience and education JSON objects render safely.
+2. Update applicant ranking page copy so it does not say equal scores use newest applications.
 3. Do not change backend API behavior yet.
 4. Add or update tests/checks where practical.
 

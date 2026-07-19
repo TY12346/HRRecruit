@@ -190,7 +190,7 @@ def recommendation_for_hr_or_404(user, recommendation_id):
 HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES = (JobApplication.Status.EVALUATION_SUBMITTED,)
 
 
-class JobCandidateComparisonAPIView(APIView):
+class JobApplicantComparisonAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, job_id):
@@ -202,14 +202,14 @@ class JobCandidateComparisonAPIView(APIView):
                 raise PermissionDenied('An active HR head organization membership is required.')
             job = get_object_or_404(JobPosting, id=job_id, organization=membership.organization)
         else:
-            raise PermissionDenied('Only recruiters and HR department heads can compare candidates.')
+            raise PermissionDenied('Only recruiters and HR department heads can compare applicants.')
 
         readiness = refresh_job_readiness(job)
         applications = job.applications.select_related('applicant', 'assigned_interviewer').prefetch_related(
             'interviews__evaluations',
             'interviews__recordings__transcripts__ai_summaries',
         ).order_by('-final_score', 'applied_at')
-        candidates = []
+        applicants = []
         for application in applications:
             interviews = list(application.interviews.all())
             evaluations = [evaluation for interview in interviews for evaluation in interview.evaluations.all()]
@@ -217,9 +217,9 @@ class JobCandidateComparisonAPIView(APIView):
                            for transcript in recording.transcripts.all()]
             summaries = [summary for interview in interviews for recording in interview.recordings.all()
                          for transcript in recording.transcripts.all() for summary in transcript.ai_summaries.all()]
-            candidates.append({
+            applicants.append({
                 'application_id': application.id,
-                'candidate_name': application.applicant.full_name,
+                'applicant_name': application.applicant.full_name,
                 'application_status': application.status,
                 'ai_resume_score': application.final_score,
                 'extracted_skills': application.extracted_skills,
@@ -236,7 +236,7 @@ class JobCandidateComparisonAPIView(APIView):
                 'eligible_for_recommendation': application.status in ELIGIBLE_RECOMMENDATION_STATUSES,
             })
         return Response({'job': {'id': job.id, 'title': job.title, 'status': job.status, 'vacancies': job.vacancies},
-                         'readiness': readiness, 'candidates': candidates})
+                         'readiness': readiness, 'applicants': applicants})
 
 
 class JobHiringRecommendationListCreateAPIView(APIView):
@@ -272,20 +272,20 @@ class JobHiringRecommendationListCreateAPIView(APIView):
         recommendation_type = serializer.validated_data['recommendation_type']
         application_ids = serializer.validated_data['application_ids']
         if len(application_ids) != len(set(application_ids)):
-            raise ValidationError({'application_ids': 'Each candidate can only be selected once.'})
+            raise ValidationError({'application_ids': 'Each applicant can only be selected once.'})
         if recommendation_type == JobHiringRecommendation.RecommendationType.RECOMMEND_HIRE:
             if not application_ids:
-                raise ValidationError({'application_ids': 'Recommend Hire requires at least one selected candidate.'})
+                raise ValidationError({'application_ids': 'Recommend Hire requires at least one selected applicant.'})
             if len(application_ids) > job.vacancies:
-                raise ValidationError({'application_ids': f'No more than {job.vacancies} candidate(s) may be selected for this job.'})
+                raise ValidationError({'application_ids': f'No more than {job.vacancies} applicant(s) may be selected for this job.'})
         elif application_ids:
-            raise ValidationError({'application_ids': 'Recommend No Hire must not select any candidates.'})
+            raise ValidationError({'application_ids': 'Recommend No Hire must not select any applicants.'})
         applications = list(job.applications.filter(id__in=application_ids))
         if len(applications) != len(application_ids):
-            raise ValidationError({'application_ids': 'Every selected candidate must belong to this job posting.'})
+            raise ValidationError({'application_ids': 'Every selected applicant must belong to this job posting.'})
         invalid = [application.id for application in applications if application.status not in ELIGIBLE_RECOMMENDATION_STATUSES]
         if invalid:
-            raise ValidationError({'application_ids': f'Selected candidates are not fully interviewed/evaluated: {invalid}.'})
+            raise ValidationError({'application_ids': f'Selected applicants are not fully interviewed/evaluated: {invalid}.'})
 
         recommendation = JobHiringRecommendation.objects.create(
             job_posting=job, recruiter=request.user, recommendation_type=recommendation_type,
@@ -475,7 +475,7 @@ class JobOfferCreateAPIView(APIView):
             recommendation__status=JobHiringRecommendation.Status.APPROVED,
         ).exists()
         if not approved_hire_exists or application.status != JobApplication.Status.HR_APPROVED:
-            raise ValidationError({'application': 'A job offer can only be sent to a candidate selected in an HR-approved job-level hiring recommendation.'})
+            raise ValidationError({'application': 'A job offer can only be sent to a applicant selected in an HR-approved job-level hiring recommendation.'})
         if JobOffer.objects.filter(application=application, offer_status=JobOffer.OfferStatus.SENT).exists():
             raise ValidationError({'application': 'This application already has a sent job offer.'})
 
@@ -531,8 +531,8 @@ class JobOfferAcceptAPIView(APIView):
 
         offer.offer_status = JobOffer.OfferStatus.ACCEPTED
         offer.responded_at = timezone.now()
-        offer.candidate_response_note = serializer.validated_data.get('note', '')
-        offer.save(update_fields=['offer_status', 'responded_at', 'candidate_response_note'])
+        offer.applicant_response_note = serializer.validated_data.get('note', '')
+        offer.save(update_fields=['offer_status', 'responded_at', 'applicant_response_note'])
         application = offer.application
         change_application_status(
             application,
@@ -574,8 +574,8 @@ class JobOfferDeclineAPIView(APIView):
 
         offer.offer_status = JobOffer.OfferStatus.DECLINED
         offer.responded_at = timezone.now()
-        offer.candidate_response_note = serializer.validated_data.get('reason', '')
-        offer.save(update_fields=['offer_status', 'responded_at', 'candidate_response_note'])
+        offer.applicant_response_note = serializer.validated_data.get('reason', '')
+        offer.save(update_fields=['offer_status', 'responded_at', 'applicant_response_note'])
         application = offer.application
         decline_note = serializer.validated_data.get('reason') or 'Applicant declined job offer.'
         change_application_status(application, JobApplication.Status.OFFER_DECLINED, request.user, decline_note)
@@ -613,7 +613,7 @@ class JobOfferWithdrawAPIView(APIView):
             application,
             JobApplication.Status.HR_APPROVED,
             request.user,
-            'Recruiter withdrew the sent job offer; candidate remains HR-approved for a revised offer.',
+            'Recruiter withdrew the sent job offer; applicant remains HR-approved for a revised offer.',
         )
         create_notification(
             application.applicant,

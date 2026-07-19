@@ -44,7 +44,7 @@ export const getApiErrorMessage = (error, fallback = 'Something went wrong.') =>
   return fallback;
 };
 
-export const candidateName = (interview) => interview?.application?.applicant?.full_name ?? 'Candidate';
+export const applicantName = (interview) => interview?.application?.applicant?.full_name ?? 'Applicant';
 export const jobTitle = (interview) => interview?.application?.job_title ?? 'Job';
 export const panelInterviewerNames = (interview) => {
   const panel = interview?.panel_interviewers?.length ? interview.panel_interviewers : [interview?.interviewer].filter(Boolean);

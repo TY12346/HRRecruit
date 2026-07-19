@@ -84,7 +84,7 @@ DemoPass123!
 | Role | Email | Demo Purpose |
 | --- | --- | --- |
 | HR Head | demo.hrhead@example.com | Organization, subscription, HR approval, offer oversight, analytics. |
-| Recruiter | demo.recruiter@example.com | Job posting, candidate screening, candidate ranking, interview setup, hiring recommendation, offer creation. |
+| Recruiter | demo.recruiter@example.com | Job posting, applicant screening, applicant ranking, interview setup, hiring recommendation, offer creation. |
 | Interviewer | demo.interviewer@example.com | Assigned interviews, invitation workflow, transcript/summary review, evaluation submission. |
 | Applicant | demo.applicant@example.com | Job search/application, notifications, interview invitation response, job offer response. |
 
@@ -116,8 +116,8 @@ Follow this order for a clear examiner walkthrough:
    - Return to recruiter.
    - Open an application and show AI-assisted screening score components.
    - Explain that AI supports recruiter review and does not automatically reject/hire.
-5. Candidate ranking
-   - Show ranked candidates for a job.
+5. Applicant ranking
+   - Show ranked applicants for a job.
 6. Interview invitation
    - Assign interviewer and show interview invitation flow.
    - Show applicant invitation response where appropriate.

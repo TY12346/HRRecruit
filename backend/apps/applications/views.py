@@ -28,7 +28,7 @@ from .serializers import (
     ApplicationShortlistSerializer,
     ApplicationStageHistorySerializer,
     ApplicationSearchResultSerializer,
-    CandidateProfileSerializer,
+    ApplicantProfileSerializer,
     JobApplicationSerializer,
 )
 from .services import screen_job_application
@@ -220,7 +220,7 @@ APPLICATION_SORT_OPTIONS = {
     'oldest': ('applied_at',),
     'score_desc': (F('final_score').desc(nulls_last=True), 'applied_at'),
     'score_asc': (F('final_score').asc(nulls_last=True), 'applied_at'),
-    'candidate_az': ('applicant__full_name', 'applicant__email', '-applied_at'),
+    'applicant_az': ('applicant__full_name', 'applicant__email', '-applied_at'),
 }
 
 
@@ -279,7 +279,7 @@ def apply_application_search_filters(applications, query_params, allow_status=Tr
 
 def recruiter_job_or_404(user, job_id):
     if user.role != User.Role.RECRUITER:
-        raise PermissionDenied('Only recruiters can access candidate ranking and shortlisting APIs.')
+        raise PermissionDenied('Only recruiters can access applicant ranking and shortlisting APIs.')
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
         raise PermissionDenied('Recruiter must belong to an active organization.')
@@ -293,19 +293,19 @@ def recruiter_job_or_404(user, job_id):
 
 def recruiter_application_or_404(user, application_id):
     if user.role != User.Role.RECRUITER:
-        raise PermissionDenied('Only recruiters can manage candidate ranking and shortlisting.')
+        raise PermissionDenied('Only recruiters can manage applicant ranking and shortlisting.')
     return get_object_or_404(visible_applications_for(user), id=application_id)
 
 
 def resume_application_or_404(user, application_id):
     if user.role in (User.Role.RECRUITER, User.Role.INTERVIEWER):
-        return candidate_profile_application_or_404(user, application_id)
+        return applicant_profile_application_or_404(user, application_id)
     if user.role in (User.Role.APPLICANT, User.Role.HR_HEAD):
         return get_object_or_404(visible_applications_for(user), id=application_id)
     raise PermissionDenied('Your role cannot view application resumes.')
 
 
-def candidate_profile_application_or_404(user, application_id):
+def applicant_profile_application_or_404(user, application_id):
     if user.role == User.Role.RECRUITER:
         return recruiter_application_or_404(user, application_id)
     if user.role == User.Role.INTERVIEWER:
@@ -325,7 +325,7 @@ def candidate_profile_application_or_404(user, application_id):
             assigned_interviewer=user,
             job__organization=membership.organization,
         )
-    raise PermissionDenied('Only recruiters and assigned interviewers can view candidate profiles.')
+    raise PermissionDenied('Only recruiters and assigned interviewers can view applicant profiles.')
 
 
 def active_interviewer_for_organization_or_404(interviewer_id, organization):
@@ -486,7 +486,7 @@ class ApplicationScreenAPIView(APIView):
         return Response(JobApplicationSerializer(application, context={'request': request}).data)
 
 
-class RankedCandidatesAPIView(APIView):
+class RankedApplicantsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, job_id):
@@ -506,12 +506,12 @@ class RankedCandidatesAPIView(APIView):
         return Response(JobApplicationSerializer(applications, many=True, context={'request': request}).data)
 
 
-class CandidateProfileAPIView(APIView):
+class ApplicantProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, application_id):
-        application = candidate_profile_application_or_404(request.user, application_id)
-        return Response(CandidateProfileSerializer(application, context={'request': request}).data)
+        application = applicant_profile_application_or_404(request.user, application_id)
+        return Response(ApplicantProfileSerializer(application, context={'request': request}).data)
 
 
 class ApplicationResumeAPIView(APIView):
@@ -562,7 +562,7 @@ class ApplicationShortlistAPIView(APIView):
         create_notification(
             interviewer,
             'interview_assignment',
-            'Candidate assigned',
+            'Applicant assigned',
             f'{application.applicant.full_name} was shortlisted and assigned to you for {application.job.title}.',
             related_entity=application,
         )
@@ -590,12 +590,12 @@ class ApplicationRejectAPIView(APIView):
             request.user,
             reason or remark,
         )
-        candidate_message = remark or reason or f'Your application for {application.job.title} was not selected.'
+        applicant_message = remark or reason or f'Your application for {application.job.title} was not selected.'
         create_notification(
             application.applicant,
             'application_status_update',
             'Application status updated',
-            candidate_message,
+            applicant_message,
             related_entity=application,
         )
         return Response(JobApplicationSerializer(application, context={'request': request}).data)

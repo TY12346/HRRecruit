@@ -4,9 +4,9 @@ import { Link as RouterLink } from 'react-router-dom';
 import { getAssignedInterviews } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
 import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
-import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, panelInterviewerNames, titleize } from './interviewerUtils.js';
+import { applicantName, formatDateTime, getApiErrorMessage, jobTitle, panelInterviewerNames, titleize } from './interviewerUtils.js';
 
-export default function AssignedCandidatesPage() {
+export default function AssignedApplicantsPage() {
   const [interviews, setInterviews] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -16,7 +16,7 @@ export default function AssignedCandidatesPage() {
   useEffect(() => {
     getAssignedInterviews()
       .then(setInterviews)
-      .catch((err) => setError(getApiErrorMessage(err, 'Unable to load assigned candidates.')))
+      .catch((err) => setError(getApiErrorMessage(err, 'Unable to load assigned applicants.')))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -25,7 +25,7 @@ export default function AssignedCandidatesPage() {
     return interviews.filter((interview) => {
       const status = interview.application?.status ?? '';
       const matchesStatus = statusFilter === 'all' || status === statusFilter;
-      const matchesSearch = !query || [candidateName(interview), jobTitle(interview), interview.application?.recruiter_remark]
+      const matchesSearch = !query || [applicantName(interview), jobTitle(interview), interview.application?.recruiter_remark]
         .some((value) => String(value ?? '').toLowerCase().includes(query));
       return matchesStatus && matchesSearch;
     });
@@ -35,9 +35,9 @@ export default function AssignedCandidatesPage() {
     <Box>
       <InterviewerNav />
       <Paper sx={{ p: 3 }}>
-        <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Assigned Candidates</Typography>
+        <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Assigned Applicants</Typography>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
-          <TextField label="Search candidates" value={search} onChange={(event) => setSearch(event.target.value)} fullWidth />
+          <TextField label="Search applicants" value={search} onChange={(event) => setSearch(event.target.value)} fullWidth />
           <TextField select label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} sx={{ minWidth: 180 }}>
             <MenuItem value="all">All statuses</MenuItem>
             <MenuItem value="shortlisted">Shortlisted</MenuItem>
@@ -52,17 +52,17 @@ export default function AssignedCandidatesPage() {
           {filteredInterviews.map((interview) => (
             <Stack key={interview.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%', '&:first-of-type': { borderTop: 0 } }}>
               <Box>
-                <ApplicantJobSummary applicantName={candidateName(interview)} jobTitle={jobTitle(interview)} />
+                <ApplicantJobSummary applicantName={applicantName(interview)} jobTitle={jobTitle(interview)} />
                 <Typography color="text.secondary" variant="body2">
                   {titleize(interview.application?.status)} • Scheduled: {formatDateTime(interview.scheduled_datetime)} • Panel: {panelInterviewerNames(interview)} • Remark: {interview.application?.recruiter_remark || '—'}
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ ml: { md: 'auto' }, justifyContent: 'flex-end' }}>
-                <Button component={RouterLink} to={`/interviewer/candidates/${interview.application?.id}`} variant="outlined" size="small">Candidate detail</Button>
+                <Button component={RouterLink} to={`/interviewer/applicants/${interview.application?.id}`} variant="outlined" size="small">Applicant detail</Button>
               </Stack>
             </Stack>
           ))}
-          {!isLoading && filteredInterviews.length === 0 ? <Typography color="text.secondary">No assigned candidates found.</Typography> : null}
+          {!isLoading && filteredInterviews.length === 0 ? <Typography color="text.secondary">No assigned applicants found.</Typography> : null}
         </Stack>
       </Paper>
     </Box>

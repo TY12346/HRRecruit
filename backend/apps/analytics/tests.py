@@ -53,7 +53,7 @@ class AnalyticsAPITests(APITestCase):
             from_stage=JobApplication.Status.OFFER_ACCEPTED,
             to_stage=JobApplication.Status.HIRED,
             changed_by=self.recruiter,
-            note='Candidate accepted and joined.',
+            note='Applicant accepted and joined.',
         )
         ApplicationStageHistory.objects.filter(application=self.hired_application).update(changed_at=hired_at)
 
@@ -68,7 +68,7 @@ class AnalyticsAPITests(APITestCase):
             interview=self.interview,
             interviewer=self.interviewer,
             total_score='88.50',
-            overall_comment='Strong candidate.',
+            overall_comment='Strong applicant.',
         )
         JobOffer.objects.create(
             application=self.hired_application,
@@ -126,7 +126,7 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.data['metrics']['recruiter_hire_count'], 1)
         self.assertEqual(response.data['metrics']['interviewer_evaluation_count'], 1)
         self.assertEqual(response.data['metrics']['offer_acceptance_rate'], 100.0)
-        self.assertIn('candidate_funnel', response.data['charts'])
+        self.assertIn('applicant_funnel', response.data['charts'])
         self.assertIn('conversion_rates', response.data['charts'])
         self.assertEqual(response.data['metrics']['conversion_rates']['shortlist_rate'], 66.67)
         self.assertEqual(response.data['metrics']['score_distribution']['strong_fit'], 1)

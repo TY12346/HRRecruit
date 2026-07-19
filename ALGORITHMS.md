@@ -12,12 +12,12 @@ AI features in HRRecruit must support recruiter, interviewer, and HR department 
 
 ### Purpose
 
-Convert an uploaded resume into structured candidate information for resume screening, scoring, and ranking.
+Convert an uploaded resume into structured applicant information for resume screening, scoring, and ranking.
 
 ### Input
 
 - `resume_file`
-- `candidate_id`
+- `applicant_id`
 
 Supported resume formats:
 
@@ -26,7 +26,7 @@ Supported resume formats:
 
 ### Processing Steps
 
-1. Load the resume file for the specified candidate.
+1. Load the resume file for the specified applicant.
 2. Validate that the file exists and is an allowed resume type.
 3. Extract raw text from the PDF or DOCX file.
 4. Clean and normalize the extracted text.
@@ -92,7 +92,7 @@ The extraction result should include:
 
 ### Storage Requirement
 
-Store or expose the extracted data in a suitable model based on the current backend design, such as a resume extraction model, candidate profile, application score explanation, or related application screening record.
+Store or expose the extracted data in a suitable model based on the current backend design, such as a resume extraction model, applicant profile, application score explanation, or related application screening record.
 
 ---
 
@@ -100,12 +100,12 @@ Store or expose the extracted data in a suitable model based on the current back
 
 ### Purpose
 
-Calculate how semantically similar a candidate resume is to a job description and job requirements. This helps match candidates and jobs even when they use different wording for similar concepts.
+Calculate how semantically similar a applicant resume is to a job description and job requirements. This helps match applicants and jobs even when they use different wording for similar concepts.
 
 ### Input
 
 - `job_id`
-- `candidate_id`
+- `applicant_id`
 - `job_description`
 - `job_requirements`
 - `resume_text`
@@ -113,7 +113,7 @@ Calculate how semantically similar a candidate resume is to a job description an
 ### Processing Steps
 
 1. Load the job description and job requirements.
-2. Load the candidate resume text.
+2. Load the applicant resume text.
 3. Clean and preprocess both job text and resume text.
 4. If `sentence-transformers` and the model are available, load Sentence-BERT.
 5. Generate embeddings for the job text and resume text.
@@ -158,21 +158,21 @@ The score must use this scale:
 
 ### Storage Requirement
 
-Store or expose `semantic_score` in the application screening result, candidate ranking record, score explanation JSON, or another suitable scoring model based on the current backend design.
+Store or expose `semantic_score` in the application screening result, applicant ranking record, score explanation JSON, or another suitable scoring model based on the current backend design.
 
 ---
 
-## 3. AI Candidate Ranking using Hybrid Scoring Model
+## 3. AI Applicant Ranking using Hybrid Scoring Model
 
 ### Purpose
 
-Combine semantic, skill, experience, and education matching signals into one final candidate score for recruiter review.
+Combine semantic, skill, experience, and education matching signals into one final applicant score for recruiter review.
 
 The ranking must support recruiter decision-making and must not replace human shortlisting or rejection decisions.
 
 ### Input
 
-- `candidate_data`
+- `applicant_data`
 - `job_requirements`
 - `semantic_score`
 - `skill_score`
@@ -181,18 +181,18 @@ The ranking must support recruiter decision-making and must not replace human sh
 
 ### Processing Steps
 
-1. Load the candidate profile and extracted resume data.
+1. Load the applicant profile and extracted resume data.
 2. Load the job requirements.
 3. Calculate or retrieve `semantic_score` from Sentence-BERT semantic matching or fallback semantic matching.
-4. Calculate `skill_score` by comparing extracted candidate skills with job skill requirements and any requirement weights.
+4. Calculate `skill_score` by comparing extracted applicant skills with job skill requirements and any requirement weights.
 5. Identify `matched_skills` and `missing_skills`.
-6. Calculate `experience_score` by comparing extracted candidate experience with the job experience requirement.
+6. Calculate `experience_score` by comparing extracted applicant experience with the job experience requirement.
 7. Identify `experience_match` and `experience_gap`.
-8. Calculate `education_score` by comparing extracted candidate education with the job education requirement.
+8. Calculate `education_score` by comparing extracted applicant education with the job education requirement.
 9. Identify `education_match` and `education_gap`.
 10. Calculate `final_score` using the required formula.
 11. Store the final score and score explanation.
-12. Rank candidates by final score in descending order.
+12. Rank applicants by final score in descending order.
 13. Use a stable secondary ordering such as `applied_at` ascending when scores are equal.
 
 ### Required Final Scoring Formula
@@ -216,7 +216,7 @@ All component scores and the final score must use a 0-100 scale:
 ### Output
 
 - `final_score`
-- `ranked_candidates`
+- `ranked_applicants`
 - `score_explanation`
 
 ### Storage Requirement
@@ -237,7 +237,7 @@ Example structure:
   "missing_skills": ["React"],
   "education_match": true,
   "experience_match": false,
-  "notes": "Candidate has strong backend skills but lacks React experience."
+  "notes": "Applicant has strong backend skills but lacks React experience."
 }
 ```
 
@@ -373,10 +373,10 @@ If real summary is disabled or unavailable, return a structured mock summary suc
 
 ```json
 {
-  "strengths": "The candidate shows relevant experience and communicates clearly.",
-  "weaknesses": "The candidate may need further evaluation on technical depth.",
+  "strengths": "The applicant shows relevant experience and communicates clearly.",
+  "weaknesses": "The applicant may need further evaluation on technical depth.",
   "communication_score": 75,
-  "overall_impression": "The candidate appears suitable for further consideration.",
+  "overall_impression": "The applicant appears suitable for further consideration.",
   "editable_summary_text": "Mock AI summary generated for FYP development."
 }
 ```
@@ -412,7 +412,7 @@ ai_services/skill_extractor.py
 ai_services/education_extractor.py
 ai_services/experience_extractor.py
 ai_services/semantic_matcher.py
-ai_services/candidate_scoring.py
+ai_services/applicant_scoring.py
 ai_services/transcription_service.py
 ai_services/summary_service.py
 ```
@@ -463,7 +463,7 @@ After implementing AI backend features, create or update `AI_ALGORITHM_VALIDATIO
 1. HRRecruit runs the configured speech-to-text provider. Local Whisper is the default real provider and can return timestamped transcript segments.
 2. Speaker diarization is a separate optional local layer that detects speaker turns such as `SPEAKER_00` with start and end timestamps.
 3. HRRecruit aligns Whisper transcript segments to diarization turns by selecting the speaker turn with the largest timestamp overlap.
-4. HRRecruit maps internal speaker ids to the user-facing interview roles `Interviewer` and `Candidate`. The role mapping favors the speaker who asks the most questions or uses recruiter/HR/interviewer language as `Interviewer`, and maps the other primary speaker to `Candidate`.
+4. HRRecruit maps internal speaker ids to the user-facing interview roles `Interviewer` and `Applicant`. The role mapping favors the speaker who asks the most questions or uses recruiter/HR/interviewer language as `Interviewer`, and maps the other primary speaker to `Applicant`.
 5. `InterviewTranscript.transcript_text` stores the readable transcript. When diarization succeeds this is speaker-labelled text; otherwise it remains the plain transcript.
 6. `InterviewTranscript.transcript_json` stores the plain transcript, optional speaker-labelled transcript, diarization status/warning, and structured speaker segments.
 7. If diarization dependencies are missing or fail, the system must fall back to plain transcript mode and preserve AI summary compatibility.

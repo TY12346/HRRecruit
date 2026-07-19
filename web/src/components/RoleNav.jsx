@@ -33,7 +33,7 @@ function BriefcaseIcon() {
   );
 }
 
-function CandidatesIcon() {
+function ApplicantsIcon() {
   return (
     <svg aria-hidden="true" {...iconProps}>
       <circle cx="9" cy="8" r="3" />
@@ -79,19 +79,19 @@ function SettingsIcon() {
 const icons = {
   availability: <CalendarIcon />,
   billing: <BriefcaseIcon />,
-  candidates: <CandidatesIcon />,
+  applicants: <ApplicantsIcon />,
   dashboard: <DashboardIcon />,
   interviews: <CalendarIcon />,
   notifications: <SettingsIcon />,
   offers: <BriefcaseIcon />,
   organization: <SettingsIcon />,
-  recommendations: <CandidatesIcon />,
+  recommendations: <ApplicantsIcon />,
   reports: <ReportsIcon />,
   requisitions: <BriefcaseIcon />,
   roles: <BriefcaseIcon />,
-  search: <CandidatesIcon />,
+  search: <ApplicantsIcon />,
   settings: <SettingsIcon />,
-  team: <CandidatesIcon />,
+  team: <ApplicantsIcon />,
 };
 
 export default function RoleNav({ items }) {

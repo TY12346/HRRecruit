@@ -210,7 +210,7 @@ def build_mock_transcription(recording, audio_file):
     job = getattr(application, 'job', None)
     applicant = getattr(application, 'applicant', None)
     job_title = getattr(job, 'title', '') or 'the role'
-    applicant_name = getattr(applicant, 'full_name', '') or 'the candidate'
+    applicant_name = getattr(applicant, 'full_name', '') or 'the applicant'
     return {
         'text': (
             f'Mock transcript for {applicant_name} interviewing for {job_title}. '

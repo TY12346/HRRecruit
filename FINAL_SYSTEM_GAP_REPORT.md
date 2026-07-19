@@ -14,7 +14,7 @@ Areas checked:
 6. Job posting workflow
 7. Application workflow
 8. AI resume screening
-9. Candidate ranking
+9. Applicant ranking
 10. Interview invitation flow
 11. Interview evaluation, transcript, and summary
 12. Hiring decision and HR approval
@@ -25,7 +25,7 @@ Areas checked:
 
 ## Executive summary
 
-The system has substantial coverage for the FYP demo: Django REST APIs are role protected by default, organization membership checks are present in the major recruiter/interviewer/HR-head flows, AI resume screening follows the required weighted formula, candidate ranking is implemented, interview transcript/summary features use deterministic mock-first services, notifications exist, analytics and PDF report endpoints exist, and both the React web portal and Flutter applicant app have route/API coverage for many workflows.
+The system has substantial coverage for the FYP demo: Django REST APIs are role protected by default, organization membership checks are present in the major recruiter/interviewer/HR-head flows, AI resume screening follows the required weighted formula, applicant ranking is implemented, interview transcript/summary features use deterministic mock-first services, notifications exist, analytics and PDF report endpoints exist, and both the React web portal and Flutter applicant app have route/API coverage for many workflows.
 
 However, several gaps can block or weaken a final FYP demonstration:
 
@@ -40,7 +40,7 @@ However, several gaps can block or weaken a final FYP demonstration:
 
 ### GAP-001: Recruiters can submit hiring decisions before interview evaluation is complete
 
-- **Issue description:** `HiringDecisionSubmitAPIView` blocks only terminal statuses such as withdrawn/rejected/offered/hired, but it does not require `EVALUATION_SUBMITTED` or another post-interview status before allowing a recruiter to submit a hire/reject recommendation. The React hiring decision page also loads all applications and does not filter to evaluated candidates.
+- **Issue description:** `HiringDecisionSubmitAPIView` blocks only terminal statuses such as withdrawn/rejected/offered/hired, but it does not require `EVALUATION_SUBMITTED` or another post-interview status before allowing a recruiter to submit a hire/reject recommendation. The React hiring decision page also loads all applications and does not filter to evaluated applicants.
 - **Affected files:**
   - `backend/apps/hiring/views.py`
   - `web/src/pages/recruiter/HiringDecisionPage.jsx`
@@ -48,7 +48,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/apps/applications/models.py`
 - **Affected user role:** Recruiter, HR Head, Applicant
 - **Severity:** High
-- **Recommended fix:** Require `application.status == evaluation_submitted` or an explicitly allowed post-evaluation state before creating a hiring decision. Update the React page to show only eligible evaluated candidates and add backend tests proving submitted/screened/shortlisted/interview-invited applications cannot be sent to HR.
+- **Recommended fix:** Require `application.status == evaluation_submitted` or an explicitly allowed post-evaluation state before creating a hiring decision. Update the React page to show only eligible evaluated applicants and add backend tests proving submitted/screened/shortlisted/interview-invited applications cannot be sent to HR.
 - **Blocks FYP demo:** Yes, if demonstrating the full interview-to-hiring decision workflow in the required order.
 
 ### GAP-002: Accepted offers never become `hired`
@@ -78,7 +78,7 @@ However, several gaps can block or weaken a final FYP demonstration:
 - **Recommended fix:** Add an applicant notification when HR rejection is intended to be a final applicant-facing rejection. If HR rejection only means “rework recruiter decision,” introduce a clearer internal status and do not expose it as a final applicant rejection.
 - **Blocks FYP demo:** Partial. It blocks a clean applicant rejection-notification demo for HR-rejected decisions.
 
-### GAP-004: Hiring-decision UI does not guide recruiters toward evaluated candidates
+### GAP-004: Hiring-decision UI does not guide recruiters toward evaluated applicants
 
 - **Issue description:** The React hiring decision page lists recent applications from all statuses and provides a submit button without frontend eligibility checks. This amplifies GAP-001 and makes it easy during a demo to submit a decision too early.
 - **Affected files:**
@@ -86,7 +86,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `web/src/api/client.js`
 - **Affected user role:** Recruiter
 - **Severity:** High
-- **Recommended fix:** Filter candidates to `evaluation_submitted` or backend-provided eligible candidates, disable submit when selected status is not eligible, and display the interview evaluation/AI summary as supporting evidence.
+- **Recommended fix:** Filter applicants to `evaluation_submitted` or backend-provided eligible applicants, disable submit when selected status is not eligible, and display the interview evaluation/AI summary as supporting evidence.
 - **Blocks FYP demo:** Yes, because it can make the demonstrated workflow look out of sequence.
 
 ### GAP-005: Interview invitations can be sent for past dates and multiple pending invitations can coexist
@@ -172,15 +172,15 @@ However, several gaps can block or weaken a final FYP demonstration:
 - **Recommended fix:** Add a documented seed command for demo HR-head accounts or an explicit HR-head invitation/onboarding flow. For FYP, a management command plus README demo credentials may be enough.
 - **Blocks FYP demo:** Yes, unless the demo environment is pre-seeded.
 
-### GAP-011: Candidate profile UI renders structured extraction objects poorly
+### GAP-011: Applicant profile UI renders structured extraction objects poorly
 
-- **Issue description:** The interviewer candidate detail page prints `resume.extracted_experience` and `resume.extracted_education` directly. These values are JSON objects from the backend, so they may display as `[object Object]` instead of readable years/roles/degree/field details.
+- **Issue description:** The interviewer applicant detail page prints `resume.extracted_experience` and `resume.extracted_education` directly. These values are JSON objects from the backend, so they may display as `[object Object]` instead of readable years/roles/degree/field details.
 - **Affected files:**
-  - `web/src/pages/interviewer/CandidateDetailPage.jsx`
+  - `web/src/pages/interviewer/ApplicantDetailPage.jsx`
   - `backend/apps/applications/serializers.py`
 - **Affected user role:** Interviewer
 - **Severity:** Low
-- **Recommended fix:** Format extracted experience and education fields into human-readable summaries, matching the recruiter candidate profile UI.
+- **Recommended fix:** Format extracted experience and education fields into human-readable summaries, matching the recruiter applicant profile UI.
 - **Blocks FYP demo:** No, but it weakens the AI extraction presentation.
 
 ### GAP-012: Transcript and summary page depends on manually entered recording/transcript IDs
@@ -309,7 +309,7 @@ However, several gaps can block or weaken a final FYP demonstration:
 - **Job posting:** Recruiters can create, update, duplicate, configure requirements, and configure evaluation scorecards for their organization jobs. Applicants can search/open/save/apply to open jobs.
 - **Application workflow:** Applicants can apply/withdraw; recruiters can screen, rank, shortlist, assign interviewers, reject, and add remarks.
 - **AI resume screening:** Screening logic remains in `ai_services`, uses the required formula, records component scores/explanations, and auto-rejects low scores due to underqualification while leaving qualified applicants for recruiter review.
-- **Candidate ranking:** Recruiter ranking sorts by final score descending with nulls last and earlier application as tie breaker.
+- **Applicant ranking:** Recruiter ranking sorts by final score descending with nulls last and earlier application as tie breaker.
 - **Interview workflow:** Interviewer assignment, invitation send, applicant accept/decline, mock calendar placeholder, recording upload, transcript generation, AI summary generation/edit, and evaluation submission are implemented.
 - **Hiring/approval:** Recruiter decision submission, HR approval/rejection, and post-approval job offer sending are implemented.
 - **Notifications:** Database notifications are created for key workflow events and scoped to each recipient.
@@ -318,7 +318,7 @@ However, several gaps can block or weaken a final FYP demonstration:
 
 ## Recommended fix order
 
-1. **Fix hiring lifecycle gate:** Restrict hiring decisions to evaluated candidates only and update the React hiring decision UI.
+1. **Fix hiring lifecycle gate:** Restrict hiring decisions to evaluated applicants only and update the React hiring decision UI.
 2. **Fix final hire transition:** Decide and implement how accepted offers become `hired`, then update analytics/tests.
 3. **Complete critical notifications:** Add applicant-facing updates for HR-final rejection paths and verify mobile notification display.
 4. **Add demo setup path:** Provide HR-head seed/demo setup documentation or a management command.

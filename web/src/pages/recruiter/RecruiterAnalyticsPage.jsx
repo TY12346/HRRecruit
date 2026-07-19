@@ -158,7 +158,7 @@ export default function RecruiterAnalyticsPage() {
   const charts = analytics?.charts ?? {};
   const statusBreakdown = metrics.applications_by_status ?? analytics?.application_status_breakdown ?? {};
   const applicationsByStatusChart = charts.applications_by_status ?? chartFromMap(statusBreakdown, 'Applications', titleize);
-  const candidateFunnelChart = charts.candidate_funnel;
+  const applicantFunnelChart = charts.applicant_funnel;
   const timeToHireChart = singleValueBar('Average time-to-hire', metrics.average_time_to_hire_days, 'Days', '#7c3aed');
   const offerAcceptanceChart = percentageDoughnut('Accepted offers', metrics.offer_acceptance_rate, '#16a34a');
   const conversionRatesChart = charts.conversion_rates;
@@ -211,8 +211,8 @@ export default function RecruiterAnalyticsPage() {
                 </ChartCard>
               </Grid>
               <Grid item xs={12} md={6}>
-                <ChartCard title="Candidate funnel" description="Candidates moving through key recruitment stages.">
-                  {candidateFunnelChart ? <Bar data={candidateFunnelChart} options={barChartOptions} /> : <Typography color="text.secondary">No funnel data yet.</Typography>}
+                <ChartCard title="Applicant funnel" description="Applicants moving through key recruitment stages.">
+                  {applicantFunnelChart ? <Bar data={applicantFunnelChart} options={barChartOptions} /> : <Typography color="text.secondary">No funnel data yet.</Typography>}
                 </ChartCard>
               </Grid>
               <Grid item xs={12} md={4}>
@@ -231,12 +231,12 @@ export default function RecruiterAnalyticsPage() {
                 </ChartCard>
               </Grid>
               <Grid item xs={12} md={6}>
-                <ChartCard title="Conversion rates" description="Percentage of candidates reaching each recruitment milestone.">
+                <ChartCard title="Conversion rates" description="Percentage of applicants reaching each recruitment milestone.">
                   {conversionRatesChart ? <Bar data={conversionRatesChart} options={barChartOptions} /> : <Typography color="text.secondary">No conversion data yet.</Typography>}
                 </ChartCard>
               </Grid>
               <Grid item xs={12} md={6}>
-                <ChartCard title="AI score distribution" description="Distribution of candidates by final AI screening score band.">
+                <ChartCard title="AI score distribution" description="Distribution of applicants by final AI screening score band.">
                   {scoreDistributionChart ? <Doughnut data={scoreDistributionChart} options={compactChartOptions} /> : <Typography color="text.secondary">No screening score data yet.</Typography>}
                 </ChartCard>
               </Grid>

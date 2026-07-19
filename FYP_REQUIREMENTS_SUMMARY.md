@@ -9,8 +9,8 @@ Develop a web and mobile recruitment management system called HRRecruit.
 The system supports the complete recruitment process:
 
 1. Job applicants search and apply for jobs.
-2. Recruiters create jobs and screen candidates.
-3. AI assists resume screening and candidate ranking.
+2. Recruiters create jobs and screen applicants.
+3. AI assists resume screening and applicant ranking.
 4. Interviewers manage interviews and submit evaluations.
 5. AI assists interview transcription and summary generation.
 6. Recruiters submit hiring decisions.
@@ -117,7 +117,7 @@ Recruiter can:
 
 - View applications for own job postings
 - View application details
-- View candidate profile
+- View applicant profile
 - View status history
 
 HR head can:
@@ -153,34 +153,34 @@ The system should store:
 - Score breakdown
 - Explanation JSON
 
-The system should rank candidates by final score.
+The system should rank applicants by final score.
 
-AI must not automatically hire applicants. Low scoring candidates are rejected automatically due to underqualification, while qualified candidates require recruiter and HR review before hiring.
+AI must not automatically hire applicants. Low scoring applicants are rejected automatically due to underqualification, while qualified applicants require recruiter and HR review before hiring.
 
-## 8. Candidate Ranking and Shortlisting Requirements
+## 8. Applicant Ranking and Shortlisting Requirements
 
 Recruiter can:
 
-- View ranked list of candidates for a job posting
-- View candidate profile
+- View ranked list of applicants for a job posting
+- View applicant profile
 - View AI score breakdown
 - Add recruiter remark
-- Shortlist candidate
-- Assign candidate to interviewer
-- Reject candidate manually
+- Shortlist applicant
+- Assign applicant to interviewer
+- Reject applicant manually
 
-Interviewer should be able to see recruiter remarks for assigned candidates.
+Interviewer should be able to see recruiter remarks for assigned applicants.
 
 ## 9. Interview Management Requirements
 
 Recruiter can:
 
-- Assign interviewer to shortlisted candidate
+- Assign interviewer to shortlisted applicant
 
 Interviewer can:
 
-- View assigned candidates
-- View candidate profile
+- View assigned applicants
+- View applicant profile
 - Send interview invitation
 - Propose interview date/time
 - Specify interview mode
@@ -268,12 +268,12 @@ Recruiter analytics:
 
 - Total job postings
 - Total applications
-- Candidate counts by status
+- Applicant counts by status
 - Shortlisted count
 - Rejected count
 - Hired count
 - Average time-to-hire
-- Candidate funnel
+- Applicant funnel
 
 Interviewer analytics:
 
@@ -287,7 +287,7 @@ HR head analytics:
 - Organization-level application counts
 - Hiring success rate
 - Rejection rate
-- Candidate dropout rate
+- Applicant dropout rate
 - Offer acceptance rate
 - Recruiter performance
 - Interviewer performance
@@ -342,7 +342,7 @@ Highest priority:
 3. Job posting
 4. Application workflow
 5. AI resume screening
-6. Candidate ranking
+6. Applicant ranking
 7. Interview management
 8. Interview evaluation
 9. Hiring approval

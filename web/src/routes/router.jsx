@@ -7,8 +7,8 @@ import RegisterHRHeadPage from '../pages/auth/RegisterHRHeadPage.jsx';
 import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.jsx';
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
 import RoleBasedApplicantSearchPage from '../pages/applications/RoleBasedApplicantSearchPage.jsx';
-import CandidateProfilePage from '../pages/recruiter/CandidateProfilePage.jsx';
-import CandidateRankingPage from '../pages/recruiter/CandidateRankingPage.jsx';
+import ApplicantProfilePage from '../pages/recruiter/ApplicantProfilePage.jsx';
+import ApplicantRankingPage from '../pages/recruiter/ApplicantRankingPage.jsx';
 import EvaluationScorecardBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
 import HiringDecisionPage from '../pages/recruiter/HiringDecisionPage.jsx';
 import InterviewAssignmentPage from '../pages/recruiter/InterviewAssignmentPage.jsx';
@@ -24,8 +24,8 @@ import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.js
 import RecruiterNotificationsPage from '../pages/recruiter/NotificationsPage.jsx';
 import InterviewerDashboardPage from '../pages/interviewer/InterviewerDashboardPage.jsx';
 import AvailabilityPage from '../pages/interviewer/AvailabilityPage.jsx';
-import AssignedCandidatesPage from '../pages/interviewer/AssignedCandidatesPage.jsx';
-import CandidateDetailPage from '../pages/interviewer/CandidateDetailPage.jsx';
+import AssignedApplicantsPage from '../pages/interviewer/AssignedApplicantsPage.jsx';
+import ApplicantDetailPage from '../pages/interviewer/ApplicantDetailPage.jsx';
 import InterviewerInterviewDetailPage from '../pages/interviewer/InterviewDetailPage.jsx';
 import InterviewListPage from '../pages/interviewer/InterviewListPage.jsx';
 import InterviewerAnalyticsPage from '../pages/interviewer/InterviewerAnalyticsPage.jsx';
@@ -85,11 +85,11 @@ export const router = createBrowserRouter([
           { path: 'recruiter/jobs/:jobId/requirements', element: <JobRequirementsPage /> },
           { path: 'recruiter/jobs/:jobId/scorecard', element: <EvaluationScorecardBuilderPage /> },
           { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationScorecardBuilderPage /> },
-          { path: 'recruiter/jobs/:jobId/ranking', element: <CandidateRankingPage /> },
+          { path: 'recruiter/jobs/:jobId/ranking', element: <ApplicantRankingPage /> },
           { path: 'recruiter/jobs/:jobId/hiring-recommendation', element: <HiringDecisionPage /> },
           { path: 'recruiter/applications', element: <ApplicationsPage /> },
-          { path: 'recruiter/candidate-search', element: <RoleBasedApplicantSearchPage role="recruiter" /> },
-          { path: 'recruiter/applications/:applicationId', element: <CandidateProfilePage /> },
+          { path: 'recruiter/applicant-search', element: <RoleBasedApplicantSearchPage role="recruiter" /> },
+          { path: 'recruiter/applications/:applicationId', element: <ApplicantProfilePage /> },
           { path: 'recruiter/applications/:applicationId/assign-interview', element: <InterviewAssignmentPage /> },
           { path: 'recruiter/applications/:applicationId/hiring-decision', element: <Navigate to="/recruiter/jobs" replace /> },
           { path: 'recruiter/interviews', element: <InterviewEvaluationDetailPage /> },
@@ -104,9 +104,9 @@ export const router = createBrowserRouter([
         element: <RoleRoute allowedRoles={['interviewer']} />,
         children: [
           { path: 'interviewer', element: <InterviewerDashboardPage /> },
-          { path: 'interviewer/candidates', element: <AssignedCandidatesPage /> },
-          { path: 'interviewer/candidate-search', element: <RoleBasedApplicantSearchPage role="interviewer" /> },
-          { path: 'interviewer/candidates/:applicationId', element: <CandidateDetailPage /> },
+          { path: 'interviewer/applicants', element: <AssignedApplicantsPage /> },
+          { path: 'interviewer/applicant-search', element: <RoleBasedApplicantSearchPage role="interviewer" /> },
+          { path: 'interviewer/applicants/:applicationId', element: <ApplicantDetailPage /> },
           { path: 'interviewer/interviews', element: <InterviewListPage /> },
           { path: 'interviewer/interviews/:interviewId', element: <InterviewerInterviewDetailPage /> },
           { path: 'interviewer/interviews/:interviewId/transcript-summary', element: <TranscriptSummaryPage /> },

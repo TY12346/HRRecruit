@@ -304,7 +304,7 @@ export const updateJob = async (jobId, job) => {
 };
 
 export const closeJobApplicationIntake = async (jobId) => (await apiClient.post(`/jobs/${jobId}/close-intake/`)).data;
-export const getJobCandidateComparison = async (jobId) => (await apiClient.get(`/jobs/${jobId}/candidate-comparison/`)).data;
+export const getJobApplicantComparison = async (jobId) => (await apiClient.get(`/jobs/${jobId}/applicant-comparison/`)).data;
 export const submitJobHiringRecommendation = async (payload) => (await apiClient.post('/job-hiring-recommendations/', payload)).data;
 export const getJobHiringRecommendations = async (params = {}) => (await apiClient.get('/job-hiring-recommendations/', { params })).data;
 export const approveJobHiringRecommendation = async (id, hr_remarks) => (await apiClient.post(`/job-hiring-recommendations/${id}/approve/`, { hr_remarks })).data;
@@ -361,8 +361,8 @@ export const screenApplication = async (applicationId) => {
   return response.data;
 };
 
-export const getCandidateProfile = async (applicationId) => {
-  const response = await apiClient.get(`/applications/${applicationId}/candidate-profile/`);
+export const getApplicantProfile = async (applicationId) => {
+  const response = await apiClient.get(`/applications/${applicationId}/applicant-profile/`);
   return response.data;
 };
 
@@ -401,8 +401,8 @@ export const getApplicationStatusHistory = async (applicationId) => {
   return response.data;
 };
 
-export const getRankedCandidates = async (jobId, params = {}) => {
-  const response = await apiClient.get(`/jobs/${jobId}/ranked-candidates/`, { params });
+export const getRankedApplicants = async (jobId, params = {}) => {
+  const response = await apiClient.get(`/jobs/${jobId}/ranked-applicants/`, { params });
   return response.data;
 };
 
