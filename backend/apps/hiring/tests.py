@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -213,6 +215,25 @@ class HiringWorkflowAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(JobOffer.objects.count(), 0)
+
+    @patch('apps.hiring.views.send_job_offer_email', side_effect=OSError('Email provider unavailable'))
+    def test_job_offer_is_created_when_email_delivery_fails(self, mock_send_job_offer_email):
+        self.submit_hire_decision()
+        decision = HiringDecision.objects.get(application=self.application)
+        self.approve_decision(decision)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.send_offer()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertTrue(JobOffer.objects.filter(application=self.application).exists())
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, JobApplication.Status.OFFER_SENT)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            title='Job offer received',
+        ).exists())
+        mock_send_job_offer_email.assert_called_once()
 
     def test_applicant_declines_job_offer(self):
         self.submit_hire_decision()
