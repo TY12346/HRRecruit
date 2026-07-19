@@ -10,11 +10,11 @@ The system contains:
 
 - Django REST Framework backend
 - PostgreSQL database
-- React.js web portal for Recruiter, Interviewer, and HR Department Head
+- React.js web portal for Recruiter, Interviewer, and Hiring Manager
 - Flutter mobile app for Job Applicant
 - AI resume screening and ranking
 - Interview transcription and AI summary
-- Hiring decision and HR approval workflow
+- Hiring decision and hiring manager approval workflow
 - Notifications
 - Analytics and reporting
 - Subscription and billing
@@ -109,8 +109,8 @@ Role-based permissions must be enforced.
 Organization data isolation must be enforced:
 
 - Recruiters can only access their own organization's data.
-- Interviewers can only access assigned interviews or assigned candidates.
-- HR heads can only access their own organization's data.
+- Interviewers can only access assigned interviews or assigned applicants.
+- hiring managers can only access their own organization's data.
 - Applicants can only access their own profile, applications, invitations, offers, and notifications.
 
 File uploads must validate:
@@ -152,7 +152,7 @@ Do not automatically reject the applicant. The recruiter must make the final sho
 - `ALGORITHMS.md` is derived from `ALGORITHMS_SOURCE.md`.
 - Do not remove mock/fallback behavior.
 - Do not scatter AI logic inside views; keep it in `ai_services` service files.
-- AI must support recruiter/interviewer/HR head decision-making, not replace human decisions.
+- AI must support recruiter/interviewer/hiring manager decision-making, not replace human decisions.
 
 ## Testing Rules
 

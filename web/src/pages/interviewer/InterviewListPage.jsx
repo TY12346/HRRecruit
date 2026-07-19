@@ -4,7 +4,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { getAssignedInterviews } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
 import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
-import { candidateName, formatDateTime, getApiErrorMessage, jobTitle, panelInterviewerNames, titleize } from './interviewerUtils.js';
+import { applicantName, formatDateTime, getApiErrorMessage, jobTitle, panelInterviewerNames, titleize } from './interviewerUtils.js';
 
 export default function InterviewListPage() {
   const [interviews, setInterviews] = useState([]);
@@ -26,7 +26,7 @@ export default function InterviewListPage() {
     return interviews.filter((interview) => {
       const matchesStatus = filter === 'all' || (filter === 'upcoming' ? ['assigned', 'scheduled'].includes(interview.status) : interview.status === filter);
       const matchesMode = modeFilter === 'all' || interview.mode === modeFilter;
-      const matchesSearch = !query || [candidateName(interview), jobTitle(interview), interview.meeting_link, interview.location]
+      const matchesSearch = !query || [applicantName(interview), jobTitle(interview), interview.meeting_link, interview.location]
         .some((value) => String(value ?? '').toLowerCase().includes(query));
       return matchesStatus && matchesMode && matchesSearch;
     });
@@ -59,7 +59,7 @@ export default function InterviewListPage() {
           {filtered.map((interview) => (
             <Stack key={interview.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%', '&:first-of-type': { borderTop: 0 } }}>
               <Box>
-                <ApplicantJobSummary applicantName={candidateName(interview)} jobTitle={jobTitle(interview)} />
+                <ApplicantJobSummary applicantName={applicantName(interview)} jobTitle={jobTitle(interview)} />
                 <Typography color="text.secondary" variant="body2">
                   {titleize(interview.status)} • Panel: {panelInterviewerNames(interview)} • {formatDateTime(interview.scheduled_datetime)} • {titleize(interview.mode)} • {interview.meeting_link || interview.location || 'No venue yet'}
                 </Typography>

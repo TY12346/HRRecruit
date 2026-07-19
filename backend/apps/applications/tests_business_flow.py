@@ -27,7 +27,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.hr_head = User.objects.create_user(
             email='hr-head@example.com',
             password=self.password,
-            full_name='HR Head',
+            full_name='Hiring Manager',
             role=User.Role.HR_HEAD,
         )
         self.plan, _ = SubscriptionPlan.objects.update_or_create(
@@ -323,7 +323,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.assertEqual(application.status, JobApplication.Status.SCREENED_QUALIFIED)
         self.assertEqual(application.final_score, Decimal('91.00'))
 
-        ranked_response = recruiter_client.get(reverse('job-ranked-candidates', args=[job.id]))
+        ranked_response = recruiter_client.get(reverse('job-ranked-applicants', args=[job.id]))
         self.assertEqual(ranked_response.status_code, status.HTTP_200_OK, ranked_response.data)
         self.assertEqual(ranked_response.data[0]['id'], application.id)
 
@@ -338,7 +338,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.assertEqual(availability_response.status_code, status.HTTP_201_CREATED, availability_response.data)
         scheduling_response = recruiter_client.post(
             reverse('application-create-scheduling-request', args=[application.id]),
-            {'interviewer_id': interviewer.id, 'remark': 'Please interview this candidate.'},
+            {'interviewer_id': interviewer.id, 'remark': 'Please interview this applicant.'},
             format='json',
         )
         self.assertEqual(scheduling_response.status_code, status.HTTP_201_CREATED, scheduling_response.data)
@@ -374,7 +374,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         evaluation_response = interviewer_client.post(
             reverse('interview-evaluation-submit', args=[interview.id]),
             {
-                'overall_comment': 'Strong candidate for backend role.',
+                'overall_comment': 'Strong applicant for backend role.',
                 'answers': [{'criterion_id': criterion.id, 'score': '9.00', 'comment': 'Excellent technical depth.'}],
             },
             format='json',

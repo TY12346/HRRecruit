@@ -144,7 +144,7 @@ class HiringWorkflowAPITests(APITestCase):
         offer.refresh_from_db()
         self.application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.ACCEPTED)
-        self.assertEqual(offer.candidate_response_note, 'I am excited to join.')
+        self.assertEqual(offer.applicant_response_note, 'I am excited to join.')
         self.assertEqual(self.application.status, JobApplication.Status.HIRED)
         latest_history = self.application.stage_history.first()
         self.assertEqual(latest_history.to_stage, JobApplication.Status.HIRED)
@@ -232,7 +232,7 @@ class HiringWorkflowAPITests(APITestCase):
         offer.refresh_from_db()
         self.application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.DECLINED)
-        self.assertEqual(offer.candidate_response_note, 'Accepted another opportunity.')
+        self.assertEqual(offer.applicant_response_note, 'Accepted another opportunity.')
         self.assertEqual(self.application.status, JobApplication.Status.OFFER_DECLINED)
         self.assertTrue(Notification.objects.filter(recipient=self.recruiter, title='Job offer declined').exists())
 
@@ -246,7 +246,7 @@ class HiringWorkflowAPITests(APITestCase):
 
         response = self.client.post(
             reverse('job-offer-withdraw', args=[offer.id]),
-            {'internal_notes': 'Candidate requested a revised start date.'},
+            {'internal_notes': 'Applicant requested a revised start date.'},
             format='json',
         )
 
@@ -255,6 +255,6 @@ class HiringWorkflowAPITests(APITestCase):
         self.application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.WITHDRAWN)
         self.assertIsNotNone(offer.withdrawn_at)
-        self.assertEqual(offer.internal_notes, 'Candidate requested a revised start date.')
+        self.assertEqual(offer.internal_notes, 'Applicant requested a revised start date.')
         self.assertEqual(self.application.status, JobApplication.Status.HR_APPROVED)
         self.assertTrue(Notification.objects.filter(recipient=self.applicant, title='Job offer withdrawn').exists())

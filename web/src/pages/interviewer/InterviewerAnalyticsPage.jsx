@@ -142,22 +142,22 @@ export default function InterviewerAnalyticsPage() {
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <ChartCard title="Applications by status" description="Statuses for candidates assigned to your interviews.">
+                <ChartCard title="Applications by status" description="Statuses for applicants assigned to your interviews.">
                   {charts.applications_by_status ? <Doughnut data={charts.applications_by_status} options={compactChartOptions} /> : <Typography color="text.secondary">No chart data.</Typography>}
                 </ChartCard>
               </Grid>
               <Grid item xs={12} md={6}>
-                <ChartCard title="Candidate funnel" description="Assigned candidates grouped by recruitment stage.">
-                  {charts.candidate_funnel ? <Bar data={charts.candidate_funnel} options={barChartOptions} /> : <Typography color="text.secondary">No chart data.</Typography>}
+                <ChartCard title="Applicant funnel" description="Assigned applicants grouped by recruitment stage.">
+                  {charts.applicant_funnel ? <Bar data={charts.applicant_funnel} options={barChartOptions} /> : <Typography color="text.secondary">No chart data.</Typography>}
                 </ChartCard>
               </Grid>
               <Grid item xs={12} md={4}>
-                <ChartCard title="Time-to-hire" description="Average days for assigned candidates that reached hired status.">
+                <ChartCard title="Time-to-hire" description="Average days for assigned applicants that reached hired status.">
                   <Bar data={timeToHireChart} options={barChartOptions} />
                 </ChartCard>
               </Grid>
               <Grid item xs={12} md={4}>
-                <ChartCard title="Offer acceptance rate" description="Accepted offers for your assigned candidates.">
+                <ChartCard title="Offer acceptance rate" description="Accepted offers for your assigned applicants.">
                   <Doughnut data={offerAcceptanceChart} options={compactChartOptions} />
                 </ChartCard>
               </Grid>

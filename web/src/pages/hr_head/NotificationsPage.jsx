@@ -99,7 +99,7 @@ export default function NotificationsPage() {
               Notifications
             </Typography>
             <Typography color="text.secondary">
-              View HR approval, billing, and organization alerts.
+              View hiring manager approval, billing, and organization alerts.
             </Typography>
           </Box>
           <Button onClick={handleMarkAllRead} variant="outlined">Mark all as read</Button>

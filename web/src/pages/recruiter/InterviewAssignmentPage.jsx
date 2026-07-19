@@ -107,7 +107,7 @@ export default function InterviewAssignmentPage() {
                 <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
                   <Box>
                     <Typography variant="h6">Google Calendar API sync</Typography>
-                    <Typography color="text.secondary">Connect a recruiter Google Calendar so booked applicant slots create real Calendar API events, invite the candidate and interviewer, and generate Google Meet links when needed.</Typography>
+                    <Typography color="text.secondary">Connect a recruiter Google Calendar so booked applicant slots create real Calendar API events, invite the applicant and interviewer, and generate Google Meet links when needed.</Typography>
                   </Box>
                   <Chip
                     color={calendarStatus?.connected ? 'success' : calendarStatus?.oauth_ready ? 'warning' : 'default'}
@@ -152,8 +152,8 @@ export default function InterviewAssignmentPage() {
                       />
                     )}
                   />
-                  <TextField label="Candidate communication template" select value={templateId} onChange={(e) => applyTemplate(e.target.value)} helperText="Choose a reusable message style, then edit the text before sending.">{templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.label} — {template.tone}</MenuItem>)}</TextField>
-                  <TextField label="Candidate scheduling message" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText="This remark is shown on the scheduling request." />
+                  <TextField label="Applicant communication template" select value={templateId} onChange={(e) => applyTemplate(e.target.value)} helperText="Choose a reusable message style, then edit the text before sending.">{templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.label} — {template.tone}</MenuItem>)}</TextField>
+                  <TextField label="Applicant scheduling message" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText="This remark is shown on the scheduling request." />
                   <Button type="submit" variant="contained" disabled={isSaving || interviewerIds.length === 0}>{isSaving ? 'Saving…' : 'Create self-scheduling request'}</Button>
                 </Stack>
               </Box>

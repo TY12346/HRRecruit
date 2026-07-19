@@ -62,7 +62,7 @@ export default function PortalLayout() {
             pl: 6,
           }}
         >
-          {isAuthenticated ? `${user?.role === 'hr_head' ? 'HR Department Head' : user?.role === 'recruiter' ? 'Recruiter' : 'Interviewer'} Portal` : 'Web Portal'}
+          {isAuthenticated ? `${user?.role === 'hr_head' ? 'Hiring Manager' : user?.role === 'recruiter' ? 'Recruiter' : 'Interviewer'} Portal` : 'Web Portal'}
         </Typography>
 
         {isAuthenticated ? (

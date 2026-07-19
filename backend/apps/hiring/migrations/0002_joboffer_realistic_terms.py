@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='joboffer',
-            name='candidate_response_note',
+            name='applicant_response_note',
             field=models.TextField(blank=True),
         ),
         migrations.AddField(

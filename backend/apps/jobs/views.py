@@ -95,7 +95,7 @@ def visible_requisitions_for(user):
 
 def hr_requisition_or_404(user, requisition_id):
     if user.role != User.Role.HR_HEAD:
-        raise PermissionDenied('Only HR department heads can review job requisitions.')
+        raise PermissionDenied('Only hiring managers can review job requisitions.')
     return get_object_or_404(visible_requisitions_for(user), id=requisition_id)
 
 
@@ -191,7 +191,7 @@ class JobListCreateAPIView(APIView):
         return Response(JobPostingSerializer(jobs, many=True, context={'request': request}).data)
 
     def post(self, request):
-        raise PermissionDenied('Recruiters must submit a job requisition for HR approval before a job posting is created.')
+        raise PermissionDenied('Recruiters must submit a job requisition for hiring manager approval before a job posting is created.')
 
 
 class JobDetailAPIView(APIView):
@@ -241,7 +241,7 @@ class JobDuplicateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, job_id):
-        raise PermissionDenied('Recruiters must submit a job requisition for HR approval before a new job posting is created.')
+        raise PermissionDenied('Recruiters must submit a job requisition for hiring manager approval before a new job posting is created.')
 
 
 class JobRequirementsAPIView(APIView):

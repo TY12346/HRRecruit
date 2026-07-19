@@ -18,7 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { getApplicationStatusHistory, getCandidateProfile, openApplicationResume, rejectApplication } from '../../api/client.js';
+import { getApplicationStatusHistory, getApplicantProfile, openApplicationResume, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import ApplicationFlowSummary from '../../components/ApplicationFlowSummary.jsx';
 import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
@@ -56,7 +56,7 @@ function ScreeningExplanationCard({ explainability }) {
           </Stack>
 
           <Alert severity="info">
-            AI screening is decision support only. Review the evidence below before shortlisting or rejecting this candidate.
+            AI screening is decision support only. Review the evidence below before shortlisting or rejecting this applicant.
           </Alert>
 
           <Box>
@@ -150,7 +150,7 @@ function ScreeningExplanationCard({ explainability }) {
   );
 }
 
-export default function CandidateProfilePage() {
+export default function ApplicantProfilePage() {
   const { applicationId } = useParams();
   const [profile, setProfile] = useState(null);
   const [history, setHistory] = useState([]);
@@ -161,14 +161,14 @@ export default function CandidateProfilePage() {
   const load = async () => {
     setIsLoading(true);
     try {
-      const [candidate, timeline] = await Promise.all([
-        getCandidateProfile(applicationId),
+      const [applicant, timeline] = await Promise.all([
+        getApplicantProfile(applicationId),
         getApplicationStatusHistory(applicationId),
       ]);
-      setProfile(candidate);
+      setProfile(applicant);
       setHistory(timeline);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to load candidate profile.'));
+      setError(getApiErrorMessage(err, 'Unable to load applicant profile.'));
     } finally {
       setIsLoading(false);
     }
@@ -176,14 +176,14 @@ export default function CandidateProfilePage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([getCandidateProfile(applicationId), getApplicationStatusHistory(applicationId)])
-      .then(([candidate, timeline]) => {
+    Promise.all([getApplicantProfile(applicationId), getApplicationStatusHistory(applicationId)])
+      .then(([applicant, timeline]) => {
         if (!active) return;
-        setProfile(candidate);
+        setProfile(applicant);
         setHistory(timeline);
       })
       .catch((err) => {
-        if (active) setError(getApiErrorMessage(err, 'Unable to load candidate profile.'));
+        if (active) setError(getApiErrorMessage(err, 'Unable to load applicant profile.'));
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -193,14 +193,14 @@ export default function CandidateProfilePage() {
 
   const reject = async () => {
     const defaultMessage = renderApplicationTemplate('rejection', profile?.status === 'evaluation_submitted' ? 'rejection_after_interview' : 'rejection_general', profile ?? {});
-    const reason = window.prompt('Candidate rejection message', defaultMessage);
+    const reason = window.prompt('Applicant rejection message', defaultMessage);
     if (!reason) return;
     try {
       await rejectApplication(applicationId, { reason, remark: reason });
-      setSuccess('Candidate rejected.');
+      setSuccess('Applicant rejected.');
       load();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to reject candidate.'));
+      setError(getApiErrorMessage(err, 'Unable to reject applicant.'));
     }
   };
 

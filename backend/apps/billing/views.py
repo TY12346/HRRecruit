@@ -34,10 +34,10 @@ from .services import (
 class BillingHRHeadMixin:
     def get_organization(self, request):
         if request.user.role != User.Role.HR_HEAD:
-            raise PermissionDenied('Only HR heads can manage subscriptions and billing.')
+            raise PermissionDenied('Only hiring managers can manage subscriptions and billing.')
         membership = get_active_hr_head_membership(request.user)
         if not membership:
-            raise PermissionDenied('An active HR head organization membership is required.')
+            raise PermissionDenied('An active hiring manager organization membership is required.')
         return membership.organization
 
 

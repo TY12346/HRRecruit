@@ -14,13 +14,13 @@ from apps.users.models import User
 
 class AnalyticsAPITests(APITestCase):
     def setUp(self):
-        self.hr_head = self.create_user('head@example.com', User.Role.HR_HEAD, 'HR Head')
+        self.hr_head = self.create_user('head@example.com', User.Role.HR_HEAD, 'Hiring Manager')
         self.recruiter = self.create_user('recruiter@example.com', User.Role.RECRUITER, 'Recruiter One')
         self.interviewer = self.create_user('interviewer@example.com', User.Role.INTERVIEWER, 'Interviewer One')
         self.applicant = self.create_user('applicant@example.com', User.Role.APPLICANT, 'Applicant One')
         self.applicant_two = self.create_user('applicant2@example.com', User.Role.APPLICANT, 'Applicant Two')
         self.applicant_three = self.create_user('applicant3@example.com', User.Role.APPLICANT, 'Applicant Three')
-        self.other_hr_head = self.create_user('other-head@example.com', User.Role.HR_HEAD, 'Other HR Head')
+        self.other_hr_head = self.create_user('other-head@example.com', User.Role.HR_HEAD, 'Other Hiring Manager')
         self.other_recruiter = self.create_user('other-recruiter@example.com', User.Role.RECRUITER, 'Other Recruiter')
         self.other_applicant = self.create_user('other-applicant@example.com', User.Role.APPLICANT, 'Other Applicant')
 
@@ -53,7 +53,7 @@ class AnalyticsAPITests(APITestCase):
             from_stage=JobApplication.Status.OFFER_ACCEPTED,
             to_stage=JobApplication.Status.HIRED,
             changed_by=self.recruiter,
-            note='Candidate accepted and joined.',
+            note='Applicant accepted and joined.',
         )
         ApplicationStageHistory.objects.filter(application=self.hired_application).update(changed_at=hired_at)
 
@@ -68,7 +68,7 @@ class AnalyticsAPITests(APITestCase):
             interview=self.interview,
             interviewer=self.interviewer,
             total_score='88.50',
-            overall_comment='Strong candidate.',
+            overall_comment='Strong applicant.',
         )
         JobOffer.objects.create(
             application=self.hired_application,
@@ -126,7 +126,7 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.data['metrics']['recruiter_hire_count'], 1)
         self.assertEqual(response.data['metrics']['interviewer_evaluation_count'], 1)
         self.assertEqual(response.data['metrics']['offer_acceptance_rate'], 100.0)
-        self.assertIn('candidate_funnel', response.data['charts'])
+        self.assertIn('applicant_funnel', response.data['charts'])
         self.assertIn('conversion_rates', response.data['charts'])
         self.assertEqual(response.data['metrics']['conversion_rates']['shortlist_rate'], 66.67)
         self.assertEqual(response.data['metrics']['score_distribution']['strong_fit'], 1)

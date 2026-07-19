@@ -9,12 +9,12 @@ Develop a web and mobile recruitment management system called HRRecruit.
 The system supports the complete recruitment process:
 
 1. Job applicants search and apply for jobs.
-2. Recruiters create jobs and screen candidates.
-3. AI assists resume screening and candidate ranking.
+2. Recruiters create jobs and screen applicants.
+3. AI assists resume screening and applicant ranking.
 4. Interviewers manage interviews and submit evaluations.
 5. AI assists interview transcription and summary generation.
 6. Recruiters submit hiring decisions.
-7. HR department heads approve or reject hiring decisions.
+7. Hiring managers approve or reject hiring decisions.
 8. Applicants receive offers or rejection updates.
 9. The system provides notifications, analytics, reporting, and subscription management.
 
@@ -30,7 +30,7 @@ Used by:
 
 - Recruiters
 - Interviewers
-- HR Department Heads
+- Hiring Managers
 
 ### Backend API
 
@@ -50,7 +50,7 @@ Used by both web and mobile apps.
 - Store LinkedIn URL
 - Optional mock LinkedIn import later
 
-### Recruiter / Interviewer / HR Head
+### Recruiter / Interviewer / Hiring Manager
 
 - Login/logout
 - Reset password
@@ -67,7 +67,7 @@ Used by both web and mobile apps.
 
 ## 4. Organization and Team Setup Requirements
 
-HR Department Head can:
+Hiring Manager can:
 
 - Create organization account
 - Update organization details
@@ -80,7 +80,7 @@ HR Department Head can:
 
 Applicants do not belong to an organization.
 
-Recruiters, interviewers, and HR heads belong to an organization.
+Recruiters, interviewers, and hiring managers belong to an organization.
 
 ## 5. Job Posting and Requirement Configuration Requirements
 
@@ -117,10 +117,10 @@ Recruiter can:
 
 - View applications for own job postings
 - View application details
-- View candidate profile
+- View applicant profile
 - View status history
 
-HR head can:
+Hiring manager can:
 
 - View organization-level application information if needed
 
@@ -153,34 +153,34 @@ The system should store:
 - Score breakdown
 - Explanation JSON
 
-The system should rank candidates by final score.
+The system should rank applicants by final score.
 
-AI must not automatically hire applicants. Low scoring candidates are rejected automatically due to underqualification, while qualified candidates require recruiter and HR review before hiring.
+AI must not automatically hire applicants. Low scoring applicants are rejected automatically due to underqualification, while qualified applicants require recruiter and HR review before hiring.
 
-## 8. Candidate Ranking and Shortlisting Requirements
+## 8. Applicant Ranking and Shortlisting Requirements
 
 Recruiter can:
 
-- View ranked list of candidates for a job posting
-- View candidate profile
+- View ranked list of applicants for a job posting
+- View applicant profile
 - View AI score breakdown
 - Add recruiter remark
-- Shortlist candidate
-- Assign candidate to interviewer
-- Reject candidate manually
+- Shortlist applicant
+- Assign applicant to interviewer
+- Reject applicant manually
 
-Interviewer should be able to see recruiter remarks for assigned candidates.
+Interviewer should be able to see recruiter remarks for assigned applicants.
 
 ## 9. Interview Management Requirements
 
 Recruiter can:
 
-- Assign interviewer to shortlisted candidate
+- Assign interviewer to shortlisted applicant
 
 Interviewer can:
 
-- View assigned candidates
-- View candidate profile
+- View assigned applicants
+- View applicant profile
 - Send interview invitation
 - Propose interview date/time
 - Specify interview mode
@@ -224,11 +224,11 @@ Recruiter can:
 
 - Submit final decision: hire or reject
 - Provide justification
-- Submit decision to HR head
-- View HR head approval result
+- Submit decision to hiring manager
+- View hiring manager approval result
 - Send job offer after approval
 
-HR Department Head can:
+Hiring Manager can:
 
 - View pending hiring decisions
 - Approve hiring decision with justification
@@ -268,12 +268,12 @@ Recruiter analytics:
 
 - Total job postings
 - Total applications
-- Candidate counts by status
+- Applicant counts by status
 - Shortlisted count
 - Rejected count
 - Hired count
 - Average time-to-hire
-- Candidate funnel
+- Applicant funnel
 
 Interviewer analytics:
 
@@ -282,12 +282,12 @@ Interviewer analytics:
 - Evaluation submission count
 - Average evaluation score
 
-HR head analytics:
+Hiring manager analytics:
 
 - Organization-level application counts
 - Hiring success rate
 - Rejection rate
-- Candidate dropout rate
+- Applicant dropout rate
 - Offer acceptance rate
 - Recruiter performance
 - Interviewer performance
@@ -296,7 +296,7 @@ PDF export should be supported later using ReportLab.
 
 ## 14. Subscription and Billing Requirements
 
-HR head can:
+Hiring manager can:
 
 - View subscription plans
 - Select plan
@@ -342,7 +342,7 @@ Highest priority:
 3. Job posting
 4. Application workflow
 5. AI resume screening
-6. Candidate ranking
+6. Applicant ranking
 7. Interview management
 8. Interview evaluation
 9. Hiring approval

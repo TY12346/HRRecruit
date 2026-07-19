@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Grid, List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { closeJobApplicationIntake, getJob, getJobCandidateComparison, getRankedCandidates } from '../../api/client.js';
+import { closeJobApplicationIntake, getJob, getJobApplicantComparison, getRankedApplicants } from '../../api/client.js';
 import { formatJobDescriptionText } from '../../utils/jobDescriptionFormatting.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage, titleize } from './recruiterUtils.js';
@@ -16,7 +16,7 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([getJob(jobId), getRankedCandidates(jobId), getJobCandidateComparison(jobId)]).then(([jobResult, rankedResult, comparisonResult]) => {
+    Promise.allSettled([getJob(jobId), getRankedApplicants(jobId), getJobApplicantComparison(jobId)]).then(([jobResult, rankedResult, comparisonResult]) => {
       if (!active) return;
       if (jobResult.status === 'fulfilled') setJob(jobResult.value); else setError(getApiErrorMessage(jobResult.reason, 'Unable to load job.'));
       if (rankedResult.status === 'fulfilled') setRanked(rankedResult.value);
@@ -45,14 +45,14 @@ export default function JobDetailPage() {
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/requirements`} variant="outlined">Requirements</Button>
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/scorecard`} variant="outlined">Evaluation scorecard</Button>
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/ranking`} variant="outlined">Qualified ranking</Button>
-          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/hiring-recommendation`} variant="outlined">Candidate comparison</Button>
+          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/hiring-recommendation`} variant="outlined">Applicant comparison</Button>
           {job.status === 'open' ? <Button color="warning" onClick={closeIntake} variant="contained">Close application intake</Button> : null}
         </Stack>
       </Stack>
       {readiness && !readiness.ready ? <Alert severity="info">Hiring recommendation is not ready: {readiness.reasons.join(' ')}</Alert> : null}
       {readiness?.ready ? <Alert severity="success">Ready for Hiring Recommendation.</Alert> : null}
       <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{formatJobDescriptionText(job.description)}</Typography>
-      <Grid container spacing={2}><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Qualified candidates</Typography><Typography variant="h4">{ranked.length}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Vacancies</Typography><Typography variant="h4">{job.vacancies}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Employment</Typography><Typography>{job.employment_type}</Typography><Typography>{job.approximate_salary}</Typography></CardContent></Card></Grid></Grid>
+      <Grid container spacing={2}><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Qualified applicants</Typography><Typography variant="h4">{ranked.length}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Vacancies</Typography><Typography variant="h4">{job.vacancies}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Employment</Typography><Typography>{job.employment_type}</Typography><Typography>{job.approximate_salary}</Typography></CardContent></Card></Grid></Grid>
       <Box><Typography variant="h6">Requirements</Typography><List>{job.requirements?.map((req) => <ListItem key={req.id}><ListItemText primary={`${titleize(req.requirement_type)} (${req.weight_score})`} secondary={`${req.description} • Threshold ${req.minimum_threshold}`} /></ListItem>)}{!job.requirements?.length ? <ListItem><ListItemText primary="No requirements configured." /></ListItem> : null}</List></Box>
     </Stack> : null}
   </Paper></Box>;

@@ -8,19 +8,19 @@ export const importanceOptions = [
   {
     value: 'important',
     label: 'Important',
-    description: 'Strongly preferred requirement. Meaningfully affects the candidate score.',
+    description: 'Strongly preferred requirement. Meaningfully affects the applicant score.',
     weight_score: '0.30',
   },
   {
     value: 'nice_to_have',
     label: 'Nice-to-have',
-    description: 'Bonus requirement. Helps differentiate otherwise similar candidates.',
+    description: 'Bonus requirement. Helps differentiate otherwise similar applicants.',
     weight_score: '0.20',
   },
   {
     value: 'optional',
     label: 'Optional',
-    description: 'Low-impact requirement. Useful for notes, but should not filter candidates heavily.',
+    description: 'Low-impact requirement. Useful for notes, but should not filter applicants heavily.',
     weight_score: '0.10',
   },
 ];

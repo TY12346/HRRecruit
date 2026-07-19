@@ -271,7 +271,7 @@ def describe_education_match(extracted_education, required_education):
     elif required_level and EDUCATION_LEVELS[extracted_level] < EDUCATION_LEVELS[required_level]:
         required_label = required_education.get('level_label') or required_level
         extracted_label = extracted_education.get('level_label') or extracted_level
-        level_gap = f'Requires {required_label}; candidate has {extracted_label}.'
+        level_gap = f'Requires {required_label}; applicant has {extracted_label}.'
 
     missing_fields = sorted(required_fields - extracted_fields)
     match = level_gap is None and not missing_fields
@@ -313,7 +313,7 @@ def build_score_notes(
         if missing_fields:
             notes.append(f"Missing education field(s): {', '.join(missing_fields)}.")
     if not notes:
-        notes.append('Candidate meets the configured resume-screening requirements.')
+        notes.append('Applicant meets the configured resume-screening requirements.')
     return notes
 
 

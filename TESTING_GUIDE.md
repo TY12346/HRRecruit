@@ -88,7 +88,7 @@ The mobile app communicates with the backend API, so manual mobile testing also 
 Use seeded demo data for a fast end-to-end smoke test:
 
 1. Login
-   - Web: login as HR head, recruiter, and interviewer.
+   - Web: login as hiring manager, recruiter, and interviewer.
    - Mobile: login as applicant.
 2. Job creation
    - Recruiter creates or opens a job posting.
@@ -97,10 +97,10 @@ Use seeded demo data for a fast end-to-end smoke test:
    - Applicant browses jobs, saves a job if desired, uploads/resuses a resume, and applies.
 4. AI screening
    - Confirm AI screening ran automatically immediately after application submission.
-   - Confirm underqualified applicants are automatically rejected and qualified applicants appear in the qualified candidate ranking with score components.
+   - Confirm underqualified applicants are automatically rejected and qualified applicants appear in the qualified applicant ranking with score components.
    - Confirm AI does not automatically hire qualified applicants; qualified applicants still require recruiter and HR review.
 5. Ranking
-   - Recruiter opens the qualified candidate ranking for the job.
+   - Recruiter opens the qualified applicant ranking for the job.
 6. Interview invitation
    - Recruiter assigns an interviewer.
    - Interviewer sends or reviews invitation.
@@ -114,15 +114,15 @@ Use seeded demo data for a fast end-to-end smoke test:
    - Recruiter reviews evaluation detail.
 9. Hiring decision
    - Recruiter submits hiring recommendation.
-   - HR head reviews pending decision and approves/rejects.
+   - hiring manager reviews pending decision and approves/rejects.
 10. Offer acceptance
    - Recruiter creates job offer after approval.
    - Applicant accepts or declines the offer.
 11. Analytics
-   - Review recruiter, interviewer, and HR-head analytics dashboards.
+   - Review recruiter, interviewer, and hiring manager analytics dashboards.
    - Export PDF report if needed.
 12. Billing demo flow
-   - HR head views plans/subscription/invoices.
+   - hiring manager views plans/subscription/invoices.
    - Use demo payment success flow unless real Stripe credentials are configured.
 
 ## Optional Services and Fallback Testing

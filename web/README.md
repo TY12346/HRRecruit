@@ -1,6 +1,6 @@
 # HRRecruit Web Portal
 
-React web portal for HRRecruit recruiters, interviewers, and HR department heads.
+React web portal for HRRecruit recruiters, interviewers, and hiring managers.
 
 ## Setup
 

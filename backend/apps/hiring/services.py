@@ -33,7 +33,7 @@ def recommendation_readiness(job):
     incomplete = applications.filter(status__in=INCOMPLETE_SHORTLIST_STATUSES)
     if incomplete.exists():
         names = ', '.join(incomplete.values_list('applicant__full_name', flat=True)[:5])
-        reasons.append(f'Shortlisted candidates still require a final interview/evaluation state: {names}.')
+        reasons.append(f'Shortlisted applicants still require a final interview/evaluation state: {names}.')
 
     completed_without_evaluation = Interview.objects.filter(
         application__job=job,
@@ -47,7 +47,7 @@ def recommendation_readiness(job):
     return {
         'ready': not reasons,
         'reasons': reasons,
-        'eligible_candidate_count': eligible_count,
+        'eligible_applicant_count': eligible_count,
     }
 
 

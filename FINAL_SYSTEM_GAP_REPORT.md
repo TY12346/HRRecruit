@@ -14,10 +14,10 @@ Areas checked:
 6. Job posting workflow
 7. Application workflow
 8. AI resume screening
-9. Candidate ranking
+9. Applicant ranking
 10. Interview invitation flow
 11. Interview evaluation, transcript, and summary
-12. Hiring decision and HR approval
+12. Hiring decision and hiring manager approval
 13. Notifications
 14. Analytics and PDF export
 15. Billing and payment flow
@@ -25,14 +25,14 @@ Areas checked:
 
 ## Executive summary
 
-The system has substantial coverage for the FYP demo: Django REST APIs are role protected by default, organization membership checks are present in the major recruiter/interviewer/HR-head flows, AI resume screening follows the required weighted formula, candidate ranking is implemented, interview transcript/summary features use deterministic mock-first services, notifications exist, analytics and PDF report endpoints exist, and both the React web portal and Flutter applicant app have route/API coverage for many workflows.
+The system has substantial coverage for the FYP demo: Django REST APIs are role protected by default, organization membership checks are present in the major recruiter/interviewer/hiring manager flows, AI resume screening follows the required weighted formula, applicant ranking is implemented, interview transcript/summary features use deterministic mock-first services, notifications exist, analytics and PDF report endpoints exist, and both the React web portal and Flutter applicant app have route/API coverage for many workflows.
 
 However, several gaps can block or weaken a final FYP demonstration:
 
 - The hiring decision API and React hiring screen allow recruiters to submit a hire/reject recommendation for applications that have not completed the interview/evaluation stage.
 - Accepting a job offer does not transition the application to `hired`, so the end-to-end hiring lifecycle and hire analytics remain incomplete.
 - There is no web/mobile password reset UI even though backend OTP reset endpoints exist.
-- HR-head account bootstrap is not exposed as a normal product flow; the demo needs an admin/superuser/manual seed step.
+- hiring manager account bootstrap is not exposed as a normal product flow; the demo needs an admin/superuser/manual seed step.
 - Several date/state validations are missing around invitations and job offers.
 - Optional Stripe sandbox code is present, which should remain disabled for early FYP demo unless explicitly justified.
 
@@ -40,15 +40,15 @@ However, several gaps can block or weaken a final FYP demonstration:
 
 ### GAP-001: Recruiters can submit hiring decisions before interview evaluation is complete
 
-- **Issue description:** `HiringDecisionSubmitAPIView` blocks only terminal statuses such as withdrawn/rejected/offered/hired, but it does not require `EVALUATION_SUBMITTED` or another post-interview status before allowing a recruiter to submit a hire/reject recommendation. The React hiring decision page also loads all applications and does not filter to evaluated candidates.
+- **Issue description:** `HiringDecisionSubmitAPIView` blocks only terminal statuses such as withdrawn/rejected/offered/hired, but it does not require `EVALUATION_SUBMITTED` or another post-interview status before allowing a recruiter to submit a hire/reject recommendation. The React hiring decision page also loads all applications and does not filter to evaluated applicants.
 - **Affected files:**
   - `backend/apps/hiring/views.py`
   - `web/src/pages/recruiter/HiringDecisionPage.jsx`
   - `backend/apps/evaluations/serializers.py`
   - `backend/apps/applications/models.py`
-- **Affected user role:** Recruiter, HR Head, Applicant
+- **Affected user role:** Recruiter, Hiring Manager, Applicant
 - **Severity:** High
-- **Recommended fix:** Require `application.status == evaluation_submitted` or an explicitly allowed post-evaluation state before creating a hiring decision. Update the React page to show only eligible evaluated candidates and add backend tests proving submitted/screened/shortlisted/interview-invited applications cannot be sent to HR.
+- **Recommended fix:** Require `application.status == evaluation_submitted` or an explicitly allowed post-evaluation state before creating a hiring decision. Update the React page to show only eligible evaluated applicants and add backend tests proving submitted/screened/shortlisted/interview-invited applications cannot be sent to HR.
 - **Blocks FYP demo:** Yes, if demonstrating the full interview-to-hiring decision workflow in the required order.
 
 ### GAP-002: Accepted offers never become `hired`
@@ -61,7 +61,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `mobile/lib/services/applicant_workflow_service.dart`
   - `web/src/pages/hr_head/HRAnalyticsPage.jsx`
   - `web/src/pages/recruiter/RecruiterAnalyticsPage.jsx`
-- **Affected user role:** Applicant, Recruiter, HR Head
+- **Affected user role:** Applicant, Recruiter, Hiring Manager
 - **Severity:** High
 - **Recommended fix:** Decide whether accepting an offer should immediately set `hired` or whether a recruiter/HR confirmation endpoint is needed. For the FYP demo, the simplest fix is to set `HIRED` after `ACCEPTED` and keep `offer_status=accepted`, or add a recruiter confirmation endpoint and update analytics to count both accepted offers and hired applications consistently.
 - **Blocks FYP demo:** Yes, if the demo includes final hiring outcome or analytics hire counts.
@@ -73,12 +73,12 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/apps/hiring/views.py`
   - `backend/apps/notifications/services.py`
   - `mobile/lib/services/applicant_workflow_service.dart`
-- **Affected user role:** Applicant, HR Head, Recruiter
+- **Affected user role:** Applicant, Hiring Manager, Recruiter
 - **Severity:** Medium
 - **Recommended fix:** Add an applicant notification when HR rejection is intended to be a final applicant-facing rejection. If HR rejection only means “rework recruiter decision,” introduce a clearer internal status and do not expose it as a final applicant rejection.
 - **Blocks FYP demo:** Partial. It blocks a clean applicant rejection-notification demo for HR-rejected decisions.
 
-### GAP-004: Hiring-decision UI does not guide recruiters toward evaluated candidates
+### GAP-004: Hiring-decision UI does not guide recruiters toward evaluated applicants
 
 - **Issue description:** The React hiring decision page lists recent applications from all statuses and provides a submit button without frontend eligibility checks. This amplifies GAP-001 and makes it easy during a demo to submit a decision too early.
 - **Affected files:**
@@ -86,7 +86,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `web/src/api/client.js`
 - **Affected user role:** Recruiter
 - **Severity:** High
-- **Recommended fix:** Filter candidates to `evaluation_submitted` or backend-provided eligible candidates, disable submit when selected status is not eligible, and display the interview evaluation/AI summary as supporting evidence.
+- **Recommended fix:** Filter applicants to `evaluation_submitted` or backend-provided eligible applicants, disable submit when selected status is not eligible, and display the interview evaluation/AI summary as supporting evidence.
 - **Blocks FYP demo:** Yes, because it can make the demonstrated workflow look out of sequence.
 
 ### GAP-005: Interview invitations can be sent for past dates and multiple pending invitations can coexist
@@ -126,7 +126,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `web/src/api/client.js`
   - `mobile/lib/services/applicant_auth_service.dart`
   - `mobile/lib/router/app_router.dart`
-- **Affected user role:** Applicant, Recruiter, Interviewer, HR Head
+- **Affected user role:** Applicant, Recruiter, Interviewer, Hiring Manager
 - **Severity:** Medium
 - **Recommended fix:** Add web and mobile forgot-password/request-OTP/confirm-reset screens, API client functions, form validation, and success/error handling.
 - **Blocks FYP demo:** Partial. It blocks demoing password reset as a user-facing requirement.
@@ -138,7 +138,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/apps/users/models.py`
   - `backend/apps/users/serializers.py`
   - `backend/apps/users/views.py`
-- **Affected user role:** Applicant, Recruiter, Interviewer, HR Head
+- **Affected user role:** Applicant, Recruiter, Interviewer, Hiring Manager
 - **Severity:** Medium
 - **Recommended fix:** Add attempt counters, per-user/IP throttling, resend cooldown, and invalidate previous unused OTPs after successful reset or new issuance.
 - **Blocks FYP demo:** No, but it is a security gap.
@@ -153,34 +153,34 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `web/src/store/authStore.js`
   - `mobile/lib/api/api_client.dart`
   - `mobile/lib/services/token_storage.dart`
-- **Affected user role:** Applicant, Recruiter, Interviewer, HR Head
+- **Affected user role:** Applicant, Recruiter, Interviewer, Hiring Manager
 - **Severity:** Medium
 - **Recommended fix:** Expose `TokenRefreshView`, add client-side 401 refresh/retry logic, and clear auth state only when refresh fails.
 - **Blocks FYP demo:** Possible, if the demo session exceeds the access token lifetime or stale tokens are reused.
 
-### GAP-010: HR-head account bootstrap is not exposed as a normal product flow
+### GAP-010: hiring manager account bootstrap is not exposed as a normal product flow
 
-- **Issue description:** Applicant self-registration exists and HR heads can create organizations after logging in, but there is no public HR-head registration/onboarding endpoint or web flow. A demo must rely on admin-created users, superuser creation, fixtures, or manual database setup.
+- **Issue description:** Applicant self-registration exists and hiring managers can create organizations after logging in, but there is no public hiring manager registration/onboarding endpoint or web flow. A demo must rely on admin-created users, superuser creation, fixtures, or manual database setup.
 - **Affected files:**
   - `backend/apps/users/views.py`
   - `backend/apps/users/serializers.py`
   - `backend/apps/organizations/views.py`
   - `web/src/pages/auth/LoginPage.jsx`
   - `web/src/routes/router.jsx`
-- **Affected user role:** HR Head
+- **Affected user role:** Hiring Manager
 - **Severity:** High
-- **Recommended fix:** Add a documented seed command for demo HR-head accounts or an explicit HR-head invitation/onboarding flow. For FYP, a management command plus README demo credentials may be enough.
+- **Recommended fix:** Add a documented seed command for demo hiring manager accounts or an explicit hiring manager invitation/onboarding flow. For FYP, a management command plus README demo credentials may be enough.
 - **Blocks FYP demo:** Yes, unless the demo environment is pre-seeded.
 
-### GAP-011: Candidate profile UI renders structured extraction objects poorly
+### GAP-011: Applicant profile UI renders structured extraction objects poorly
 
-- **Issue description:** The interviewer candidate detail page prints `resume.extracted_experience` and `resume.extracted_education` directly. These values are JSON objects from the backend, so they may display as `[object Object]` instead of readable years/roles/degree/field details.
+- **Issue description:** The interviewer applicant detail page prints `resume.extracted_experience` and `resume.extracted_education` directly. These values are JSON objects from the backend, so they may display as `[object Object]` instead of readable years/roles/degree/field details.
 - **Affected files:**
-  - `web/src/pages/interviewer/CandidateDetailPage.jsx`
+  - `web/src/pages/interviewer/ApplicantDetailPage.jsx`
   - `backend/apps/applications/serializers.py`
 - **Affected user role:** Interviewer
 - **Severity:** Low
-- **Recommended fix:** Format extracted experience and education fields into human-readable summaries, matching the recruiter candidate profile UI.
+- **Recommended fix:** Format extracted experience and education fields into human-readable summaries, matching the recruiter applicant profile UI.
 - **Blocks FYP demo:** No, but it weakens the AI extraction presentation.
 
 ### GAP-012: Transcript and summary page depends on manually entered recording/transcript IDs
@@ -205,7 +205,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/apps/billing/payment_gateways.py`
   - `backend/apps/billing/serializers.py`
   - `backend/apps/billing/urls.py`
-- **Affected user role:** HR Head
+- **Affected user role:** Hiring Manager
 - **Severity:** Medium
 - **Recommended fix:** Keep demo gateway as the default and hide Stripe/PayPal/FPX options from the UI unless an explicit environment flag enables optional gateways. Document that no real payments are required for the FYP demo.
 - **Blocks FYP demo:** No, if demo payment flow is used.
@@ -218,7 +218,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `backend/apps/billing/services.py`
   - `backend/apps/billing/urls.py`
   - `web/src/pages/hr_head/BillingPage.jsx`
-- **Affected user role:** HR Head
+- **Affected user role:** Hiring Manager
 - **Severity:** Low
 - **Recommended fix:** Add explicit cancel/renew endpoints or document that subscription renewal/cancellation is out of scope for the FYP demo.
 - **Blocks FYP demo:** No, if only plan selection/demo payment is shown.
@@ -233,7 +233,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `web/src/pages/recruiter/RecruiterAnalyticsPage.jsx`
   - `web/src/pages/interviewer/InterviewerAnalyticsPage.jsx`
   - `web/src/pages/hr_head/HRAnalyticsPage.jsx`
-- **Affected user role:** Recruiter, Interviewer, HR Head
+- **Affected user role:** Recruiter, Interviewer, Hiring Manager
 - **Severity:** Medium
 - **Recommended fix:** Verify `reportlab` is installed in the final backend environment, add a smoke test for each PDF endpoint, and include PDF export in demo dry runs.
 - **Blocks FYP demo:** Possible, if PDF export is demonstrated.
@@ -271,7 +271,7 @@ However, several gaps can block or weaken a final FYP demonstration:
   - `web/package-lock.json`
   - `web/vite.config.js`
   - `web/eslint.config.js`
-- **Affected user role:** Recruiter, Interviewer, HR Head
+- **Affected user role:** Recruiter, Interviewer, Hiring Manager
 - **Severity:** Medium
 - **Recommended fix:** Run `npm ci` before frontend checks in CI/demo setup, then rerun `npm run lint` and `npm run build`.
 - **Blocks FYP demo:** Possible, if the web app is not built/served from an environment with installed dependencies.
@@ -305,23 +305,23 @@ However, several gaps can block or weaken a final FYP demonstration:
 
 - **Authentication:** JWT authentication is configured globally in DRF, with authenticated access as the default permission class. Public endpoints are limited to registration, login, and password reset.
 - **Roles:** Role constants match the required values: `applicant`, `recruiter`, `interviewer`, and `hr_head`.
-- **Organization isolation:** Major recruiter, interviewer, HR-head, billing, analytics, application, interview, and hiring flows filter by active organization membership.
+- **Organization isolation:** Major recruiter, interviewer, hiring manager, billing, analytics, application, interview, and hiring flows filter by active organization membership.
 - **Job posting:** Recruiters can create, update, duplicate, configure requirements, and configure evaluation scorecards for their organization jobs. Applicants can search/open/save/apply to open jobs.
 - **Application workflow:** Applicants can apply/withdraw; recruiters can screen, rank, shortlist, assign interviewers, reject, and add remarks.
 - **AI resume screening:** Screening logic remains in `ai_services`, uses the required formula, records component scores/explanations, and auto-rejects low scores due to underqualification while leaving qualified applicants for recruiter review.
-- **Candidate ranking:** Recruiter ranking sorts by final score descending with nulls last and earlier application as tie breaker.
+- **Applicant ranking:** Recruiter ranking sorts by final score descending with nulls last and earlier application as tie breaker.
 - **Interview workflow:** Interviewer assignment, invitation send, applicant accept/decline, mock calendar placeholder, recording upload, transcript generation, AI summary generation/edit, and evaluation submission are implemented.
-- **Hiring/approval:** Recruiter decision submission, HR approval/rejection, and post-approval job offer sending are implemented.
+- **Hiring/approval:** Recruiter decision submission, hiring manager approval/rejection, and post-approval job offer sending are implemented.
 - **Notifications:** Database notifications are created for key workflow events and scoped to each recipient.
-- **Analytics/PDF:** Role-specific dashboards and PDF endpoints exist for recruiter, interviewer, and HR head.
+- **Analytics/PDF:** Role-specific dashboards and PDF endpoints exist for recruiter, interviewer, and hiring manager.
 - **Billing:** Plans, subscription creation/upgrade, invoice listing, demo payment activation, and open-job subscription limit enforcement exist.
 
 ## Recommended fix order
 
-1. **Fix hiring lifecycle gate:** Restrict hiring decisions to evaluated candidates only and update the React hiring decision UI.
+1. **Fix hiring lifecycle gate:** Restrict hiring decisions to evaluated applicants only and update the React hiring decision UI.
 2. **Fix final hire transition:** Decide and implement how accepted offers become `hired`, then update analytics/tests.
 3. **Complete critical notifications:** Add applicant-facing updates for HR-final rejection paths and verify mobile notification display.
-4. **Add demo setup path:** Provide HR-head seed/demo setup documentation or a management command.
+4. **Add demo setup path:** Provide hiring manager seed/demo setup documentation or a management command.
 5. **Harden date/state validation:** Future invitation dates, single active pending invitation, future offer deadlines.
 6. **Add password reset UI:** Web and mobile reset request/confirm screens and API client methods.
 7. **Add JWT refresh support:** Backend refresh route and client refresh/retry interceptors.

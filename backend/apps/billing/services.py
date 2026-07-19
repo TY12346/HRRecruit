@@ -157,7 +157,7 @@ def enforce_open_job_limit(organization, open_job_count, excluding_job=None):
 
 
 def send_subscription_reminders(days_before_end=7):
-    """Notify HR heads when active subscriptions are approaching their end date."""
+    """Notify hiring managers when active subscriptions are approaching their end date."""
     target_date = timezone.localdate() + timedelta(days=days_before_end)
     subscriptions = Subscription.objects.filter(
         status=Subscription.Status.ACTIVE,

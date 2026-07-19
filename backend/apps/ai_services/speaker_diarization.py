@@ -18,7 +18,7 @@ DIARIZATION_STATUS_UNAVAILABLE = 'unavailable'
 DIARIZATION_STATUS_FAILED = 'failed'
 DIARIZATION_STATUS_NOT_CONFIGURED = 'not_configured'
 DISPLAY_ROLE_INTERVIEWER = 'Interviewer'
-DISPLAY_ROLE_CANDIDATE = 'Candidate'
+DISPLAY_ROLE_APPLICANT = 'Applicant'
 DISPLAY_ROLE_UNKNOWN = 'Unknown'
 INTERVIEWER_KEYWORDS = ('manager', 'recruiter', 'interviewer', 'hr ', 'human resources', 'hiring manager')
 
@@ -257,10 +257,10 @@ def map_speakers_to_roles(aligned_segments):
     mapping = {interviewer: DISPLAY_ROLE_INTERVIEWER}
     remaining = [sid for sid in speaker_ids if sid != interviewer]
     if remaining:
-        candidate = max(remaining, key=lambda sid: (stats[sid]['duration'], stats[sid]['chars']))
-        mapping[candidate] = DISPLAY_ROLE_CANDIDATE
+        applicant = max(remaining, key=lambda sid: (stats[sid]['duration'], stats[sid]['chars']))
+        mapping[applicant] = DISPLAY_ROLE_APPLICANT
         for sid in remaining:
-            mapping.setdefault(sid, DISPLAY_ROLE_CANDIDATE)
+            mapping.setdefault(sid, DISPLAY_ROLE_APPLICANT)
         return mapping, None
     return mapping, 'Speaker role mapping is uncertain because only one speaker was detected.'
 

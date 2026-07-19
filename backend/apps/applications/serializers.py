@@ -114,7 +114,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         return data
 
 
-class CandidateScoreSerializer(serializers.Serializer):
+class ApplicantScoreSerializer(serializers.Serializer):
     semantic_score = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
     skill_score = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
     experience_score = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
@@ -123,12 +123,12 @@ class CandidateScoreSerializer(serializers.Serializer):
     explanation = serializers.JSONField(source='score_explanation', read_only=True)
 
 
-class CandidateProfileSerializer(serializers.ModelSerializer):
+class ApplicantProfileSerializer(serializers.ModelSerializer):
     job_title = serializers.CharField(source='job.title', read_only=True)
     organization_name = serializers.CharField(source='job.organization.name', read_only=True)
     applicant_profile = ApplicationApplicantSerializer(source='applicant', read_only=True)
     resume_info = serializers.SerializerMethodField()
-    scores = CandidateScoreSerializer(source='*', read_only=True)
+    scores = ApplicantScoreSerializer(source='*', read_only=True)
     assigned_interviewer = AssignedInterviewerSerializer(read_only=True)
     class Meta:
         model = JobApplication
@@ -229,7 +229,7 @@ class ApplicationRejectSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if not attrs.get('reason') and not attrs.get('remark'):
-            raise serializers.ValidationError({'reason': 'Rejecting a candidate requires a reason or remark.'})
+            raise serializers.ValidationError({'reason': 'Rejecting a applicant requires a reason or remark.'})
         return attrs
 
 

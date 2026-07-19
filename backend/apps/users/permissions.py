@@ -38,13 +38,13 @@ class IsInterviewer(RolePermission):
 
 
 class IsHRHead(RolePermission):
-    """Allow authenticated HR department heads only."""
+    """Allow authenticated hiring managers only."""
 
     allowed_roles = (User.Role.HR_HEAD,)
 
 
 class IsRecruiterOrHRHead(RolePermission):
-    """Allow authenticated recruiters and HR department heads only."""
+    """Allow authenticated recruiters and hiring managers only."""
 
     allowed_roles = (User.Role.RECRUITER, User.Role.HR_HEAD)
 
