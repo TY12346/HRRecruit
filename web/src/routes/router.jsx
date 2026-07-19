@@ -43,7 +43,7 @@ import BillingPage from '../pages/hiring_manager/BillingPage.jsx';
 import HiringManagerAnalyticsPage from '../pages/hiring_manager/HiringManagerAnalyticsPage.jsx';
 import NotificationsPage from '../pages/hiring_manager/NotificationsPage.jsx';
 import ProfilePage from '../pages/profile/ProfilePage.jsx';
-import { DashboardRedirect, GuestOnlyRoute, ProtectedRoute, RoleRoute } from './guards.jsx';
+import { DashboardRedirect, GuestOnlyRoute, HiringManagerOnboardingRoute, ProtectedRoute, RoleRoute } from './guards.jsx';
 
 const githubPagesBasename = window.location.hostname.endsWith('github.io')
   ? `/${window.location.pathname.split('/').filter(Boolean)[0] || ''}`
@@ -119,17 +119,22 @@ export const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={['hr_head']} />,
         children: [
-          { path: 'hiring-manager', element: <HiringManagerDashboardPage /> },
-          { path: 'hiring-manager/organization', element: <OrganizationProfilePage /> },
-          { path: 'hiring-manager/team', element: <TeamMembersPage /> },
-          { path: 'hiring-manager/team/create', element: <CreateTeamMemberPage /> },
-          { path: 'hiring-manager/team/bulk-import', element: <BulkImportMembersPage /> },
-          { path: 'hiring-manager/hiring-decisions', element: <PendingHiringDecisionsPage /> },
-          { path: 'hiring-manager/applicant-search', element: <RoleBasedApplicantSearchPage role="hr_head" /> },
-          { path: 'hiring-manager/job-requisitions', element: <HiringManagerJobRequisitionsPage /> },
-          { path: 'hiring-manager/billing', element: <BillingPage /> },
-          { path: 'hiring-manager/analytics', element: <HiringManagerAnalyticsPage /> },
-          { path: 'hiring-manager/notifications', element: <NotificationsPage /> },
+          {
+            element: <HiringManagerOnboardingRoute />,
+            children: [
+              { path: 'hiring-manager', element: <HiringManagerDashboardPage /> },
+              { path: 'hiring-manager/organization', element: <OrganizationProfilePage /> },
+              { path: 'hiring-manager/team', element: <TeamMembersPage /> },
+              { path: 'hiring-manager/team/create', element: <CreateTeamMemberPage /> },
+              { path: 'hiring-manager/team/bulk-import', element: <BulkImportMembersPage /> },
+              { path: 'hiring-manager/hiring-decisions', element: <PendingHiringDecisionsPage /> },
+              { path: 'hiring-manager/applicant-search', element: <RoleBasedApplicantSearchPage role="hr_head" /> },
+              { path: 'hiring-manager/job-requisitions', element: <HiringManagerJobRequisitionsPage /> },
+              { path: 'hiring-manager/billing', element: <BillingPage /> },
+              { path: 'hiring-manager/analytics', element: <HiringManagerAnalyticsPage /> },
+              { path: 'hiring-manager/notifications', element: <NotificationsPage /> },
+            ],
+          },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

@@ -15,6 +15,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { createOrganization, deleteOrganization, getOrganization, updateOrganization } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';
 import { getApiErrorMessage } from './hiringManagerUtils.js';
@@ -38,6 +39,7 @@ function buildForm(organization) {
 }
 
 export default function OrganizationProfilePage() {
+  const navigate = useNavigate();
   const [organization, setOrganization] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [error, setError] = useState('');
@@ -102,6 +104,9 @@ export default function OrganizationProfilePage() {
       setOrganization(savedOrganization);
       setFormData(buildForm(savedOrganization));
       setSuccessMessage(response.message ?? 'Organization profile saved successfully.');
+      if (!organization) {
+        navigate('/hiring-manager/billing', { replace: true });
+      }
     } catch (submitError) {
       setError(getApiErrorMessage(submitError, 'Unable to save organization profile.'));
     } finally {

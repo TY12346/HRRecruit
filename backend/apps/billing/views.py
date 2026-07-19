@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from apps.users.models import User
 
-from .models import Payment, SubscriptionPlan
+from .models import Payment, Subscription, SubscriptionPlan
 from .serializers import (
     CheckoutSessionSerializer,
     DemoPaymentSuccessSerializer,
@@ -82,6 +82,30 @@ class CurrentSubscriptionAPIView(BillingHiringManagerMixin, APIView):
         if not subscription:
             return Response({'detail': 'No active subscription found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(SubscriptionSerializer(subscription).data)
+
+
+class HiringManagerOnboardingStatusAPIView(APIView):
+    """Report the two required workspace-setup steps for the web portal."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != User.Role.HR_HEAD:
+            raise PermissionDenied('Only hiring managers have organization onboarding requirements.')
+
+        membership = get_active_hr_head_membership(request.user)
+        if not membership:
+            return Response({'organization_created': False, 'subscription_selected': False})
+
+        subscription_selected = Subscription.objects.filter(
+            organization=membership.organization,
+        ).exclude(status=Subscription.Status.CANCELLED).exists()
+        return Response(
+            {
+                'organization_created': True,
+                'subscription_selected': subscription_selected,
+            }
+        )
 
 
 class CancelSubscriptionAPIView(BillingHiringManagerMixin, APIView):
