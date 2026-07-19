@@ -595,22 +595,22 @@ After implementation, provide:
 
 ---
 
-## Prompt 15 — Candidate Ranking and Shortlisting APIs
+## Prompt 15 — Applicant Ranking and Shortlisting APIs
 
 ```text
-Implement candidate ranking and shortlisting APIs.
+Implement applicant ranking and shortlisting APIs.
 
 Endpoints:
-- GET /api/jobs/{id}/ranked-candidates/
-- GET /api/applications/{id}/candidate-profile/
+- GET /api/jobs/{id}/ranked-applicants/
+- GET /api/applications/{id}/applicant-profile/
 - POST /api/applications/{id}/shortlist/
 - POST /api/applications/{id}/reject/
 - PATCH /api/applications/{id}/remark/
 
 Requirements:
-- Recruiter can only access candidates for own job postings.
-- Ranked candidates should be ordered by final_score descending.
-- Candidate profile should include applicant profile, resume info, extracted skills if available, scores, and application status.
+- Recruiter can only access applicants for own job postings.
+- Ranked applicants should be ordered by final_score descending.
+- Applicant profile should include applicant profile, resume info, extracted skills if available, scores, and application status.
 - Shortlist requires assigning an interviewer from the same organization.
 - Reject requires a reason or remark.
 - Add remark should be visible later to assigned interviewer.
@@ -949,7 +949,7 @@ Metrics:
 - offer acceptance rate
 - interviewer evaluation count
 - recruiter hire count
-- candidate funnel data
+- applicant funnel data
 
 Requirements:
 - Use existing database data.
@@ -1088,7 +1088,7 @@ Test areas:
 5. Applicant views open jobs
 6. Applicant applies for job
 7. Recruiter screens application
-8. Recruiter views ranked candidates
+8. Recruiter views ranked applicants
 9. Recruiter assigns interviewer
 10. Interviewer sends invitation
 11. Applicant accepts/declines invitation
@@ -1227,8 +1227,8 @@ Pages:
 - JobRequirementsPage
 - EvaluationFormBuilderPage
 - ApplicationsPage
-- CandidateRankingPage
-- CandidateProfilePage
+- ApplicantRankingPage
+- ApplicantProfilePage
 - InterviewAssignmentPage
 - InterviewEvaluationDetailPage
 - HiringDecisionPage
@@ -1241,8 +1241,8 @@ Requirements:
 - Recruiter can configure requirements and evaluation criteria.
 - Recruiter can view applications.
 - Recruiter can run AI screening.
-- Recruiter can view ranked candidates.
-- Recruiter can shortlist/reject candidates.
+- Recruiter can view ranked applicants.
+- Recruiter can shortlist/reject applicants.
 - Recruiter can assign interviewer.
 - Recruiter can view submitted interview evaluation and AI summary.
 - Recruiter can submit hiring decision.
@@ -1265,8 +1265,8 @@ Implement interviewer web portal pages.
 
 Pages:
 - InterviewerDashboardPage
-- AssignedCandidatesPage
-- CandidateDetailPage
+- AssignedApplicantsPage
+- ApplicantDetailPage
 - SendInvitationPage
 - InterviewListPage
 - InterviewDetailPage
@@ -1277,7 +1277,7 @@ Pages:
 - NotificationsPage
 
 Requirements:
-- Interviewer can view assigned candidates.
+- Interviewer can view assigned applicants.
 - Interviewer can send interview invitation.
 - Interviewer can view invitation response status.
 - Interviewer can view upcoming/completed interviews.
@@ -1304,7 +1304,7 @@ Requirements:
 - Use Chart.js / react-chartjs-2.
 - Add charts for:
   - applications by status
-  - candidate funnel
+  - applicant funnel
   - time-to-hire
   - offer acceptance rate
   - recruiter/interviewer performance

@@ -16,7 +16,7 @@ This document records known limitations honestly for FYP submission and examiner
 - Sentence-BERT or other semantic-model behavior may fall back to local lexical matching if the model/dependency is unavailable.
 - AI screening scores are decision-support signals only. The recruiter must make shortlist/reject decisions and the HR head must approve hiring decisions.
 - The scoring formula is deterministic and documented for FYP transparency, but it is not validated as an industry-grade hiring model.
-- The system does not guarantee bias-free candidate ranking. Human review remains required.
+- The system does not guarantee bias-free applicant ranking. Human review remains required.
 
 ## Interview Transcription and AI Summary Limitations
 
@@ -55,7 +55,7 @@ This document records known limitations honestly for FYP submission and examiner
 
 - Demo data uses fake people, organization details, jobs, applications, interviews, notifications, offers, invoices, and payment records.
 - The seed command is intended for demonstration and should not be run against production data.
-- Seeded scores/transcripts/summaries are designed to demonstrate workflow behavior, not real candidate evaluation.
+- Seeded scores/transcripts/summaries are designed to demonstrate workflow behavior, not real applicant evaluation.
 
 ## Deployment Limitations
 

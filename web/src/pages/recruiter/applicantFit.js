@@ -1,4 +1,4 @@
-export function candidateFitFromScore(score) {
+export function applicantFitFromScore(score) {
   if (score === null || score === undefined || score === '') {
     return {
       label: 'Not screened',
@@ -20,7 +20,7 @@ export function candidateFitFromScore(score) {
     return {
       label: 'Strong match',
       color: 'success',
-      description: 'High scoring candidate. Prioritize recruiter review.',
+      description: 'High scoring applicant. Prioritize recruiter review.',
     };
   }
 
@@ -28,7 +28,7 @@ export function candidateFitFromScore(score) {
     return {
       label: 'Good match',
       color: 'primary',
-      description: 'Promising candidate. Review resume and shortlist context.',
+      description: 'Promising applicant. Review resume and shortlist context.',
     };
   }
 
@@ -36,7 +36,7 @@ export function candidateFitFromScore(score) {
     return {
       label: 'Potential match',
       color: 'warning',
-      description: 'Borderline candidate. Review missing skills and evidence manually.',
+      description: 'Borderline applicant. Review missing skills and evidence manually.',
     };
   }
 

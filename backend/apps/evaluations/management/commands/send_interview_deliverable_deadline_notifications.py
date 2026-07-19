@@ -26,7 +26,7 @@ class Command(BaseCommand):
             status = deliverable_status_for(interview, at_time=now)
             if status['is_complete']:
                 continue
-            candidate = interview.application.applicant.full_name
+            applicant = interview.application.applicant.full_name
             job_title = interview.application.job.title
             missing = ', '.join(status['missing'])
             deadline = timezone.localtime(status['deadline']).strftime('%Y-%m-%d %H:%M')
@@ -35,14 +35,14 @@ class Command(BaseCommand):
                     interview,
                     LATE_NOTIFICATION_TYPE,
                     'Interview deliverables are late',
-                    f'The transcript, AI summary, and evaluation scorecard for {candidate} ({job_title}) were due by {deadline}. Missing: {missing}.',
+                    f'The transcript, AI summary, and evaluation scorecard for {applicant} ({job_title}) were due by {deadline}. Missing: {missing}.',
                 )
             elif status['is_almost_late']:
                 notification = create_interviewer_deadline_notification(
                     interview,
                     ALMOST_LATE_NOTIFICATION_TYPE,
                     'Interview deliverables due soon',
-                    f'Submit the transcript, AI summary, and evaluation scorecard for {candidate} ({job_title}) by {deadline}. Missing: {missing}.',
+                    f'Submit the transcript, AI summary, and evaluation scorecard for {applicant} ({job_title}) by {deadline}. Missing: {missing}.',
                 )
             else:
                 notification = None

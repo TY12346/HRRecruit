@@ -20,7 +20,7 @@ const speakerSeparationMessages = {
 
 
 function getDisplayRole(role) {
-  return role === 'Interviewer' || role === 'Candidate' ? role : 'Unknown';
+  return role === 'Interviewer' || role === 'Applicant' ? role : 'Unknown';
 }
 
 function mergeConsecutiveSpeakerSegments(segments) {

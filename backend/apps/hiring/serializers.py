@@ -49,16 +49,16 @@ class JobHiringRecommendationSerializer(serializers.ModelSerializer):
     recruiter_name = serializers.CharField(source='recruiter.full_name', read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.full_name', read_only=True)
     items = JobHiringRecommendationItemSerializer(many=True, read_only=True)
-    candidate_pool = serializers.SerializerMethodField()
+    applicant_pool = serializers.SerializerMethodField()
 
     class Meta:
         model = JobHiringRecommendation
         fields = ['id', 'job_posting', 'job_title', 'organization_name', 'vacancies', 'recruiter', 'recruiter_name',
-                  'recommendation_type', 'justification', 'status', 'items', 'candidate_pool', 'submitted_at', 'reviewed_by',
+                  'recommendation_type', 'justification', 'status', 'items', 'applicant_pool', 'submitted_at', 'reviewed_by',
                   'reviewed_by_name', 'reviewed_at', 'hr_remarks', 'created_at', 'updated_at']
         read_only_fields = fields
 
-    def get_candidate_pool(self, recommendation):
+    def get_applicant_pool(self, recommendation):
         applications = recommendation.job_posting.applications.select_related('applicant', 'assigned_interviewer').order_by('-final_score', 'applied_at')
         return JobApplicationSerializer(applications, many=True, context=self.context).data
 
@@ -171,7 +171,7 @@ class JobOfferSerializer(serializers.ModelSerializer):
             'probation_months',
             'benefits_summary',
             'internal_notes',
-            'candidate_response_note',
+            'applicant_response_note',
             'respond_deadline',
             'sent_at',
             'responded_at',

@@ -122,7 +122,7 @@ class JobOffer(models.Model):
     probation_months = models.PositiveSmallIntegerField(blank=True, null=True)
     benefits_summary = models.TextField(blank=True)
     internal_notes = models.TextField(blank=True)
-    candidate_response_note = models.TextField(blank=True)
+    applicant_response_note = models.TextField(blank=True)
     offer_status = models.CharField(max_length=20, choices=OfferStatus.choices, default=OfferStatus.SENT)
     respond_deadline = models.DateTimeField()
     sent_at = models.DateTimeField(auto_now_add=True)

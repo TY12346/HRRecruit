@@ -21,7 +21,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { getApplications, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
-import { candidateFitFromScore } from './candidateFit.js';
+import { applicantFitFromScore } from './applicantFit.js';
 import { applicationName, formatDateTime, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 import { renderApplicationTemplate } from './communicationTemplates.js';
 import {
@@ -60,7 +60,7 @@ const SORT_OPTIONS = [
   ['oldest', 'Oldest first'],
   ['score_desc', 'Highest score'],
   ['score_asc', 'Lowest score'],
-  ['candidate_az', 'Candidate A-Z'],
+  ['applicant_az', 'Applicant A-Z'],
 ];
 
 function ResumeValidationChip({ result }) {
@@ -71,7 +71,7 @@ function ResumeValidationChip({ result }) {
 }
 
 function FitChip({ score }) {
-  const fit = candidateFitFromScore(score);
+  const fit = applicantFitFromScore(score);
   return (
     <Tooltip title={fit.description}>
       <Chip color={fit.color} label={fit.label} size="small" />
@@ -164,15 +164,15 @@ export default function ApplicationsPage() {
 
   const reject = async (app) => {
     const defaultMessage = renderApplicationTemplate('rejection', app.status === 'evaluation_submitted' ? 'rejection_after_interview' : 'rejection_general', app);
-    const reason = window.prompt('Candidate rejection message', defaultMessage);
+    const reason = window.prompt('Applicant rejection message', defaultMessage);
     if (!reason) return;
     setBusyId(app.id);
     try {
       await rejectApplication(app.id, { reason, remark: reason });
-      setSuccess('Candidate rejected.');
+      setSuccess('Applicant rejected.');
       load(filters);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to reject candidate.'));
+      setError(getApiErrorMessage(err, 'Unable to reject applicant.'));
     } finally {
       setBusyId(null);
     }
@@ -194,7 +194,7 @@ export default function ApplicationsPage() {
         <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-              <TextField fullWidth label="Search candidates, jobs, notes, or resume text" value={draftFilters.search} onChange={(event) => setDraftFilters({ ...draftFilters, search: event.target.value })} />
+              <TextField fullWidth label="Search applicants, jobs, notes, or resume text" value={draftFilters.search} onChange={(event) => setDraftFilters({ ...draftFilters, search: event.target.value })} />
               <TextField select label="Status" value={draftFilters.status} onChange={(event) => setDraftFilters({ ...draftFilters, status: event.target.value })} sx={{ minWidth: 190 }}>
                 {STATUS_FILTERS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
               </TextField>
@@ -218,7 +218,7 @@ export default function ApplicationsPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Candidate</TableCell>
+              <TableCell>Applicant</TableCell>
               <TableCell>Job</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Resume validation</TableCell>

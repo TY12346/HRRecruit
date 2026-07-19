@@ -15,7 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { getAssignedInterviews, getCandidateProfile, openApplicationResume } from '../../api/client.js';
+import { getAssignedInterviews, getApplicantProfile, openApplicationResume } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
 import { formatDateTime, formatExtractedValue, getApiErrorMessage, titleize } from './interviewerUtils.js';
 
@@ -226,25 +226,25 @@ function AIScoresCard({ scores }) {
   );
 }
 
-export default function CandidateDetailPage() {
+export default function ApplicantDetailPage() {
   const { applicationId } = useParams();
-  const [candidate, setCandidate] = useState(null);
+  const [applicant, setApplicant] = useState(null);
   const [interview, setInterview] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getCandidateProfile(applicationId), getAssignedInterviews()])
+    Promise.all([getApplicantProfile(applicationId), getAssignedInterviews()])
       .then(([profile, interviews]) => {
-        setCandidate(profile);
+        setApplicant(profile);
         setInterview(interviews.find((item) => String(item.application?.id) === String(applicationId)) ?? null);
       })
-      .catch((err) => setError(getApiErrorMessage(err, 'Unable to load candidate detail.')))
+      .catch((err) => setError(getApiErrorMessage(err, 'Unable to load applicant detail.')))
       .finally(() => setIsLoading(false));
   }, [applicationId]);
 
-  const applicant = candidate?.applicant_profile ?? {};
-  const resume = candidate?.resume_info ?? {};
+  const applicant = applicant?.applicant_profile ?? {};
+  const resume = applicant?.resume_info ?? {};
   const openResume = async () => {
     try {
       await openApplicationResume(applicationId);
@@ -258,11 +258,11 @@ export default function CandidateDetailPage() {
       <InterviewerNav />
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Candidate Detail
+          Applicant Detail
         </Typography>
         {error ? <Alert severity="error" sx={{ my: 2 }}>{error}</Alert> : null}
         {isLoading ? <CircularProgress /> : null}
-        {candidate ? (
+        {applicant ? (
           <Stack spacing={2} sx={{ mt: 2 }}>
             <Card variant="outlined">
               <CardContent>
@@ -270,9 +270,9 @@ export default function CandidateDetailPage() {
                 <Typography color="text.secondary">
                   {applicant.email} • {applicant.phone_number || 'No phone'}
                 </Typography>
-                <Typography>Application status: {titleize(candidate.status)}</Typography>
-                <Typography>Applied: {formatDateTime(candidate.applied_at)}</Typography>
-                <Typography>Recruiter remark: {candidate.recruiter_remark || '—'}</Typography>
+                <Typography>Application status: {titleize(applicant.status)}</Typography>
+                <Typography>Applied: {formatDateTime(applicant.applied_at)}</Typography>
+                <Typography>Recruiter remark: {applicant.recruiter_remark || '—'}</Typography>
                 {applicant.linkedin_url ? (
                   <Button href={applicant.linkedin_url} target="_blank" rel="noreferrer">
                     LinkedIn
@@ -287,14 +287,14 @@ export default function CandidateDetailPage() {
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6">Resume extraction</Typography>
-                    <Typography><strong>Skills:</strong> {formatExtractedValue(candidate.extracted_skills)}</Typography>
+                    <Typography><strong>Skills:</strong> {formatExtractedValue(applicant.extracted_skills)}</Typography>
                     <Typography><strong>Experience:</strong> {formatExtractedValue(resume.extracted_experience)}</Typography>
                     <Typography><strong>Education:</strong> {formatExtractedValue(resume.extracted_education)}</Typography>
                   </CardContent>
                 </Card>
               </Grid>
               <Grid item xs={12} md={6}>
-                <AIScoresCard scores={candidate.scores ?? {}} />
+                <AIScoresCard scores={applicant.scores ?? {}} />
               </Grid>
             </Grid>
 

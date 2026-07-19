@@ -147,7 +147,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: const Text(
           'Open your LinkedIn profile, save or download it as a PDF, then '
           'upload that PDF here. HRRecruit will extract the text and fill '
-          'your candidate profile automatically.',
+          'your applicant profile automatically.',
         ),
         actions: [
           TextButton(

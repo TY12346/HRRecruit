@@ -19,7 +19,7 @@ from .views import (
     ApplicationSearchAPIView,
     ApplicationShortlistAPIView,
     ApplicationStatusHistoryAPIView,
-    CandidateProfileAPIView,
+    ApplicantProfileAPIView,
 )
 
 urlpatterns = [
@@ -27,7 +27,7 @@ urlpatterns = [
     path('search/', ApplicationSearchAPIView.as_view(), name='application-search'),
     path('<int:application_id>/', ApplicationDetailAPIView.as_view(), name='application-detail'),
     path('<int:application_id>/screen/', ApplicationScreenAPIView.as_view(), name='application-screen'),
-    path('<int:application_id>/candidate-profile/', CandidateProfileAPIView.as_view(), name='application-candidate-profile'),
+    path('<int:application_id>/applicant-profile/', ApplicantProfileAPIView.as_view(), name='application-applicant-profile'),
     path('<int:application_id>/resume/', ApplicationResumeAPIView.as_view(), name='application-resume'),
     path('<int:application_id>/shortlist/', ApplicationShortlistAPIView.as_view(), name='application-shortlist'),
     path('<int:application_id>/assign-interviewer/', AssignInterviewerAPIView.as_view(), name='application-assign-interviewer'),

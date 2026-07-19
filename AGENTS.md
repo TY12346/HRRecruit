@@ -109,7 +109,7 @@ Role-based permissions must be enforced.
 Organization data isolation must be enforced:
 
 - Recruiters can only access their own organization's data.
-- Interviewers can only access assigned interviews or assigned candidates.
+- Interviewers can only access assigned interviews or assigned applicants.
 - HR heads can only access their own organization's data.
 - Applicants can only access their own profile, applications, invitations, offers, and notifications.
 

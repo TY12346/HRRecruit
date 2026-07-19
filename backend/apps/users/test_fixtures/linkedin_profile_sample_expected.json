@@ -1,8 +1,8 @@
 {
-  "full_name": "Sample Candidate",
+  "full_name": "Sample Applicant",
   "headline": "Software Engineer | Java • C++ • Python • Kubernetes • AWS | Secret Clearance",
   "location": "United States",
-  "linkedin_url": "www.linkedin.com/in/samplecandidate",
+  "linkedin_url": "www.linkedin.com/in/sampleapplicant",
   "summary": "Software engineer with hands-on experience building safety-critical control systems. At a major entertainment company, I developed real-time software for ride control systems using PLCs, VFDs - including hardware integration on a large attraction project. Currently building distributed simulation infrastructure for defense programs. Interested in autonomous systems, robotics, and mission-critical software.",
   "skills": [
     "Technical Standards",

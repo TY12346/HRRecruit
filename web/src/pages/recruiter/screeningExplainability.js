@@ -1,4 +1,4 @@
-import { candidateFitFromScore } from './candidateFit.js';
+import { applicantFitFromScore } from './applicantFit.js';
 
 const SCORE_COMPONENT_LABELS = {
   semantic_score: 'Resume-job similarity',
@@ -10,7 +10,7 @@ const SCORE_COMPONENT_LABELS = {
 const SCORE_COMPONENT_DESCRIPTIONS = {
   semantic_score: 'How closely the resume text matches the overall job description.',
   skill_score: 'How many required or preferred skills were found in the resume.',
-  experience_score: 'Whether the candidate appears to meet the role experience expectation.',
+  experience_score: 'Whether the applicant appears to meet the role experience expectation.',
   education_score: 'Whether the detected education level/field matches the job requirement.',
 };
 
@@ -54,7 +54,7 @@ export function buildScreeningExplainability(profile = {}) {
   const explanation = scores.explanation ?? profile.score_explanation ?? {};
   const mlScreening = explanation.ml_screening ?? {};
   const finalScore = scoreNumber(scores.final_score ?? explanation.final_score);
-  const fit = candidateFitFromScore(finalScore);
+  const fit = applicantFitFromScore(finalScore);
   const matchedSkills = normalizeList(explanation.matched_skills ?? explanation.skills?.matched);
   const missingSkills = normalizeList(explanation.missing_skills ?? explanation.skills?.missing);
   const positiveFactors = normalizeList(mlScreening.top_positive_factors ?? explanation.positive_factors);

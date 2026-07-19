@@ -336,8 +336,8 @@ class LinkedInProfilePdfImportAPITests(APITestCase):
             self.assertTrue(os.path.exists(path))
             temporary_paths_seen_by_extractor.append(path)
             return (
-                'Jane Candidate\nSenior Django Developer\n'
-                'https://www.linkedin.com/in/jane-candidate\n'
+                'Jane Applicant\nSenior Django Developer\n'
+                'https://www.linkedin.com/in/jane-applicant\n'
                 'Experience\n5 years as Software Engineer at ExampleCo\n'
                 'Education\nBachelor of Computer Science\n'
                 'Skills\nPython Django PostgreSQL REST API\n'
@@ -360,17 +360,17 @@ class LinkedInProfilePdfImportAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.applicant.refresh_from_db()
-        self.assertEqual(self.applicant.full_name, 'Jane Candidate')
+        self.assertEqual(self.applicant.full_name, 'Jane Applicant')
         self.assertEqual(
             self.applicant.applicant_profile.linkedin_url,
-            'https://www.linkedin.com/in/jane-candidate',
+            'https://www.linkedin.com/in/jane-applicant',
         )
         self.assertIn(
             'Senior Django Developer',
             self.applicant.applicant_profile.personal_summary,
         )
         self.assertIn('Django', response.data['extracted_profile']['skills'])
-        self.assertEqual(response.data['user']['full_name'], 'Jane Candidate')
+        self.assertEqual(response.data['user']['full_name'], 'Jane Applicant')
         self.assertEqual(len(temporary_paths_seen_by_extractor), 1)
         self.assertFalse(os.path.exists(temporary_paths_seen_by_extractor[0]))
 

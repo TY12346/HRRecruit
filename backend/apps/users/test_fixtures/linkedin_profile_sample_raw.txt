@@ -1,5 +1,5 @@
 Contact
-www.linkedin.com/in/samplecandidate
+www.linkedin.com/in/sampleapplicant
 (LinkedIn)
 Top Skills
 Technical Standards
@@ -10,7 +10,7 @@ Manage Access to AWS Resources
 PLC Fundamentals
 VMware VSP-HCI Accreditation Certification
 Crowdstrike Sales Certified
-Sample Candidate
+Sample Applicant
 Software Engineer | Java • C++ • Python • Kubernetes • AWS |
 Secret Clearance
 United States

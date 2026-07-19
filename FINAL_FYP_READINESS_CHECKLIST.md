@@ -124,17 +124,17 @@ flutter run
 | Safe fallback when Sentence-BERT/model is unavailable | Complete | Disable dependency/model and run screening. | `backend/apps/ai_services/semantic_matcher.py`, `AI_ALGORITHM_VALIDATION_REPORT.md` | Fallback prevents crash but is less semantically rich. |
 | Hybrid formula is implemented | Complete | Run scoring tests or inspect scoring service. | `backend/apps/ai_services/scoring.py` | Formula: `0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score`. |
 | Score explanation is stored | Complete | Screen application and inspect serialized fields/model. | `backend/apps/applications/models.py`, `backend/apps/ai_services/resume_screening.py` | Component scores and explanation metadata are persisted. |
-| AI does not automatically make final hiring decisions | Complete | Screen low-score application and confirm it is rejected due to underqualification, while qualified candidates still require recruiter/HR review. | `POST /api/applications/<id>/screen/`, `ALGORITHMS.md` | Low score becomes `rejected`; qualified applicants remain available for recruiter actions such as assign interviewer or reject. |
+| AI does not automatically make final hiring decisions | Complete | Screen low-score application and confirm it is rejected due to underqualification, while qualified applicants still require recruiter/HR review. | `POST /api/applications/<id>/screen/`, `ALGORITHMS.md` | Low score becomes `rejected`; qualified applicants remain available for recruiter actions such as assign interviewer or reject. |
 
-## 8. Candidate Ranking
+## 8. Applicant Ranking
 
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
-| Recruiter can view qualified candidate rankings | Complete | Call ranking endpoint as owning recruiter. | `GET /api/jobs/<job_id>/ranked-candidates/` | Role and organization scoped, and only `screened_qualified` applications are ranked. |
+| Recruiter can view qualified applicant rankings | Complete | Call ranking endpoint as owning recruiter. | `GET /api/jobs/<job_id>/ranked-applicants/` | Role and organization scoped, and only `screened_qualified` applications are ranked. |
 | Ranking uses `final_score` descending | Complete | Create multiple screened applications and compare order. | `backend/apps/applications/views.py` | Uses descending `final_score`, nulls last. |
 | Equal score ordering is stable | Complete | Create equal-score applications and confirm earlier application first. | `backend/apps/applications/views.py` | Tie-breaker uses `applied_at`. |
-| Candidate ranking page displays AI scores | Complete | Open recruiter ranking page after screening. | React recruiter ranking page | Display should be manually checked with seeded/screened data. |
-| Candidate ranking does not replace recruiter decision-making | Complete | Verify shortlist/reject remains a recruiter action. | Ranking endpoint plus shortlist/reject endpoints | Ranking is advisory. |
+| Applicant ranking page displays AI scores | Complete | Open recruiter ranking page after screening. | React recruiter ranking page | Display should be manually checked with seeded/screened data. |
+| Applicant ranking does not replace recruiter decision-making | Complete | Verify shortlist/reject remains a recruiter action. | Ranking endpoint plus shortlist/reject endpoints | Ranking is advisory. |
 
 ## 9. Interview Management
 
@@ -331,7 +331,7 @@ flutter run
 | Job posting | Complete | Low | Prepare recruiter demo job and requirements. |
 | Application workflow | Partial | Medium | Rehearse exact lifecycle and status transitions with seed data. |
 | AI resume screening | Complete | Low | Use text-based PDF/DOCX resumes; explain no OCR and possible lexical fallback. |
-| Candidate ranking | Complete | Low | Pre-screen candidates so ranking page has visible scores. |
+| Applicant ranking | Complete | Low | Pre-screen applicants so ranking page has visible scores. |
 | Interview management | Partial | Medium | Rehearse invitation timing/duplicate cases; avoid invalid date edge cases in live demo. |
 | Transcript and AI summary | Complete | Low | Present mock/demo mode clearly and show editability. |
 | Hiring decision/HR approval | Complete | Low | Follow order: evaluation submitted -> recruiter decision -> HR approval/rejection. |
@@ -358,7 +358,7 @@ flutter run
 2. Run the complete final demo script once without interruption using only demo data.
 3. Verify the React web portal starts and builds after `npm ci`.
 4. Verify the Flutter app runs on the actual demo emulator/device and can reach the backend API base URL.
-5. Pre-screen demo applications so candidate ranking and AI score fields are visible.
+5. Pre-screen demo applications so applicant ranking and AI score fields are visible.
 6. Generate/open each PDF report once on the final machine.
 7. Confirm accepted job offer transitions to `hired` and updates analytics in the demo database.
 

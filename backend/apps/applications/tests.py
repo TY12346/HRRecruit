@@ -224,7 +224,7 @@ class JobApplicationAPITests(APITestCase):
             applicant=self.applicant,
             status=JobApplication.Status.SCREENED_QUALIFIED,
             final_score='92.00',
-            recruiter_remark='Strong Django API candidate.',
+            recruiter_remark='Strong Django API applicant.',
             extracted_resume_text='Python Django APIs',
         )
         frontend_application = JobApplication.objects.create(
@@ -305,7 +305,7 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [own_application.id])
 
-    def test_interviewer_searches_only_assigned_candidates(self):
+    def test_interviewer_searches_only_assigned_applicants(self):
         assigned_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
@@ -374,7 +374,7 @@ class JobApplicationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_recruiter_views_ranked_candidates_for_own_job_only(self):
+    def test_recruiter_views_ranked_applicants_for_own_job_only(self):
         high_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
@@ -396,14 +396,14 @@ class JobApplicationAPITests(APITestCase):
         )
         self.authenticate(self.recruiter)
 
-        response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]))
-        forbidden_response = self.client.get(reverse('job-ranked-candidates', args=[colleague_job.id]))
+        response = self.client.get(reverse('job-ranked-applicants', args=[self.job.id]))
+        forbidden_response = self.client.get(reverse('job-ranked-applicants', args=[colleague_job.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [high_score_application.id, low_score_application.id])
         self.assertEqual(forbidden_response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_ranked_candidates_excludes_ai_rejected_underqualified_applications(self):
+    def test_ranked_applicants_excludes_ai_rejected_underqualified_applications(self):
         qualified_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
@@ -418,12 +418,12 @@ class JobApplicationAPITests(APITestCase):
         )
         self.authenticate(self.recruiter)
 
-        response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]))
+        response = self.client.get(reverse('job-ranked-applicants', args=[self.job.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [qualified_application.id])
 
-    def test_ranked_candidates_support_search_fit_filter_and_sorting(self):
+    def test_ranked_applicants_support_search_fit_filter_and_sorting(self):
         django_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
@@ -440,15 +440,15 @@ class JobApplicationAPITests(APITestCase):
         )
         self.authenticate(self.recruiter)
 
-        search_response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]), {'search': 'react'})
-        fit_response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]), {'min_score': '75'})
-        ascending_response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]), {'sort': 'score_asc'})
+        search_response = self.client.get(reverse('job-ranked-applicants', args=[self.job.id]), {'search': 'react'})
+        fit_response = self.client.get(reverse('job-ranked-applicants', args=[self.job.id]), {'min_score': '75'})
+        ascending_response = self.client.get(reverse('job-ranked-applicants', args=[self.job.id]), {'sort': 'score_asc'})
 
         self.assertEqual([item['id'] for item in search_response.data], [react_application.id])
         self.assertEqual([item['id'] for item in fit_response.data], [django_application.id])
         self.assertEqual([item['id'] for item in ascending_response.data], [react_application.id, django_application.id])
 
-    def test_ranked_candidates_use_earliest_application_as_equal_score_tie_breaker_and_nulls_last(self):
+    def test_ranked_applicants_use_earliest_application_as_equal_score_tie_breaker_and_nulls_last(self):
         newest_equal_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
@@ -480,7 +480,7 @@ class JobApplicationAPITests(APITestCase):
         JobApplication.objects.filter(id=unscored_application.id).update(applied_at=base_time - timezone.timedelta(days=1))
         self.authenticate(self.recruiter)
 
-        response = self.client.get(reverse('job-ranked-candidates', args=[self.job.id]))
+        response = self.client.get(reverse('job-ranked-applicants', args=[self.job.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
@@ -493,7 +493,7 @@ class JobApplicationAPITests(APITestCase):
             ],
         )
 
-    def test_recruiter_views_candidate_profile_with_resume_info_scores_and_status(self):
+    def test_recruiter_views_applicant_profile_with_resume_info_scores_and_status(self):
         application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
@@ -508,7 +508,7 @@ class JobApplicationAPITests(APITestCase):
         )
         self.authenticate(self.recruiter)
 
-        response = self.client.get(reverse('application-candidate-profile', args=[application.id]))
+        response = self.client.get(reverse('application-applicant-profile', args=[application.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['applicant_profile']['email'], self.applicant.email)
@@ -527,12 +527,12 @@ class JobApplicationAPITests(APITestCase):
 
         invalid_response = self.client.post(
             reverse('application-shortlist', args=[application.id]),
-            {'interviewer_id': self.external_interviewer.id, 'remark': 'Strong backend candidate.'},
+            {'interviewer_id': self.external_interviewer.id, 'remark': 'Strong backend applicant.'},
             format='json',
         )
         valid_response = self.client.post(
             reverse('application-shortlist', args=[application.id]),
-            {'interviewer_id': self.interviewer.id, 'remark': 'Strong backend candidate.'},
+            {'interviewer_id': self.interviewer.id, 'remark': 'Strong backend applicant.'},
             format='json',
         )
 
@@ -541,7 +541,7 @@ class JobApplicationAPITests(APITestCase):
         application.refresh_from_db()
         self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
         self.assertEqual(application.assigned_interviewer, self.interviewer)
-        self.assertEqual(application.recruiter_remark, 'Strong backend candidate.')
+        self.assertEqual(application.recruiter_remark, 'Strong backend applicant.')
         history = application.stage_history.get()
         self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
         self.assertEqual(history.to_stage, JobApplication.Status.SHORTLISTED)
@@ -572,7 +572,7 @@ class JobApplicationAPITests(APITestCase):
             message='Does not meet minimum Django experience.',
         ).exists())
 
-    def test_remark_is_saved_without_status_change_and_visible_on_candidate_profile(self):
+    def test_remark_is_saved_without_status_change_and_visible_on_applicant_profile(self):
         application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
@@ -586,9 +586,9 @@ class JobApplicationAPITests(APITestCase):
             {'remark': 'Ask about API security experience.'},
             format='json',
         )
-        profile_response = self.client.get(reverse('application-candidate-profile', args=[application.id]))
+        profile_response = self.client.get(reverse('application-applicant-profile', args=[application.id]))
         self.authenticate(self.interviewer)
-        interviewer_profile_response = self.client.get(reverse('application-candidate-profile', args=[application.id]))
+        interviewer_profile_response = self.client.get(reverse('application-applicant-profile', args=[application.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
@@ -672,7 +672,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
             SimpleUploadedFile(filename, output.getvalue()),
         )
 
-    def test_recruiter_downloads_candidate_resume_through_authenticated_endpoint(self):
+    def test_recruiter_downloads_applicant_resume_through_authenticated_endpoint(self):
         self.create_resume('Python and Django developer resume.')
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
         self.authenticate(self.recruiter)
@@ -683,7 +683,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertIn('resume.docx', response.headers['Content-Disposition'])
         self.assertGreater(len(b''.join(response.streaming_content)), 0)
 
-    def test_non_owner_recruiter_cannot_download_candidate_resume(self):
+    def test_non_owner_recruiter_cannot_download_applicant_resume(self):
         self.create_resume('Python and Django developer resume.')
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
         self.authenticate(self.other_recruiter)
@@ -964,7 +964,7 @@ class JobApplicationModelTests(TestCase):
         history = self.application.change_status(
             JobApplication.Status.SHORTLISTED,
             changed_by=self.recruiter,
-            note='Strong candidate.',
+            note='Strong applicant.',
         )
 
         self.application.refresh_from_db()
@@ -973,7 +973,7 @@ class JobApplicationModelTests(TestCase):
         self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
         self.assertEqual(history.to_stage, JobApplication.Status.SHORTLISTED)
         self.assertEqual(history.changed_by, self.recruiter)
-        self.assertEqual(history.note, 'Strong candidate.')
+        self.assertEqual(history.note, 'Strong applicant.')
 
     def test_change_status_does_not_create_history_when_status_is_unchanged(self):
         history = self.application.change_status(JobApplication.Status.SUBMITTED)

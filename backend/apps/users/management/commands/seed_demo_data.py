@@ -305,7 +305,7 @@ class Command(BaseCommand):
             defaults={
                 'status': JobApplication.Status.HIRED,
                 'resume': selected_resume,
-                'recruiter_remark': 'Demo candidate completed the full FYP workflow and accepted the offer.',
+                'recruiter_remark': 'Demo applicant completed the full FYP workflow and accepted the offer.',
                 'assigned_interviewer': users[User.Role.INTERVIEWER],
                 'extracted_resume_text': (
                     'Fake demo resume: Bachelor in Computer Science. 2.5 years building Python, Django, '
@@ -335,7 +335,7 @@ class Command(BaseCommand):
             },
         )
         self._ensure_application_history(application, JobApplication.Status.SUBMITTED, JobApplication.Status.SCREENED_QUALIFIED, users[User.Role.RECRUITER], 'AI screening qualified for recruiter review.')
-        self._ensure_application_history(application, JobApplication.Status.SCREENED_QUALIFIED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'Recruiter shortlisted candidate for interview.')
+        self._ensure_application_history(application, JobApplication.Status.SCREENED_QUALIFIED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'Recruiter shortlisted applicant for interview.')
         self._ensure_application_history(application, JobApplication.Status.SHORTLISTED, JobApplication.Status.INTERVIEW_ACCEPTED, users[User.Role.APPLICANT], 'Applicant accepted scheduled interview.')
         self._ensure_application_history(application, JobApplication.Status.INTERVIEW_ACCEPTED, JobApplication.Status.EVALUATION_SUBMITTED, users[User.Role.INTERVIEWER], 'Interviewer submitted evaluation.')
         self._ensure_application_history(application, JobApplication.Status.EVALUATION_SUBMITTED, JobApplication.Status.HIRED, users[User.Role.HR_HEAD], 'HR head approved hiring and applicant accepted offer.')
@@ -390,9 +390,9 @@ class Command(BaseCommand):
 
     def _seed_transcript(self, recording):
         transcript_text = (
-            'Interviewer: Please describe your Django experience. Candidate: I built REST APIs, '
+            'Interviewer: Please describe your Django experience. Applicant: I built REST APIs, '
             'implemented role-based permissions, and optimized PostgreSQL queries. Interviewer: How do you '
-            'work with React teams? Candidate: I align API contracts early and test workflows end to end.'
+            'work with React teams? Applicant: I align API contracts early and test workflows end to end.'
         )
         transcript, _ = InterviewTranscript.objects.update_or_create(
             recording=recording,
@@ -402,7 +402,7 @@ class Command(BaseCommand):
                     'provider': 'mock',
                     'segments': [
                         {'speaker': 'Interviewer', 'text': 'Please describe your Django experience.'},
-                        {'speaker': 'Candidate', 'text': 'I built REST APIs and optimized PostgreSQL queries.'},
+                        {'speaker': 'Applicant', 'text': 'I built REST APIs and optimized PostgreSQL queries.'},
                     ],
                 },
             },
@@ -418,7 +418,7 @@ class Command(BaseCommand):
                 'communication_score': Decimal('8.50'),
                 'overall_impression': 'Positive fit for the Software Engineer demo role.',
                 'editable_summary_text': (
-                    'Mock AI summary for demo only. Candidate communicates clearly, meets the core technical '
+                    'Mock AI summary for demo only. Applicant communicates clearly, meets the core technical '
                     'requirements, and should be reviewed by the recruiter and HR head before any final decision.'
                 ),
                 'summary_json': {
@@ -467,7 +467,7 @@ class Command(BaseCommand):
             defaults={
                 'decision': HiringDecision.Decision.HIRE,
                 'recruiter_justification': (
-                    'Candidate passed AI-assisted screening, interview evaluation, and role-fit review. '
+                    'Applicant passed AI-assisted screening, interview evaluation, and role-fit review. '
                     'Recruiter recommends hire; HR head remains final approver.'
                 ),
                 'status': HiringDecision.Status.APPROVED,
@@ -491,7 +491,7 @@ class Command(BaseCommand):
                 'probation_months': 3,
                 'benefits_summary': 'Medical coverage, annual leave, learning allowance, and hybrid work arrangement.',
                 'internal_notes': 'Seeded demo offer. No real employment commitment.',
-                'candidate_response_note': 'Accepted for the FYP demo workflow.',
+                'applicant_response_note': 'Accepted for the FYP demo workflow.',
                 'offer_status': JobOffer.OfferStatus.ACCEPTED,
                 'respond_deadline': timezone.now() + timedelta(days=7),
                 'responded_at': timezone.now(),

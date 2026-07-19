@@ -796,11 +796,11 @@ class InterviewEvaluationAPITests(APITestCase):
 
         with patch.dict('os.environ', {'USE_REAL_TRANSCRIPTION': 'True', 'TRANSCRIPTION_PROVIDER': 'openai', 'OPENAI_API_KEY': 'test-key'}), patch(
             'apps.ai_services.transcription_service._call_openai_transcription',
-            return_value='Candidate discussed Django API experience and communicated clearly.',
+            return_value='Applicant discussed Django API experience and communicated clearly.',
         ):
             transcribe_response = self.client.post(reverse('recording-transcribe', args=[recording.id]))
         self.assertEqual(transcribe_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(transcribe_response.data['transcript_text'], 'Candidate discussed Django API experience and communicated clearly.')
+        self.assertEqual(transcribe_response.data['transcript_text'], 'Applicant discussed Django API experience and communicated clearly.')
         self.assertEqual(transcribe_response.data['transcript_json']['provider'], 'openai')
         transcript = InterviewTranscript.objects.get(id=transcribe_response.data['id'])
 
@@ -964,12 +964,12 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertIn('diarization_warning', response.data)
         self.assertEqual(response.data['diarization_status'], 'completed')
         self.assertIn('Interviewer:', response.data['transcript_text'])
-        self.assertIn('Candidate:', response.data['speaker_labelled_transcript'])
+        self.assertIn('Applicant:', response.data['speaker_labelled_transcript'])
         transcript = InterviewTranscript.objects.get(id=response.data['id'])
         self.assertEqual(transcript.transcript_text, response.data['transcript_text'])
         self.assertEqual(transcript.transcript_json['segments'][0]['role'], 'Interviewer')
 
-    def create_transcript(self, text='Candidate communicated clearly and discussed Django API experience.'):
+    def create_transcript(self, text='Applicant communicated clearly and discussed Django API experience.'):
         upload_response = self.upload_recording()
         recording = InterviewRecording.objects.get(id=upload_response.data['id'])
         return InterviewTranscript.objects.create(
@@ -1142,7 +1142,7 @@ class InterviewEvaluationAPITests(APITestCase):
         response = self.client.post(
             reverse('interview-evaluation-submit', args=[self.interview.id]),
             {
-                'overall_comment': 'Strong candidate for the role.',
+                'overall_comment': 'Strong applicant for the role.',
                 'answers': [
                     {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
                     {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},
@@ -1207,7 +1207,7 @@ class InterviewEvaluationAPITests(APITestCase):
         response = self.client.post(
             reverse('interview-evaluation-submit', args=[self.interview.id]),
             {
-                'overall_comment': 'Strong candidate for the role.',
+                'overall_comment': 'Strong applicant for the role.',
                 'answers': [
                     {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
                     {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},

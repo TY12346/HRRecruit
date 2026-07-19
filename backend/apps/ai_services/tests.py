@@ -533,7 +533,7 @@ class LinkedInProfileImporterTests(SimpleTestCase):
 
         parsed = build_linkedin_profile_import(
             'Contact\nwww.linkedin.com/in/dev-profile\nTop Skills\nTechnical Standards\n'
-            'Dev Candidate\nSoftware Engineer | Java • Kubernetes • AWS |\nMalaysia\nSummary\n'
+            'Dev Applicant\nSoftware Engineer | Java • Kubernetes • AWS |\nMalaysia\nSummary\n'
             'Building backend services.\nExperience\nExample Co\nEngineer\n'
             'January 2024 - Present (6 months)'
         )
@@ -831,13 +831,13 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
         formatted = format_speaker_labelled_transcript([
             {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 0.0, 'end_time': 1.0, 'text': 'Good afternoon.'},
             {'speaker_id': 'SPEAKER_00', 'role': 'Interviewer', 'start_time': 1.0, 'end_time': 2.0, 'text': 'Please have a seat.'},
-            {'speaker_id': 'SPEAKER_01', 'role': 'Candidate', 'start_time': 2.0, 'end_time': 3.0, 'text': 'Thank you.'},
+            {'speaker_id': 'SPEAKER_01', 'role': 'Applicant', 'start_time': 2.0, 'end_time': 3.0, 'text': 'Thank you.'},
         ])
 
-        self.assertEqual(formatted, 'Interviewer: Good afternoon. Please have a seat.\n\nCandidate: Thank you.')
+        self.assertEqual(formatted, 'Interviewer: Good afternoon. Please have a seat.\n\nApplicant: Thank you.')
         self.assertNotIn('Interviewee', formatted)
 
-    def test_maps_question_asking_speaker_to_interviewer_and_other_to_candidate(self):
+    def test_maps_question_asking_speaker_to_interviewer_and_other_to_applicant(self):
         aligned_segments = [
             {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 2.0, 'text': 'Can you explain your Django experience?'},
             {'speaker_id': 'SPEAKER_00', 'start_time': 6.0, 'end_time': 8.0, 'text': 'What projects did you lead?'},
@@ -847,7 +847,7 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
         mapping, warning = map_speakers_to_roles(aligned_segments)
         self.assertIsNone(warning)
         self.assertEqual(mapping['SPEAKER_00'], 'Interviewer')
-        self.assertEqual(mapping['SPEAKER_01'], 'Candidate')
+        self.assertEqual(mapping['SPEAKER_01'], 'Applicant')
         self.assertNotIn('Interviewee', mapping.values())
 
     def test_aligns_transcript_segment_to_largest_timestamp_overlap(self):
@@ -894,7 +894,7 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
             )
 
         self.assertIn('Interviewer:', payload['transcript_text'])
-        self.assertIn('Candidate:', payload['transcript_text'])
+        self.assertIn('Applicant:', payload['transcript_text'])
         self.assertEqual(payload['transcript_json']['diarization_status'], 'completed')
         self.assertEqual(len(payload['transcript_json']['segments']), 2)
 
@@ -906,7 +906,7 @@ class InterviewSummaryGeminiTests(SimpleTestCase):
             'weaknesses': 'Could provide more measurable impact details.',
             'communication_score': 8,
             'overall_impression': 'Professional and concise interview responses.',
-            'editable_summary_text': 'Candidate communicated relevant experience clearly.',
+            'editable_summary_text': 'Applicant communicated relevant experience clearly.',
         })
 
     def test_summary_parser_accepts_json_embedded_in_provider_text(self):
@@ -917,7 +917,7 @@ class InterviewSummaryGeminiTests(SimpleTestCase):
   "weaknesses": "Needs more metrics.",
   "communication_score": 8,
   "overall_impression": "Professional responses.",
-  "editable_summary_text": "Candidate gave clear API examples."
+  "editable_summary_text": "Applicant gave clear API examples."
 }
 ```
 Please review before saving."""
@@ -933,7 +933,7 @@ Please review before saving."""
           "weaknesses": "Needs more metrics.",
           "communication_score": 8,
           "overall_impression": "Professional responses.",
-          "editable_summary_text": "Candidate gave clear API examples.",
+          "editable_summary_text": "Applicant gave clear API examples.",
         }"""
 
         parsed = _parse_summary_content(content)
@@ -941,7 +941,7 @@ Please review before saving."""
         self.assertEqual(parsed['strengths'], 'Clear API examples.')
         self.assertEqual(parsed['communication_score'], 8)
 
-    def test_extract_gemini_text_reads_candidate_parts_when_text_property_is_empty(self):
+    def test_extract_gemini_text_reads_applicant_parts_when_text_property_is_empty(self):
         response = SimpleNamespace(
             text='',
             candidates=[
@@ -984,7 +984,7 @@ Please review before saving."""
             'apps.ai_services.summary_service._call_gemini_summary',
             return_value=self._summary_json(),
         ) as gemini_call:
-            payload = run_real_summary('Interviewer: Tell me about your projects. Candidate: I built APIs.')
+            payload = run_real_summary('Interviewer: Tell me about your projects. Applicant: I built APIs.')
 
         gemini_call.assert_called_once()
         self.assertEqual(payload['summary_json']['provider'], 'gemini')

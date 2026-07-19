@@ -18,9 +18,9 @@ import {
   Typography,
 } from '@mui/material';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { getRankedCandidates } from '../../api/client.js';
+import { getRankedApplicants } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
-import { candidateFitFromScore } from './candidateFit.js';
+import { applicantFitFromScore } from './applicantFit.js';
 import { applicationName, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 import {
   APPLICATION_FILTER_DEFAULTS,
@@ -49,11 +49,11 @@ const SORT_OPTIONS = [
   ['score_asc', 'Lowest score'],
   ['newest', 'Newest applied'],
   ['oldest', 'Oldest applied'],
-  ['candidate_az', 'Candidate A-Z'],
+  ['applicant_az', 'Applicant A-Z'],
 ];
 
 function FitChip({ score }) {
-  const fit = candidateFitFromScore(score);
+  const fit = applicantFitFromScore(score);
   return (
     <Tooltip title={fit.description}>
       <Chip color={fit.color} label={fit.label} size="small" />
@@ -98,9 +98,9 @@ function RankingSavedViews({ scope, filters, onApply }) {
   );
 }
 
-export default function CandidateRankingPage() {
+export default function ApplicantRankingPage() {
   const { jobId } = useParams();
-  const [candidates, setCandidates] = useState([]);
+  const [applicants, setApplicants] = useState([]);
   const [filters, setFilters] = useState(RANKING_FILTER_DEFAULTS);
   const [draftFilters, setDraftFilters] = useState(RANKING_FILTER_DEFAULTS);
   const [error, setError] = useState('');
@@ -109,12 +109,12 @@ export default function CandidateRankingPage() {
   useEffect(() => {
     let active = true;
     setIsLoading(true);
-    getRankedCandidates(jobId, buildApplicationQueryParams(filters))
+    getRankedApplicants(jobId, buildApplicationQueryParams(filters))
       .then((data) => {
-        if (active) setCandidates(data);
+        if (active) setApplicants(data);
       })
       .catch((err) => {
-        if (active) setError(getApiErrorMessage(err, 'Unable to load ranked candidates.'));
+        if (active) setError(getApiErrorMessage(err, 'Unable to load ranked applicants.'));
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -137,7 +137,7 @@ export default function CandidateRankingPage() {
     <Box>
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Qualified candidate ranking</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>Qualified applicant ranking</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           Real recruitment systems combine ranking with search, fit filters, saved views, and human review before action.
         </Typography>
@@ -146,7 +146,7 @@ export default function CandidateRankingPage() {
         <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-              <TextField fullWidth label="Search qualified candidates, notes, or resume text" value={draftFilters.search} onChange={(event) => setDraftFilters({ ...draftFilters, search: event.target.value })} />
+              <TextField fullWidth label="Search qualified applicants, notes, or resume text" value={draftFilters.search} onChange={(event) => setDraftFilters({ ...draftFilters, search: event.target.value })} />
               <TextField select label="AI fit" value={draftFilters.fit} onChange={(event) => setDraftFilters({ ...draftFilters, fit: event.target.value })} sx={{ minWidth: 180 }}>
                 {FIT_FILTERS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
               </TextField>
@@ -168,7 +168,7 @@ export default function CandidateRankingPage() {
           <TableHead>
             <TableRow>
               <TableCell>Rank</TableCell>
-              <TableCell>Candidate</TableCell>
+              <TableCell>Applicant</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>AI fit</TableCell>
               <TableCell>Semantic</TableCell>
@@ -180,29 +180,29 @@ export default function CandidateRankingPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {candidates.map((candidate, index) => (
-              <TableRow key={candidate.id}>
+            {applicants.map((applicant, index) => (
+              <TableRow key={applicant.id}>
                 <TableCell>#{index + 1}</TableCell>
-                <TableCell>{applicationName(candidate)}</TableCell>
-                <TableCell><Chip label={titleize(candidate.status)} size="small" /></TableCell>
-                <TableCell><FitChip score={candidate.final_score} /></TableCell>
-                <TableCell>{scoreText(candidate.semantic_score)}</TableCell>
-                <TableCell>{scoreText(candidate.skill_score)}</TableCell>
-                <TableCell>{scoreText(candidate.experience_score)}</TableCell>
-                <TableCell>{scoreText(candidate.education_score)}</TableCell>
-                <TableCell><strong>{scoreText(candidate.final_score)}</strong></TableCell>
+                <TableCell>{applicationName(applicant)}</TableCell>
+                <TableCell><Chip label={titleize(applicant.status)} size="small" /></TableCell>
+                <TableCell><FitChip score={applicant.final_score} /></TableCell>
+                <TableCell>{scoreText(applicant.semantic_score)}</TableCell>
+                <TableCell>{scoreText(applicant.skill_score)}</TableCell>
+                <TableCell>{scoreText(applicant.experience_score)}</TableCell>
+                <TableCell>{scoreText(applicant.education_score)}</TableCell>
+                <TableCell><strong>{scoreText(applicant.final_score)}</strong></TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Button component={RouterLink} to={`/recruiter/applications/${candidate.id}`} size="small">
+                    <Button component={RouterLink} to={`/recruiter/applications/${applicant.id}`} size="small">
                       Profile
                     </Button>
                   </Stack>
                 </TableCell>
               </TableRow>
             ))}
-            {!isLoading && candidates.length === 0 ? (
+            {!isLoading && applicants.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10}>No qualified candidates match the current search or saved ranking view.</TableCell>
+                <TableCell colSpan={10}>No qualified applicants match the current search or saved ranking view.</TableCell>
               </TableRow>
             ) : null}
           </TableBody>

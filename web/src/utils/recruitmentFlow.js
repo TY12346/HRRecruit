@@ -14,7 +14,7 @@ const STATUS_DETAILS = {
     label: 'Applied',
     description: 'The application was received and is ready for resume screening.',
     nextActions: {
-      recruiter: 'Review AI screening evidence, then shortlist or reject the candidate.',
+      recruiter: 'Review AI screening evidence, then shortlist or reject the applicant.',
       applicant: 'Your application was submitted. Wait for the recruitment team to review it.',
     },
   },
@@ -28,7 +28,7 @@ const STATUS_DETAILS = {
   },
   screened_qualified: {
     label: 'Passed screening',
-    description: 'AI-assisted screening suggests this candidate may be a fit. A recruiter still makes the decision.',
+    description: 'AI-assisted screening suggests this applicant may be a fit. A recruiter still makes the decision.',
     nextActions: {
       recruiter: 'Shortlist and assign an interviewer, or reject with a clear reason.',
       applicant: 'Your application passed the screening stage. Wait for interview scheduling updates.',
@@ -44,7 +44,7 @@ const STATUS_DETAILS = {
   },
   shortlisted: {
     label: 'Shortlisted',
-    description: 'The recruiter selected the candidate for the interview stage.',
+    description: 'The recruiter selected the applicant for the interview stage.',
     nextActions: {
       recruiter: 'Create an interview scheduling request so the applicant can pick a slot.',
       interviewer: 'Wait for the interview slot to be scheduled, then prepare for the interview.',
@@ -53,7 +53,7 @@ const STATUS_DETAILS = {
   },
   interview_invited: {
     label: 'Interview invitation sent',
-    description: 'The candidate has been invited to schedule or confirm an interview.',
+    description: 'The applicant has been invited to schedule or confirm an interview.',
     nextActions: {
       recruiter: 'Wait for the applicant to pick an available interview slot.',
       applicant: 'Choose a suitable interview slot from your interview invitations.',
@@ -78,7 +78,7 @@ const STATUS_DETAILS = {
   },
   interviewing: {
     label: 'Interview in progress',
-    description: 'The candidate is currently in the interview stage.',
+    description: 'The applicant is currently in the interview stage.',
     nextActions: {
       interviewer: 'Complete the interview evaluation after the interview.',
       recruiter: 'Wait for the interviewer evaluation.',
@@ -88,7 +88,7 @@ const STATUS_DETAILS = {
     label: 'Evaluation submitted',
     description: 'The interviewer submitted the structured evaluation for recruiter review.',
     nextActions: {
-      recruiter: 'After intake closes, compare the job candidate pool and submit one job-level hiring recommendation.',
+      recruiter: 'After intake closes, compare the job applicant pool and submit one job-level hiring recommendation.',
       interviewer: 'No further action is needed unless the recruiter asks for clarification.',
       applicant: 'Wait for the hiring decision review.',
     },
@@ -104,7 +104,7 @@ const STATUS_DETAILS = {
   },
   hr_approved: {
     label: 'Approved for offer',
-    description: 'HR approved the hire recommendation. The candidate is ready for an offer.',
+    description: 'HR approved the hire recommendation. The applicant is ready for an offer.',
     nextActions: {
       recruiter: 'Prepare and send the job offer.',
       hr_head: 'Wait for the recruiter to send the offer and for the applicant response.',
@@ -146,7 +146,7 @@ const STATUS_DETAILS = {
   },
   hired: {
     label: 'Hired',
-    description: 'The candidate accepted the offer and the recruitment flow is complete.',
+    description: 'The applicant accepted the offer and the recruitment flow is complete.',
     nextActions: {
       recruiter: 'Recruitment is complete for this application.',
       hr_head: 'Recruitment is complete for this application.',

@@ -16,7 +16,7 @@ Protected endpoints require JWT Bearer token authentication:
 Authorization: Bearer <access_token>
 ```
 
-The backend uses role-based permissions and organization data isolation. Recruiters and HR heads are scoped to their own organization. Interviewers are scoped to assigned interviews/candidates. Applicants are scoped to their own profile, applications, invitations, offers, and notifications.
+The backend uses role-based permissions and organization data isolation. Recruiters and HR heads are scoped to their own organization. Interviewers are scoped to assigned interviews/applicants. Applicants are scoped to their own profile, applications, invitations, offers, and notifications.
 
 ## Authentication and Account APIs
 
@@ -77,11 +77,11 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 ## Jobs APIs
 
-**Purpose:** Manage job postings, requirements, evaluation scorecards, saved jobs, applications, and candidate rankings.
+**Purpose:** Manage job postings, requirements, evaluation scorecards, saved jobs, applications, and applicant rankings.
 
 **Main roles:**
 
-- Recruiter: create/update jobs, requirements, evaluation scorecards, duplicate jobs, view qualified candidate rankings.
+- Recruiter: create/update jobs, requirements, evaluation scorecards, duplicate jobs, view qualified applicant rankings.
 - Applicant: browse jobs, save jobs, apply.
 - HR head/interviewer: may view organization/assigned job-related data where allowed by the views.
 
@@ -97,13 +97,13 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/jobs/<job_id>/eval-form/` | Evaluation scorecard builder data. |
 | `/api/jobs/<job_id>/save/` | Save/unsave a job. |
 | `/api/jobs/<job_id>/apply/` | Applicant application submission. |
-| `/api/jobs/<job_id>/ranked-candidates/` | Candidate ranking for a job. |
+| `/api/jobs/<job_id>/ranked-applicants/` | Applicant ranking for a job. |
 
 **Permission notes:** Organization-owned job data is isolated by active organization membership. Applicants only act on their own saved jobs and applications.
 
 ## Applications APIs
 
-**Purpose:** Manage job applications, screening, shortlisting, rejection, remarks, candidate profiles, status history, interviewer assignment, hiring recommendation, and job offer creation.
+**Purpose:** Manage job applications, screening, shortlisting, rejection, remarks, applicant profiles, status history, interviewer assignment, hiring recommendation, and job offer creation.
 
 **Main roles:** Applicant, recruiter, interviewer, HR head depending on endpoint.
 
@@ -114,7 +114,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/applications/` | Application list scoped by role. |
 | `/api/applications/<application_id>/` | Application detail scoped by role. |
 | `/api/applications/<application_id>/screen/` | Automatic AI resume screening runs when an applicant applies; this endpoint is retained for recruiter-authorized re-screening when needed. |
-| `/api/applications/<application_id>/candidate-profile/` | Candidate profile for review. |
+| `/api/applications/<application_id>/applicant-profile/` | Applicant profile for review. |
 | `/api/applications/<application_id>/shortlist/` | Recruiter shortlist action. |
 | `/api/applications/<application_id>/assign-interviewer/` | Assign interviewer. |
 | `/api/applications/<application_id>/reject/` | Recruiter rejection action. |
@@ -123,11 +123,11 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/applications/<application_id>/hiring-decision/` | Recruiter hiring recommendation. |
 | `/api/applications/<application_id>/job-offer/` | Job offer creation. |
 
-**Permission notes:** Applicants only see their own applications. Recruiters/HR heads are organization-scoped. Interviewer access is limited to assigned candidate/interview contexts.
+**Permission notes:** Applicants only see their own applications. Recruiters/HR heads are organization-scoped. Interviewer access is limited to assigned applicant/interview contexts.
 
 ## AI Screening and Ranking APIs
 
-**Purpose:** Provide AI-assisted candidate screening and ranking while preserving human decision-making.
+**Purpose:** Provide AI-assisted applicant screening and ranking while preserving human decision-making.
 
 **Main roles:** Recruiter.
 
@@ -136,7 +136,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | Endpoint | Notes |
 | --- | --- |
 | `/api/applications/<application_id>/screen/` | Extracts resume information and calculates screening scores; application submission runs this automatically. |
-| `/api/jobs/<job_id>/ranked-candidates/` | Lists only AI-qualified candidates for a job, ranked by final score. |
+| `/api/jobs/<job_id>/ranked-applicants/` | Lists only AI-qualified applicants for a job, ranked by final score. |
 
 **Algorithm notes:** Screening uses the documented score formula from `ALGORITHMS.md`: semantic score, skill score, experience score, and education score are combined into a final score. If optional semantic dependencies are unavailable, fallback lexical matching may be used. AI automatically rejects applicants below the screening threshold, but qualified applicants still require recruiter and HR review before hiring.
 
@@ -161,7 +161,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/interview-invitations/<invitation_id>/accept/` | Applicant accepts invitation. |
 | `/api/interview-invitations/<invitation_id>/decline/` | Applicant declines invitation. |
 
-**Permission notes:** Interviewers are limited to assigned interviews/candidates. Applicants can only access their own invitations.
+**Permission notes:** Interviewers are limited to assigned interviews/applicants. Applicants can only access their own invitations.
 
 ## Interview Recordings, Transcripts, and AI Summaries
 

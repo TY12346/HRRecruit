@@ -27,7 +27,7 @@ Important rule:
 
 ## Purpose
 
-This algorithm converts an unstructured resume document into structured candidate information.
+This algorithm converts an unstructured resume document into structured applicant information.
 
 It should extract:
 
@@ -36,13 +36,13 @@ It should extract:
 - Education information
 - Experience information
 
-The extracted information will be used later for resume screening, candidate scoring, and candidate ranking.
+The extracted information will be used later for resume screening, applicant scoring, and applicant ranking.
 
 ## Input
 
 ```text
 resume_file
-candidate_id
+applicant_id
 ```
 
 The resume file may be:
@@ -85,7 +85,7 @@ experience = extract_experience_patterns(doc)
 normalized_skills = normalize_skills(skills)
 
 # Step 7: Store Extracted Information
-save_candidate_profile(candidate_id, normalized_skills, education, experience)
+save_applicant_profile(applicant_id, normalized_skills, education, experience)
 
 # Step 8: Output Extracted Data
 return normalized_skills, education, experience
@@ -169,7 +169,7 @@ extracted_education
 extracted_experience
 ```
 
-These may be stored in a resume extraction model, candidate profile, application score explanation, or another existing suitable model depending on the current codebase design.
+These may be stored in a resume extraction model, applicant profile, application score explanation, or another existing suitable model depending on the current codebase design.
 
 ---
 
@@ -177,9 +177,9 @@ These may be stored in a resume extraction model, candidate profile, application
 
 ## Purpose
 
-This algorithm calculates how semantically similar a candidate resume is to a job posting or job requirements.
+This algorithm calculates how semantically similar a applicant resume is to a job posting or job requirements.
 
-It helps HRRecruit match candidates even when the resume and job posting use different wording.
+It helps HRRecruit match applicants even when the resume and job posting use different wording.
 
 Example:
 
@@ -193,7 +193,7 @@ These may not be exact keyword matches, but they are semantically similar.
 
 ```text
 job_id
-candidate_id
+applicant_id
 job_description
 job_requirements
 resume_text
@@ -212,7 +212,7 @@ The score should be normalized to a 0–100 scale.
 ```python
 # Step 1: Input Data
 job_text = load_job_description(job_id)
-resume_text = load_resume(candidate_id)
+resume_text = load_resume(applicant_id)
 
 # Step 2: Pre-processing
 cleaned_job_text = preprocess_text(job_text)
@@ -296,20 +296,20 @@ All scores should use a consistent scale:
 
 ---
 
-# 3. AI Candidate Ranking Using Hybrid Scoring Model
+# 3. AI Applicant Ranking Using Hybrid Scoring Model
 
 ## Purpose
 
-This algorithm combines multiple candidate-job matching signals into one final score.
+This algorithm combines multiple applicant-job matching signals into one final score.
 
-It is used to rank candidates for recruiters.
+It is used to rank applicants for recruiters.
 
 The ranking should support recruiter decision-making, not replace it.
 
 ## Input
 
 ```text
-candidate_data
+applicant_data
 job_requirements
 semantic_score
 skill_score
@@ -321,7 +321,7 @@ education_score
 
 ```text
 final_score
-ranked_candidates
+ranked_applicants
 score_explanation
 ```
 
@@ -329,28 +329,28 @@ score_explanation
 
 ```python
 # Step 1: Input Data
-candidate_data = load_candidate_profile(candidate_id)
+applicant_data = load_applicant_profile(applicant_id)
 job_requirements = load_job_requirements(job_id)
 
 # Step 2: Compute Semantic Similarity Score
-semantic_score = get_sbert_similarity(candidate_id, job_id)
+semantic_score = get_sbert_similarity(applicant_id, job_id)
 
 # Step 3: Compute Skill Matching Score
 skill_score = calculate_weighted_skill_match(
-    candidate_data.skills,
+    applicant_data.skills,
     job_requirements.skills,
     job_requirements.skill_weights
 )
 
 # Step 4: Compute Experience Score
 experience_score = calculate_experience_match(
-    candidate_data.experience,
+    applicant_data.experience,
     job_requirements.experience_required
 )
 
 # Step 5: Compute Education Score
 education_score = calculate_education_match(
-    candidate_data.education,
+    applicant_data.education,
     job_requirements.education_required
 )
 
@@ -363,7 +363,7 @@ final_score = (
 )
 
 # Step 7: Store Final Score
-store_final_score(candidate_id, final_score)
+store_final_score(applicant_id, final_score)
 
 # Step 8: Output Final Score
 return final_score
@@ -394,7 +394,7 @@ final_score
 The skill score should compare:
 
 ```text
-candidate extracted skills
+applicant extracted skills
 job skill requirements
 requirement weights
 ```
@@ -411,7 +411,7 @@ missing_skills
 The experience score should compare:
 
 ```text
-candidate extracted experience
+applicant extracted experience
 job experience requirements
 ```
 
@@ -427,7 +427,7 @@ experience_gap
 The education score should compare:
 
 ```text
-candidate extracted education
+applicant extracted education
 job education requirements
 ```
 
@@ -456,7 +456,7 @@ Example:
   "missing_skills": ["React"],
   "education_match": true,
   "experience_match": false,
-  "notes": "Candidate has strong backend skills but lacks React experience."
+  "notes": "Applicant has strong backend skills but lacks React experience."
 }
 ```
 
@@ -483,7 +483,7 @@ add remark
 
 ## Ranking Behavior
 
-Rank candidates by:
+Rank applicants by:
 
 ```text
 final_score descending
@@ -717,10 +717,10 @@ If real summary is disabled, return a structured mock summary such as:
 
 ```json
 {
-  "strengths": "The candidate shows relevant experience and communicates clearly.",
-  "weaknesses": "The candidate may need further evaluation on technical depth.",
+  "strengths": "The applicant shows relevant experience and communicates clearly.",
+  "weaknesses": "The applicant may need further evaluation on technical depth.",
   "communication_score": 75,
-  "overall_impression": "The candidate appears suitable for further consideration.",
+  "overall_impression": "The applicant appears suitable for further consideration.",
   "editable_summary_text": "Mock AI summary generated for FYP development."
 }
 ```
@@ -748,7 +748,7 @@ ai_services/skill_extractor.py
 ai_services/education_extractor.py
 ai_services/experience_extractor.py
 ai_services/semantic_matcher.py
-ai_services/candidate_scoring.py
+ai_services/applicant_scoring.py
 ai_services/transcription_service.py
 ai_services/summary_service.py
 ```
