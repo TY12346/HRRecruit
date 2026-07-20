@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -9,7 +9,14 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
   Typography,
 } from '@mui/material';
 import { approveJobRequisition, getJobRequisitions, rejectJobRequisition } from '../../api/client.js';
@@ -27,6 +34,8 @@ const DetailRow = ({ label, value }) => (
 
 export default function JobRequisitionsPage() {
   const [requisitions, setRequisitions] = useState([]);
+  const [search, setSearch] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
   const [selectedRequisition, setSelectedRequisition] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -39,6 +48,28 @@ export default function JobRequisitionsPage() {
     .finally(() => setIsLoading(false));
 
   useEffect(() => { load(); }, []);
+
+  const visibleRequisitions = useMemo(() => {
+    const searchTerm = submittedSearch.trim().toLowerCase();
+    if (!searchTerm) {
+      return requisitions;
+    }
+
+    return requisitions.filter((item) => [
+      item.title,
+      item.recruiter_name,
+      departmentName(item),
+      item.location,
+      item.employment_type,
+      item.position_status,
+      item.status,
+    ].some((value) => String(value ?? '').toLowerCase().includes(searchTerm)));
+  }, [requisitions, submittedSearch]);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    setSubmittedSearch(search);
+  };
 
   const approve = async (item) => {
     setBusyId(item.id); setError(''); setSuccess('');
@@ -54,35 +85,73 @@ export default function JobRequisitionsPage() {
   return (
     <Box>
       <HiringManagerNav />
-      <Typography component="h2" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Job Requisitions</Typography>
-      {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-      {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
-      {isLoading ? <CircularProgress /> : null}
-      <Stack spacing={0} sx={{ mt: 2 }}>
-        {requisitions.map((item) => (
-          <Stack key={item.id} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1} sx={{ py: 1, borderTop: '1px solid', borderColor: 'divider', '&:first-of-type': { borderTop: 0 } }}>
-            <Box>
-              <Typography sx={{ fontWeight: 700 }}>{item.title}</Typography>
-              <Typography color="text.secondary" variant="body2">
-                {item.recruiter_name} • {departmentName(item)} • {item.location} • {titleize(item.employment_type)} • {item.salary_range || 'Salary range not specified'}
-              </Typography>
-              <Typography color="text.secondary" variant="body2">
-                {titleize(item.position_status)} • Target start {item.target_start_date || 'not specified'} • Submitted {formatDateTime(item.created_at)}
-              </Typography>
-              <Typography color="text.secondary" variant="body2">Reason for hire: {item.reason_for_hire || '—'}</Typography>
-              <Typography color="text.secondary" variant="body2">Impact of not hiring: {item.impact_of_not_hiring || '—'}</Typography>
-              {item.status === 'rejected' ? <Typography color="error" variant="body2">Reason: {item.rejection_reason}</Typography> : null}
-            </Box>
-            <Stack direction="row" spacing={1} sx={{ ml: { md: 'auto' }, alignSelf: { xs: 'flex-start', md: 'center' } }}>
-              <Chip label={titleize(item.status)} size="small" color={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'error' : 'warning'} />
-              <Button onClick={() => setSelectedRequisition(item)} size="small" variant="outlined">View details</Button>
-              {item.status === 'pending' ? <Button disabled={busyId === item.id} onClick={() => approve(item)} size="small" variant="contained">Approve</Button> : null}
-              {item.status === 'pending' ? <Button disabled={busyId === item.id} onClick={() => reject(item)} size="small" color="error" variant="outlined">Reject</Button> : null}
-            </Stack>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
+            Job Requisitions
+          </Typography>
+          <Typography color="text.secondary">
+            Review submitted job requisitions and approve or reject them when required.
+          </Typography>
+        </Box>
+
+        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+        {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
+
+        <Box component="form" onSubmit={handleSearchSubmit} sx={{ mb: 2 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <TextField
+              fullWidth
+              label="Search by title, recruiter, department, or status"
+              onChange={(event) => setSearch(event.target.value)}
+              value={search}
+            />
+            <Button type="submit" variant="outlined">Search</Button>
           </Stack>
-        ))}
-        {!isLoading && requisitions.length === 0 ? <Typography color="text.secondary">No job requisitions yet.</Typography> : null}
-      </Stack>
+        </Box>
+
+        {isLoading ? <CircularProgress aria-label="Loading job requisitions" /> : null}
+
+        <Table sx={{ mt: 2 }}>
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Recruiter</TableCell>
+              <TableCell>Department</TableCell>
+              <TableCell>Position status</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Submitted</TableCell>
+              <TableCell align="right">Action</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {visibleRequisitions.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>{item.title}</TableCell>
+                <TableCell>{item.recruiter_name || '—'}</TableCell>
+                <TableCell>{departmentName(item)}</TableCell>
+                <TableCell>{titleize(item.position_status)}</TableCell>
+                <TableCell>
+                  <Chip label={titleize(item.status)} size="small" color={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'error' : 'warning'} />
+                </TableCell>
+                <TableCell>{formatDateTime(item.created_at)}</TableCell>
+                <TableCell align="right">
+                  <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                    <Button onClick={() => setSelectedRequisition(item)} size="small" variant="outlined">View details</Button>
+                    {item.status === 'pending' ? <Button disabled={busyId === item.id} onClick={() => approve(item)} size="small" variant="contained">Approve</Button> : null}
+                    {item.status === 'pending' ? <Button disabled={busyId === item.id} onClick={() => reject(item)} size="small" color="error" variant="outlined">Reject</Button> : null}
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+            {!isLoading && visibleRequisitions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7}>{submittedSearch ? 'No job requisitions match your search.' : 'No job requisitions found.'}</TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </Paper>
 
       <Dialog open={Boolean(selectedRequisition)} onClose={() => setSelectedRequisition(null)} fullWidth maxWidth="md">
         {selectedRequisition ? (
