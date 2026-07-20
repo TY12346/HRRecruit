@@ -182,10 +182,12 @@ export default function BillingPage() {
       <Stack spacing={3}>
         <Box>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
-            Billing
+            {subscription ? 'Billing' : 'Select your subscription plan'}
           </Typography>
           <Typography color="text.secondary">
-            Select a subscription plan and complete the built-in demo payment flow.
+            {subscription
+              ? 'Manage your subscription and complete the built-in demo payment flow when needed.'
+              : 'Choose a subscription plan to finish setting up your hiring manager workspace.'}
           </Typography>
         </Box>
 

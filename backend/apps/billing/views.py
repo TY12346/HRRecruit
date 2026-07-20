@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from apps.users.models import User
 
-from .models import Payment, SubscriptionPlan
+from .models import Payment, Subscription, SubscriptionPlan
 from .serializers import (
     CheckoutSessionSerializer,
     DemoPaymentSuccessSerializer,
