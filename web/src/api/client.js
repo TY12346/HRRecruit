@@ -164,6 +164,11 @@ export const getCurrentSubscription = async () => {
   return response.data;
 };
 
+export const getHiringManagerOnboardingStatus = async () => {
+  const response = await apiClient.get('/billing/onboarding-status/');
+  return response.data;
+};
+
 export const getBillingInvoices = async () => {
   const response = await apiClient.get('/billing/invoices/');
   return response.data;
