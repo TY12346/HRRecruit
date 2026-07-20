@@ -9,7 +9,7 @@ This script is the presenter runbook for the final HRRecruit FYP demonstration. 
 HRRecruit is an AI-powered recruitment management SaaS for managing the full hiring lifecycle across web and mobile:
 
 - Applicants search and apply for jobs from the Flutter mobile app.
-- Recruiters create jobs, review applications, use AI-assisted resume screening, shortlist applicants, and submit hiring recommendations.
+- Recruiters create jobs, review applications, use AI-assisted resume screening, shortlist applicants, and submit hiring decisions.
 - Interviewers manage assigned interviews, invitations, recordings, transcripts, AI summaries, and evaluation scorecards.
 - hiring managers manage organization oversight, billing, analytics, and final hiring approval.
 
@@ -20,7 +20,7 @@ The four roles demonstrate real recruitment separation of duties:
 | Role | Demo responsibility |
 | --- | --- |
 | Hiring Manager | Organization oversight, team management, billing, analytics, and final decision approval |
-| Recruiter | Job setup, applicant screening, shortlisting, interview assignment, and hiring recommendation |
+| Recruiter | Job setup, applicant screening, shortlisting, interview assignment, and hiring decision |
 | Interviewer | Interview invitation, transcript/summary review, and evaluation submission |
 | Applicant | Job discovery, application, interview invitation response, offer response, and notifications |
 
@@ -205,7 +205,7 @@ DemoPass123!
 | Role | Email | Password | Use in demo |
 | --- | --- | --- | --- |
 | Hiring Manager | `demo.hrhead@example.com` | `DemoPass123!` | Organization, team, billing, analytics, final approval |
-| Recruiter | `demo.recruiter@example.com` | `DemoPass123!` | Jobs, applications, AI screening, ranking, shortlisting, hiring recommendation |
+| Recruiter | `demo.recruiter@example.com` | `DemoPass123!` | Jobs, applications, AI screening, ranking, shortlisting, hiring decision |
 | Interviewer | `demo.interviewer@example.com` | `DemoPass123!` | Assigned interviews, invitations, transcript, AI summary, evaluation |
 | Applicant | `demo.applicant@example.com` | `DemoPass123!` | Mobile job discovery, application status, interview invitation, job offer, notifications |
 
@@ -309,8 +309,8 @@ Each step includes actor/role, page or app screen, action, expected result, and 
 | --- | --- | --- | --- | --- | --- |
 | H1 | Recruiter | Web `/recruiter/hiring-decisions` or application hiring-decision page | Open hiring decision page. | Evaluated Software Engineer applicant is available for decision review. | If already decided, show existing decision record. |
 | H2 | Recruiter | Hiring decision page | Select only evaluated applicant. | Applicant can be considered because evaluation has been submitted. | If selection is locked by completed seed state, explain the rule: only evaluated applicants should proceed. |
-| H3 | Recruiter | Hiring decision page | Submit hire/reject recommendation or review seeded recommendation. | Recruiter recommendation is `hire` with justification. | If already submitted, show seeded recruiter recommendation. |
-| H4 | Hiring Manager | Web `/hiring-manager/hiring-decisions` | Review pending/approved decision. | hiring manager sees recruiter recommendation and supporting evidence. | If decision is already approved, explain seed data starts at completed state for final demo reliability. |
+| H3 | Recruiter | Hiring decision page | Submit hire/reject decision or review seeded decision. | Recruiter decision is `hire` with justification. | If already submitted, show seeded recruiter decision. |
+| H4 | Hiring Manager | Web `/hiring-manager/hiring-decisions` | Review pending/approved decision. | hiring manager sees recruiter decision and supporting evidence. | If decision is already approved, explain seed data starts at completed state for final demo reliability. |
 | H5 | Hiring Manager | Pending hiring decision detail | Approve or reject decision, or review seeded approval. | Seeded hiring manager decision is approved with justification. | If no action button appears because already approved, show approval status. |
 | H6 | Recruiter | Web `/recruiter/job-offers` | Send job offer if approved or review seeded offer. | Job offer exists for Software Engineer after hiring manager approval. | If already accepted, explain the applicant completed the final offer step in seed data. |
 
@@ -330,7 +330,7 @@ Each step includes actor/role, page or app screen, action, expected result, and 
 | J1 | Applicant | Mobile Notifications | Show application update notification. | Notification such as `Application shortlisted` is visible. | If already marked read, check all notifications instead of unread only. |
 | J2 | Applicant | Mobile Notifications | Show interview invitation notification. | Notification related to interview invitation/acceptance is visible. | If notification wording differs, identify the interview-related notification. |
 | J3 | Applicant | Mobile Notifications | Show job offer notification. | Notification such as `Demo job offer accepted` is visible. | If not visible, show Job offers page as backup. |
-| J4 | Recruiter | Web `/recruiter/notifications` | Show hiring decision update. | Notification such as `Hiring manager approved recommendation` is visible. | If notification has been read, use all notifications/read-all view if available. |
+| J4 | Recruiter | Web `/recruiter/notifications` | Show hiring decision update. | Notification such as `Hiring manager approved decision` is visible. | If notification has been read, use all notifications/read-all view if available. |
 | J5 | Hiring Manager | Web `/hiring-manager/notifications` | Show offer/hiring update. | Notification such as `Offer accepted` is visible. | If empty, explain notification records are seeded and demonstrate applicant/recruiter notifications. |
 
 ### K. Analytics and Reports Flow

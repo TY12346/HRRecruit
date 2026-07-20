@@ -3,13 +3,13 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import JobApplication
-from apps.hiring.models import JobHiringRecommendation
+from apps.hiring.models import JobHiringDecision
 from apps.jobs.models import JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
 
-class JobLevelHiringRecommendationFlowTests(APITestCase):
+class JobLevelHiringDecisionFlowTests(APITestCase):
     def setUp(self):
         self.hr = User.objects.create_user(email='hr-flow@example.com', password='pass', full_name='Hiring Manager', role=User.Role.HR_HEAD)
         self.recruiter = User.objects.create_user(email='recruiter-flow@example.com', password='pass', full_name='Recruiter', role=User.Role.RECRUITER)
@@ -25,20 +25,20 @@ class JobLevelHiringRecommendationFlowTests(APITestCase):
         self.client.force_authenticate(self.recruiter)
         return self.client.post(reverse('job-close-intake', args=[self.job.id]))
 
-    def submit(self, recommendation_type='recommend_hire', application_ids=None):
+    def submit(self, decision_type='recommend_hire', application_ids=None):
         self.client.force_authenticate(self.recruiter)
-        return self.client.post(reverse('job-hiring-recommendation-list-create'), {
+        return self.client.post(reverse('job-hiring-decision-list-create'), {
             'job_posting': self.job.id,
-            'recommendation_type': recommendation_type,
+            'decision_type': decision_type,
             'application_ids': [self.application.id] if application_ids is None else application_ids,
-            'justification': 'Evidence supports this job-level recommendation.',
+            'justification': 'Evidence supports this job-level decision.',
         }, format='json')
 
     def test_close_intake_blocks_new_applications_and_marks_ready(self):
         response = self.close_intake()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['readiness']['ready'])
-        self.assertEqual(response.data['job']['status'], JobPosting.Status.READY_FOR_RECOMMENDATION)
+        self.assertEqual(response.data['job']['status'], JobPosting.Status.READY_FOR_DECISION)
         self.client.force_authenticate(self.applicant)
         apply_response = self.client.post(reverse('job-apply', args=[self.job.id]), {}, format='json')
         self.assertEqual(apply_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -67,26 +67,26 @@ class JobLevelHiringRecommendationFlowTests(APITestCase):
         response = self.submit('recommend_no_hire', [])
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.client.force_authenticate(self.hr)
-        review = self.client.post(reverse('job-hiring-recommendation-approve', args=[response.data['id']]), {'hr_remarks': 'No suitable applicant.'}, format='json')
+        review = self.client.post(reverse('job-hiring-decision-approve', args=[response.data['id']]), {'hr_remarks': 'No suitable applicant.'}, format='json')
         self.assertEqual(review.status_code, status.HTTP_200_OK)
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, JobPosting.Status.CLOSED_NO_HIRE)
 
-    def test_hr_rejects_whole_recommendation_and_applicant_cannot_access_it(self):
+    def test_hr_rejects_whole_decision_and_applicant_cannot_access_it(self):
         self.close_intake()
         response = self.submit()
         self.client.force_authenticate(self.hr)
-        review = self.client.post(reverse('job-hiring-recommendation-reject', args=[response.data['id']]), {'hr_remarks': 'Revise selection.'}, format='json')
+        review = self.client.post(reverse('job-hiring-decision-reject', args=[response.data['id']]), {'hr_remarks': 'Revise selection.'}, format='json')
         self.assertEqual(review.status_code, status.HTTP_200_OK)
-        self.assertEqual(review.data['status'], JobHiringRecommendation.Status.REJECTED)
+        self.assertEqual(review.data['status'], JobHiringDecision.Status.REJECTED)
         self.client.force_authenticate(self.applicant)
-        self.assertEqual(self.client.get(reverse('job-hiring-recommendation-list-create')).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(reverse('job-hiring-decision-list-create')).status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(self.client.get(reverse('job-applicant-comparison', args=[self.job.id])).status_code, status.HTTP_403_FORBIDDEN)
 
     def test_interviewer_cannot_submit_or_review(self):
         self.close_intake()
         self.client.force_authenticate(self.interviewer)
-        self.assertEqual(self.client.post(reverse('job-hiring-recommendation-list-create'), {'job_posting': self.job.id}).status_code, status.HTTP_403_FORBIDDEN)
-        recommendation = self.submit().data
+        self.assertEqual(self.client.post(reverse('job-hiring-decision-list-create'), {'job_posting': self.job.id}).status_code, status.HTTP_403_FORBIDDEN)
+        decision = self.submit().data
         self.client.force_authenticate(self.interviewer)
-        self.assertEqual(self.client.post(reverse('job-hiring-recommendation-approve', args=[recommendation['id']])).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.post(reverse('job-hiring-decision-approve', args=[decision['id']])).status_code, status.HTTP_403_FORBIDDEN)

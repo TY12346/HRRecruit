@@ -113,7 +113,7 @@ Use seeded demo data for a fast end-to-end smoke test:
    - Interviewer submits evaluation.
    - Recruiter reviews evaluation detail.
 9. Hiring decision
-   - Recruiter submits hiring recommendation.
+   - Recruiter submits hiring decision.
    - hiring manager reviews pending decision and approves/rejects.
 10. Offer acceptance
    - Recruiter creates job offer after approval.

@@ -5,7 +5,7 @@ class Migration(migrations.Migration):
     """Repair databases where the already-applied 0002 migration lacks this column."""
 
     dependencies = [
-        ('hiring', '0003_jobhiringrecommendation_jobhiringrecommendationitem'),
+        ('hiring', '0003_jobhiringdecision_jobhiringdecisionitem'),
     ]
 
     operations = [
