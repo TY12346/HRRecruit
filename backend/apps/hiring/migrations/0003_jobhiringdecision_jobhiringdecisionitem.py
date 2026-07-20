@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="JobHiringRecommendation",
+            name="JobHiringDecision",
             fields=[
                 (
                     "id",
@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "recommendation_type",
+                    "decision_type",
                     models.CharField(
                         choices=[
                             ("recommend_hire", "Recommend Hire"),
@@ -60,7 +60,7 @@ class Migration(migrations.Migration):
                     "job_posting",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="hiring_recommendations",
+                        related_name="hiring_decisions",
                         to="jobs.jobposting",
                     ),
                 ),
@@ -69,7 +69,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         limit_choices_to={"role": "recruiter"},
                         on_delete=django.db.models.deletion.PROTECT,
-                        related_name="submitted_job_hiring_recommendations",
+                        related_name="submitted_job_hiring_decisions",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
                         limit_choices_to={"role": "hr_head"},
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        related_name="reviewed_job_hiring_recommendations",
+                        related_name="reviewed_job_hiring_decisions",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -90,7 +90,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name="JobHiringRecommendationItem",
+            name="JobHiringDecisionItem",
             fields=[
                 (
                     "id",
@@ -108,16 +108,16 @@ class Migration(migrations.Migration):
                     "application",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="job_hiring_recommendation_items",
+                        related_name="job_hiring_decision_items",
                         to="applications.jobapplication",
                     ),
                 ),
                 (
-                    "recommendation",
+                    "decision",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="items",
-                        to="hiring.jobhiringrecommendation",
+                        to="hiring.jobhiringdecision",
                     ),
                 ),
             ],
@@ -125,8 +125,8 @@ class Migration(migrations.Migration):
                 "ordering": ["selection_order", "id"],
                 "constraints": [
                     models.UniqueConstraint(
-                        fields=("recommendation", "application"),
-                        name="unique_job_recommendation_application",
+                        fields=("decision", "application"),
+                        name="unique_job_decision_application",
                     )
                 ],
             },

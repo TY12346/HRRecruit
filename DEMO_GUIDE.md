@@ -84,7 +84,7 @@ DemoPass123!
 | Role | Email | Demo Purpose |
 | --- | --- | --- |
 | Hiring Manager | demo.hrhead@example.com | Organization, subscription, hiring manager approval, offer oversight, analytics. |
-| Recruiter | demo.recruiter@example.com | Job posting, applicant screening, applicant ranking, interview setup, hiring recommendation, offer creation. |
+| Recruiter | demo.recruiter@example.com | Job posting, applicant screening, applicant ranking, interview setup, hiring decision, offer creation. |
 | Interviewer | demo.interviewer@example.com | Assigned interviews, invitation workflow, transcript/summary review, evaluation submission. |
 | Applicant | demo.applicant@example.com | Job search/application, notifications, interview invitation response, job offer response. |
 
@@ -128,7 +128,7 @@ Follow this order for a clear examiner walkthrough:
 8. Evaluation submission
    - Submit or review interviewer evaluation.
 9. Hiring decision and hiring manager approval
-   - Recruiter submits recommendation.
+   - Recruiter submits decision.
    - hiring manager approves or rejects the pending hiring decision.
 10. Job offer and applicant response
     - Recruiter creates an offer after approval.

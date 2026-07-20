@@ -136,13 +136,13 @@ ApplicationStatusInfo applicationStatusInfo(String status) {
     case 'decision_pending':
       return const ApplicationStatusInfo(
         label: 'Waiting for hiring manager approval',
-        description: 'The recruiter recommendation is being reviewed by HR.',
+        description: 'The recruiter decision is being reviewed by HR.',
         nextAction: 'Wait for the final internal review.',
       );
     case 'hr_approved':
       return const ApplicationStatusInfo(
         label: 'Approved for offer',
-        description: 'HR approved the hire recommendation.',
+        description: 'HR approved the hire decision.',
         nextAction: 'Wait for the official job offer.',
       );
     case 'offer_sent':

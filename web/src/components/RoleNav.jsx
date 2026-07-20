@@ -85,7 +85,7 @@ const icons = {
   notifications: <SettingsIcon />,
   offers: <BriefcaseIcon />,
   organization: <SettingsIcon />,
-  recommendations: <ApplicantsIcon />,
+  decisions: <ApplicantsIcon />,
   reports: <ReportsIcon />,
   requisitions: <BriefcaseIcon />,
   roles: <BriefcaseIcon />,

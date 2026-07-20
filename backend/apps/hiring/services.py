@@ -1,4 +1,4 @@
-"""Domain checks for the job-level hiring recommendation workflow."""
+"""Domain checks for the job-level hiring decision workflow."""
 
 from apps.applications.models import JobApplication
 from apps.interviews.models import Interview
@@ -12,7 +12,7 @@ INCOMPLETE_SHORTLIST_STATUSES = {
     JobApplication.Status.INTERVIEWING,
 }
 
-ELIGIBLE_RECOMMENDATION_STATUSES = {
+ELIGIBLE_DECISION_STATUSES = {
     JobApplication.Status.EVALUATION_SUBMITTED,
     JobApplication.Status.DECISION_PENDING,
     JobApplication.Status.HR_APPROVED,
@@ -24,7 +24,7 @@ ELIGIBLE_RECOMMENDATION_STATUSES = {
 }
 
 
-def recommendation_readiness(job):
+def decision_readiness(job):
     reasons = []
     if job.status == JobPosting.Status.OPEN:
         reasons.append('Application intake is still open.')
@@ -43,7 +43,7 @@ def recommendation_readiness(job):
     if completed_without_evaluation.exists():
         reasons.append(f'{completed_without_evaluation.count()} completed interview(s) still require an interviewer evaluation.')
 
-    eligible_count = applications.filter(status__in=ELIGIBLE_RECOMMENDATION_STATUSES).count()
+    eligible_count = applications.filter(status__in=ELIGIBLE_DECISION_STATUSES).count()
     return {
         'ready': not reasons,
         'reasons': reasons,
@@ -52,14 +52,14 @@ def recommendation_readiness(job):
 
 
 def refresh_job_readiness(job):
-    readiness = recommendation_readiness(job)
+    readiness = decision_readiness(job)
     transitional = {
         JobPosting.Status.APPLICATION_INTAKE_CLOSED,
         JobPosting.Status.INTERVIEWS_IN_PROGRESS,
-        JobPosting.Status.READY_FOR_RECOMMENDATION,
+        JobPosting.Status.READY_FOR_DECISION,
     }
     if job.status in transitional:
-        desired = JobPosting.Status.READY_FOR_RECOMMENDATION if readiness['ready'] else JobPosting.Status.INTERVIEWS_IN_PROGRESS
+        desired = JobPosting.Status.READY_FOR_DECISION if readiness['ready'] else JobPosting.Status.INTERVIEWS_IN_PROGRESS
         if job.status != desired:
             job.status = desired
             job.save(update_fields=['status', 'updated_at'])
