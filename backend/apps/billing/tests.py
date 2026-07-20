@@ -114,7 +114,7 @@ class BillingAPITests(APITestCase):
             plan=self.basic_plan,
             start_date=timezone.localdate(),
             end_date=timezone.localdate() + timedelta(days=30),
-            status=Subscription.Status.PENDING,
+            status=Subscription.Status.ACTIVE,
         )
         after_selection = self.client.get(reverse('billing-onboarding-status'))
 

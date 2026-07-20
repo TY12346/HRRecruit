@@ -97,9 +97,7 @@ class HiringManagerOnboardingStatusAPIView(APIView):
         if not membership:
             return Response({'organization_created': False, 'subscription_selected': False})
 
-        subscription_selected = Subscription.objects.filter(
-            organization=membership.organization,
-        ).exclude(status=Subscription.Status.CANCELLED).exists()
+        subscription_selected = get_active_subscription(membership.organization) is not None
         return Response(
             {
                 'organization_created': True,

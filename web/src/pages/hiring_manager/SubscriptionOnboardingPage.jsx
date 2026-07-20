@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Paper, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { getBillingPlans, subscribeToPlan } from '../../api/client.js';
+import { completeDemoPayment, getBillingPlans, subscribeToPlan } from '../../api/client.js';
 import { formatCurrency, getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 export default function SubscriptionOnboardingPage() {
@@ -22,7 +22,11 @@ export default function SubscriptionOnboardingPage() {
     setSelectedPlanId(planId);
     setError('');
     try {
-      await subscribeToPlan({ planId });
+      const response = await subscribeToPlan({ planId });
+      await completeDemoPayment({
+        subscriptionId: response.subscription.id,
+        transactionReference: `DEMO-ONBOARDING-${Date.now()}`,
+      });
       navigate('/hiring-manager', { replace: true });
     } catch (selectError) {
       setError(getApiErrorMessage(selectError, 'Unable to select subscription plan.'));
@@ -48,7 +52,7 @@ export default function SubscriptionOnboardingPage() {
                     <Typography color="text.secondary">{titleize(plan.billing_cycle)} billing</Typography>
                     <Typography>Maximum open job postings: {plan.max_job_postings}</Typography>
                     <Typography color="text.secondary">{plan.features_description}</Typography>
-                    <Box><Button disabled={selectedPlanId !== null} onClick={() => handleSelectPlan(plan.id)} variant="contained">{selectedPlanId === plan.id ? 'Selecting…' : 'Select plan'}</Button></Box>
+                    <Box><Button disabled={selectedPlanId !== null} onClick={() => handleSelectPlan(plan.id)} variant="contained">{selectedPlanId === plan.id ? 'Processing payment…' : 'Select plan and pay'}</Button></Box>
                   </Stack>
                 </CardContent>
               </Card>
