@@ -103,7 +103,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 ## Applications APIs
 
-**Purpose:** Manage job applications, screening, shortlisting, rejection, remarks, applicant profiles, status history, interviewer assignment, hiring recommendation, and job offer creation.
+**Purpose:** Manage job applications, screening, shortlisting, rejection, remarks, applicant profiles, status history, interviewer assignment, hiring decision, and job offer creation.
 
 **Main roles:** Applicant, recruiter, interviewer, hiring manager depending on endpoint.
 
@@ -120,7 +120,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 | `/api/applications/<application_id>/reject/` | Recruiter rejection action. |
 | `/api/applications/<application_id>/remark/` | Recruiter remark. |
 | `/api/applications/<application_id>/status-history/` | Application status history. |
-| `/api/applications/<application_id>/hiring-decision/` | Recruiter hiring recommendation. |
+| `/api/applications/<application_id>/hiring-decision/` | Recruiter hiring decision. |
 | `/api/applications/<application_id>/job-offer/` | Job offer creation. |
 
 **Permission notes:** Applicants only see their own applications. Recruiters/hiring managers are organization-scoped. Interviewer access is limited to assigned applicant/interview contexts.
@@ -182,7 +182,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 ## Hiring Decisions APIs
 
-**Purpose:** Let recruiters submit hiring recommendations and hiring managers approve or reject them.
+**Purpose:** Let recruiters submit hiring decisions and hiring managers approve or reject them.
 
 **Main roles:** Recruiter and hiring manager.
 
@@ -190,7 +190,7 @@ The backend uses role-based permissions and organization data isolation. Recruit
 
 | Endpoint | Notes |
 | --- | --- |
-| `/api/applications/<application_id>/hiring-decision/` | Recruiter submits hiring recommendation. |
+| `/api/applications/<application_id>/hiring-decision/` | Recruiter submits hiring decision. |
 | `/api/hiring-decisions/pending/` | hiring manager views pending decisions. |
 | `/api/hiring-decisions/<decision_id>/` | Hiring decision detail. |
 | `/api/hiring-decisions/<decision_id>/approve/` | hiring manager approval. |

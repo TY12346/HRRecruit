@@ -10,16 +10,16 @@ from .views import (
     JobOfferWithdrawAPIView,
     PendingHiringDecisionListAPIView,
     JobApplicantComparisonAPIView,
-    JobHiringRecommendationListCreateAPIView,
-    JobHiringRecommendationApproveAPIView,
-    JobHiringRecommendationRejectAPIView,
+    JobHiringDecisionListCreateAPIView,
+    JobHiringDecisionApproveAPIView,
+    JobHiringDecisionRejectAPIView,
 )
 
 urlpatterns = [
     path('jobs/<int:job_id>/applicant-comparison/', JobApplicantComparisonAPIView.as_view(), name='job-applicant-comparison'),
-    path('job-hiring-recommendations/', JobHiringRecommendationListCreateAPIView.as_view(), name='job-hiring-recommendation-list-create'),
-    path('job-hiring-recommendations/<int:recommendation_id>/approve/', JobHiringRecommendationApproveAPIView.as_view(), name='job-hiring-recommendation-approve'),
-    path('job-hiring-recommendations/<int:recommendation_id>/reject/', JobHiringRecommendationRejectAPIView.as_view(), name='job-hiring-recommendation-reject'),
+    path('job-hiring-decisions/', JobHiringDecisionListCreateAPIView.as_view(), name='job-hiring-decision-list-create'),
+    path('job-hiring-decisions/<int:decision_id>/approve/', JobHiringDecisionApproveAPIView.as_view(), name='job-hiring-decision-approve'),
+    path('job-hiring-decisions/<int:decision_id>/reject/', JobHiringDecisionRejectAPIView.as_view(), name='job-hiring-decision-reject'),
     path('hiring-decisions/pending/', PendingHiringDecisionListAPIView.as_view(), name='hiring-decision-pending-list'),
     path('hiring-decisions/<int:decision_id>/', HiringDecisionDetailAPIView.as_view(), name='hiring-decision-detail'),
     path('hiring-decisions/<int:decision_id>/approve/', HiringDecisionApproveAPIView.as_view(), name='hiring-decision-approve'),

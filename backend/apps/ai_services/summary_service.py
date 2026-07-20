@@ -126,7 +126,7 @@ def build_structured_summary_prompt(cleaned_transcript):
     return (
         'You are assisting an interviewer in an HRRecruit interview workflow. '
         'Summarize the transcript to support human evaluation only. Do not make '
-        'hiring, rejection, approval, or final decision recommendations.\n\n'
+        'hiring, rejection, approval, or final decision decisions.\n\n'
         'Return valid JSON with exactly these fields: strengths, weaknesses, '
         'communication_score, overall_impression, editable_summary_text. '
         'Use a communication_score from 0 to 10 because the current HRRecruit '

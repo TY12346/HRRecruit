@@ -349,7 +349,7 @@ def top_jobs_chart(rows):
     return Chart.single_dataset([row['job_title'] for row in rows], [row['applications'] for row in rows], 'Applications')
 
 def base_application_metrics(jobs, applications):
-    from apps.hiring.models import JobHiringRecommendation
+    from apps.hiring.models import JobHiringDecision
     from apps.jobs.models import JobPosting
     total_applications = applications.count()
     shortlisted_count = applications.filter(status=JobApplication.Status.SHORTLISTED).count()
@@ -360,7 +360,7 @@ def base_application_metrics(jobs, applications):
     total_offers = offers.count()
     accepted_offers = offers.filter(offer_status=JobOffer.OfferStatus.ACCEPTED).count()
     declined_offers = offers.filter(offer_status=JobOffer.OfferStatus.DECLINED).count()
-    recommendations = JobHiringRecommendation.objects.filter(job_posting__in=jobs)
+    decisions = JobHiringDecision.objects.filter(job_posting__in=jobs)
 
     return {
         'total_job_postings': jobs.count(),
@@ -375,9 +375,9 @@ def base_application_metrics(jobs, applications):
         'total_offers': total_offers,
         'accepted_offers': accepted_offers,
         'declined_offers': declined_offers,
-        'pending_hr_approval_count': recommendations.filter(status=JobHiringRecommendation.Status.PENDING_HR_APPROVAL).count(),
-        'recommendation_approved_count': recommendations.filter(status=JobHiringRecommendation.Status.APPROVED).count(),
-        'recommendation_rejected_count': recommendations.filter(status=JobHiringRecommendation.Status.REJECTED).count(),
+        'pending_hr_approval_count': decisions.filter(status=JobHiringDecision.Status.PENDING_HR_APPROVAL).count(),
+        'decision_approved_count': decisions.filter(status=JobHiringDecision.Status.APPROVED).count(),
+        'decision_rejected_count': decisions.filter(status=JobHiringDecision.Status.REJECTED).count(),
         'closed_no_hire_count': jobs.filter(status=JobPosting.Status.CLOSED_NO_HIRE).count(),
         'conversion_rates': conversion_rates(applications),
         'score_distribution': score_distribution(applications),
