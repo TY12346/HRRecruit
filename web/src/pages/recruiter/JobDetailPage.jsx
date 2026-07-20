@@ -49,8 +49,6 @@ export default function JobDetailPage() {
           {job.status === 'open' ? <Button color="warning" onClick={closeIntake} variant="contained">Close application intake</Button> : null}
         </Stack>
       </Stack>
-      {readiness && !readiness.ready ? <Alert severity="info">Hiring decision is not ready: {readiness.reasons.join(' ')}</Alert> : null}
-      {readiness?.ready ? <Alert severity="success">Ready for Hiring Decision.</Alert> : null}
       <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{formatJobDescriptionText(job.description)}</Typography>
       <Grid container spacing={2}><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Qualified applicants</Typography><Typography variant="h4">{ranked.length}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Vacancies</Typography><Typography variant="h4">{job.vacancies}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Employment</Typography><Typography>{job.employment_type}</Typography><Typography>{job.approximate_salary}</Typography></CardContent></Card></Grid></Grid>
       <Box><Typography variant="h6">Requirements</Typography><List>{job.requirements?.map((req) => <ListItem key={req.id}><ListItemText primary={`${titleize(req.requirement_type)} (${req.weight_score})`} secondary={`${req.description} • Threshold ${req.minimum_threshold}`} /></ListItem>)}{!job.requirements?.length ? <ListItem><ListItemText primary="No requirements configured." /></ListItem> : null}</List></Box>

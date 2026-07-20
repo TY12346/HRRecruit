@@ -144,7 +144,6 @@ export default function JobCreateEditPage() {
       <TextField label="Job summary" required multiline minRows={3} value={form.description} onChange={setField('description')} />
       <TextField
         label="Core responsibilities"
-        helperText="The primary day-to-day duties the employee will perform."
         required
         multiline
         minRows={4}
@@ -153,7 +152,6 @@ export default function JobCreateEditPage() {
       />
       <TextField
         label="Requirements & qualifications"
-        helperText="Essential and preferred skills, education, and experience needed to succeed in the role."
         required
         multiline
         minRows={4}
@@ -197,7 +195,6 @@ export default function JobCreateEditPage() {
       </Stack>
       <TextField
         label="Benefits & perks"
-        helperText="Bonus structures, allowances, or other financial compensation."
         multiline
         minRows={3}
         value={form.benefits_perks}
@@ -206,7 +203,6 @@ export default function JobCreateEditPage() {
       <TextField
         label="Reason for hire"
         required
-        helperText="Explain why this role is necessary."
         multiline
         minRows={3}
         value={form.reason_for_hire}
@@ -215,7 +211,6 @@ export default function JobCreateEditPage() {
       <TextField
         label="Impact of not hiring"
         required
-        helperText="Describe risks, delivery impact, or lost revenue if the position remains unfilled."
         multiline
         minRows={3}
         value={form.impact_of_not_hiring}
@@ -247,7 +242,7 @@ export default function JobCreateEditPage() {
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           {isEdit
             ? 'Update job posting details.'
-            : 'Submit the job requisition for hiring manager approval. Approved requisitions become draft jobs. Configure requirements and the interview evaluation scorecard before posting them as open jobs.'}
+            : ''}
         </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? (

@@ -49,7 +49,7 @@ export default function CreateTeamMemberPage() {
           Create Team Member
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Create recruiter or interviewer accounts for your organization. The backend emails temporary credentials through the configured email backend.
+          Create recruiter or interviewer accounts for your organization.
         </Typography>
 
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
