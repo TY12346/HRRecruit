@@ -6,7 +6,7 @@ const recruiterLinks = [
   { icon: 'requisitions', label: 'Job Requisitions', to: '/recruiter/job-requisitions' },
   { icon: 'search', label: 'Applicant Search', to: '/recruiter/applicant-search' },
   { icon: 'interviews', label: 'Interviews', to: '/recruiter/interviews' },
-  { icon: 'recommendations', label: 'Recommendations', to: '/recruiter/jobs' },
+  { icon: 'recommendations', label: 'Recommendations', to: '/recruiter/hiring-recommendations' },
   { icon: 'offers', label: 'Offers', to: '/recruiter/job-offers' },
   { icon: 'reports', label: 'Analytics', to: '/recruiter/analytics' },
   { icon: 'notifications', label: 'Notifications', to: '/recruiter/notifications' },
