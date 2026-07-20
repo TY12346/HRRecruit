@@ -105,6 +105,32 @@ class BillingAPITests(APITestCase):
         self.assertEqual(len(invoice_response.data), 1)
         self.assertEqual(Payment.objects.get().status, Payment.Status.PAID)
 
+    def test_onboarding_status_requires_an_organization_and_selected_plan(self):
+        self.authenticate(self.hr_head)
+
+        before_selection = self.client.get(reverse('billing-onboarding-status'))
+        Subscription.objects.create(
+            organization=self.organization,
+            plan=self.basic_plan,
+            start_date=timezone.localdate(),
+            end_date=timezone.localdate() + timedelta(days=30),
+            status=Subscription.Status.ACTIVE,
+        )
+        after_selection = self.client.get(reverse('billing-onboarding-status'))
+
+        no_organization_head = User.objects.create_user(
+            email='new-head@example.com', password='StrongPass123!', full_name='New Hiring Manager', role=User.Role.HR_HEAD
+        )
+        self.authenticate(no_organization_head)
+        before_organization = self.client.get(reverse('billing-onboarding-status'))
+
+        self.assertEqual(before_selection.status_code, status.HTTP_200_OK)
+        self.assertEqual(before_selection.data, {'organization_created': True, 'subscription_selected': False})
+        self.assertEqual(after_selection.status_code, status.HTTP_200_OK)
+        self.assertEqual(after_selection.data, {'organization_created': True, 'subscription_selected': True})
+        self.assertEqual(before_organization.status_code, status.HTTP_200_OK)
+        self.assertEqual(before_organization.data, {'organization_created': False, 'subscription_selected': False})
+
     def test_hr_head_can_schedule_and_resume_subscription_cancellation(self):
         self.authenticate(self.hr_head)
         subscription = Subscription.objects.create(

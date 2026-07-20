@@ -84,6 +84,28 @@ class CurrentSubscriptionAPIView(BillingHiringManagerMixin, APIView):
         return Response(SubscriptionSerializer(subscription).data)
 
 
+class HiringManagerOnboardingStatusAPIView(APIView):
+    """Report the two required workspace-setup steps for the web portal."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != User.Role.HR_HEAD:
+            raise PermissionDenied('Only hiring managers have organization onboarding requirements.')
+
+        membership = get_active_hr_head_membership(request.user)
+        if not membership:
+            return Response({'organization_created': False, 'subscription_selected': False})
+
+        subscription_selected = get_active_subscription(membership.organization) is not None
+        return Response(
+            {
+                'organization_created': True,
+                'subscription_selected': subscription_selected,
+            }
+        )
+
+
 class CancelSubscriptionAPIView(BillingHiringManagerMixin, APIView):
     permission_classes = [IsAuthenticated]
 
