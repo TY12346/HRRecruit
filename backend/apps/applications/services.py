@@ -28,11 +28,15 @@ def screen_job_application(application, changed_by):
             ])
         raise
     is_qualified = screening_result['final_score'] >= SCREENING_THRESHOLD
-    new_status = JobApplication.Status.SCREENED_QUALIFIED if is_qualified else JobApplication.Status.REJECTED
+    new_status = (
+        JobApplication.Status.SCREENED_QUALIFIED
+        if is_qualified
+        else JobApplication.Status.SCREENED_NOT_QUALIFIED
+    )
     history_note = (
         'AI-assisted resume screening completed. Recruiter review is still required.'
         if is_qualified
-        else 'AI-assisted resume screening rejected this applicant due to underqualification.'
+        else 'AI-assisted resume screening found this applicant not qualified; recruiter review remains available.'
     )
 
     with transaction.atomic():

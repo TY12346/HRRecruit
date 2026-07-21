@@ -110,6 +110,40 @@ class JobApplicationAPITests(APITestCase):
         screen_job_application.assert_called_once_with(application, changed_by=None)
 
     @patch('apps.applications.views.screen_job_application')
+    def test_applicant_can_reapply_after_ai_screening_marks_application_not_qualified(self, screen_job_application):
+        self.attach_resume()
+        JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.SCREENED_NOT_QUALIFIED,
+        )
+        self.authenticate(self.applicant)
+        screen_job_application.side_effect = lambda application, changed_by: application
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(JobApplication.objects.filter(job=self.job, applicant=self.applicant).count(), 2)
+        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_can_reapply_after_recruiter_rejects_application(self, screen_job_application):
+        self.attach_resume()
+        JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.REJECTED,
+        )
+        self.authenticate(self.applicant)
+        screen_job_application.side_effect = lambda application, changed_by: application
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(JobApplication.objects.filter(job=self.job, applicant=self.applicant).count(), 2)
+        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+
+    @patch('apps.applications.views.screen_job_application')
     def test_applicant_can_choose_one_of_multiple_resumes_for_a_job(self, screen_job_application):
         default_resume = self.attach_resume(filename='backend.pdf', title='Backend resume')
         data_resume = self.attach_resume(filename='data.pdf', title='Data analyst resume', is_default=False)
@@ -859,7 +893,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
     @patch('apps.ai_services.resume_screening.build_ml_screening_result')
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=0.0)
-    def test_low_score_rejects_application_due_to_underqualification(self, _semantic_similarity, build_ml_screening_result):
+    def test_low_score_marks_application_not_qualified_for_recruiter_review(self, _semantic_similarity, build_ml_screening_result):
         build_ml_screening_result.return_value = self.trained_ml_result(42.0, label='not_suitable')
         self.create_resume('High school graduate with Java experience.')
         self.create_screening_requirements()
@@ -870,11 +904,11 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.REJECTED)
+        self.assertEqual(application.status, JobApplication.Status.SCREENED_NOT_QUALIFIED)
         self.assertEqual(float(application.final_score), 42.0)
         history = application.stage_history.get()
-        self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
-        self.assertIn('underqualification', history.note)
+        self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_NOT_QUALIFIED)
+        self.assertIn('recruiter review', history.note)
 
     def test_score_explanation_contains_nested_required_sections_for_not_qualified_screening(self):
         self.create_resume('High school graduate with Java experience.')

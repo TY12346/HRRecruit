@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import Q
 
 from apps.jobs.models import JobPosting
 from apps.users.models import ApplicantResume, User
@@ -74,6 +75,10 @@ class JobApplication(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['applicant', 'job'],
+                condition=~Q(status__in=[
+                    'screened_not_qualified',
+                    'rejected',
+                ]),
                 name='unique_job_application',
             ),
         ]
