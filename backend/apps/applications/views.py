@@ -1,5 +1,7 @@
 """Role-protected and organization-isolated job application APIs."""
 
+from datetime import timedelta
+
 from django.db import transaction
 from django.http import FileResponse
 from django.db.models import F, Q
@@ -359,6 +361,8 @@ def ensure_application_viewer_role(user):
 class JobApplyAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    REAPPLICATION_WAIT_DAYS = 30
+
     def post(self, request, job_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can apply for jobs.')
@@ -375,17 +379,37 @@ class JobApplyAPIView(APIView):
 
         try:
             with transaction.atomic():
-                active_application = JobApplication.objects.select_for_update().filter(
+                previous_applications = JobApplication.objects.select_for_update().filter(
                     job=job,
                     applicant=request.user,
-                ).exclude(
+                )
+                active_application = previous_applications.exclude(
                     status__in=(
                         JobApplication.Status.SCREENED_NOT_QUALIFIED,
                         JobApplication.Status.REJECTED,
                     ),
+                ).order_by('-applied_at', '-id').first()
+                previous_application = active_application or previous_applications.order_by(
+                    '-applied_at', '-id',
                 ).first()
-                if active_application:
-                    raise ValidationError({'job': 'You have already applied for this job.'})
+                if previous_application:
+                    reapplication_allowed_at = previous_application.applied_at + timedelta(
+                        days=self.REAPPLICATION_WAIT_DAYS,
+                    )
+                    may_reapply_after_wait = active_application is None
+                    if not may_reapply_after_wait or timezone.now() < reapplication_allowed_at:
+                        raise ValidationError({
+                            'job': (
+                                'You have already applied for this job.'
+                                if not may_reapply_after_wait
+                                else 'You may apply again 30 days after your previous application.'
+                            ),
+                            'applied_at': previous_application.applied_at.date().isoformat(),
+                            **(
+                                {'reapplication_allowed_at': reapplication_allowed_at.date().isoformat()}
+                                if may_reapply_after_wait else {}
+                            ),
+                        })
                 application = JobApplication.objects.create(
                     job=job,
                     applicant=request.user,
