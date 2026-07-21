@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
+import {Box, Button, Paper, Stack, Typography } from '@mui/material';
+import Alert from './components/TimedAlert.jsx';
 
 export default class AppErrorBoundary extends Component {
   constructor(props) {

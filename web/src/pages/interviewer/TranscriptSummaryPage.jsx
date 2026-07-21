@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { useLocation, useParams } from 'react-router-dom';
 import { generateTranscriptSummary, getInterview, transcribeRecording, uploadInterviewRecording } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, CircularProgress, Grid, Paper, Stack, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { useNavigate } from 'react-router-dom';
 import { completeDemoPayment, getBillingPlans, subscribeToPlan } from '../../api/client.js';
 import { formatCurrency, getApiErrorMessage, titleize } from './hiringManagerUtils.js';

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createInterviewEvaluationScorecard, getJob } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';

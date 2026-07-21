@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './interviewerUtils.js';

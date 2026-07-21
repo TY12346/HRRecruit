@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { Box, Button, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink } from 'react-router-dom';
 import { deleteJob, getJobs } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';

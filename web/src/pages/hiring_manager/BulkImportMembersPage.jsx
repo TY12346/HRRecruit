@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { Alert, Box, Button, List, ListItem, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, List, ListItem, Paper, Stack, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink } from 'react-router-dom';
 import { bulkImportOrganizationMembers } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';

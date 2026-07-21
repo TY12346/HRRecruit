@@ -10,7 +10,7 @@ import {
   Tooltip,
 } from 'chart.js';
 import {
-  Alert,
+
   Box,
   Button,
   Card,
@@ -26,6 +26,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { downloadAnalyticsReportPdf, getRecruiterAnalytics } from '../../api/client.js';
 import {
   barChartOptions,

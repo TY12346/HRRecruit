@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { useParams } from 'react-router-dom';
 import { getJobApplicantComparison, submitJobHiringDecision } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';

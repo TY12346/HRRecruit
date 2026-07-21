@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Chip, CircularProgress, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { Box, Chip, CircularProgress, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { getJobHiringDecisions } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';

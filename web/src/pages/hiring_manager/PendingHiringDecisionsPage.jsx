@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { approveJobHiringDecision, getJobHiringDecisions, rejectJobHiringDecision } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
+
   Box,
   Button,
   Card,
@@ -10,6 +10,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';

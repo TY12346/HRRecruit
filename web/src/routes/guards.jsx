@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { Alert, Box, CircularProgress } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
+import Alert from '../components/TimedAlert.jsx';
 import { useEffect, useState } from 'react';
 import { getHiringManagerOnboardingStatus } from '../api/client.js';
 import { useAuthStore } from '../store/authStore.js';

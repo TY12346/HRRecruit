@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
+
   Box,
   Button,
   CircularProgress,
@@ -15,6 +15,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { useNavigate } from 'react-router-dom';
 import { createOrganization, deleteOrganization, getOrganization, updateOrganization } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';

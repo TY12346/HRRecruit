@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { createOrganizationMember } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';
