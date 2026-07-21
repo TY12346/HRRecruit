@@ -2,11 +2,11 @@
 
 ## Final recruitment workflow
 
-The final decision is made through a **job-level Hiring Recommendation**, not an applicant-level decision:
+The final decision is made through a **job-level Hiring Decision**, not an applicant-level decision:
 
-`Job open → applicants apply → AI screening/ranking → recruiter shortlists → recruiter closes application intake → interviews → evaluations → Ready for Hiring Recommendation → recruiter compares applicants and submits Recommend Hire or Recommend No Hire → Hiring Manager approves/rejects → recruiter sends approved offers → applicant accepts/declines`
+`Job open → applicants apply → AI screening/ranking → recruiter shortlists → recruiter closes application intake → interviews → evaluations → Ready for Hiring Decision → recruiter compares applicants and submits Recommend Hire or Recommend No Hire → Hiring Manager approves/rejects → recruiter sends approved offers → applicant accepts/declines`
 
-Closing application intake prevents new applications while preserving every existing application for interviews, evaluation, comparison, and human review. Recommend Hire may select up to the job's vacancy count. Recommend No Hire selects nobody and requires a justification. Applicants never see internal recommendation or HR review details and are notified only when an approved offer is actually sent.
+Closing application intake prevents new applications while preserving every existing application for interviews, evaluation, comparison, and human review. Recommend Hire may select up to the job's vacancy count. Recommend No Hire selects nobody and requires a justification. Applicants never see internal decision or HR review details and are notified only when an approved offer is actually sent.
 
 HRRecruit is a Final Year Project (FYP) recruitment management SaaS prototype. It combines a Django REST Framework backend, a React web portal, and a Flutter applicant mobile app to support the recruitment workflow from job posting to application screening, interviews, hiring approval, offers, notifications, analytics, and subscription demo flows.
 
@@ -28,7 +28,7 @@ HRRecruit addresses this by providing one role-based platform where:
 | Role | Main Responsibilities |
 | --- | --- |
 | Hiring Manager | Manage organization profile, team members, pending hiring approvals, analytics, reports, and billing/subscription status. |
-| Recruiter | Create and manage jobs, configure requirements and evaluation scorecards, review automatically screened applications, rank applicants, assign interviewers, submit hiring recommendations, and create job offers. |
+| Recruiter | Create and manage jobs, configure requirements and evaluation scorecards, review automatically screened applications, rank applicants, assign interviewers, submit hiring decisions, and create job offers. |
 | Interviewer | View assigned interviews/applicants, send or review invitations, upload interview recordings, generate/review transcripts and AI summaries, and submit evaluations. |
 | Applicant | Register/login through the mobile workflow, manage profile/resume, browse and save jobs, apply, track application status, view notifications/interview invitations/offers, and accept or decline offers. |
 

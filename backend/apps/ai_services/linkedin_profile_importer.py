@@ -8,7 +8,7 @@ from .skill_extractor import extract_skill_labels
 SECTION_NAMES = (
     "about", "summary", "activity", "experience", "education",
     "licenses", "certifications", "licenses & certifications",
-    "licenses and certifications", "skills", "top skills", "recommendations",
+    "licenses and certifications", "skills", "top skills", "decisions",
 )
 MONTHS = (
     "January", "February", "March", "April", "May", "June",

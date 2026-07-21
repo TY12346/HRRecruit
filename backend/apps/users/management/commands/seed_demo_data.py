@@ -472,7 +472,7 @@ class Command(BaseCommand):
                 ),
                 'status': HiringDecision.Status.APPROVED,
                 'hr_head': users[User.Role.HR_HEAD],
-                'hr_head_justification': 'Approved for demo offer after reviewing recruiter recommendation and interview evidence.',
+                'hr_head_justification': 'Approved for demo offer after reviewing recruiter decision and interview evidence.',
                 'reviewed_at': timezone.now(),
             },
         )
@@ -504,7 +504,7 @@ class Command(BaseCommand):
             (users[User.Role.APPLICANT], 'application_status', 'Application shortlisted', 'Your demo Software Engineer application was shortlisted.', 'JobApplication', application.id),
             (users[User.Role.APPLICANT], 'interview_scheduled', 'Interview scheduled', 'Your demo interview has been scheduled.', 'Interview', interview.id),
             (users[User.Role.APPLICANT], 'job_offer', 'Demo job offer accepted', 'Your fake demo job offer has been accepted.', 'JobOffer', application.job_offers.first().id),
-            (users[User.Role.RECRUITER], 'hiring_decision_update', 'Hiring manager approved recommendation', 'The hiring manager approved the demo hiring recommendation.', 'HiringDecision', application.hiring_decisions.first().id),
+            (users[User.Role.RECRUITER], 'hiring_decision_update', 'Hiring manager approved decision', 'The hiring manager approved the demo hiring decision.', 'HiringDecision', application.hiring_decisions.first().id),
             (users[User.Role.HR_HEAD], 'hiring_decision_update', 'Offer accepted', 'The applicant accepted the fake demo offer.', 'JobApplication', application.id),
         ]
         for recipient, notification_type, title, message, entity_type, entity_id in notifications:

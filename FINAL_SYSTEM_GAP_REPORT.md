@@ -29,7 +29,7 @@ The system has substantial coverage for the FYP demo: Django REST APIs are role 
 
 However, several gaps can block or weaken a final FYP demonstration:
 
-- The hiring decision API and React hiring screen allow recruiters to submit a hire/reject recommendation for applications that have not completed the interview/evaluation stage.
+- The hiring decision API and React hiring screen allow recruiters to submit a hire/reject decision for applications that have not completed the interview/evaluation stage.
 - Accepting a job offer does not transition the application to `hired`, so the end-to-end hiring lifecycle and hire analytics remain incomplete.
 - There is no web/mobile password reset UI even though backend OTP reset endpoints exist.
 - hiring manager account bootstrap is not exposed as a normal product flow; the demo needs an admin/superuser/manual seed step.
@@ -40,7 +40,7 @@ However, several gaps can block or weaken a final FYP demonstration:
 
 ### GAP-001: Recruiters can submit hiring decisions before interview evaluation is complete
 
-- **Issue description:** `HiringDecisionSubmitAPIView` blocks only terminal statuses such as withdrawn/rejected/offered/hired, but it does not require `EVALUATION_SUBMITTED` or another post-interview status before allowing a recruiter to submit a hire/reject recommendation. The React hiring decision page also loads all applications and does not filter to evaluated applicants.
+- **Issue description:** `HiringDecisionSubmitAPIView` blocks only terminal statuses such as withdrawn/rejected/offered/hired, but it does not require `EVALUATION_SUBMITTED` or another post-interview status before allowing a recruiter to submit a hire/reject decision. The React hiring decision page also loads all applications and does not filter to evaluated applicants.
 - **Affected files:**
   - `backend/apps/hiring/views.py`
   - `web/src/pages/recruiter/HiringDecisionPage.jsx`
