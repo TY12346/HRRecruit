@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Grid, List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Chip, CircularProgress, Grid, List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { closeJobApplicationIntake, getJob, getJobApplicantComparison, getRankedApplicants } from '../../api/client.js';
 import { formatJobDescriptionText } from '../../utils/jobDescriptionFormatting.js';

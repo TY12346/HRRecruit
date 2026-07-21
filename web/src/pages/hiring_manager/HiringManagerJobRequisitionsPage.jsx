@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
+
   Box,
   Button,
   Chip,
@@ -19,6 +19,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { approveJobRequisition, getJobRequisitions, rejectJobRequisition } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './hiringManagerUtils.js';

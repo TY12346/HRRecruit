@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
+
   Box,
   Button,
   Chip,
@@ -17,6 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink } from 'react-router-dom';
 import { getApplications, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';

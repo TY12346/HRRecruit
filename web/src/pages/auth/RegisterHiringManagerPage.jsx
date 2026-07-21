@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Alert,
+
   Box,
   Button,
   Link as MuiLink,
@@ -9,6 +9,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { registerHiringManager } from '../../api/client.js';
 import { useAuthStore } from '../../store/authStore.js';

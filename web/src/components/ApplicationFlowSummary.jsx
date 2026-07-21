@@ -1,4 +1,5 @@
-import { Alert, Box, Chip, Stack, Typography } from '@mui/material';
+import {Box, Chip, Stack, Typography } from '@mui/material';
+import Alert from './TimedAlert.jsx';
 import { APPLICATION_PHASES, getApplicationPhaseIndex, getApplicationStatusInfo } from '../utils/recruitmentFlow.js';
 
 export default function ApplicationFlowSummary({ status, role = 'recruiter', compact = false }) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { completeGoogleCalendarOAuth } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';

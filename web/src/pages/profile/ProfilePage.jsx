@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Chip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Chip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { changePassword, deleteResume, getProfile, updateProfile, updateResume, uploadResume } from '../../api/client.js';
 import { useAuthStore } from '../../store/authStore.js';
 

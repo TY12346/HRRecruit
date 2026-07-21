@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
+
   Box,
   Button,
   Card,
@@ -19,6 +19,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import {
   cancelSubscription,
   completeDemoPayment,

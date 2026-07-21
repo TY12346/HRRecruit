@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
+
   Box,
   Button,
   Card,
@@ -13,6 +13,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink } from 'react-router-dom';
 import { getInterviewEvaluationDetail, getInterviews } from '../../api/client.js';
 import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';

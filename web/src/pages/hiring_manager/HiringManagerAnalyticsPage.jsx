@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Tooltip } from 'chart.js';
 import {
-  Alert,
+
   Box,
   Button,
   Card,
@@ -17,6 +17,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { downloadAnalyticsReportPdf, getOrganizationAnalyticsOverview } from '../../api/client.js';
 import {
   barChartOptions,

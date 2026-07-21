@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import {
   createInterviewerAvailabilityPattern,
   createInterviewerUnavailableDate,

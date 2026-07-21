@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Link as MuiLink, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Link as MuiLink, Paper, Stack, TextField, Typography } from '@mui/material';
+import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink } from 'react-router-dom';
 import { requestPasswordReset } from '../../api/client.js';
 
