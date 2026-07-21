@@ -7,6 +7,8 @@ class JobApplication {
     required this.status,
     required this.recruiterRemark,
     required this.finalScore,
+    required this.resumeTitle,
+    required this.resumeUrl,
     required this.appliedAt,
     required this.updatedAt,
   });
@@ -18,6 +20,8 @@ class JobApplication {
   final String status;
   final String recruiterRemark;
   final double? finalScore;
+  final String resumeTitle;
+  final String? resumeUrl;
   final DateTime? appliedAt;
   final DateTime? updatedAt;
 
@@ -32,10 +36,23 @@ class JobApplication {
       status: json['status'] as String? ?? '',
       recruiterRemark: json['recruiter_remark'] as String? ?? '',
       finalScore: _asNullableDouble(json['final_score']),
+      resumeTitle: _resumeValue(json, 'title'),
+      resumeUrl: _nullableResumeValue(json, 'resume_url'),
       appliedAt: _asDateTime(json['applied_at']),
       updatedAt: _asDateTime(json['updated_at']),
     );
   }
+}
+
+String _resumeValue(Map<String, dynamic> json, String key) {
+  final resume = json['selected_resume'];
+  if (resume is! Map<String, dynamic>) return '';
+  return resume[key] as String? ?? '';
+}
+
+String? _nullableResumeValue(Map<String, dynamic> json, String key) {
+  final value = _resumeValue(json, key).trim();
+  return value.isEmpty ? null : value;
 }
 
 class ApplicationStageHistory {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../api/api_client.dart';
 import '../../models/job_application.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
@@ -67,6 +69,25 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       showErrorSnackBar(context, error);
     } finally {
       if (mounted) setState(() => _isWithdrawing = false);
+    }
+  }
+
+  Future<void> _viewApplicationResume(JobApplication application) async {
+    final resumeUrl = application.resumeUrl;
+    if (resumeUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('The resume used for this application is not available.')),
+      );
+      return;
+    }
+
+    try {
+      final resumeUri = await context.read<ApiClient>().resolveBackendFileUri(resumeUrl);
+      final opened = await launchUrl(resumeUri, mode: LaunchMode.externalApplication);
+      if (!opened) throw Exception('Unable to open the application resume.');
+    } catch (error) {
+      if (!mounted) return;
+      showErrorSnackBar(context, error);
     }
   }
 
@@ -139,6 +160,18 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     ),
                   ],
                 ),
+                if (application.resumeUrl != null) ...[
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: () => _viewApplicationResume(application),
+                    icon: const Icon(Icons.description_outlined),
+                    label: Text(
+                      application.resumeTitle.isEmpty
+                          ? 'View resume used for this application'
+                          : 'View resume: ${application.resumeTitle}',
+                    ),
+                  ),
+                ],
                 if (application.recruiterRemark.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Text(

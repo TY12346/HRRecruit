@@ -8,8 +8,14 @@ from .models import ApplicationStageHistory, JobApplication
 
 
 def build_resume_payload(application, context=None):
+    snapshot_resume = getattr(application, 'application_resume', None)
     selected_resume = getattr(application, 'resume', None)
-    if selected_resume and selected_resume.resume_file:
+    if snapshot_resume:
+        resume_file = snapshot_resume
+        resume_id = selected_resume.id if selected_resume else None
+        resume_title = application.application_resume_name or resume_file.name.split('/')[-1]
+        is_default = selected_resume.is_default if selected_resume else False
+    elif selected_resume and selected_resume.resume_file:
         resume_file = selected_resume.resume_file
         resume_id = selected_resume.id
         resume_title = selected_resume.title

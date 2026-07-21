@@ -160,6 +160,8 @@ def build_resume_screening(application):
 
 
 def get_application_resume_file(application):
+    if getattr(application, 'application_resume', None):
+        return application.application_resume
     if getattr(application, 'resume_id', None) and application.resume and application.resume.resume_file:
         return application.resume.resume_file
     return application.applicant.applicant_profile.resume_file

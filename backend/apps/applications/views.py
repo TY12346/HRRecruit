@@ -1,7 +1,9 @@
 """Role-protected and organization-isolated job application APIs."""
 
 from datetime import timedelta
+from os.path import basename
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import FileResponse
 from django.db.models import F, Q
@@ -37,6 +39,8 @@ from .services import screen_job_application
 
 
 def get_application_resume_file(application):
+    if application.application_resume:
+        return application.application_resume
     if getattr(application, 'resume_id', None) and application.resume and application.resume.resume_file:
         return application.resume.resume_file
     applicant_profile = getattr(application.applicant, 'applicant_profile', None)
@@ -53,6 +57,18 @@ def select_applicant_resume(applicant, resume_id=None):
         applicant.resumes.filter(is_default=True).first()
         or applicant.resumes.order_by('-uploaded_at', '-id').first()
     )
+
+
+def save_application_resume_snapshot(application, resume_file):
+    """Persist the exact resume file supplied with an application."""
+    filename = basename(resume_file.name) or 'resume'
+    resume_file.open('rb')
+    try:
+        application.application_resume.save(filename, ContentFile(resume_file.read()), save=False)
+    finally:
+        resume_file.close()
+    application.application_resume_name = filename
+    application.save(update_fields=['application_resume', 'application_resume_name', 'updated_at'])
 
 
 def get_active_membership(user, role):
@@ -415,6 +431,10 @@ class JobApplyAPIView(APIView):
                     applicant=request.user,
                     resume=selected_resume,
                 )
+                source_resume_file = (
+                    selected_resume.resume_file if selected_resume else legacy_resume_file
+                )
+                save_application_resume_snapshot(application, source_resume_file)
             application = screen_job_application(application, changed_by=None)
         except ResumeContentValidationError as exc:
             return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
