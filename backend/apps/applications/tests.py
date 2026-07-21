@@ -1,4 +1,5 @@
 from io import BytesIO
+from datetime import timedelta
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
@@ -106,13 +107,34 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
         application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
         self.assertIsNotNone(application.resume_id)
+        self.assertTrue(application.application_resume.name.startswith('application_resumes/'))
+        self.assertEqual(application.application_resume_name, 'resume.pdf')
         self.assertEqual(response.data['selected_resume']['title'], 'General resume')
         screen_job_application.assert_called_once_with(application, changed_by=None)
 
     @patch('apps.applications.views.screen_job_application')
-    def test_applicant_can_reapply_after_ai_screening_marks_application_not_qualified(self, screen_job_application):
+    def test_application_keeps_a_resume_snapshot_after_the_source_resume_is_deleted(self, screen_job_application):
+        resume = self.attach_resume()
+        self.authenticate(self.applicant)
+        screen_job_application.side_effect = lambda application, changed_by: application
+
+        apply_response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(apply_response.status_code, status.HTTP_201_CREATED)
+        application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
+        snapshot_name = application.application_resume.name
+        resume.resume_file.delete(save=False)
+
+        response = self.client.get(reverse('application-resume', args=[application.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(application.application_resume.name, snapshot_name)
+        self.assertGreater(len(b''.join(response.streaming_content)), 0)
+
+    @patch('apps.applications.views.screen_job_application')
+    def test_applicant_cannot_reapply_within_30_days_after_ai_screening_marks_application_not_qualified(self, screen_job_application):
         self.attach_resume()
-        JobApplication.objects.create(
+        application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
             status=JobApplication.Status.SCREENED_NOT_QUALIFIED,
@@ -122,17 +144,25 @@ class JobApplicationAPITests(APITestCase):
 
         response = self.client.post(reverse('job-apply', args=[self.job.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        self.assertEqual(JobApplication.objects.filter(job=self.job, applicant=self.applicant).count(), 2)
-        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['applied_at'], application.applied_at.date().isoformat())
+        self.assertEqual(
+            response.data['reapplication_allowed_at'],
+            (application.applied_at + timedelta(days=30)).date().isoformat(),
+        )
+        self.assertEqual(JobApplication.objects.filter(job=self.job, applicant=self.applicant).count(), 1)
+        screen_job_application.assert_not_called()
 
     @patch('apps.applications.views.screen_job_application')
-    def test_applicant_can_reapply_after_recruiter_rejects_application(self, screen_job_application):
+    def test_applicant_can_reapply_30_days_after_recruiter_rejects_application(self, screen_job_application):
         self.attach_resume()
-        JobApplication.objects.create(
+        application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
             status=JobApplication.Status.REJECTED,
+        )
+        JobApplication.objects.filter(id=application.id).update(
+            applied_at=timezone.now() - timedelta(days=30),
         )
         self.authenticate(self.applicant)
         screen_job_application.side_effect = lambda application, changed_by: application

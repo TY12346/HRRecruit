@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../controllers/auth_controller.dart';
 import '../../models/applicant_profile.dart';
+import '../../models/job_application.dart';
 import '../../models/job_posting.dart';
 import '../../services/job_discovery_service.dart';
 import '../auth_form_helpers.dart';
@@ -21,6 +22,7 @@ class JobDetailScreen extends StatefulWidget {
 
 class _JobDetailScreenState extends State<JobDetailScreen> {
   late Future<JobPosting> _jobFuture;
+  late Future<List<JobApplication>> _applicationsFuture;
   bool _isSaving = false;
   bool _isApplying = false;
 
@@ -28,15 +30,21 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   void initState() {
     super.initState();
     _jobFuture = _loadJob();
+    _applicationsFuture = _loadApplications();
   }
 
   Future<JobPosting> _loadJob() {
     return context.read<JobDiscoveryService>().getJob(widget.jobId);
   }
 
+  Future<List<JobApplication>> _loadApplications() {
+    return context.read<JobDiscoveryService>().getApplications();
+  }
+
   void _refresh() {
     setState(() {
       _jobFuture = _loadJob();
+      _applicationsFuture = _loadApplications();
     });
   }
 
@@ -160,6 +168,40 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     return resume.resumeFile.split('/').last;
   }
 
+  JobApplication? _latestApplicationFor(
+    List<JobApplication> applications,
+    int jobId,
+  ) {
+    final matching = applications.where((application) => application.jobId == jobId);
+    if (matching.isEmpty) return null;
+    return matching.reduce((latest, application) {
+      final latestDate = latest.appliedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final applicationDate = application.appliedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return applicationDate.isAfter(latestDate) ? application : latest;
+    });
+  }
+
+  bool _canApplyAgain(JobApplication? application) {
+    if (application == null) return true;
+    if (application.status != 'screened_not_qualified' &&
+        application.status != 'rejected') {
+      return false;
+    }
+    final appliedAt = application.appliedAt;
+    if (appliedAt == null) return false;
+    return !DateTime.now().isBefore(appliedAt.toLocal().add(const Duration(days: 30)));
+  }
+
+  String _applicationDateLabel(DateTime? date) {
+    if (date == null) return 'an earlier date';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final local = date.toLocal();
+    return '${local.day} ${months[local.month - 1]} ${local.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppBackScope(
@@ -223,12 +265,40 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _isApplying || job.status != 'open'
-                            ? null
-                            : () => _apply(job),
-                        icon: const Icon(Icons.send_outlined),
-                        label: Text(_isApplying ? 'Applying...' : 'Apply'),
+                      child: FutureBuilder<List<JobApplication>>(
+                        future: _applicationsFuture,
+                        builder: (context, applicationSnapshot) {
+                          final application = _latestApplicationFor(
+                            applicationSnapshot.data ?? const <JobApplication>[],
+                            job.id,
+                          );
+                          final canApply = _canApplyAgain(application);
+                          if (application != null && !canApply) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: null,
+                                  icon: const Icon(Icons.check_circle_outline),
+                                  label: const Text('Applied'),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'You applied on ${_applicationDateLabel(application.appliedAt)}.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            );
+                          }
+                          return FilledButton.icon(
+                            onPressed: _isApplying || job.status != 'open'
+                                ? null
+                                : () => _apply(job),
+                            icon: const Icon(Icons.send_outlined),
+                            label: Text(_isApplying ? 'Applying...' : 'Apply'),
+                          );
+                        },
                       ),
                     ),
                   ],

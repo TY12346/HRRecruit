@@ -46,6 +46,12 @@ class JobApplication(models.Model):
         blank=True,
         null=True,
     )
+    application_resume = models.FileField(
+        upload_to='application_resumes/',
+        blank=True,
+        null=True,
+    )
+    application_resume_name = models.CharField(max_length=255, blank=True)
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.SUBMITTED)
     recruiter_remark = models.TextField(blank=True)
     assigned_interviewer = models.ForeignKey(
