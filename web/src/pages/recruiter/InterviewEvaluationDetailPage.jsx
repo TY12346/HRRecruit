@@ -92,7 +92,7 @@ export default function InterviewEvaluationDetailPage() {
                   </Box>
                   <Stack direction="row" spacing={1}>
                     <Button onClick={() => openDetail(interview)} variant="outlined">View evaluations</Button>
-                    <Button component={RouterLink} to={`/recruiter/jobs/${interview.application?.job}/hiring-recommendation`}>Job recommendation</Button>
+                    <Button component={RouterLink} to={`/recruiter/jobs/${interview.application?.job}/hiring-decision`}>Job decision</Button>
                   </Stack>
                 </Stack>
               </CardContent>

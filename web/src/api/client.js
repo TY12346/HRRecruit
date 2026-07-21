@@ -310,10 +310,10 @@ export const updateJob = async (jobId, job) => {
 
 export const closeJobApplicationIntake = async (jobId) => (await apiClient.post(`/jobs/${jobId}/close-intake/`)).data;
 export const getJobApplicantComparison = async (jobId) => (await apiClient.get(`/jobs/${jobId}/applicant-comparison/`)).data;
-export const submitJobHiringRecommendation = async (payload) => (await apiClient.post('/job-hiring-recommendations/', payload)).data;
-export const getJobHiringRecommendations = async (params = {}) => (await apiClient.get('/job-hiring-recommendations/', { params })).data;
-export const approveJobHiringRecommendation = async (id, hr_remarks) => (await apiClient.post(`/job-hiring-recommendations/${id}/approve/`, { hr_remarks })).data;
-export const rejectJobHiringRecommendation = async (id, hr_remarks) => (await apiClient.post(`/job-hiring-recommendations/${id}/reject/`, { hr_remarks })).data;
+export const submitJobHiringDecision = async (payload) => (await apiClient.post('/job-hiring-decisions/', payload)).data;
+export const getJobHiringDecisions = async (params = {}) => (await apiClient.get('/job-hiring-decisions/', { params })).data;
+export const approveJobHiringDecision = async (id, hr_remarks) => (await apiClient.post(`/job-hiring-decisions/${id}/approve/`, { hr_remarks })).data;
+export const rejectJobHiringDecision = async (id, hr_remarks) => (await apiClient.post(`/job-hiring-decisions/${id}/reject/`, { hr_remarks })).data;
 
 export const deleteJob = async (jobId) => {
   const response = await apiClient.delete(`/jobs/${jobId}/`);

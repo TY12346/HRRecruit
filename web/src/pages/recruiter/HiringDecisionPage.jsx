@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
-import { getJobApplicantComparison, submitJobHiringRecommendation } from '../../api/client.js';
+import { getJobApplicantComparison, submitJobHiringDecision } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 
@@ -18,20 +18,20 @@ export default function HiringDecisionPage() {
   const submit = async () => {
     setError('');
     try {
-      const result = await submitJobHiringRecommendation({ job_posting: Number(jobId), recommendation_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
-      setSuccess(`Hiring Recommendation #${result.id} submitted. Status: Pending HR Approval.`);
-    } catch (err) { setError(getApiErrorMessage(err, 'Unable to submit hiring recommendation.')); }
+      const result = await submitJobHiringDecision({ job_posting: Number(jobId), decision_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
+      setSuccess(`Hiring Decision #${result.id} submitted. Status: Pending HR Approval.`);
+    } catch (err) { setError(getApiErrorMessage(err, 'Unable to submit hiring decision.')); }
   };
   return <Box><RecruiterNav /><Paper sx={{ p: 3 }}><Stack spacing={2}>
-    <Typography variant="h5" sx={{ fontWeight: 700 }}>Job-level Hiring Recommendation</Typography>
+    <Typography variant="h5" sx={{ fontWeight: 700 }}>Job-level Hiring Decision</Typography>
     <Typography color="text.secondary">Compare every applicant for this job. AI and interview evidence support, but do not replace, the human decision.</Typography>
     {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}
     {!data ? <CircularProgress /> : <>
       <Typography><strong>{data.job.title}</strong> • {data.job.vacancies} vacancy/vacancies • {titleize(data.job.status)}</Typography>
-      {!data.readiness.ready ? <Alert severity="warning">Not ready: {data.readiness.reasons.join(' ')}</Alert> : <Alert severity="success">Ready for Hiring Recommendation.</Alert>}
+      {!data.readiness.ready ? <Alert severity="warning">Not ready: {data.readiness.reasons.join(' ')}</Alert> : <Alert severity="success">Ready for Hiring Decision.</Alert>}
       <Table><TableHead><TableRow><TableCell>Select</TableCell><TableCell>Applicant</TableCell><TableCell>Application</TableCell><TableCell>AI score</TableCell><TableCell>Interview / evaluation</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
         {data.applicants.map((applicant) => <TableRow key={applicant.application_id}>
-          <TableCell><Checkbox checked={selected.includes(applicant.application_id)} disabled={noHire || !applicant.eligible_for_recommendation || (!selected.includes(applicant.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(applicant.application_id)} /></TableCell>
+          <TableCell><Checkbox checked={selected.includes(applicant.application_id)} disabled={noHire || !applicant.eligible_for_decision || (!selected.includes(applicant.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(applicant.application_id)} /></TableCell>
           <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.recruiter_remark || 'No recruiter remarks'}</Typography></TableCell>
           <TableCell><Chip size="small" label={titleize(applicant.application_status)} /></TableCell><TableCell>{scoreText(applicant.ai_resume_score)}</TableCell>
           <TableCell>{applicant.interview_statuses.map(titleize).join(', ') || 'No interview'} / {titleize(applicant.evaluation_status)}<Typography variant="caption" display="block">{applicant.evaluation_score ?? 'No evaluation score'} {applicant.evaluation_summary}</Typography></TableCell>

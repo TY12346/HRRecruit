@@ -168,7 +168,7 @@ flutter run
 | Checklist item | Status | How to verify | Related file, endpoint, command, or screen | Notes / limitations |
 |---|---|---|---|---|
 | Recruiter can only submit hiring decision after evaluation is complete | Complete | Try submitting before and after `evaluation_submitted`. | `POST /api/applications/<id>/hiring-decision/`, `backend/apps/hiring/views.py` | Backend gate requires evaluation-submitted status. |
-| Recruiter can recommend hire/reject | Complete | Submit recommendation as recruiter. | `POST /api/applications/<id>/hiring-decision/` | Decision remains pending hiring manager approval. |
+| Recruiter can recommend hire/reject | Complete | Submit decision as recruiter. | `POST /api/applications/<id>/hiring-decision/` | Decision remains pending hiring manager approval. |
 | hiring manager can approve/reject hiring decision | Complete | Log in as hiring manager and review pending decision. | `POST /api/hiring-decisions/<id>/approve/`, `POST /api/hiring-decisions/<id>/reject/` | Organization-scoped. |
 | Application status updates correctly | Complete | Inspect status and stage history after decisions. | `GET /api/applications/<id>/status-history/` | Hire approval moves to HR-approved; offer acceptance moves to hired. |
 | HR rejection notification behavior is documented | Partial | Review docs and test HR rejection path. | `KNOWN_LIMITATIONS.md`, `backend/apps/hiring/views.py` | HR rejection notifies recruiter; applicant-facing HR rejection notification remains a limitation unless business meaning is clarified. |
