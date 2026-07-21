@@ -374,13 +374,23 @@ class JobApplyAPIView(APIView):
             raise ValidationError({'resume_file': 'Upload a resume before applying so AI screening can run immediately.'})
 
         try:
-            application, created = JobApplication.objects.get_or_create(
-                job=job,
-                applicant=request.user,
-                defaults={'resume': selected_resume},
-            )
-            if not created:
-                raise ValidationError({'job': 'You have already applied for this job.'})
+            with transaction.atomic():
+                active_application = JobApplication.objects.select_for_update().filter(
+                    job=job,
+                    applicant=request.user,
+                ).exclude(
+                    status__in=(
+                        JobApplication.Status.SCREENED_NOT_QUALIFIED,
+                        JobApplication.Status.REJECTED,
+                    ),
+                ).first()
+                if active_application:
+                    raise ValidationError({'job': 'You have already applied for this job.'})
+                application = JobApplication.objects.create(
+                    job=job,
+                    applicant=request.user,
+                    resume=selected_resume,
+                )
             application = screen_job_application(application, changed_by=None)
         except ResumeContentValidationError as exc:
             return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
