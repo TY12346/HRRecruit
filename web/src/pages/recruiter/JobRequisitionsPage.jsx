@@ -60,9 +60,6 @@ export default function JobRequisitionsPage() {
             <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
               Job Requisitions
             </Typography>
-            <Typography color="text.secondary">
-              Track submitted job requisitions and their hiring manager approval status.
-            </Typography>
           </Box>
           <Button component={RouterLink} to="/recruiter/jobs/create" variant="contained">
             Create requisition

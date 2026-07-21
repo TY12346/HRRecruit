@@ -62,9 +62,6 @@ export default function JobRequirementsPage() {
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Job requirements</Typography>
-        <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Configure requirements using recruiter-friendly priority labels. HRRecruit still stores the numeric values needed by AI screening behind the scenes.
-        </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         <Box component="form" onSubmit={save}>
@@ -94,7 +91,6 @@ export default function JobRequirementsPage() {
                     <TextField
                       label="Importance"
                       select
-                      helperText="Choose priority instead of a raw numeric weight."
                       value={req.importance_level}
                       onChange={(event) => update(index, 'importance_level', event.target.value)}
                     >
@@ -105,9 +101,6 @@ export default function JobRequirementsPage() {
                       ))}
                     </TextField>
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    AI scoring weight: {req.weight_score}.
-                  </Typography>
                   <Button
                     color="error"
                     disabled={requirements.length === 1}

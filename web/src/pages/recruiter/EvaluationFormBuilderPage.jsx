@@ -67,9 +67,6 @@ export default function EvaluationFormBuilderPage() {
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Evaluation scorecard builder</Typography>
-        <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Define interviewer scoring criteria using real-world competency importance labels. Existing scorecards are displayed read-only because the current backend supports creation once.
-        </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         <Box component="form" onSubmit={save}>
@@ -104,7 +101,6 @@ export default function EvaluationFormBuilderPage() {
                       disabled={Boolean(existing)}
                       label="Interview scoring importance"
                       select
-                      helperText="Choose how much this competency should influence the interviewer score."
                       value={criterion.importance_level}
                       onChange={(event) => update(index, 'importance_level', event.target.value)}
                     >
@@ -115,9 +111,6 @@ export default function EvaluationFormBuilderPage() {
                       ))}
                     </TextField>
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    Interview scoring value: weight {criterion.weight_score}.
-                  </Typography>
                   {!existing ? (
                     <Button
                       color="error"
@@ -136,7 +129,7 @@ export default function EvaluationFormBuilderPage() {
                   Add criterion
                 </Button>
               ) : null}
-              {!existing ? <Button type="submit" variant="contained">Create form</Button> : null}
+              {!existing ? <Button type="submit" variant="contained">Create</Button> : null}
               <Button onClick={() => navigate(`/recruiter/jobs/${jobId}`)}>Back to job</Button>
             </Stack>
           </Stack>
