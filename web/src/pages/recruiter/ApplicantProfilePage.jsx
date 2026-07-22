@@ -66,6 +66,11 @@ function ScreeningExplanationCard({ explainability }) {
             <Typography variant="body2" color="text.secondary">{explainability.fit.description}</Typography>
           </Box>
 
+          <Alert severity={explainability.qualificationDecision === 'qualified' ? 'success' : 'warning'}>
+            <strong>{explainability.qualificationDecision === 'qualified' ? 'Qualified' : 'Not qualified'}:</strong>{' '}
+            {explainability.qualificationReason || 'No qualification reason was stored.'}
+          </Alert>
+
           <Divider />
 
           {explainability.scoreComponents.map((component) => (
@@ -103,6 +108,10 @@ function ScreeningExplanationCard({ explainability }) {
               </Stack>
             </Grid>
           </Grid>
+
+          <Typography variant="caption" color="text.secondary">
+            Resume text: {explainability.resumeTextLength} characters · Detected skills: {explainability.detectedSkills.length}
+          </Typography>
 
           {explainability.positiveFactors.length || explainability.negativeFactors.length ? (
             <>

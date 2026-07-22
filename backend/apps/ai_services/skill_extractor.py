@@ -1,9 +1,8 @@
-"""spaCy skill extraction helpers with deterministic dictionary fallback."""
+"""spaCy skill extraction helpers."""
 
 from functools import lru_cache
 import importlib
 import importlib.util
-import re
 
 from apps.ai_services.exceptions import AIServiceUnavailable
 
@@ -33,6 +32,10 @@ SKILLS_DICTIONARY = {
     'python': ('python', 'py'),
     'react': ('react', 'react.js', 'reactjs'),
     'sales': ('sales',),
+    'salesforce': ('salesforce',),
+    'slack': ('slack',),
+    'square': ('square',),
+    'apple pay': ('apple pay',),
     'sales target management': ('sales target management', 'sales targets', 'target management'),
     'rest api': ('rest api', 'rest apis', 'restful api', 'restful apis'),
     'sql': ('sql',),
@@ -61,6 +64,10 @@ SKILL_DISPLAY_LABELS = {
     'python': 'Python',
     'react': 'React',
     'sales': 'Sales',
+    'salesforce': 'Salesforce',
+    'slack': 'Slack',
+    'square': 'Square',
+    'apple pay': 'Apple Pay',
     'sales target management': 'Sales Target Management',
     'rest api': 'REST API',
     'sql': 'SQL',
@@ -77,32 +84,13 @@ def normalize_text(text):
 def extract_skills(text, skills_dictionary=None):
     """Return stable lower-case/internal skill keys found in text.
 
-    The preferred path uses spaCy and PhraseMatcher. If spaCy or the
-    ``en_core_web_sm`` model is unavailable in a local/demo environment, the
-    deterministic dictionary matcher is used so applicant job applications do
-    not fail during resume screening.
+    Skill extraction requires spaCy and the configured language model.
     """
     normalized_text = normalize_text(text)
     dictionary = SKILLS_DICTIONARY if skills_dictionary is None else skills_dictionary
     if not dictionary:
         return []
-    try:
-        return sorted(_extract_skills_with_spacy(normalized_text, dictionary))
-    except AIServiceUnavailable:
-        return extract_skills_with_dictionary(normalized_text, dictionary, text_is_normalized=True)
-
-
-def extract_skills_with_dictionary(text, skills_dictionary=None, *, text_is_normalized=False):
-    """Return skill keys using dictionary/regex matching for non-AI utilities only."""
-    normalized_text = text if text_is_normalized else normalize_text(text)
-    dictionary = SKILLS_DICTIONARY if skills_dictionary is None else skills_dictionary
-
-    extracted_skills = {
-        skill
-        for skill, aliases in dictionary.items()
-        if any(_contains_alias(normalized_text, alias) for alias in aliases)
-    }
-    return sorted(extracted_skills)
+    return sorted(_extract_skills_with_spacy(normalized_text, dictionary))
 
 
 def extract_skill_labels(text, skills_dictionary=None):
@@ -182,12 +170,6 @@ def _match_id_to_skill_key(nlp, match_id):
         return nlp.vocab.strings[match_id]
     except (KeyError, TypeError):
         return str(match_id)
-
-
-def _contains_alias(normalized_text, alias):
-    normalized_alias = normalize_text(alias)
-    pattern = rf'(?<![a-z0-9]){re.escape(normalized_alias)}(?![a-z0-9])'
-    return bool(re.search(pattern, normalized_text))
 
 
 def _title_skill_label(skill_key):

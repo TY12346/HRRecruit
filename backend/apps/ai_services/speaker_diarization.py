@@ -1,8 +1,4 @@
-"""Optional speaker diarization helpers for interview transcription.
-
-Full diarization is intentionally optional for local FYP development. Install and
-configure pyannote.audio later to replace the safe not_configured fallback.
-"""
+"""Speaker diarization helpers for interview transcription."""
 
 from __future__ import annotations
 
@@ -76,48 +72,6 @@ def _format_diarization_error(exc):
     return f'Speaker diarization failed: {exc.__class__.__name__}'
 
 
-def _is_torchcodec_audio_read_error(exc):
-    message = str(exc).lower()
-    return 'torchcodec' in message and 'cannot read audio file' in message
-
-
-def _is_pyannote_sample_count_mismatch_error(exc):
-    """Return whether pyannote failed while cropping a decoded audio chunk.
-
-    Some uploaded interview files, especially compressed exports, can decode to
-    slightly fewer samples than pyannote expects for a timestamped chunk. In that
-    case pyannote raises a ValueError similar to "resulted in 439895 samples
-    instead of the expected 441000 samples". Retrying with a preloaded waveform
-    avoids pyannote's file-based chunk decoder for the same local file.
-    """
-    message = str(exc).lower()
-    return (
-        isinstance(exc, ValueError)
-        and 'requested chunk' in message
-        and 'samples instead of the expected' in message
-    )
-
-
-def _load_audio_waveform_with_whisper(audio_path):
-    """Load audio through Whisper/ffmpeg for pyannote when torchcodec cannot decode it."""
-    if importlib.util.find_spec('whisper') is None:
-        raise DiarizationUnavailable(
-            'Speaker diarization could not decode the audio because torchcodec is unavailable and openai-whisper is not installed for fallback audio loading.',
-            status=DIARIZATION_STATUS_UNAVAILABLE,
-        )
-    if importlib.util.find_spec('torch') is None:
-        raise DiarizationUnavailable(
-            'Speaker diarization could not decode the audio because torch is unavailable for waveform fallback.',
-            status=DIARIZATION_STATUS_UNAVAILABLE,
-        )
-
-    whisper = importlib.import_module('whisper')
-    torch = importlib.import_module('torch')
-    samples = whisper.load_audio(audio_path)
-    waveform = torch.as_tensor(samples, dtype=torch.float32).unsqueeze(0)
-    return {'waveform': waveform, 'sample_rate': 16000}
-
-
 def _normalize_speaker_id(speaker):
     speaker_text = str(speaker)
     if speaker_text.startswith('SPEAKER_'):
@@ -158,13 +112,7 @@ def _extract_speaker_turns(diarization):
 
 
 def _run_diarization_pipeline(pipeline, audio_path):
-    try:
-        return pipeline(audio_path)
-    except (RuntimeError, ValueError) as exc:
-        if not (_is_torchcodec_audio_read_error(exc) or _is_pyannote_sample_count_mismatch_error(exc)):
-            raise
-        waveform_input = _load_audio_waveform_with_whisper(audio_path)
-        return pipeline(waveform_input)
+    return pipeline(audio_path)
 
 
 def run_speaker_diarization(audio_file):

@@ -60,6 +60,7 @@ export function buildScreeningExplainability(profile = {}) {
   const positiveFactors = normalizeList(mlScreening.top_positive_factors ?? explanation.positive_factors);
   const negativeFactors = normalizeList(mlScreening.top_negative_factors ?? explanation.negative_factors);
   const notes = normalizeList(explanation.notes);
+  const debug = explanation.debug ?? {};
 
   return {
     finalScore,
@@ -77,5 +78,9 @@ export function buildScreeningExplainability(profile = {}) {
     mlSuitabilityScore: scoreNumber(mlScreening.ml_suitability_score),
     mlMatchLabel: mlScreening.ml_match_label,
     hybridFormula: explanation.hybrid_formula,
+    qualificationDecision: explanation.qualification_decision,
+    qualificationReason: explanation.qualification_reason,
+    resumeTextLength: Number(debug.extracted_resume_text_length ?? 0),
+    detectedSkills: normalizeList(debug.detected_skills),
   };
 }

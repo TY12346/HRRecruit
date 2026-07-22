@@ -6,7 +6,7 @@ from rest_framework import serializers
 from apps.users.models import User
 
 from .models import Organization, OrganizationMembership
-from .services import create_team_member, verify_company_registration
+from .services import create_team_member
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -24,11 +24,6 @@ class OrganizationSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'status', 'created_at', 'updated_at']
-
-    def validate_registration_no(self, value):
-        if not verify_company_registration(value):
-            raise serializers.ValidationError('Company registration could not be verified.')
-        return value
 
     def create(self, validated_data):
         hr_head = self.context['request'].user

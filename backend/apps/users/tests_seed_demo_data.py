@@ -34,7 +34,7 @@ class SeedDemoDataCommandTests(TestCase):
         self.assertEqual(ApplicantResume.objects.filter(applicant__email='demo.applicant@example.com').count(), 2)
         self.assertTrue(Subscription.objects.filter(organization__registration_no='DEMO-TN-001').exists())
         self.assertTrue(JobOffer.objects.filter(application=application, salary_amount='6500.00').exists())
-        self.assertTrue(InterviewAISummary.objects.filter(summary_json__transparency__provider='mock').exists())
+        self.assertTrue(InterviewAISummary.objects.filter(summary_json__transparency__provider='seeded_record').exists())
         self.assertTrue(Payment.objects.filter(transaction_reference='DEMO-SEED-PAYMENT', due_at__isnull=False).exists())
 
     def test_seed_command_is_idempotent_for_core_records(self):

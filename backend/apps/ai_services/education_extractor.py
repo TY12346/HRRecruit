@@ -132,7 +132,7 @@ def _contains_alias(normalized_text, alias):
     return bool(re.search(pattern, normalized_text))
 
 
-def _best_raw_mention(raw_text, alias, fallback):
+def _best_raw_mention(raw_text, alias, default_mention):
     raw_text = coerce_text(raw_text)
     normalized_alias = normalize_whitespace(alias)
     escaped_words = [re.escape(part) for part in re.split(r'\s+', normalized_alias) if part]
@@ -141,7 +141,7 @@ def _best_raw_mention(raw_text, alias, fallback):
         match = re.search(pattern, raw_text, flags=re.IGNORECASE)
         if match:
             return normalize_whitespace(match.group(0))
-    return fallback
+    return default_mention
 
 
 def _append_unique(values, value):

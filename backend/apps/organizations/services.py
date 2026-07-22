@@ -15,11 +15,6 @@ from .models import Organization, OrganizationMembership
 logger = logging.getLogger(__name__)
 
 
-def verify_company_registration(registration_no):
-    """Mock company-registration verification until a real provider is selected."""
-    return bool(registration_no.strip())
-
-
 def generate_temporary_password(length=14):
     """Generate a temporary password containing each common character group."""
     alphabet = string.ascii_letters + string.digits + '!@#$%'
