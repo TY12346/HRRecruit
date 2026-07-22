@@ -151,8 +151,6 @@ EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'ye
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@hrrecruit.local')
 
-AI_USE_SENTENCE_BERT = os.getenv('AI_USE_SENTENCE_BERT', 'False').lower() in ('1', 'true', 'yes', 'on')
-
 FIREBASE_PUSH_ENABLED = os.getenv('FIREBASE_PUSH_ENABLED', 'False').lower() in ('1', 'true', 'yes', 'on')
 FIREBASE_PROJECT_ID = os.getenv('FIREBASE_PROJECT_ID', '')
 FIREBASE_CREDENTIALS_PATH = os.getenv('FIREBASE_CREDENTIALS_PATH', '')

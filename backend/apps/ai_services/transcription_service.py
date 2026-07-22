@@ -1,4 +1,4 @@
-"""Interview audio transcription service with OpenAI transcription and mock fallback behavior."""
+"""Interview audio transcription service."""
 
 from __future__ import annotations
 
@@ -31,7 +31,6 @@ TRANSCRIPTION_TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
 ALLOWED_AUDIO_MIME_PREFIXES = ('audio/', 'video/webm')
 TRANSCRIPTION_PROVIDER_OPENAI = 'openai'
 TRANSCRIPTION_PROVIDER_LOCAL_WHISPER = 'local_whisper'
-TRANSCRIPTION_PROVIDER_MOCK = 'mock'
 REAL_TRANSCRIPTION_PROVIDERS = {TRANSCRIPTION_PROVIDER_OPENAI, TRANSCRIPTION_PROVIDER_LOCAL_WHISPER}
 
 
@@ -42,23 +41,6 @@ class TranscriptionUnavailable(AIServiceUnavailable):
 def get_transcription_provider():
     """Return the configured transcription provider."""
     return os.getenv('TRANSCRIPTION_PROVIDER', TRANSCRIPTION_PROVIDER_LOCAL_WHISPER).strip().lower() or TRANSCRIPTION_PROVIDER_LOCAL_WHISPER
-
-
-def use_real_transcription_enabled():
-    """Return whether real ASR should run.
-
-    Local Whisper is the default real provider. Set USE_REAL_TRANSCRIPTION=False
-    or TRANSCRIPTION_PROVIDER=mock to force the local mock fallback for demos/tests.
-    """
-    explicit_setting = os.getenv('USE_REAL_TRANSCRIPTION')
-    if explicit_setting is not None and explicit_setting.strip().lower() not in TRANSCRIPTION_TRUTHY_VALUES:
-        return False
-    return get_transcription_provider() in REAL_TRANSCRIPTION_PROVIDERS
-
-
-def require_speaker_diarization_enabled():
-    """Return whether transcript generation must fail if speaker diarization does not complete."""
-    return os.getenv('REQUIRE_SPEAKER_DIARIZATION', 'False').strip().lower() in TRANSCRIPTION_TRUTHY_VALUES
 
 
 def get_transcription_model():
@@ -203,35 +185,8 @@ def run_real_transcription(audio_file):
     }
 
 
-def build_mock_transcription(recording, audio_file):
-    """Return a deterministic local transcript for early development/demo use."""
-    interview = getattr(recording, 'interview', None)
-    application = getattr(interview, 'application', None)
-    job = getattr(application, 'job', None)
-    applicant = getattr(application, 'applicant', None)
-    job_title = getattr(job, 'title', '') or 'the role'
-    applicant_name = getattr(applicant, 'full_name', '') or 'the applicant'
-    return {
-        'text': (
-            f'Mock transcript for {applicant_name} interviewing for {job_title}. '
-            'The interviewer asked about relevant experience, communication, role fit, '
-            'and follow-up areas for human evaluation. Replace this mock transcript with '
-            'real transcription when TRANSCRIPTION_PROVIDER=local_whisper or another real provider is configured.'
-        ),
-        'segments': [],
-        'metadata': {
-            'provider': 'mock',
-            'mode': 'local_development',
-            'model': 'mock-transcription-v1',
-            'preprocessing': 'skipped_for_local_fyp_development',
-            'mock_reason': 'USE_REAL_TRANSCRIPTION is disabled or TRANSCRIPTION_PROVIDER=mock',
-            'audio_file_name': audio_file.name,
-        },
-    }
-
-
-def _raise_if_required_diarization_failed(diarization_status, diarization_warning):
-    if require_speaker_diarization_enabled() and diarization_status != DIARIZATION_STATUS_COMPLETED:
+def _raise_if_diarization_failed(diarization_status, diarization_warning):
+    if diarization_status != DIARIZATION_STATUS_COMPLETED:
         detail = diarization_warning or 'Speaker diarization did not complete.'
         raise TranscriptionUnavailable(f'Speaker diarization is required but did not complete: {detail}')
 
@@ -243,26 +198,25 @@ def build_speaker_aware_transcript_payload(plain_transcript, transcript_segments
     speaker_labelled_transcript = None
 
     if not transcript_segments:
-        diarization_warning = 'Speaker separation is unavailable because transcription timestamps were not returned.'
-    else:
-        try:
-            speaker_turns = run_speaker_diarization(audio_file)
-            aligned_segments = align_transcript_segments_to_speakers(transcript_segments, speaker_turns)
-            if any(segment.get('speaker_id') == 'UNKNOWN' for segment in aligned_segments):
-                diarization_warning = 'Some transcript segments could not be aligned to a diarized speaker turn.'
-            role_mapping, mapping_warning = map_speakers_to_roles(aligned_segments)
-            speaker_segments = apply_role_mapping(aligned_segments, role_mapping)
-            speaker_labelled_transcript = format_speaker_labelled_transcript(speaker_segments)
-            diarization_status = DIARIZATION_STATUS_COMPLETED if speaker_labelled_transcript else DIARIZATION_STATUS_FAILED
-            diarization_warning = diarization_warning or mapping_warning
-        except DiarizationUnavailable as exc:
-            diarization_status = getattr(exc, 'status', DIARIZATION_STATUS_UNAVAILABLE)
-            diarization_warning = str(exc)
-        except Exception as exc:
-            diarization_status = DIARIZATION_STATUS_FAILED
-            diarization_warning = f'Speaker diarization failed: {exc.__class__.__name__}'
+        raise TranscriptionUnavailable('Speaker-aware transcription requires timestamped ASR segments.')
+    try:
+        speaker_turns = run_speaker_diarization(audio_file)
+        aligned_segments = align_transcript_segments_to_speakers(transcript_segments, speaker_turns)
+        if any(segment.get('speaker_id') == 'UNKNOWN' for segment in aligned_segments):
+            diarization_warning = 'Some transcript segments could not be aligned to a diarized speaker turn.'
+        role_mapping, mapping_warning = map_speakers_to_roles(aligned_segments)
+        speaker_segments = apply_role_mapping(aligned_segments, role_mapping)
+        speaker_labelled_transcript = format_speaker_labelled_transcript(speaker_segments)
+        diarization_status = DIARIZATION_STATUS_COMPLETED if speaker_labelled_transcript else DIARIZATION_STATUS_FAILED
+        diarization_warning = diarization_warning or mapping_warning
+    except DiarizationUnavailable as exc:
+        diarization_status = getattr(exc, 'status', DIARIZATION_STATUS_UNAVAILABLE)
+        diarization_warning = str(exc)
+    except Exception as exc:
+        diarization_status = DIARIZATION_STATUS_FAILED
+        diarization_warning = f'Speaker diarization failed: {exc.__class__.__name__}'
 
-    _raise_if_required_diarization_failed(diarization_status, diarization_warning)
+    _raise_if_diarization_failed(diarization_status, diarization_warning)
 
     transcript_json = build_transcript_json_payload(
         plain_transcript=plain_transcript,
@@ -273,20 +227,17 @@ def build_speaker_aware_transcript_payload(plain_transcript, transcript_segments
         metadata=metadata,
     )
     return {
-        'transcript_text': speaker_labelled_transcript or plain_transcript,
+        'transcript_text': speaker_labelled_transcript,
         'transcript_json': transcript_json,
     }
 
 
 def transcribe_recording_payload(recording):
-    """Return unsaved transcript payload using real ASR only when explicitly enabled."""
+    """Return unsaved transcript payload using the configured ASR provider."""
     audio_file = validate_recording_audio_file(recording)
     processed_audio = preprocess_audio(audio_file)
 
-    if use_real_transcription_enabled():
-        result = run_real_transcription(processed_audio)
-    else:
-        result = build_mock_transcription(recording, processed_audio)
+    result = run_real_transcription(processed_audio)
     result['metadata']['recording_id'] = recording.id
 
     cleaned_text = post_process_transcript(result['text'])

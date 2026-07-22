@@ -385,7 +385,7 @@ class Command(BaseCommand):
         if recording:
             return recording
         recording = InterviewRecording(interview=interview, uploaded_by=uploaded_by)
-        recording.audio_file.save('demo-interview-placeholder.mp3', ContentFile(b'Fake demo audio placeholder.'), save=True)
+        recording.audio_file.save('seeded-interview-audio.mp3', ContentFile(b'Seeded interview audio fixture.'), save=True)
         return recording
 
     def _seed_transcript(self, recording):
@@ -399,7 +399,7 @@ class Command(BaseCommand):
             defaults={
                 'transcript_text': transcript_text,
                 'transcript_json': {
-                    'provider': 'mock',
+                    'provider': 'seeded_record',
                     'segments': [
                         {'speaker': 'Interviewer', 'text': 'Please describe your Django experience.'},
                         {'speaker': 'Applicant', 'text': 'I built REST APIs and optimized PostgreSQL queries.'},
@@ -418,16 +418,15 @@ class Command(BaseCommand):
                 'communication_score': Decimal('8.50'),
                 'overall_impression': 'Positive fit for the Software Engineer demo role.',
                 'editable_summary_text': (
-                    'Mock AI summary for demo only. Applicant communicates clearly, meets the core technical '
+                    'Seeded interview summary. Applicant communicates clearly, meets the core technical '
                     'requirements, and should be reviewed by the recruiter and hiring manager before any final decision.'
                 ),
                 'summary_json': {
                     'transparency': build_summary_transparency_metadata(
                         transcript.transcript_text,
-                        provider='mock',
-                        model='seed-demo-summary',
-                        fallback_reason='Seeded deterministic demo summary.',
-                        generation_mode='seeded_mock',
+                        provider='seeded_record',
+                        model='seeded-summary',
+                        generation_mode='seeded_record',
                     ),
                 },
                 'edited_by': interviewer,

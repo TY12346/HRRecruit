@@ -1,4 +1,4 @@
-"""Interview AI summary service with optional real-LLM and local mock behavior.
+"""Interview AI summary service using configured LLM providers.
 
 The current backend stores and validates ``communication_score`` on a 0-10 scale.
 This service preserves that scale for API compatibility instead of adopting the
@@ -85,11 +85,6 @@ def build_summary_transparency_metadata(
 
 class SummaryGenerationUnavailable(AIServiceUnavailable):
     """Raised when required real summary generation cannot be used."""
-
-
-def use_real_summary_enabled():
-    """Return whether real LLM summary generation is enabled by environment variable."""
-    return os.getenv('USE_REAL_SUMMARY', 'False').strip().lower() in SUMMARY_TRUTHY_VALUES
 
 
 def get_summary_provider():
@@ -202,32 +197,6 @@ def _extract_first_json_object(text):
     return text[start:]
 
 
-def _repair_common_json_mistakes(text):
-    """Repair common LLM JSON formatting mistakes before giving up.
-
-    JSON-mode providers occasionally return almost-valid JSON, most commonly
-    with smart quotes copied from natural-language text or a trailing comma
-    before a closing object/array. Keep this intentionally conservative so the
-    stored AI summary still comes from a structured provider object.
-    """
-    replacements = {
-        '\u201c': '"',
-        '\u201d': '"',
-        '\u2018': "'",
-        '\u2019': "'",
-    }
-    repaired = ''.join(replacements.get(character, character) for character in text)
-    return re.sub(r',\s*([}\]])', r'\1', repaired)
-
-
-def _loads_summary_json(text):
-    """Load summary JSON with a conservative repair fallback."""
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return json.loads(_repair_common_json_mistakes(text))
-
-
 def _parse_summary_content(content):
     """Parse provider JSON content into a dictionary."""
     if isinstance(content, dict):
@@ -237,10 +206,10 @@ def _parse_summary_content(content):
 
     text = _strip_markdown_json_fence(content)
     try:
-        parsed = _loads_summary_json(text)
+        parsed = json.loads(text)
     except json.JSONDecodeError:
         try:
-            parsed = _loads_summary_json(_extract_first_json_object(text))
+            parsed = json.loads(_extract_first_json_object(text))
         except json.JSONDecodeError as exc:
             raise SummaryGenerationUnavailable('Summary provider returned invalid JSON.') from exc
     if not isinstance(parsed, dict):
@@ -423,36 +392,10 @@ def run_real_summary(cleaned_transcript):
         raise SummaryGenerationUnavailable(_format_summary_provider_error(provider, model, exc)) from exc
 
 
-def build_mock_summary(cleaned_transcript):
-    """Return a deterministic local summary for early development/demo use."""
-    excerpt = cleaned_transcript[:240] or 'No transcript text was available.'
-    metadata = build_summary_transparency_metadata(
-        cleaned_transcript,
-        provider='mock',
-        model='mock-summary-v1',
-        generation_mode='local_development',
-    )
-    metadata['mock_reason'] = 'USE_REAL_SUMMARY is not enabled'
-    return validate_structured_summary({
-        'strengths': 'Mock draft: the applicant provided relevant interview responses that should be reviewed by the interviewer.',
-        'weaknesses': 'Mock draft: verify the transcript manually and replace this draft if more specific weaknesses are identified.',
-        'communication_score': Decimal('7.00'),
-        'overall_impression': 'Mock draft generated for local development. Review the transcript before using this summary in evaluation.',
-        'editable_summary_text': (
-            'Mock AI summary draft for interviewer review. Transcript excerpt: '
-            f'{excerpt}'
-        ),
-        'summary_json': metadata,
-    })
-
-
 def generate_summary_payload(transcript):
-    """Return unsaved structured summary payload for a transcript."""
+    """Return unsaved structured summary payload from the configured LLM."""
     cleaned_transcript = preprocess_transcript_text(transcript)
-
-    if use_real_summary_enabled():
-        return run_real_summary(cleaned_transcript)
-    return build_mock_summary(cleaned_transcript)
+    return run_real_summary(cleaned_transcript)
 
 
 # Compatibility name for older imports/tests.
