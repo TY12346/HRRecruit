@@ -28,6 +28,9 @@ def screen_job_application(application, changed_by):
             ])
         raise
     is_qualified = screening_result['final_score'] >= SCREENING_THRESHOLD
+    screening_result['score_explanation']['qualification_decision'] = (
+        'qualified' if is_qualified else 'not_qualified'
+    )
     new_status = (
         JobApplication.Status.SCREENED_QUALIFIED
         if is_qualified
