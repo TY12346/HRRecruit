@@ -1,18 +1,18 @@
 """Deterministic local AI-assisted resume screening helpers."""
 
 from decimal import Decimal
+import re
 
 from apps.jobs.models import JobRequirement
 
 from .education_extractor import EDUCATION_LEVELS, extract_education
 from .experience_extractor import extract_experience
-from .ml.resume_matcher import build_ml_screening_result
 from .resume_preprocessor import preprocess_for_matching
 from .resume_text_extractor import extract_resume_text
 from .resume_validation import ensure_resume_text_is_valid_for_screening
 from .scoring import calculate_score_breakdown
 from .semantic_matcher import semantic_similarity
-from .skill_extractor import extract_skills
+from .skill_extractor import extract_skills, normalize_skill_key
 
 
 SCREENING_THRESHOLD = 60.0
@@ -32,12 +32,16 @@ def build_resume_screening(application):
         _requirements_text(requirements, JobRequirement.RequirementType.SKILL)
     )
 
-    extracted_skills = extract_skills(matching_resume_text)
-    required_skills = sorted({skill for requirement in skill_requirements for skill in requirement['skills']})
+    required_skills = _required_skill_keys(requirements)
     if not required_skills:
-        required_skills = extract_skills(skill_requirements_text)
-    if not required_skills:
-        required_skills = extract_skills(matching_comparison_text)
+        required_skills = extract_skills(skill_requirements_text) or extract_skills(matching_comparison_text)
+
+    # Required skills are matched directly against the parsed resume before any
+    # semantic scoring.  This keeps explicit, case-insensitive phrases (such as
+    # "Apple Pay") reliable even when they are not part of the built-in skill
+    # dictionary or a semantic model is unavailable.
+    direct_matched_skills = _directly_matched_required_skills(matching_resume_text, required_skills)
+    extracted_skills = sorted(set(extract_skills(matching_resume_text)) | set(direct_matched_skills))
 
     extracted_experience = extract_experience(resume_text)
     required_experience = extract_experience(
@@ -71,32 +75,13 @@ def build_resume_screening(application):
         experience_match,
         experience_gap,
     )
-    ml_screening = build_ml_screening_result(
-        semantic_score=scores['semantic_score'],
-        skill_score=scores['skill_score'],
-        experience_score=scores['experience_score'],
-        education_score=scores['education_score'],
-        rule_based_score=scores['final_score'],
-        matched_skills=matched_skills,
-        missing_skills=missing_skills,
-        experience_gap={
-            **experience_gap,
-            'gap_years': experience_gap.get('missing_years', 0.0),
-        },
-        education_gap={
-            **education_gap,
-            'gap_levels': _education_gap_levels(extracted_education, required_education),
-        },
-        resume_text=matching_resume_text,
-        job_text=matching_comparison_text,
-    )
-    ml_final_score = ml_screening['ml_suitability_score']
     rule_based_formula = '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score'
-    formula = 'final_score = trained_resume_match_model(feature_vector)'
+    final_score = scores['final_score']
+    is_qualified = final_score >= SCREENING_THRESHOLD
     explanation = {
-        'formula': formula,
-        'score_source': 'trained_ml_model',
-        'model_version': ml_screening.get('model_version'),
+        'formula': rule_based_formula,
+        'score_source': 'deterministic_rule_based_screening',
+        'model_version': 'deterministic-keyword-and-score-v1',
         'threshold': SCREENING_THRESHOLD,
         'semantic_score': scores['semantic_score'],
         'skill_score': scores['skill_score'],
@@ -104,7 +89,21 @@ def build_resume_screening(application):
         'education_score': scores['education_score'],
         'rule_based_formula': rule_based_formula,
         'rule_based_score': scores['final_score'],
-        'final_score': ml_final_score,
+        'final_score': final_score,
+        'qualification_decision': 'qualified' if is_qualified else 'not_qualified',
+        'qualification_reason': (
+            f'Final score {final_score:.2f} meets the {SCREENING_THRESHOLD:.2f} qualification threshold.'
+            if is_qualified else
+            f'Final score {final_score:.2f} is below the {SCREENING_THRESHOLD:.2f} qualification threshold.'
+        ),
+        'debug': {
+            'extracted_resume_text_length': len(resume_text),
+            'detected_skills': extracted_skills,
+            'matched_required_skills': matched_skills,
+            'missing_required_skills': missing_skills,
+            'skill_score': scores['skill_score'],
+            'final_qualification_decision': 'qualified' if is_qualified else 'not_qualified',
+        },
         'matched_skills': matched_skills,
         'missing_skills': missing_skills,
         'education_match': education_match,
@@ -112,8 +111,6 @@ def build_resume_screening(application):
         'experience_match': experience_match,
         'experience_gap': experience_gap,
         'notes': notes,
-        'ml_screening': ml_screening,
-        'hybrid_formula': '0.5 * ml_suitability_score + 0.2 * semantic_score + 0.15 * skill_score + 0.1 * experience_score + 0.05 * education_score',
         'semantic': {
             'score': scores['semantic_score'],
             'comparison_source': 'job title, description, and configured requirements',
@@ -153,7 +150,7 @@ def build_resume_screening(application):
         'skill_score': scores['skill_score'],
         'experience_score': scores['experience_score'],
         'education_score': scores['education_score'],
-        'final_score': ml_final_score,
+        'final_score': final_score,
         'score_explanation': explanation,
         'resume_validation_result': resume_validation_result,
     }
@@ -169,7 +166,7 @@ def get_application_resume_file(application):
 
 def calculate_skill_score(extracted_skills, required_skills, skill_requirements=None):
     """Calculate weighted required-skill coverage on a 0-100 scale."""
-    required_set = set(required_skills)
+    required_set = {normalize_skill_key(skill) for skill in required_skills if skill}
     if not required_set:
         return 100.0
 
@@ -181,7 +178,7 @@ def calculate_skill_score(extracted_skills, required_skills, skill_requirements=
     if total_weight <= 0:
         return round(100 * len(set(extracted_skills) & required_set) / len(required_set), 2)
 
-    extracted_skill_set = set(extracted_skills)
+    extracted_skill_set = {normalize_skill_key(skill) for skill in extracted_skills if skill}
     matched_weight = sum(
         weight for skill, weight in skill_weights.items() if skill in extracted_skill_set
     )
@@ -324,13 +321,51 @@ def _skill_requirement_details(requirements):
     for requirement in requirements:
         if requirement.requirement_type != JobRequirement.RequirementType.SKILL:
             continue
-        skills = extract_skills(preprocess_for_matching(requirement.description))
+        skills = _skill_keys_from_requirement_description(requirement.description)
         if skills:
             details.append({
                 'skills': skills,
                 'weight_score': float(requirement.weight_score or Decimal('0')),
             })
     return details
+
+
+def _required_skill_keys(requirements):
+    """Return normalized required skills, including phrases not in our dictionary."""
+    skills = set()
+    for requirement in requirements:
+        if requirement.requirement_type != JobRequirement.RequirementType.SKILL:
+            continue
+        skills.update(_skill_keys_from_requirement_description(requirement.description))
+    return sorted(skills)
+
+
+def _skill_keys_from_requirement_description(description):
+    """Extract configured skill keys without turning prose into a skill phrase."""
+    normalized_description = preprocess_for_matching(description)
+    known_skills = extract_skills(normalized_description)
+    if known_skills:
+        return known_skills
+
+    # An unknown product/tool can still be a valid exact requirement. Treat a
+    # whole description, or each explicitly delimited list item, as a phrase.
+    normalized_description = normalized_description.removeprefix('required skills ').removeprefix('skills ')
+    return sorted({
+        normalize_skill_key(phrase.strip())
+        for phrase in re.split(r'[,;\n|]+', normalized_description)
+        if phrase.strip()
+    })
+
+
+def _directly_matched_required_skills(normalized_resume_text, required_skills):
+    """Find whole required skill phrases in normalized resume text."""
+    matched = set()
+    for skill in required_skills:
+        normalized_skill = normalize_skill_key(skill)
+        pattern = rf'(?<![a-z0-9]){re.escape(normalized_skill)}(?![a-z0-9])'
+        if re.search(pattern, normalized_resume_text):
+            matched.add(normalized_skill)
+    return sorted(matched)
 
 
 def _skill_weights_by_key(skill_requirements, required_skills):
