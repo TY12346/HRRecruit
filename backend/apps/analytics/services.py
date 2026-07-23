@@ -539,6 +539,8 @@ def interviewer_performance_chart(organization):
 def job_funnel(user, job_id):
     membership = require_analytics_membership(user)
     job_filter = {'id': job_id, 'organization': membership.organization}
+    if user.role == User.Role.RECRUITER:
+        job_filter['recruiter'] = user
     if user.role == User.Role.INTERVIEWER:
         job_filter['applications__interviews__interviewer'] = user
     job = JobPosting.objects.filter(**job_filter).distinct().first()

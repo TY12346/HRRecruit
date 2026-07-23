@@ -104,6 +104,26 @@ class JobPostingAPITests(APITestCase):
         other_job.refresh_from_db()
         self.assertEqual(other_job.location, 'Kuala Lumpur')
 
+    def test_recruiter_cannot_view_a_colleagues_job_in_the_same_organization(self):
+        colleague = self.create_user('colleague@example.com', User.Role.RECRUITER)
+        self.create_membership(colleague, self.organization, OrganizationMembership.Role.RECRUITER)
+        own_job = self.create_job(title='Own job')
+        colleague_job = JobPosting.objects.create(
+            organization=self.organization,
+            recruiter=colleague,
+            **self.job_payload,
+        )
+        self.authenticate(self.recruiter)
+
+        list_response = self.client.get(reverse('job-list-create'))
+        detail_response = self.client.get(reverse('job-detail', args=[colleague_job.id]))
+        update_response = self.client.patch(reverse('job-detail', args=[colleague_job.id]), {'location': 'Remote'}, format='json')
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in list_response.data], [own_job.id])
+        self.assertEqual(detail_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(update_response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_hr_head_lists_organization_jobs_but_cannot_create_jobs(self):
         job = self.create_job()
         self.authenticate(self.hr_head)
