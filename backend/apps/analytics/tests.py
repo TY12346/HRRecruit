@@ -22,18 +22,21 @@ class AnalyticsAPITests(APITestCase):
         self.applicant_three = self.create_user('applicant3@example.com', User.Role.APPLICANT, 'Applicant Three')
         self.other_hr_head = self.create_user('other-head@example.com', User.Role.HR_HEAD, 'Other Hiring Manager')
         self.other_recruiter = self.create_user('other-recruiter@example.com', User.Role.RECRUITER, 'Other Recruiter')
+        self.colleague_recruiter = self.create_user('colleague-recruiter@example.com', User.Role.RECRUITER, 'Recruiter Two')
         self.other_applicant = self.create_user('other-applicant@example.com', User.Role.APPLICANT, 'Other Applicant')
 
         self.organization = self.create_organization('Example Organization', self.hr_head, 'REG-ANA')
         self.other_organization = self.create_organization('Other Organization', self.other_hr_head, 'REG-ANA-OTHER')
         self.create_membership(self.hr_head, self.organization, OrganizationMembership.Role.HR_HEAD)
         self.create_membership(self.recruiter, self.organization, OrganizationMembership.Role.RECRUITER)
+        self.create_membership(self.colleague_recruiter, self.organization, OrganizationMembership.Role.RECRUITER)
         self.create_membership(self.interviewer, self.organization, OrganizationMembership.Role.INTERVIEWER)
         self.create_membership(self.other_hr_head, self.other_organization, OrganizationMembership.Role.HR_HEAD)
         self.create_membership(self.other_recruiter, self.other_organization, OrganizationMembership.Role.RECRUITER)
 
         self.job = self.create_job(self.recruiter, self.organization, 'Backend Engineer')
         self.other_job = self.create_job(self.other_recruiter, self.other_organization, 'External Job')
+        self.colleague_job = self.create_job(self.colleague_recruiter, self.organization, 'Colleague Job')
         self.submitted_application = self.create_application(self.job, self.applicant, JobApplication.Status.SUBMITTED)
         self.shortlisted_application = self.create_application(self.job, self.applicant_two, JobApplication.Status.SHORTLISTED)
         self.hired_application = self.create_application(self.job, self.applicant_three, JobApplication.Status.HIRED)
@@ -190,6 +193,15 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(own_response.data['job']['id'], self.job.id)
         self.assertEqual(own_response.data['metrics']['total_applications'], 3)
         self.assertEqual(external_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_recruiter_cannot_view_a_colleagues_job_funnel(self):
+        self.authenticate(self.recruiter)
+
+        own_response = self.client.get(reverse('analytics-job-funnel', args=[self.job.id]))
+        colleague_response = self.client.get(reverse('analytics-job-funnel', args=[self.colleague_job.id]))
+
+        self.assertEqual(own_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(colleague_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_applicant_cannot_access_analytics(self):
         self.authenticate(self.applicant)

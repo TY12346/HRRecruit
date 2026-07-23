@@ -44,6 +44,7 @@ def visible_jobs_for(user):
         return jobs.filter(status=JobPosting.Status.OPEN, organization__status=Organization.Status.ACTIVE)
     if user.role == User.Role.RECRUITER:
         membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
+        return jobs.filter(organization=membership.organization, recruiter=user) if membership else jobs.none()
     elif user.role == User.Role.HR_HEAD:
         membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
     else:
@@ -79,7 +80,7 @@ def recruiter_job_or_404(user, job_id):
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
         raise PermissionDenied('An active recruiter organization membership is required.')
-    return get_object_or_404(JobPosting, id=job_id, organization=membership.organization)
+    return get_object_or_404(JobPosting, id=job_id, organization=membership.organization, recruiter=user)
 
 
 def visible_requisitions_for(user):
