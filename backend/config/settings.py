@@ -9,6 +9,10 @@ load_dotenv(BASE_DIR / ".env", override=True)
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
 
+# Interview AI must return a real provider result or an explicit failure.
+STRICT_REAL_AI = os.getenv('STRICT_REAL_AI', 'True').lower() in ('1', 'true', 'yes', 'on')
+ALLOW_MOCK_AI = os.getenv('ALLOW_MOCK_AI', 'False').lower() in ('1', 'true', 'yes', 'on')
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')

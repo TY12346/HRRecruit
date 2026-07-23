@@ -28,7 +28,7 @@ class DiarizationUnavailable(AIServiceUnavailable):
 
 
 def diarization_enabled():
-    return os.getenv('USE_SPEAKER_DIARIZATION', 'False').strip().lower() in {'1', 'true', 'yes', 'on'}
+    return os.getenv('ENABLE_SPEAKER_DIARIZATION', os.getenv('USE_SPEAKER_DIARIZATION', 'False')).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 def _coerce_float(value):
@@ -142,7 +142,7 @@ def run_speaker_diarization(audio_file):
     try:
         pyannote_audio = importlib.import_module('pyannote.audio')
         pipeline = _load_pyannote_pipeline(pyannote_audio, model_name, token)
-        audio_path = getattr(audio_file, 'path', None)
+        audio_path = audio_file if isinstance(audio_file, (str, os.PathLike)) else getattr(audio_file, 'path', None)
         if not audio_path:
             raise DiarizationUnavailable(
                 'Speaker diarization requires a local audio file path in this development implementation.',
@@ -218,25 +218,22 @@ def apply_role_mapping(aligned_segments, role_mapping):
 
 
 def format_speaker_labelled_transcript(speaker_segments):
-    paragraphs = []
-    current_role = None
-    current_text = []
+    """Render only diarizer-provided speaker identifiers; never infer participant roles."""
+    paragraphs, current_speaker, current_text = [], None, []
     for segment in speaker_segments or []:
         text = ' '.join(str(segment.get('text') or '').split())
+        speaker = segment.get('speaker_id') or 'UNKNOWN'
         if not text:
             continue
-        role = segment.get('role') or DISPLAY_ROLE_UNKNOWN
-        if role == current_role:
+        if speaker == current_speaker:
             current_text.append(text)
         else:
-            if current_role and current_text:
-                paragraphs.append(f'{current_role}: {" ".join(current_text)}')
-            current_role = role
-            current_text = [text]
-    if current_role and current_text:
-        paragraphs.append(f'{current_role}: {" ".join(current_text)}')
+            if current_speaker and current_text:
+                paragraphs.append(f'{current_speaker}: {" ".join(current_text)}')
+            current_speaker, current_text = speaker, [text]
+    if current_speaker and current_text:
+        paragraphs.append(f'{current_speaker}: {" ".join(current_text)}')
     return '\n\n'.join(paragraphs)
-
 
 def build_transcript_json_payload(plain_transcript, speaker_labelled_transcript, diarization_status, diarization_warning, segments, metadata=None):
     return {

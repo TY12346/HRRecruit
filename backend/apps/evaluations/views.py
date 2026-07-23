@@ -9,12 +9,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.ai_services.interview_evaluation import generate_interview_summary, transcribe_interview_recording
+from apps.ai_services.interview_evaluation import generate_interview_summary
+from .transcription_jobs import enqueue_transcription
 from apps.interviews.models import Interview
 from apps.notifications.services import create_notification
 from apps.interviews.views import visible_interviews_for
 from apps.users.models import User
-from .models import InterviewAISummary, InterviewEvaluation, InterviewRecording, InterviewTranscript
+from .models import InterviewAISummary, InterviewEvaluation, InterviewRecording, InterviewTranscript, ProcessingStatus
 from .serializers import (
     InterviewAISummarySerializer,
     InterviewAISummaryUpdateSerializer,
@@ -112,9 +113,9 @@ class InterviewRecordingTranscribeAPIView(APIView):
 
     def post(self, request, recording_id):
         recording = assigned_recording_or_404(request.user, recording_id)
-        transcription_result = transcribe_interview_recording(recording)
-        transcript = InterviewTranscript.objects.create(recording=recording, **transcription_result)
-        return Response(InterviewTranscriptSerializer(transcript).data, status=status.HTTP_201_CREATED)
+        transcript = InterviewTranscript.objects.create(recording=recording, processing_status=ProcessingStatus.PENDING)
+        transaction.on_commit(lambda: enqueue_transcription(transcript.id))
+        return Response(InterviewTranscriptSerializer(transcript).data, status=status.HTTP_202_ACCEPTED)
 
 
 class InterviewTranscriptGenerateSummaryAPIView(APIView):
