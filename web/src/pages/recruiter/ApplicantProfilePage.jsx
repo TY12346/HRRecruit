@@ -37,6 +37,18 @@ const formatExtractedValue = (value) => {
   return String(value);
 };
 
+const formatEducationRows = (education) => {
+  if (!education || typeof education !== 'object' || Array.isArray(education)) {
+    return [formatExtractedValue(education)];
+  }
+
+  const rows = Object.entries(education)
+    .map(([key, value]) => `${titleize(key)}: ${formatExtractedValue(value)}`)
+    .filter((row) => !row.endsWith(`: ${EMPTY_EXTRACTION_VALUE}`));
+
+  return rows.length ? rows : [EMPTY_EXTRACTION_VALUE];
+};
+
 export default function ApplicantProfilePage() {
   const { applicationId } = useParams();
   const [profile, setProfile] = useState(null);
@@ -126,10 +138,17 @@ export default function ApplicantProfilePage() {
             <Card>
               <CardContent>
                 <Typography variant="h6">Resume extraction</Typography>
-                <Typography><strong>Skills:</strong> {(profile.extracted_skills ?? []).join(', ') || EMPTY_EXTRACTION_VALUE}</Typography>
-                <Typography><strong>Experience:</strong> {formatExtractedValue(profile.resume_info?.extracted_experience)}</Typography>
-                <Typography><strong>Education:</strong> {formatExtractedValue(profile.resume_info?.extracted_education)}</Typography>
-                {profile.resume_info?.resume_file ? <Button onClick={viewResume}>View resume</Button> : null}
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  <Typography><strong>Skills:</strong> {(profile.extracted_skills ?? []).join(', ') || EMPTY_EXTRACTION_VALUE}</Typography>
+                  <Typography><strong>Experience:</strong> {formatExtractedValue(profile.resume_info?.extracted_experience)}</Typography>
+                  <Box>
+                    <Typography component="div"><strong>Education:</strong></Typography>
+                    {formatEducationRows(profile.resume_info?.extracted_education).map((row, index) => (
+                      <Typography key={`${row}-${index}`} sx={{ ml: 2 }}>{row}</Typography>
+                    ))}
+                  </Box>
+                  {profile.resume_info?.resume_file ? <Button onClick={viewResume} sx={{ alignSelf: 'flex-start' }}>View resume</Button> : null}
+                </Stack>
               </CardContent>
             </Card>
           </Stack>
