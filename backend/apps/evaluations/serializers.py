@@ -1,6 +1,8 @@
 """Serializers for interview recordings, transcripts, summaries, and evaluations."""
 
 from decimal import Decimal
+from time import perf_counter
+from apps.ai_services.transcription_service import file_sha256
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
@@ -66,11 +68,12 @@ class InterviewRecordingUploadSerializer(serializers.ModelSerializer):
         return audio_file
 
     def create(self, validated_data):
-        return InterviewRecording.objects.create(
-            interview=self.context['interview'],
-            uploaded_by=self.context['request'].user,
-            **validated_data,
-        )
+        started = perf_counter()
+        recording = InterviewRecording.objects.create(interview=self.context['interview'], uploaded_by=self.context['request'].user, **validated_data)
+        recording.audio_sha256 = file_sha256(recording.audio_file)
+        recording.upload_seconds = round(perf_counter() - started, 3)
+        recording.save(update_fields=['audio_sha256', 'upload_seconds'])
+        return recording
 
 
 class InterviewTranscriptSerializer(serializers.ModelSerializer):
@@ -88,6 +91,8 @@ class InterviewTranscriptSerializer(serializers.ModelSerializer):
             'transcript_text',
             'transcript_json',
             'generated_at',
+            'processing_status',
+            'processing_error',
             'transcript',
             'speaker_labelled_transcript',
             'speaker_segments',
