@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { getApplicantProfile, rejectApplication } from '../../api/client.js';
+import { getApplicantProfile, openApplicationResume, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
 import { applicationName, getApiErrorMessage, titleize } from './recruiterUtils.js';
@@ -88,6 +88,14 @@ export default function ApplicantProfilePage() {
     }
   };
 
+  const viewResume = async () => {
+    try {
+      await openApplicationResume(applicationId);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to open resume.'));
+    }
+  };
+
   const applicant = profile?.applicant_profile;
 
   return (
@@ -121,6 +129,7 @@ export default function ApplicantProfilePage() {
                 <Typography><strong>Skills:</strong> {(profile.extracted_skills ?? []).join(', ') || EMPTY_EXTRACTION_VALUE}</Typography>
                 <Typography><strong>Experience:</strong> {formatExtractedValue(profile.resume_info?.extracted_experience)}</Typography>
                 <Typography><strong>Education:</strong> {formatExtractedValue(profile.resume_info?.extracted_education)}</Typography>
+                {profile.resume_info?.resume_file ? <Button onClick={viewResume}>View resume</Button> : null}
               </CardContent>
             </Card>
           </Stack>
