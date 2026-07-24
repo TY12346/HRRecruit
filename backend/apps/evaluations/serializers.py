@@ -285,6 +285,11 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
             changed_by=request.user,
             note='Interview evaluation submitted.',
         )
+        # A panel interview is ready only after every assigned interviewer has
+        # submitted. Refresh the job immediately so recruiters do not see a
+        # stale "Interviews In Progress" state after the final scorecard.
+        from apps.hiring.services import refresh_job_readiness
+        refresh_job_readiness(interview.application.job)
         return evaluation
 
 

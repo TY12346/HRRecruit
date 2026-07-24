@@ -29,7 +29,11 @@ from .serializers import (
     JobDecisionReviewSerializer,
     JobDecisionSubmitSerializer,
 )
-from .services import ELIGIBLE_DECISION_STATUSES, refresh_job_readiness
+from .services import (
+    ELIGIBLE_DECISION_STATUSES,
+    application_scorecard_progress,
+    refresh_job_readiness,
+)
 
 
 def get_active_membership(user, role):
@@ -213,6 +217,7 @@ class JobApplicantComparisonAPIView(APIView):
         for application in applications:
             interviews = list(application.interviews.all())
             evaluations = [evaluation for interview in interviews for evaluation in interview.evaluations.all()]
+            scorecards = application_scorecard_progress(application)
             transcripts = [transcript for interview in interviews for recording in interview.recordings.all()
                            for transcript in recording.transcripts.all()]
             summaries = [summary for interview in interviews for recording in interview.recordings.all()
@@ -227,13 +232,21 @@ class JobApplicantComparisonAPIView(APIView):
                 'extracted_experience': application.extracted_experience,
                 'shortlisted': bool(interviews) or application.status in ELIGIBLE_DECISION_STATUSES,
                 'interview_statuses': [interview.status for interview in interviews],
-                'evaluation_status': 'submitted' if evaluations else ('not_required' if not interviews else 'pending'),
+                'evaluation_status': (
+                    'submitted' if scorecards['complete'] and (scorecards['has_completed_interviews'] or evaluations)
+                    else ('not_required' if not interviews else 'pending')
+                ),
+                'scorecards_submitted': scorecards['submitted'],
+                'scorecards_required': scorecards['required'],
                 'evaluation_score': evaluations[-1].total_score if evaluations else None,
                 'evaluation_summary': evaluations[-1].overall_comment if evaluations else '',
                 'transcript_status': 'available' if transcripts else 'not_available',
                 'ai_summary_status': 'available' if summaries else 'not_available',
                 'recruiter_remark': application.recruiter_remark,
-                'eligible_for_decision': application.status in ELIGIBLE_DECISION_STATUSES,
+                'eligible_for_decision': (
+                    application.status in HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES
+                    and scorecards['complete']
+                ),
             })
         return Response({'job': {'id': job.id, 'title': job.title, 'status': job.status, 'vacancies': job.vacancies},
                          'readiness': readiness, 'applicants': applicants})
@@ -263,11 +276,11 @@ class JobHiringDecisionListCreateAPIView(APIView):
         serializer = JobDecisionSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         job = recruiter_job_or_404(request.user, request.data.get('job_posting'))
+        if JobHiringDecision.objects.filter(job_posting=job, status=JobHiringDecision.Status.PENDING_HR_APPROVAL).exists():
+            raise ValidationError({'job_posting': 'This job already has a decision pending hiring manager approval.'})
         readiness = refresh_job_readiness(job)
         if not readiness['ready'] or job.status not in (JobPosting.Status.READY_FOR_DECISION, JobPosting.Status.DECISION_REJECTED):
             raise ValidationError({'readiness': readiness['reasons'] or ['Job is not ready for a hiring decision.']})
-        if JobHiringDecision.objects.filter(job_posting=job, status=JobHiringDecision.Status.PENDING_HR_APPROVAL).exists():
-            raise ValidationError({'job_posting': 'This job already has a decision pending hiring manager approval.'})
 
         decision_type = serializer.validated_data['decision_type']
         application_ids = serializer.validated_data['application_ids']
@@ -283,7 +296,11 @@ class JobHiringDecisionListCreateAPIView(APIView):
         applications = list(job.applications.filter(id__in=application_ids))
         if len(applications) != len(application_ids):
             raise ValidationError({'application_ids': 'Every selected applicant must belong to this job posting.'})
-        invalid = [application.id for application in applications if application.status not in ELIGIBLE_DECISION_STATUSES]
+        invalid = [
+            application.id for application in applications
+            if application.status not in HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES
+            or not application_scorecard_progress(application)['complete']
+        ]
         if invalid:
             raise ValidationError({'application_ids': f'Selected applicants are not fully interviewed/evaluated: {invalid}.'})
 
