@@ -1,9 +1,7 @@
 """Local resume text extraction helpers for supported document formats."""
 
+from importlib.util import find_spec
 from pathlib import Path
-
-import fitz
-from docx import Document
 
 
 SUPPORTED_RESUME_EXTENSIONS = {'.pdf', '.docx'}
@@ -16,6 +14,8 @@ class ResumeTextExtractionError(ValueError):
 def extract_text_from_pdf(file_path):
     """Extract text from each page of a local PDF file."""
     path = _validate_local_file(file_path, expected_extension='.pdf')
+    _require_dependency('fitz', 'PyMuPDF', 'PDF')
+    import fitz
 
     try:
         with fitz.open(path) as document:
@@ -27,6 +27,8 @@ def extract_text_from_pdf(file_path):
 def extract_text_from_docx(file_path):
     """Extract text from paragraphs and table cells in a local DOCX file."""
     path = _validate_local_file(file_path, expected_extension='.docx')
+    _require_dependency('docx', 'python-docx', 'DOCX')
+    from docx import Document
 
     try:
         document = Document(path)
@@ -57,6 +59,15 @@ def extract_resume_text(file_path):
         f'Unsupported resume file type: {extension or "no extension"}. '
         f'Supported file types are: {supported_extensions}.'
     )
+
+
+def _require_dependency(module_name, package_name, document_type):
+    """Keep optional document libraries from blocking Django application startup."""
+    if find_spec(module_name) is None:
+        raise ResumeTextExtractionError(
+            f'{document_type} resume extraction requires {package_name}. '
+            f'Install backend dependencies with `pip install -r requirements.txt`.'
+        )
 
 
 def _validate_local_file(file_path, expected_extension):

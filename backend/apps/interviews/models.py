@@ -34,8 +34,8 @@ class InterviewerAvailabilityPattern(models.Model):
     class Meta:
         ordering = ['day_of_week', 'start_time']
         constraints = [
-            models.CheckConstraint(check=models.Q(end_time__gt=models.F('start_time')), name='availability_pattern_end_after_start'),
-            models.CheckConstraint(check=models.Q(slot_duration_minutes__gte=1), name='availability_pattern_positive_duration'),
+            models.CheckConstraint(condition=models.Q(end_time__gt=models.F('start_time')), name='availability_pattern_end_after_start'),
+            models.CheckConstraint(condition=models.Q(slot_duration_minutes__gte=1), name='availability_pattern_positive_duration'),
         ]
 
     def clean(self):
@@ -98,7 +98,7 @@ class InterviewerAvailabilitySlot(models.Model):
         ordering = ['start_datetime']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(end_datetime__gt=models.F('start_datetime')),
+                condition=models.Q(end_datetime__gt=models.F('start_datetime')),
                 name='availability_slot_end_after_start',
             ),
             models.UniqueConstraint(
