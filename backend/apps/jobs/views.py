@@ -277,12 +277,13 @@ class JobEvaluationFormAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can create interview evaluation scorecards.')
         job = recruiter_job_or_404(request.user, job_id)
-        if hasattr(job, 'interview_evaluation_form'):
-            return Response({'detail': 'This job already has an interview evaluation scorecard.'}, status=status.HTTP_400_BAD_REQUEST)
-        serializer = InterviewEvaluationFormSerializer(data=request.data)
+        form = getattr(job, 'interview_evaluation_form', None)
+        is_update = form is not None
+        serializer = InterviewEvaluationFormSerializer(form, data=request.data) if form else InterviewEvaluationFormSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        form = serializer.save(job=job)
-        return Response(InterviewEvaluationFormSerializer(form).data, status=status.HTTP_201_CREATED)
+        form = serializer.save(job=job) if form is None else serializer.save()
+        response_status = status.HTTP_200_OK if is_update else status.HTTP_201_CREATED
+        return Response(InterviewEvaluationFormSerializer(form).data, status=response_status)
 
 
 class SavedJobListAPIView(APIView):

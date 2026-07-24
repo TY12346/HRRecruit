@@ -55,11 +55,11 @@ export default function EvaluationFormBuilderPage() {
     try {
       const payloadCriteria = prepareCriteriaForApi(criteria);
       const saved = await createInterviewEvaluationScorecard(jobId, { title, criteria: payloadCriteria });
-      setSuccess('Evaluation scorecard created.');
+      setSuccess(existing ? 'Evaluation scorecard updated.' : 'Evaluation scorecard created.');
       setExisting(saved);
       setCriteria((saved.criteria ?? payloadCriteria).map(hydrateCriterion));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to create evaluation scorecard.'));
+      setError(getApiErrorMessage(err, 'Unable to save evaluation scorecard.'));
     }
   };
 
@@ -72,19 +72,17 @@ export default function EvaluationFormBuilderPage() {
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         <Box component="form" onSubmit={save}>
           <Stack spacing={2}>
-            <TextField disabled={Boolean(existing)} label="Scorecard title" value={title} onChange={(event) => setTitle(event.target.value)} />
+            <TextField label="Scorecard title" value={title} onChange={(event) => setTitle(event.target.value)} />
             {criteria.map((criterion, index) => (
               <Paper key={index} variant="outlined" sx={{ p: 2 }}>
                 <Stack spacing={2}>
                   <TextField
-                    disabled={Boolean(existing)}
                     label="Criterion name"
                     required
                     value={criterion.criterion_name}
                     onChange={(event) => update(index, 'criterion_name', event.target.value)}
                   />
                   <TextField
-                    disabled={Boolean(existing)}
                     label="Description"
                     required
                     value={criterion.description}
@@ -92,14 +90,12 @@ export default function EvaluationFormBuilderPage() {
                   />
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                     <TextField
-                      disabled={Boolean(existing)}
                       label="Max score"
                       type="number"
                       value={criterion.max_score}
                       onChange={(event) => update(index, 'max_score', event.target.value)}
                     />
                     <TextField
-                      disabled={Boolean(existing)}
                       label="Interview scoring importance"
                       select
                       value={criterion.importance_level}
@@ -112,25 +108,21 @@ export default function EvaluationFormBuilderPage() {
                       ))}
                     </TextField>
                   </Stack>
-                  {!existing ? (
-                    <Button
-                      color="error"
-                      disabled={criteria.length === 1}
-                      onClick={() => setCriteria((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-                    >
-                      Remove
-                    </Button>
-                  ) : null}
+                  <Button
+                    color="error"
+                    disabled={criteria.length === 1}
+                    onClick={() => setCriteria((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    Remove
+                  </Button>
                 </Stack>
               </Paper>
             ))}
             <Stack direction="row" spacing={1}>
-              {!existing ? (
-                <Button onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">
-                  Add criterion
-                </Button>
-              ) : null}
-              {!existing ? <Button type="submit" variant="contained">Create</Button> : null}
+              <Button onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">
+                Add criterion
+              </Button>
+              <Button type="submit" variant="contained">{existing ? 'Save changes' : 'Create'}</Button>
               <Button onClick={() => navigate(`/recruiter/jobs/${jobId}`)}>Back to job</Button>
             </Stack>
           </Stack>

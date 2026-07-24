@@ -172,7 +172,7 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(job.requirements.count(), 2)
         self.assertEqual(sum(job.requirements.values_list('weight_score', flat=True)), Decimal('1.00'))
 
-    def test_recruiter_can_create_evaluation_scorecard_but_cannot_duplicate_job_configuration(self):
+    def test_recruiter_can_create_and_update_evaluation_scorecard(self):
         job = self.create_job(status=JobPosting.Status.DRAFT)
         self.authenticate(self.recruiter)
         self.client.post(
@@ -195,12 +195,23 @@ class JobPostingAPITests(APITestCase):
             format='json',
         )
 
-        duplicate_response = self.client.post(reverse('job-duplicate', args=[job.id]))
+        update_response = self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {
+                'title': 'Updated Interview Scorecard',
+                'criteria': [
+                    {'criterion_name': 'Communication', 'description': 'Communication quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                ],
+            },
+            format='json',
+        )
 
         self.assertEqual(form_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(duplicate_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
         self.assertTrue(InterviewEvaluationForm.objects.filter(job=job).exists())
         self.assertEqual(job.interview_evaluation_form.criteria.count(), 1)
+        self.assertEqual(job.interview_evaluation_form.title, 'Updated Interview Scorecard')
+        self.assertEqual(job.interview_evaluation_form.criteria.get().criterion_name, 'Communication')
 
 
     def test_hr_approval_creates_draft_job_for_recruiter_configuration(self):

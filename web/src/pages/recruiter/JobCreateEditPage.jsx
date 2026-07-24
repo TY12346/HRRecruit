@@ -19,7 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { createJobRequisition, getJob, updateJob } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
@@ -271,6 +271,16 @@ export default function JobCreateEditPage() {
           <CircularProgress />
         ) : (
           <Stack spacing={2}>
+            {isEdit ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
+                <Button component={RouterLink} to={`/recruiter/jobs/${jobId}/requirements`} variant="outlined">
+                  Edit job requirements (AI resume screening)
+                </Button>
+                <Button component={RouterLink} to={`/recruiter/jobs/${jobId}/scorecard`} variant="outlined">
+                  Edit evaluation scorecard
+                </Button>
+              </Stack>
+            ) : null}
             {renderDetails()}
             <Stack direction="row" spacing={1}>
               <Button disabled={isSaving} type="submit" variant="contained">

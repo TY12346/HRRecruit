@@ -51,6 +51,17 @@ class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
         )
         return form
 
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        criteria = validated_data.pop('criteria')
+        instance.title = validated_data.get('title', instance.title)
+        instance.save(update_fields=['title'])
+        instance.criteria.all().delete()
+        EvaluationCriterion.objects.bulk_create(
+            EvaluationCriterion(form=instance, **criterion) for criterion in criteria
+        )
+        return instance
+
 
 class JobPostingSerializer(serializers.ModelSerializer):
     requirements = JobRequirementSerializer(many=True, read_only=True)

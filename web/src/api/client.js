@@ -414,8 +414,8 @@ export const getRankedApplicants = async (jobId, params = {}) => {
   return response.data;
 };
 
-export const getInterviews = async () => {
-  const response = await apiClient.get('/interviews/');
+export const getInterviews = async (params = {}) => {
+  const response = await apiClient.get('/interviews/', { params });
   return response.data;
 };
 
