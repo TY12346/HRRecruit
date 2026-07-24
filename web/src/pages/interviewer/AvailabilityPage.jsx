@@ -107,7 +107,6 @@ export default function AvailabilityPage() {
           </Stack>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <TextField select label="Interview mode" value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })} fullWidth>{['online', 'physical', 'phone'].map((mode) => <MenuItem key={mode} value={mode}>{titleize(mode)}</MenuItem>)}</TextField>
-            <TextField label="Meeting link" value={form.meeting_link} onChange={(e) => setForm({ ...form, meeting_link: e.target.value })} fullWidth />
             <TextField label="Physical location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} fullWidth />
           </Stack>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>

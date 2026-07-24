@@ -45,8 +45,8 @@ export default function JobDetailPage() {
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/edit`} variant="contained">Edit</Button>
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/requirements`} variant="outlined">Requirements</Button>
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/scorecard`} variant="outlined">Evaluation scorecard</Button>
-          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/ranking`} variant="outlined">Qualified ranking</Button>
-          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/hiring-decision`} variant="outlined">Applicant comparison</Button>
+          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/ranking`} variant="outlined">View qualified applicants ranking</Button>
+          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/hiring-decision`} variant="outlined">Make hiring decision</Button>
           {job.status === 'open' ? <Button color="warning" onClick={closeIntake} variant="contained">Close application intake</Button> : null}
         </Stack>
       </Stack>

@@ -112,12 +112,9 @@ export default function InterviewAssignmentPage() {
                   </Box>
                   <Chip
                     color={calendarStatus?.connected ? 'success' : calendarStatus?.oauth_ready ? 'warning' : 'default'}
-                    label={calendarStatus?.connected ? 'Google connected' : calendarStatus?.oauth_ready ? 'Ready to connect' : 'Google not configured'}
+                    label={calendarStatus?.connected ? 'Google Calendar synced' : calendarStatus?.oauth_ready ? 'Ready to sync with Google Calendar' : 'Google Calendar not synced'}
                   />
                 </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  Current mode: {calendarStatus?.connected ? `Real Google Calendar API sync${calendarStatus.connected_email ? ` (${calendarStatus.connected_email})` : ''}` : calendarStatus?.oauth_ready ? 'Ready for Google OAuth connection' : 'Google Calendar API not configured'}.
-                </Typography>
                 {!calendarStatus?.connected ? (
                   <Button variant="outlined" onClick={connectGoogleCalendar} disabled={isConnectingCalendar || !calendarStatus?.oauth_ready}>
                     {isConnectingCalendar ? 'Opening Google…' : 'Connect Google Calendar'}
@@ -153,19 +150,11 @@ export default function InterviewAssignmentPage() {
                       />
                     )}
                   />
-                  <TextField label="Applicant communication template" select value={templateId} onChange={(e) => applyTemplate(e.target.value)} helperText="Choose a reusable message style, then edit the text before sending.">{templates.map((template) => <MenuItem key={template.id} value={template.id}>{template.label} — {template.tone}</MenuItem>)}</TextField>
-                  <TextField label="Applicant scheduling message" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} helperText="This remark is shown on the scheduling request." />
+                  <TextField label="Applicant scheduling message" multiline minRows={3} value={remark} onChange={(e) => setRemark(e.target.value)} />
                   <Button type="submit" variant="contained" disabled={isSaving || interviewerIds.length === 0}>{isSaving ? 'Saving…' : 'Create self-scheduling request'}</Button>
                 </Stack>
               </Box>
             ) : null}
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="h6">Next step</Typography>
-              <Typography color="text.secondary">
-                {nextStepMessage}
-              </Typography>
-              <Button disabled={!schedulingRequest} onClick={() => navigate('/recruiter/interviews')} sx={{ mt: 2 }} variant="outlined">View interviews</Button>
-            </Paper>
           </Stack>
         )}
       </Paper>

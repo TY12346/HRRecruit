@@ -103,7 +103,7 @@ function SummaryResult({ summary }) {
         <Typography variant="h6" sx={{ fontWeight: 700 }}>AI summary</Typography>
         <Typography><strong>Strengths:</strong> {summary.strengths || '—'}</Typography>
         <Typography><strong>Weaknesses:</strong> {summary.weaknesses || '—'}</Typography>
-        <Typography><strong>Communication score:</strong> {summary.communication_score ?? '—'}</Typography>
+        <Typography><strong>Communication score:</strong> {summary.communication_score ?? '—'} / 10</Typography>
         <Typography><strong>Overall impression:</strong> {summary.overall_impression || '—'}</Typography>
         <Typography whiteSpace="pre-line"><strong>Overall summary:</strong> {summary.editable_summary_text || '—'}</Typography>
       </Stack>
@@ -220,9 +220,6 @@ export default function TranscriptSummaryPage() {
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
               Interview transcript
             </Typography>
-            <Typography color="text.secondary">
-              Upload the interview audio, generate the transcript, then review the text below.
-            </Typography>
           </Box>
 
           {error ? <Alert severity="error">{error}</Alert> : null}
@@ -231,11 +228,11 @@ export default function TranscriptSummaryPage() {
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={1.5}>
               <Button variant="outlined" component="label" sx={{ alignSelf: 'flex-start' }}>
-                Choose audio file
+                Upload audio file
                 <input hidden type="file" accept="audio/*,video/webm" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
               </Button>
               <Typography color={file ? 'text.primary' : recordingId ? 'text.primary' : 'text.secondary'}>
-                {file ? file.name : recordingId ? `Stored recording #${recordingId} loaded` : 'No audio file selected'}
+                {file ? file.name : recordingId ? `Stored recording (ID: ${recordingId}) loaded` : 'No audio file uploaded'}
               </Typography>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 <Button variant="contained" disabled={isBusy || (!file && !recordingId)} onClick={generateTranscript}>
