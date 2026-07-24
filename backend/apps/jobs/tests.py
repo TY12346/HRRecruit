@@ -11,7 +11,7 @@ from apps.billing.models import Subscription, SubscriptionPlan
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
-from .models import InterviewEvaluationForm, JobPosting, SavedJobPosting
+from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, SavedJobPosting
 
 
 class JobPostingAPITests(APITestCase):
@@ -263,6 +263,51 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(no_scorecard_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(open_response.status_code, status.HTTP_200_OK)
         self.assertEqual(open_response.data['status'], JobPosting.Status.OPEN)
+
+    def test_recruiter_cannot_open_job_with_an_empty_scorecard(self):
+        job = self.create_job(status=JobPosting.Status.DRAFT)
+        self.authenticate(self.recruiter)
+        self.client.post(
+            reverse('job-requirements', args=[job.id]),
+            {
+                'requirements': [
+                    {'requirement_type': 'skill', 'description': 'Python', 'weight_score': '1.00', 'minimum_threshold': '0.50'},
+                ]
+            },
+            format='json',
+        )
+        form = InterviewEvaluationForm.objects.create(job=job, title='Empty scorecard')
+
+        empty_scorecard_response = self.client.patch(
+            reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json'
+        )
+        EvaluationCriterion.objects.create(
+            form=form,
+            criterion_name='Technical fit',
+            description='Technical quality',
+            max_score='10.00',
+            weight_score='1.00',
+        )
+        open_response = self.client.patch(
+            reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json'
+        )
+
+        self.assertEqual(empty_scorecard_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('non-empty interview evaluation scorecard', empty_scorecard_response.data['status'][0])
+        self.assertEqual(open_response.status_code, status.HTTP_200_OK)
+
+    def test_scorecard_creation_rejects_empty_criteria(self):
+        job = self.create_job(status=JobPosting.Status.DRAFT)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {'title': 'Empty scorecard', 'criteria': []},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('criteria', response.data)
 
     def test_recruiter_cannot_change_requirements_after_job_is_posted(self):
         job = self.create_job(status=JobPosting.Status.DRAFT)

@@ -72,8 +72,13 @@ def enforce_job_ready_for_open(job, requested_status):
         return
     if not job.requirements.exists():
         raise ValidationError({'status': ['Configure job requirements before posting this job opening.']})
-    if not hasattr(job, 'interview_evaluation_form'):
-        raise ValidationError({'status': ['Configure an interview evaluation scorecard before posting this job opening.']})
+    if (
+        not hasattr(job, 'interview_evaluation_form')
+        or not job.interview_evaluation_form.criteria.exists()
+    ):
+        raise ValidationError({
+            'status': ['Configure a non-empty interview evaluation scorecard before posting this job opening.']
+        })
 
 
 def recruiter_job_or_404(user, job_id):

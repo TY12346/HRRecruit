@@ -35,7 +35,7 @@ class EvaluationCriterionSerializer(serializers.ModelSerializer):
 
 
 class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
-    criteria = EvaluationCriterionSerializer(many=True)
+    criteria = EvaluationCriterionSerializer(many=True, allow_empty=False)
 
     class Meta:
         model = InterviewEvaluationForm
