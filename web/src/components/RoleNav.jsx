@@ -99,7 +99,8 @@ export default function RoleNav({ items }) {
     <Box
       component="nav"
       sx={{
-        bgcolor: '#f7f7f8',
+        bgcolor: '#ffffff',
+        borderRight: { md: '1px solid #bfdbfe' },
         bottom: { md: 0 },
         left: { md: 0 },
         mb: { xs: 4, md: 0 },
@@ -121,7 +122,7 @@ export default function RoleNav({ items }) {
             to={item.to}
             sx={{
               borderRadius: '16px',
-              color: '#5f6368',
+              color: '#475569',
               fontSize: 22,
               fontWeight: 500,
               gap: 2.25,
@@ -133,20 +134,20 @@ export default function RoleNav({ items }) {
               width: { xs: 'auto', md: '100%' },
               '& .role-nav-icon': {
                 alignItems: 'center',
-                color: '#6f7378',
+                color: '#2563eb',
                 display: 'inline-flex',
                 flex: '0 0 28px',
                 justifyContent: 'center',
               },
               '&.active': {
-                bgcolor: '#e9e9ea',
-                color: '#000000',
+                bgcolor: '#dbeafe',
+                color: '#1d4ed8',
               },
               '&.active .role-nav-icon': {
-                color: '#000000',
+                color: '#1d4ed8',
               },
               '&:hover': {
-                bgcolor: '#eeeeef',
+                bgcolor: '#eff6ff',
               },
             }}
           >
