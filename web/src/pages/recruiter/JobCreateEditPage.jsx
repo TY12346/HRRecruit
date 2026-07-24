@@ -4,6 +4,11 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControl,
   InputLabel,
   MenuItem,
@@ -69,6 +74,8 @@ export default function JobCreateEditPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPostConfirmation, setShowPostConfirmation] = useState(false);
+  const [initialStatus, setInitialStatus] = useState('draft');
 
   useEffect(() => {
     if (!isEdit) {
@@ -101,6 +108,7 @@ export default function JobCreateEditPage() {
           application_deadline: job.application_deadline ?? '',
           status: job.status ?? 'draft',
         });
+        setInitialStatus(job.status ?? 'draft');
       })
       .catch((err) => active && setError(getApiErrorMessage(err, 'Unable to load job.')))
       .finally(() => active && setIsLoading(false));
@@ -119,8 +127,7 @@ export default function JobCreateEditPage() {
     custom_department: form.department === 'Other' ? form.custom_department : '',
   });
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const saveJob = async () => {
     setIsSaving(true);
     setError('');
 
@@ -137,6 +144,20 @@ export default function JobCreateEditPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (isEdit && initialStatus === 'draft' && form.status === 'open') {
+      setShowPostConfirmation(true);
+      return;
+    }
+    saveJob();
+  };
+
+  const confirmPost = () => {
+    setShowPostConfirmation(false);
+    saveJob();
   };
 
   const renderDetails = () => (
@@ -260,6 +281,20 @@ export default function JobCreateEditPage() {
           </Stack>
         )}
       </Paper>
+      <Dialog open={showPostConfirmation} onClose={() => !isSaving && setShowPostConfirmation(false)}>
+        <DialogTitle>Confirm to post this job?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            To ensure consistency of AI resume screening, the job requirements cannot be changed once this job is posted.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={isSaving} onClick={() => setShowPostConfirmation(false)}>Cancel</Button>
+          <Button autoFocus disabled={isSaving} onClick={confirmPost} variant="contained">
+            Confirm and post
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -211,7 +211,10 @@ class JobDetailAPIView(APIView):
         requested_status = serializer.validated_data.get('status', job.status)
         enforce_job_ready_for_open(job, requested_status)
         enforce_job_opening_allowed(job.organization, requested_status, current_job=job)
-        serializer.save()
+        if requested_status == JobPosting.Status.OPEN and job.requirements_locked_at is None:
+            serializer.save(requirements_locked_at=timezone.now())
+        else:
+            serializer.save()
         return Response(serializer.data)
 
     def delete(self, request, job_id):
@@ -252,6 +255,10 @@ class JobRequirementsAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can configure job requirements.')
         job = recruiter_job_or_404(request.user, job_id)
+        if job.requirements_locked_at is not None or job.status != JobPosting.Status.DRAFT:
+            raise ValidationError({
+                'requirements': ['Job requirements cannot be changed once this job has been posted.']
+            })
         serializer = JobRequirementConfigurationSerializer(data=request.data, context={'job': job})
         serializer.is_valid(raise_exception=True)
         serializer.save()
