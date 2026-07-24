@@ -838,6 +838,11 @@ class InterviewListAPIView(APIView):
 
     def get(self, request):
         interviews = visible_interviews_for(request.user)
+        job_id = request.query_params.get('job_id')
+        if job_id:
+            if not job_id.isdigit():
+                raise ValidationError({'job_id': 'Job ID must be a positive integer.'})
+            interviews = interviews.filter(application__job_id=job_id)
         return Response(InterviewSerializer(interviews, many=True, context={'request': request}).data)
 
 
