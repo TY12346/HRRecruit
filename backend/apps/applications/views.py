@@ -25,7 +25,7 @@ from apps.notifications.services import create_notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import ApplicantResume, User
 
-from .models import ApplicationStageHistory, JobApplication
+from .models import ApplicationStageHistory, EmployerInvite, JobApplication
 from .serializers import (
     ApplicationRejectSerializer,
     ApplicationRemarkSerializer,
@@ -34,6 +34,8 @@ from .serializers import (
     ApplicationSearchResultSerializer,
     ApplicantProfileSerializer,
     JobApplicationSerializer,
+    EmployerInviteSerializer,
+    ApplicantDirectorySerializer,
 )
 from .services import screen_job_application
 
@@ -436,6 +438,7 @@ class JobApplyAPIView(APIView):
                 )
                 save_application_resume_snapshot(application, source_resume_file)
             application = screen_job_application(application, changed_by=None)
+            EmployerInvite.objects.filter(job=job, applicant=request.user, response=EmployerInvite.Response.NO_RESPONSE).update(response=EmployerInvite.Response.APPLIED, responded_at=timezone.now())
         except ResumeContentValidationError as exc:
             return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
         except ResumeTextExtractionError as exc:
@@ -482,6 +485,13 @@ class ApplicationSearchAPIView(APIView):
             raise PermissionDenied('Applicants cannot search or view other applicants.')
         if request.user.role not in (User.Role.RECRUITER, User.Role.INTERVIEWER, User.Role.HR_HEAD):
             raise PermissionDenied('Your role cannot search applicants.')
+        if request.user.role == User.Role.RECRUITER:
+            # Recruiters headhunt from the active, platform-wide applicant directory; this is not limited to past applications.
+            applicants = User.objects.filter(role=User.Role.APPLICANT, is_active=True).select_related('applicant_profile').prefetch_related('skills')
+            search = request.query_params.get('search', '').strip()
+            if search:
+                applicants = applicants.filter(Q(full_name__icontains=search) | Q(email__icontains=search) | Q(phone_number__icontains=search) | Q(applicant_profile__personal_summary__icontains=search) | Q(skills__skill_name__icontains=search)).distinct()
+            return Response(ApplicantDirectorySerializer(applicants.order_by('full_name', 'id'), many=True, context={'request': request}).data)
         applications = apply_applicant_search_filters(
             visible_search_applications_for(request.user),
             request.query_params,
@@ -673,3 +683,48 @@ class ApplicationRemarkAPIView(APIView):
             'Recruiter remark updated.',
         )
         return Response(JobApplicationSerializer(application, context={'request': request}).data)
+
+
+class EmployerInviteListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role == User.Role.APPLICANT:
+            invites = EmployerInvite.objects.filter(applicant=request.user).select_related('job__organization', 'recruiter')
+        elif request.user.role == User.Role.RECRUITER:
+            membership = get_active_membership(request.user, OrganizationMembership.Role.RECRUITER)
+            if not membership:
+                return Response([])
+            invites = EmployerInvite.objects.filter(recruiter=request.user, job__organization=membership.organization).select_related('job__organization', 'applicant')
+        else:
+            raise PermissionDenied('Your role cannot view employer invites.')
+        return Response(EmployerInviteSerializer(invites, many=True, context={'request': request}).data)
+
+    def post(self, request):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can send employer invites.')
+        membership = get_active_membership(request.user, OrganizationMembership.Role.RECRUITER)
+        if not membership:
+            raise PermissionDenied('An active recruiter organization membership is required.')
+        applicant = get_object_or_404(User, id=request.data.get('applicant_id'), role=User.Role.APPLICANT, is_active=True)
+        job = get_object_or_404(JobPosting, id=request.data.get('job_id'), recruiter=request.user, organization=membership.organization, status=JobPosting.Status.OPEN)
+        invite, created = EmployerInvite.objects.get_or_create(job=job, applicant=applicant, defaults={'recruiter': request.user})
+        if not created:
+            raise ValidationError({'detail': 'This applicant has already been invited to this job.'})
+        create_notification(applicant, 'employer_invite', 'Employer invite', f'{request.user.full_name} invited you to apply for {job.title}.', related_entity=invite)
+        return Response(EmployerInviteSerializer(invite, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class EmployerInviteDeclineAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, invite_id):
+        if request.user.role != User.Role.APPLICANT:
+            raise PermissionDenied('Only applicants can decline employer invites.')
+        invite = get_object_or_404(EmployerInvite, id=invite_id, applicant=request.user)
+        if invite.response != EmployerInvite.Response.NO_RESPONSE:
+            raise ValidationError({'detail': 'This invitation has already been responded to.'})
+        invite.response = EmployerInvite.Response.DECLINED
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=['response', 'responded_at', 'updated_at'])
+        return Response(EmployerInviteSerializer(invite, context={'request': request}).data)

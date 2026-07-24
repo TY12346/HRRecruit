@@ -36,6 +36,12 @@ class ApplicantHomeScreen extends StatelessWidget {
         route: '/applications',
       ),
       const _ApplicantHomeAction(
+        icon: Icons.mark_email_unread_outlined,
+        title: 'Headhunt Invites',
+        subtitle: 'Review employer invitations and job opportunities',
+        route: '/headhunt-invites',
+      ),
+      const _ApplicantHomeAction(
         icon: Icons.schedule_outlined,
         title: 'Schedule interviews',
         subtitle: 'Choose interview times from recruiter requests',

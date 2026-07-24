@@ -1,6 +1,7 @@
 import '../api/api_client.dart';
 import '../models/job_application.dart';
 import '../models/job_posting.dart';
+import '../models/employer_invite.dart';
 
 class JobDiscoveryService {
   const JobDiscoveryService(this._apiClient);
@@ -83,5 +84,16 @@ class JobDiscoveryService {
         .whereType<Map<String, dynamic>>()
         .map(ApplicationStageHistory.fromJson)
         .toList();
+  }
+}
+
+extension EmployerInviteDiscovery on JobDiscoveryService {
+  Future<List<EmployerInvite>> getEmployerInvites() async {
+    final response = await _apiClient.dio.get<List<dynamic>>('applications/employer-invites/');
+    return (response.data ?? []).whereType<Map<String, dynamic>>().map(EmployerInvite.fromJson).toList();
+  }
+
+  Future<void> declineEmployerInvite(int inviteId) async {
+    await _apiClient.dio.post<void>('applications/employer-invites/$inviteId/decline/');
   }
 }
