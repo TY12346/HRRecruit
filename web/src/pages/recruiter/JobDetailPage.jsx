@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Card, CardContent, Chip, CircularProgress, Grid, List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Chip, CircularProgress, Grid, List, ListItem, Paper, Stack, Typography } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { closeJobApplicationIntake, getJob, getJobApplicantComparison, getRankedApplicants } from '../../api/client.js';
@@ -35,13 +35,18 @@ export default function JobDetailPage() {
     } catch (err) { setError(getApiErrorMessage(err, 'Unable to close application intake.')); }
   };
 
+  const requirementsByType = ['skill', 'experience', 'education'].map((type) => ({
+    type,
+    items: (job?.requirements ?? []).filter((requirement) => requirement.requirement_type === type),
+  }));
+
   return <Box><RecruiterNav /><Paper sx={{ p: 3 }}>
     {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
     {isLoading ? <CircularProgress /> : null}
     {job ? <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-start' }} spacing={2}>
         <Box><Typography variant="h5" sx={{ fontWeight: 700 }}>{job.title}</Typography><Typography color="text.secondary">{job.organization_name} • {job.location}</Typography><Chip label={titleize(job.status)} color={job.status === 'open' ? 'success' : 'default'} sx={{ mt: 1 }} /></Box>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Stack direction="row" alignItems="center" spacing={1} useFlexGap flexWrap="wrap">
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/edit`} variant="contained">Edit</Button>
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/requirements`} variant="outlined">Requirements</Button>
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/scorecard`} variant="outlined">Evaluation scorecard</Button>
@@ -51,8 +56,18 @@ export default function JobDetailPage() {
         </Stack>
       </Stack>
       <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{formatJobDescriptionText(job.description)}</Typography>
-      <Grid container spacing={2}><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Qualified applicants</Typography><Typography variant="h4">{ranked.length}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Vacancies</Typography><Typography variant="h4">{job.vacancies}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Employment</Typography><Typography>{job.employment_type}</Typography><Typography>{job.approximate_salary}</Typography></CardContent></Card></Grid></Grid>
-      <Box><Typography variant="h6">Requirements</Typography><List>{job.requirements?.map((req) => <ListItem key={req.id}><ListItemText primary={`${titleize(req.requirement_type)} (${req.weight_score})`} secondary={`${req.description} • Threshold ${req.minimum_threshold}`} /></ListItem>)}{!job.requirements?.length ? <ListItem><ListItemText primary="No requirements configured." /></ListItem> : null}</List></Box>
+      <Grid container spacing={2}><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Qualified applicants</Typography><Typography variant="h4">{ranked.length}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Vacancies</Typography><Typography variant="h4">{job.vacancies}</Typography></CardContent></Card></Grid><Grid item xs={12} md={4}><Card><CardContent><Typography color="text.secondary">Employment</Typography><Typography>{titleize(job.employment_type)}</Typography></CardContent></Card></Grid></Grid>
+      <Box>
+        <Typography variant="h6">Requirements</Typography>
+        {requirementsByType.filter(({ items }) => items.length > 0).map(({ type, items }) => (
+          <Box key={type} sx={{ mt: 1.5 }}>
+            <Typography sx={{ fontWeight: 600 }}>{titleize(type)}</Typography>
+            <List sx={{ listStyleType: 'disc', pl: 3 }}>
+              {items.map((requirement) => <ListItem key={requirement.id} sx={{ display: 'list-item', py: 0.25, pl: 0 }}>{requirement.description}</ListItem>)}
+            </List>
+          </Box>
+        ))}
+      </Box>
     </Stack> : null}
   </Paper></Box>;
 }
