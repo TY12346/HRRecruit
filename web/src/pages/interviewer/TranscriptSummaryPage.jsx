@@ -1,19 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { useLocation, useParams } from 'react-router-dom';
 import { generateTranscriptSummary, getInterview, transcribeRecording, uploadInterviewRecording } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
 import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredSummaryId, setStoredTranscriptId } from './interviewerUtils.js';
-
-const processingLabels = { PENDING: 'Pending', PROCESSING: 'Processing', COMPLETED: 'Completed', FAILED: 'Failed', LOW_QUALITY: 'Low quality' };
-
-const speakerSeparationLabels = {
-  completed: 'Speaker separated',
-  not_configured: 'Plain transcript',
-  unavailable: 'Plain transcript',
-  failed: 'Plain transcript',
-};
 
 const speakerSeparationMessages = {
   not_configured: 'Speaker separation is turned off in backend settings. The plain transcript was generated successfully.',
@@ -60,19 +51,12 @@ function TranscriptResult({ transcript }) {
   const diarizationStatus = transcript.diarization_status || transcript.transcript_json?.diarization_status || 'unavailable';
   const diarizationWarning = transcript.diarization_warning || transcript.transcript_json?.diarization_warning || '';
   const showDiarizationWarningDetail = diarizationWarning && diarizationStatus !== 'not_configured';
-  const speakerSeparationLabel = speakerSeparationLabels[diarizationStatus] || 'Plain transcript';
   const speakerSeparationMessage = speakerSeparationMessages[diarizationStatus] || 'Speaker separation is not available for this transcript. The plain transcript was generated successfully.';
   const showSpeakerUnavailable = diarizationStatus !== 'completed';
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
-        <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Generated transcript
-          </Typography>
-          <Chip size="small" color={['FAILED', 'LOW_QUALITY'].includes(processingStatus) ? 'error' : processingStatus === 'COMPLETED' ? 'success' : 'warning'} label={processingLabels[processingStatus] || processingStatus} />
-          <Chip size="small" label={speakerSeparationLabel} />
-        </Stack>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>Generated transcript</Typography>
         {processingStatus === 'PENDING' || processingStatus === 'PROCESSING' ? <Alert severity="info">Processing real transcription… This page refreshes automatically.</Alert> : null}
         {processingStatus === 'FAILED' ? <Alert severity="error">Real transcription failed: {transcript.processing_error || transcript.transcript_json?.error || 'No error details were returned.'}</Alert> : null}
         {processingStatus === 'LOW_QUALITY' ? <Alert severity="error">Real transcription completed but failed quality checks and cannot be summarized: {transcript.processing_error || 'The returned text is likely unusable.'}</Alert> : null}

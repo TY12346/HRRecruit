@@ -116,7 +116,10 @@ def post_process_transcript(text):
 
 def _call_local_whisper_transcription(audio_path, model):
     whisper_model, load_seconds, device = _cached_whisper_model(model)
-    options = {'task': 'transcribe', 'language': 'en', 'temperature': 0, 'fp16': device == 'cuda', 'verbose': False}
+    # Word timings let diarization split a Whisper segment when a speaker change
+    # occurs inside it. Without them, a whole sentence is assigned to whichever
+    # speaker overlaps most of the segment, which can combine two greetings.
+    options = {'task': 'transcribe', 'language': 'en', 'temperature': 0, 'fp16': device == 'cuda', 'verbose': False, 'word_timestamps': True}
     started = perf_counter(); result = whisper_model.transcribe(audio_path, **options); seconds = perf_counter() - started
     return {'text': result.get('text', ''), 'segments': result.get('segments') or [], 'model_load_seconds': load_seconds, 'transcription_seconds': seconds, 'device': device, 'options': options, 'detected_language': result.get('language')}
 

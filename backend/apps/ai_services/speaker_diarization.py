@@ -47,7 +47,19 @@ def normalize_transcript_segments(raw_segments):
         end = _coerce_float(segment.get('end_time', segment.get('end')))
         text = ' '.join(str(segment.get('text') or '').split())
         if text:
-            segments.append({'start_time': start, 'end_time': end, 'text': text})
+            words = []
+            for word in segment.get('words') or []:
+                if not isinstance(word, dict):
+                    continue
+                word_text = str(word.get('word', word.get('text', ''))).strip()
+                word_start = _coerce_float(word.get('start_time', word.get('start')))
+                word_end = _coerce_float(word.get('end_time', word.get('end')))
+                if word_text and word_start is not None and word_end is not None:
+                    words.append({'text': word_text, 'start_time': word_start, 'end_time': word_end})
+            normalized = {'start_time': start, 'end_time': end, 'text': text}
+            if words:
+                normalized['words'] = words
+            segments.append(normalized)
     return segments
 
 
@@ -176,6 +188,10 @@ def calculate_overlap(start_a, end_a, start_b, end_b):
 def align_transcript_segments_to_speakers(transcript_segments, speaker_turns):
     aligned = []
     for segment in normalize_transcript_segments(transcript_segments):
+        word_segments = _split_segment_by_speaker_words(segment, speaker_turns)
+        if word_segments:
+            aligned.extend(word_segments)
+            continue
         best_turn = None
         best_overlap = 0.0
         for turn in speaker_turns or []:
@@ -186,6 +202,49 @@ def align_transcript_segments_to_speakers(transcript_segments, speaker_turns):
         speaker_id = best_turn.get('speaker_id') if best_turn else 'UNKNOWN'
         aligned.append({**segment, 'speaker_id': speaker_id or 'UNKNOWN'})
     return aligned
+
+
+def _speaker_for_interval(start_time, end_time, speaker_turns):
+    best_turn = None
+    best_overlap = 0.0
+    for turn in speaker_turns or []:
+        overlap = calculate_overlap(
+            start_time,
+            end_time,
+            _coerce_float(turn.get('start_time')),
+            _coerce_float(turn.get('end_time')),
+        )
+        if overlap > best_overlap:
+            best_overlap = overlap
+            best_turn = turn
+    return best_turn.get('speaker_id') if best_turn else 'UNKNOWN'
+
+
+def _split_segment_by_speaker_words(segment, speaker_turns):
+    """Split one Whisper segment at diarized word boundaries when available."""
+    words = segment.get('words') or []
+    if not words:
+        return []
+    if ' '.join(word['text'] for word in words) != segment['text']:
+        return []
+
+    groups = []
+    for word in words:
+        speaker_id = _speaker_for_interval(word['start_time'], word['end_time'], speaker_turns) or 'UNKNOWN'
+        if groups and groups[-1]['speaker_id'] == speaker_id:
+            groups[-1]['text'].append(word['text'])
+            groups[-1]['end_time'] = word['end_time']
+        else:
+            groups.append({
+                'speaker_id': speaker_id,
+                'start_time': word['start_time'],
+                'end_time': word['end_time'],
+                'text': [word['text']],
+            })
+
+    # Do not use incomplete word timings: retaining the original segment avoids
+    # silently dropping words from the stored transcript.
+    return [{**group, 'text': ' '.join(group['text'])} for group in groups]
 
 
 def map_speakers_to_roles(aligned_segments):
