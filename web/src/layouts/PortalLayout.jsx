@@ -31,7 +31,7 @@ export default function PortalLayout() {
     <Box
       component="main"
       sx={{
-        bgcolor: '#ffffff',
+        bgcolor: 'background.default',
         minHeight: '100vh',
         pl: { xs: 0, md: isAuthenticated ? '370px' : 0 },
         pt: isAuthenticated ? '64px' : 0,
@@ -42,7 +42,8 @@ export default function PortalLayout() {
         sx={{
           alignItems: 'center',
           bgcolor: '#ffffff',
-          borderBottom: '1px solid #e5e7eb',
+          borderBottom: '1px solid #bfdbfe',
+          boxShadow: '0 1px 4px rgba(30, 64, 175, 0.08)',
           display: 'grid',
           columnGap: { xs: 2, md: 4 },
           gridTemplateColumns: { xs: '1fr auto', md: '370px 1fr auto' },
@@ -55,13 +56,13 @@ export default function PortalLayout() {
           zIndex: (theme) => theme.zIndex.drawer + 1,
         }}
       >
-        <Typography component="div" sx={{ color: '#111111', fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em' }}>
+        <Typography component="div" sx={{ color: '#1d4ed8', fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em' }}>
           HRRecruit
         </Typography>
         <Typography
           component="div"
           sx={{
-            color: '#111111',
+            color: '#1e3a8a',
             display: { xs: 'none', md: 'block' },
             fontSize: 14,
             fontWeight: 800,
@@ -74,19 +75,19 @@ export default function PortalLayout() {
         {isAuthenticated ? (
           <Stack alignItems="center" direction="row" justifyContent="flex-end" spacing={3}>
             <Tooltip title="Notifications">
-              <IconButton aria-label="Notifications" size="small" sx={{ color: '#111111' }}>
-                <Badge color="error" overlap="circular" variant="dot">
+              <IconButton aria-label="Notifications" size="small" sx={{ color: '#1d4ed8' }}>
+                <Badge color="primary" overlap="circular" variant="dot">
                   <Box component="span" sx={{ fontSize: 18, lineHeight: 1 }}>♧</Box>
                 </Badge>
               </IconButton>
             </Tooltip>
             <Tooltip title={`Profile: ${user?.full_name ?? user?.email}`}>
-              <IconButton aria-label="Profile" component={RouterLink} size="small" sx={{ color: '#111111' }} to="/profile">
+              <IconButton aria-label="Profile" component={RouterLink} size="small" sx={{ color: '#1d4ed8' }} to="/profile">
                 <Box component="span" sx={{ fontSize: 20, lineHeight: 1 }}>●</Box>
               </IconButton>
             </Tooltip>
             <Tooltip title="Logout">
-              <IconButton aria-label="Logout" onClick={handleLogout} size="small" sx={{ color: '#111111' }}>
+              <IconButton aria-label="Logout" onClick={handleLogout} size="small" sx={{ color: '#1d4ed8' }}>
                 <Box component="span" sx={{ fontSize: 16, lineHeight: 1 }}>↪</Box>
               </IconButton>
             </Tooltip>
