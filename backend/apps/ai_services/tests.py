@@ -853,6 +853,33 @@ class InterviewSpeakerDiarizationTests(SimpleTestCase):
 
         self.assertEqual(aligned[0]['speaker_id'], 'SPEAKER_01')
 
+    def test_splits_a_whisper_segment_when_word_timings_cross_speakers(self):
+        aligned = align_transcript_segments_to_speakers(
+            [{
+                'start': 0.0,
+                'end': 3.0,
+                'text': 'Hello, Chris. Hello, Kate.',
+                'words': [
+                    {'word': 'Hello,', 'start': 0.0, 'end': 0.4},
+                    {'word': 'Chris.', 'start': 0.4, 'end': 0.8},
+                    {'word': 'Hello,', 'start': 1.2, 'end': 1.6},
+                    {'word': 'Kate.', 'start': 1.6, 'end': 2.0},
+                ],
+            }],
+            [
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 1.0},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 1.0, 'end_time': 3.0},
+            ],
+        )
+
+        self.assertEqual(
+            aligned,
+            [
+                {'speaker_id': 'SPEAKER_00', 'start_time': 0.0, 'end_time': 0.8, 'text': 'Hello, Chris.'},
+                {'speaker_id': 'SPEAKER_01', 'start_time': 1.2, 'end_time': 2.0, 'text': 'Hello, Kate.'},
+            ],
+        )
+
     def test_fallback_payload_keeps_plain_transcript_when_diarization_unavailable(self):
         with patch('apps.ai_services.transcription_service.run_speaker_diarization', side_effect=Exception('missing diarization')):
             payload = build_speaker_aware_transcript_payload(
