@@ -710,7 +710,10 @@ class EmployerInviteListCreateAPIView(APIView):
         job = get_object_or_404(JobPosting, id=request.data.get('job_id'), recruiter=request.user, organization=membership.organization, status=JobPosting.Status.OPEN)
         invite, created = EmployerInvite.objects.get_or_create(job=job, applicant=applicant, defaults={'recruiter': request.user})
         if not created:
-            raise ValidationError({'detail': 'This applicant has already been invited to this job.'})
+            invited_on = timezone.localtime(invite.created_at).date().isoformat()
+            raise ValidationError({
+                'detail': f'You have already invited this applicant to apply for this job on {invited_on}.',
+            })
         create_notification(applicant, 'employer_invite', 'Employer invite', f'{request.user.full_name} invited you to apply for {job.title}.', related_entity=invite)
         return Response(EmployerInviteSerializer(invite, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
