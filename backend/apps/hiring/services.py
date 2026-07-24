@@ -35,13 +35,24 @@ def decision_readiness(job):
         names = ', '.join(incomplete.values_list('applicant__full_name', flat=True)[:5])
         reasons.append(f'Shortlisted applicants still require a final interview/evaluation state: {names}.')
 
-    completed_without_evaluation = Interview.objects.filter(
+    completed_interviews = Interview.objects.filter(
         application__job=job,
         status=Interview.Status.COMPLETED,
-        evaluations__isnull=True,
-    ).distinct()
-    if completed_without_evaluation.exists():
-        reasons.append(f'{completed_without_evaluation.count()} completed interview(s) still require an interviewer evaluation.')
+    ).prefetch_related('panel_interviewers', 'evaluations')
+    incomplete_scorecards = 0
+    for interview in completed_interviews:
+        assigned_interviewer_ids = {interviewer.id for interviewer in interview.panel_interviewers.all()}
+        if interview.interviewer_id:
+            assigned_interviewer_ids.add(interview.interviewer_id)
+
+        submitted_interviewer_ids = {evaluation.interviewer_id for evaluation in interview.evaluations.all()}
+        if not assigned_interviewer_ids or assigned_interviewer_ids - submitted_interviewer_ids:
+            incomplete_scorecards += 1
+
+    if incomplete_scorecards:
+        reasons.append(
+            f'{incomplete_scorecards} completed interview(s) still require scorecards from all assigned interviewers.'
+        )
 
     eligible_count = applications.filter(status__in=ELIGIBLE_DECISION_STATUSES).count()
     return {

@@ -3,7 +3,9 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import JobApplication
+from apps.evaluations.models import InterviewEvaluation
 from apps.hiring.models import JobHiringDecision
+from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
@@ -90,3 +92,46 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         decision = self.submit().data
         self.client.force_authenticate(self.interviewer)
         self.assertEqual(self.client.post(reverse('job-hiring-decision-approve', args=[decision['id']])).status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_decision_waits_for_scorecards_from_every_panel_interviewer(self):
+        panel_interviewer = User.objects.create_user(
+            email='panel-interviewer-flow@example.com', password='pass',
+            full_name='Panel Interviewer', role=User.Role.INTERVIEWER,
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=panel_interviewer,
+            role=OrganizationMembership.Role.INTERVIEWER,
+        )
+        interview = Interview.objects.create(
+            application=self.application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            status=Interview.Status.COMPLETED,
+        )
+        interview.panel_interviewers.add(panel_interviewer)
+
+        self.close_intake()
+        blocked_response = self.submit()
+        self.assertEqual(blocked_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('scorecards from all assigned interviewers', str(blocked_response.data))
+
+        InterviewEvaluation.objects.create(
+            interview=interview,
+            interviewer=self.interviewer,
+            total_score='8.00',
+            overall_comment='Primary interviewer scorecard.',
+        )
+        blocked_response = self.submit()
+        self.assertEqual(blocked_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('scorecards from all assigned interviewers', str(blocked_response.data))
+
+        InterviewEvaluation.objects.create(
+            interview=interview,
+            interviewer=panel_interviewer,
+            total_score='8.50',
+            overall_comment='Panel interviewer scorecard.',
+        )
+        allowed_response = self.submit()
+        self.assertEqual(allowed_response.status_code, status.HTTP_201_CREATED, allowed_response.data)
