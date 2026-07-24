@@ -7,6 +7,7 @@ import RegisterHiringManagerPage from '../pages/auth/RegisterHiringManagerPage.j
 import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.jsx';
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
 import RoleBasedApplicantSearchPage from '../pages/applications/RoleBasedApplicantSearchPage.jsx';
+import HeadhuntInvitesPage from '../pages/recruiter/HeadhuntInvitesPage.jsx';
 import ApplicantProfilePage from '../pages/recruiter/ApplicantProfilePage.jsx';
 import ApplicantRankingPage from '../pages/recruiter/ApplicantRankingPage.jsx';
 import EvaluationScorecardBuilderPage from '../pages/recruiter/EvaluationFormBuilderPage.jsx';
@@ -93,6 +94,7 @@ export const router = createBrowserRouter([
           { path: 'recruiter/hiring-decisions', element: <HiringDecisionsPage /> },
           { path: 'recruiter/applications', element: <ApplicationsPage /> },
           { path: 'recruiter/applicant-search', element: <RoleBasedApplicantSearchPage role="recruiter" /> },
+          { path: 'recruiter/headhunt-invites', element: <HeadhuntInvitesPage /> },
           { path: 'recruiter/applications/:applicationId', element: <ApplicantProfilePage /> },
           { path: 'recruiter/applications/:applicationId/assign-interview', element: <InterviewAssignmentPage /> },
           { path: 'recruiter/applications/:applicationId/hiring-decision', element: <Navigate to="/recruiter/jobs" replace /> },

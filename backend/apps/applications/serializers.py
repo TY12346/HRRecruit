@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from apps.users.models import User
 
-from .models import ApplicationStageHistory, JobApplication
+from .models import ApplicationStageHistory, EmployerInvite, JobApplication
 
 
 def build_resume_payload(application, context=None):
@@ -250,3 +250,28 @@ class ApplicationStageHistorySerializer(serializers.ModelSerializer):
         model = ApplicationStageHistory
         fields = ['id', 'from_stage', 'to_stage', 'changed_by', 'changed_by_name', 'note', 'changed_at']
         read_only_fields = fields
+
+class EmployerInviteSerializer(serializers.ModelSerializer):
+    applicant_name = serializers.CharField(source='applicant.full_name', read_only=True)
+    applicant_email = serializers.EmailField(source='applicant.email', read_only=True)
+    job_title = serializers.CharField(source='job.title', read_only=True)
+    organization_name = serializers.CharField(source='job.organization.name', read_only=True)
+    recruiter_name = serializers.CharField(source='recruiter.full_name', read_only=True)
+
+    class Meta:
+        model = EmployerInvite
+        fields = ['id', 'job', 'job_title', 'organization_name', 'applicant', 'applicant_name', 'applicant_email', 'recruiter_name', 'response', 'responded_at', 'created_at', 'updated_at']
+        read_only_fields = fields
+
+class ApplicantDirectorySerializer(serializers.ModelSerializer):
+    linkedin_url = serializers.CharField(source='applicant_profile.linkedin_url', read_only=True)
+    personal_summary = serializers.CharField(source='applicant_profile.personal_summary', read_only=True)
+    skills = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'email', 'phone_number', 'linkedin_url', 'personal_summary', 'skills']
+        read_only_fields = fields
+
+    def get_skills(self, applicant):
+        return list(applicant.skills.values_list('skill_name', flat=True))
