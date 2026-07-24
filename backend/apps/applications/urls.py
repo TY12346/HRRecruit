@@ -20,11 +20,15 @@ from .views import (
     ApplicationShortlistAPIView,
     ApplicationStatusHistoryAPIView,
     ApplicantProfileAPIView,
+    EmployerInviteListCreateAPIView,
+    EmployerInviteDeclineAPIView,
 )
 
 urlpatterns = [
     path('', ApplicationListAPIView.as_view(), name='application-list'),
     path('search/', ApplicationSearchAPIView.as_view(), name='application-search'),
+    path('employer-invites/', EmployerInviteListCreateAPIView.as_view(), name='employer-invite-list-create'),
+    path('employer-invites/<int:invite_id>/decline/', EmployerInviteDeclineAPIView.as_view(), name='employer-invite-decline'),
     path('<int:application_id>/', ApplicationDetailAPIView.as_view(), name='application-detail'),
     path('<int:application_id>/screen/', ApplicationScreenAPIView.as_view(), name='application-screen'),
     path('<int:application_id>/applicant-profile/', ApplicantProfileAPIView.as_view(), name='application-applicant-profile'),
