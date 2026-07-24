@@ -36,6 +36,8 @@ class InterviewRecording(models.Model):
         related_name='uploaded_interview_recordings',
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    audio_sha256 = models.CharField(max_length=64, blank=True, db_index=True)
+    upload_seconds = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ['-uploaded_at']
@@ -44,13 +46,23 @@ class InterviewRecording(models.Model):
         return f'Recording for {self.interview}'
 
 
+class ProcessingStatus(models.TextChoices):
+    PENDING = 'PENDING', 'Pending'
+    PROCESSING = 'PROCESSING', 'Processing'
+    COMPLETED = 'COMPLETED', 'Completed'
+    FAILED = 'FAILED', 'Failed'
+    LOW_QUALITY = 'LOW_QUALITY', 'Low quality'
+
+
 class InterviewTranscript(models.Model):
     recording = models.ForeignKey(
         InterviewRecording,
         on_delete=models.CASCADE,
         related_name='transcripts',
     )
-    transcript_text = models.TextField()
+    transcript_text = models.TextField(blank=True)
+    processing_status = models.CharField(max_length=12, choices=ProcessingStatus.choices, default=ProcessingStatus.PENDING, db_index=True)
+    processing_error = models.TextField(blank=True)
     transcript_json = models.JSONField(default=dict, blank=True)
     generated_at = models.DateTimeField(auto_now_add=True)
 

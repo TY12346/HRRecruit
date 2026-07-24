@@ -13,6 +13,7 @@ import importlib
 import importlib.util
 import json
 import os
+from time import perf_counter
 import re
 from decimal import Decimal, InvalidOperation
 
@@ -376,6 +377,7 @@ def run_real_summary(cleaned_transcript):
             f'Unsupported SUMMARY_PROVIDER "{provider}". Use "openai" or "gemini".'
         )
 
+    started = perf_counter()
     try:
         content = summary_call(prompt, api_key, model)
         parsed = _parse_summary_content(content)
@@ -385,6 +387,7 @@ def run_real_summary(cleaned_transcript):
             model=model,
             generation_mode='real_llm',
         )
+        parsed['summary_json']['summary_generation_seconds'] = round(perf_counter() - started, 3)
         return validate_structured_summary(parsed)
     except SummaryGenerationUnavailable:
         raise

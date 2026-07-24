@@ -42,8 +42,18 @@ joblib>=1.4,<2.0
 numpy>=1.26,<3.0
 sentence-transformers>=3.0,<4.0
 
-# Optional real local Whisper transcription support
-openai-whisper>=20250625
+# Real local Whisper transcription support.  The model is selected by
+# WHISPER_MODEL_SIZE (small by default); this does not use a hosted ASR API.
+openai-whisper==20250625
+
+# Real pyannote 3.1 diarization dependencies.  This compatible set avoids the
+# transformers 4.57 lazy-import regression that surfaces as an AutoModel error.
+# A Hugging Face token with accepted model terms is still required at runtime.
+torch>=2.0,<2.3
+torchaudio>=2.0,<2.3
+pyannote.audio==3.1.1
+transformers>=4.35,<4.42
+huggingface_hub>=0.20,<0.25
 
 # Optional real OpenAI transcription/summary support
 openai>=1.90,<2.0

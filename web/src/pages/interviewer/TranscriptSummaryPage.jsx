@@ -6,6 +6,8 @@ import { generateTranscriptSummary, getInterview, transcribeRecording, uploadInt
 import InterviewerNav from './InterviewerNav.jsx';
 import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredSummaryId, setStoredTranscriptId } from './interviewerUtils.js';
 
+const processingLabels = { PENDING: 'Pending', PROCESSING: 'Processing', COMPLETED: 'Completed', FAILED: 'Failed', LOW_QUALITY: 'Low quality' };
+
 const speakerSeparationLabels = {
   completed: 'Speaker separated',
   not_configured: 'Plain transcript',
@@ -20,8 +22,8 @@ const speakerSeparationMessages = {
 };
 
 
-function getDisplayRole(role) {
-  return role === 'Interviewer' || role === 'Applicant' ? role : 'Unknown';
+function getDisplayRole(role, speakerId) {
+  return role || speakerId || 'Unknown speaker';
 }
 
 function mergeConsecutiveSpeakerSegments(segments) {
@@ -29,7 +31,7 @@ function mergeConsecutiveSpeakerSegments(segments) {
     const text = String(segment.text || '').trim();
     if (!text) return groups;
 
-    const role = getDisplayRole(segment.role);
+    const role = getDisplayRole(segment.role, segment.speaker_id);
     const previous = groups[groups.length - 1];
     if (previous?.role === role) {
       previous.text = `${previous.text} ${text}`;
@@ -51,6 +53,7 @@ function mergeConsecutiveSpeakerSegments(segments) {
 function TranscriptResult({ transcript }) {
   if (!transcript) return null;
 
+  const processingStatus = transcript.processing_status || 'COMPLETED';
   const displayTranscript = transcript.speaker_labelled_transcript || transcript.transcript_text || transcript.transcript || '';
   const speakerSegments = Array.isArray(transcript.speaker_segments) ? transcript.speaker_segments : [];
   const mergedSpeakerSegments = mergeConsecutiveSpeakerSegments(speakerSegments);
@@ -67,9 +70,13 @@ function TranscriptResult({ transcript }) {
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Generated transcript
           </Typography>
+          <Chip size="small" color={['FAILED', 'LOW_QUALITY'].includes(processingStatus) ? 'error' : processingStatus === 'COMPLETED' ? 'success' : 'warning'} label={processingLabels[processingStatus] || processingStatus} />
           <Chip size="small" label={speakerSeparationLabel} />
         </Stack>
-        {showSpeakerUnavailable ? (
+        {processingStatus === 'PENDING' || processingStatus === 'PROCESSING' ? <Alert severity="info">Processing real transcription… This page refreshes automatically.</Alert> : null}
+        {processingStatus === 'FAILED' ? <Alert severity="error">Real transcription failed: {transcript.processing_error || transcript.transcript_json?.error || 'No error details were returned.'}</Alert> : null}
+        {processingStatus === 'LOW_QUALITY' ? <Alert severity="error">Real transcription completed but failed quality checks and cannot be summarized: {transcript.processing_error || 'The returned text is likely unusable.'}</Alert> : null}
+        {processingStatus === 'COMPLETED' && showSpeakerUnavailable ? (
           <Alert severity="info">
             <Stack spacing={0.5}>
               <Typography variant="body2">{speakerSeparationMessage}</Typography>
@@ -160,6 +167,17 @@ export default function TranscriptSummaryPage() {
     return () => { isActive = false; };
   }, [interviewId]);
 
+  useEffect(() => {
+    if (!transcript?.id || !['PENDING', 'PROCESSING'].includes(transcript.processing_status)) return undefined;
+    const timer = window.setInterval(async () => {
+      try {
+        const interview = await getInterview(interviewId);
+        if (interview.transcript?.id === transcript.id) setTranscript(interview.transcript);
+      } catch (_) { /* keep polling; surfaced on next explicit action */ }
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [interviewId, transcript?.id, transcript?.processing_status]);
+
   const generateTranscript = async () => {
     setError('');
     setSuccess('');
@@ -180,7 +198,7 @@ export default function TranscriptSummaryPage() {
       setTranscript(data);
       setSummary(null);
       setStoredTranscriptId(interviewId, data.id);
-      setSuccess('Transcript generated and stored successfully.');
+      setSuccess(data.processing_status === 'COMPLETED' ? 'Transcript generated and stored successfully.' : 'Real transcription has been queued.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to generate transcript.'));
     } finally {
@@ -237,9 +255,9 @@ export default function TranscriptSummaryPage() {
               </Typography>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 <Button variant="contained" disabled={isBusy || (!file && !recordingId)} onClick={generateTranscript}>
-                  {isBusy ? 'Generating transcript…' : transcript ? 'Regenerate transcript' : 'Generate transcript'}
+                  {isBusy ? 'Queueing real transcription…' : transcript ? 'Regenerate transcript' : 'Generate transcript'}
                 </Button>
-                <Button variant="outlined" disabled={isSummaryBusy || !transcript?.id} onClick={generateSummary}>
+                <Button variant="outlined" disabled={isSummaryBusy || !transcript?.id || transcript.processing_status !== 'COMPLETED'} onClick={generateSummary}>
                   {isSummaryBusy ? 'Generating summary…' : summary ? 'Regenerate AI summary' : 'Generate AI summary'}
                 </Button>
               </Stack>
