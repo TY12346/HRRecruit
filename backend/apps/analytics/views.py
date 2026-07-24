@@ -1,11 +1,12 @@
 """Role-protected analytics API views."""
 
 from django.http import HttpResponse
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .reports import build_analytics_summary_pdf
+from .reports import ReportGenerationError, build_analytics_summary_pdf
 from .services import (
     hiring_manager_dashboard,
     interviewer_dashboard,
@@ -58,7 +59,10 @@ class AnalyticsReportPDFAPIView(APIView):
 
     def get(self, request):
         dashboard = self.dashboard_builder(request.user)
-        pdf_content = build_analytics_summary_pdf(self.report_type, dashboard, request.user)
+        try:
+            pdf_content = build_analytics_summary_pdf(self.report_type, dashboard, request.user)
+        except ReportGenerationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         response = HttpResponse(pdf_content, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{self.filename}"'
         return response
