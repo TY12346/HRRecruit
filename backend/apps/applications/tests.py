@@ -20,7 +20,7 @@ from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import ApplicantResume, User
 
-from .models import ApplicationStageHistory, JobApplication
+from .models import ApplicationStageHistory, EmployerInvite, JobApplication
 
 
 class JobApplicationAPITests(APITestCase):
@@ -85,6 +85,26 @@ class JobApplicationAPITests(APITestCase):
             profile.resume_file = resume.resume_file
             profile.save(update_fields=['resume_file', 'updated_at'])
         return resume
+
+    def test_recruiter_receives_invitation_date_when_inviting_same_applicant_to_same_job(self):
+        invite = EmployerInvite.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            recruiter=self.recruiter,
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('employer-invite-list-create'),
+            {'applicant_id': self.applicant.id, 'job_id': self.job.id},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data['detail'],
+            f'You have already invited this applicant to apply for this job on {invite.created_at.date().isoformat()}.',
+        )
 
     @patch('apps.applications.views.screen_job_application')
     def test_applicant_applies_once_to_open_job_and_runs_screening_immediately(self, screen_job_application):

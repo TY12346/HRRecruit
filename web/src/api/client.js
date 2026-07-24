@@ -347,6 +347,9 @@ export const getApplicantSearch = async (params = {}) => {
   return response.data;
 };
 
+export const getEmployerInvites = async () => (await apiClient.get('/applications/employer-invites/')).data;
+export const sendEmployerInvite = async (payload) => (await apiClient.post('/applications/employer-invites/', payload)).data;
+
 export const getApplication = async (applicationId) => {
   const response = await apiClient.get(`/applications/${applicationId}/`);
   return response.data;
