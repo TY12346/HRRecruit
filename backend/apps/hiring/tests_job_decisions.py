@@ -64,6 +64,42 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['items'][0]['application']['id'], self.application.id)
 
+    def test_pending_decision_returns_its_specific_error_instead_of_readiness_error(self):
+        self.close_intake()
+        self.assertEqual(self.submit().status_code, status.HTTP_201_CREATED)
+
+        duplicate = self.submit()
+
+        self.assertEqual(duplicate.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('already has a decision pending', str(duplicate.data))
+
+    def test_comparison_requires_all_panel_scorecards_before_application_is_eligible(self):
+        panel_interviewer = User.objects.create_user(
+            email='comparison-panel@example.com', password='pass', full_name='Panel', role=User.Role.INTERVIEWER,
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization, user=panel_interviewer, role=OrganizationMembership.Role.INTERVIEWER,
+        )
+        interview = Interview.objects.create(
+            application=self.application, organization=self.organization, recruiter=self.recruiter,
+            interviewer=self.interviewer, status=Interview.Status.COMPLETED,
+        )
+        interview.panel_interviewers.add(panel_interviewer)
+        InterviewEvaluation.objects.create(
+            interview=interview, interviewer=self.interviewer, total_score='8.00', overall_comment='Submitted.',
+        )
+        self.close_intake()
+        self.client.force_authenticate(self.recruiter)
+
+        comparison = self.client.get(reverse('job-applicant-comparison', args=[self.job.id]))
+
+        self.assertEqual(comparison.status_code, status.HTTP_200_OK)
+        applicant = comparison.data['applicants'][0]
+        self.assertEqual(applicant['evaluation_status'], 'pending')
+        self.assertEqual(applicant['scorecards_submitted'], 1)
+        self.assertEqual(applicant['scorecards_required'], 2)
+        self.assertFalse(applicant['eligible_for_decision'])
+
     def test_no_hire_requires_no_applicants_and_hr_can_approve(self):
         self.close_intake()
         response = self.submit('recommend_no_hire', [])
