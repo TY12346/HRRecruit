@@ -26,6 +26,7 @@ const departmentName = (item) => (item.department === 'Other' ? item.custom_depa
 export default function JobRequisitionsPage() {
   const [requisitions, setRequisitions] = useState([]);
   const [search, setSearch] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,7 +38,7 @@ export default function JobRequisitionsPage() {
   }, []);
 
   const visibleRequisitions = useMemo(() => {
-    const searchTerm = search.trim().toLowerCase();
+    const searchTerm = submittedSearch.trim().toLowerCase();
     if (!searchTerm) {
       return requisitions;
     }
@@ -50,7 +51,12 @@ export default function JobRequisitionsPage() {
       item.position_status,
       item.status,
     ].some((value) => String(value ?? '').toLowerCase().includes(searchTerm)));
-  }, [requisitions, search]);
+  }, [requisitions, submittedSearch]);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    setSubmittedSearch(search);
+  };
 
   return (
     <Box>
@@ -69,13 +75,17 @@ export default function JobRequisitionsPage() {
 
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-        <TextField
-          fullWidth
-          label="Search by title, department, location, or status"
-          onChange={(event) => setSearch(event.target.value)}
-          sx={{ mb: 2 }}
-          value={search}
-        />
+        <Box component="form" onSubmit={handleSearchSubmit} sx={{ mb: 2 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <TextField
+              fullWidth
+              label="Search by title, department, location, or status"
+              onChange={(event) => setSearch(event.target.value)}
+              value={search}
+            />
+            <Button type="submit" variant="outlined">Search</Button>
+          </Stack>
+        </Box>
 
         {isLoading ? <CircularProgress aria-label="Loading job requisitions" /> : null}
 
@@ -96,8 +106,6 @@ export default function JobRequisitionsPage() {
               <TableRow key={item.id}>
                 <TableCell>
                   <Typography sx={{ fontWeight: 700 }}>{item.title}</Typography>
-                  {item.status === 'rejected' ? <Typography color="error" variant="body2">Reason: {item.rejection_reason}</Typography> : null}
-                  {item.status === 'approved' && item.job_posting_id ? <Typography color="text.secondary" variant="body2">Draft job #{item.job_posting_id}</Typography> : null}
                 </TableCell>
                 <TableCell>{departmentName(item)}</TableCell>
                 <TableCell>{item.location || '—'}</TableCell>
@@ -111,7 +119,7 @@ export default function JobRequisitionsPage() {
             ))}
             {!isLoading && visibleRequisitions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>{search ? 'No job requisitions match your search.' : 'No job requisitions yet.'}</TableCell>
+                <TableCell colSpan={7}>{submittedSearch ? 'No job requisitions match your search.' : 'No job requisitions yet.'}</TableCell>
               </TableRow>
             ) : null}
           </TableBody>
