@@ -11,14 +11,18 @@ import {
   ListItemText,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink } from 'react-router-dom';
 import { getInterviewEvaluationDetail, getInterviews } from '../../api/client.js';
-import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
-import { formatDateTime, getApiErrorMessage } from './recruiterUtils.js';
+import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
 
 function EvaluationCard({ evaluation }) {
   return (
@@ -77,31 +81,59 @@ export default function InterviewEvaluationDetailPage() {
     <Box>
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Interview evaluations</Typography>
+        <Stack spacing={0.5} sx={{ mb: 3 }}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
+            Interview evaluations
+          </Typography>
+          <Typography color="text.secondary">
+            Review interviewer evaluations and continue to the job hiring decision when ready.
+          </Typography>
+        </Stack>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? <CircularProgress /> : null}
-        <Stack spacing={2}>
-          {interviews.map((interview) => (
-            <Card key={interview.id}>
-              <CardContent>
-                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                  <Box>
-                    <ApplicantJobSummary applicantName={interview.application?.applicant?.full_name} jobTitle={interview.application?.job_title} variant="h6" />
-                    <Typography color="text.secondary">
-                      {interview.interviewer?.full_name} • {formatDateTime(interview.scheduled_datetime)} • {interview.status}
-                    </Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1}>
-                    <Button onClick={() => openDetail(interview)} variant="outlined">View evaluations</Button>
-                    <Button component={RouterLink} to={`/recruiter/jobs/${interview.application?.job}/hiring-decision`}>Job decision</Button>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table sx={{ mt: 2, minWidth: 900 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Applicant</TableCell>
+                <TableCell>Job applied</TableCell>
+                <TableCell>Interviewer</TableCell>
+                <TableCell>Scheduled</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {interviews.map((interview) => (
+                <TableRow key={interview.id}>
+                  <TableCell>{interview.application?.applicant?.full_name || '—'}</TableCell>
+                  <TableCell>{interview.application?.job_title || '—'}</TableCell>
+                  <TableCell>{interview.interviewer?.full_name || '—'}</TableCell>
+                  <TableCell>{formatDateTime(interview.scheduled_datetime)}</TableCell>
+                  <TableCell>{titleize(interview.status)}</TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                      <Button onClick={() => openDetail(interview)} size="small" variant="outlined">View evaluations</Button>
+                      <Button component={RouterLink} size="small" to={`/recruiter/jobs/${interview.application?.job}/hiring-decision`}>Job decision</Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!isLoading && interviews.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6}>No interviews found.</TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </Box>
+
+        <Stack spacing={2} sx={{ mt: 2 }}>
           {detail ? (
             <Paper variant="outlined" sx={{ p: 2 }}>
-              <ApplicantJobSummary applicantName={detail.applicant_name} jobTitle={detail.job_title} variant="h6" />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {detail.applicant_name || 'Applicant'} — {detail.job_title || 'Job'}
+              </Typography>
               <Typography variant="h6" sx={{ mt: 2 }}>Submitted evaluations</Typography>
               {submittedEvaluations.length ? (
                 submittedEvaluations.map((evaluation) => <EvaluationCard key={evaluation.id} evaluation={evaluation} />)
