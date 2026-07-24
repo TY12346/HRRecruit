@@ -137,3 +137,25 @@ class ApplicationStageHistory(models.Model):
 
     def __str__(self):
         return f'{self.application} - {self.from_stage} to {self.to_stage}'
+
+class EmployerInvite(models.Model):
+    class Response(models.TextChoices):
+        NO_RESPONSE = 'no_response', 'No response'
+        APPLIED = 'applied', 'Applied for job'
+        DECLINED = 'declined', 'Declined'
+
+    id = models.BigAutoField(primary_key=True)
+    job = models.ForeignKey(JobPosting, on_delete=models.CASCADE, related_name='employer_invites')
+    applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employer_invites', limit_choices_to={'role': User.Role.APPLICANT})
+    recruiter = models.ForeignKey(User, on_delete=models.PROTECT, related_name='sent_employer_invites', limit_choices_to={'role': User.Role.RECRUITER})
+    response = models.CharField(max_length=20, choices=Response.choices, default=Response.NO_RESPONSE)
+    responded_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [models.UniqueConstraint(fields=['job', 'applicant'], name='unique_employer_invite_per_job_applicant')]
+
+    def __str__(self):
+        return f'{self.job.title} invite for {self.applicant.email}'
