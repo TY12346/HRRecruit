@@ -35,7 +35,7 @@ class EvaluationCriterionSerializer(serializers.ModelSerializer):
 
 
 class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
-    criteria = EvaluationCriterionSerializer(many=True)
+    criteria = EvaluationCriterionSerializer(many=True, allow_empty=False)
 
     class Meta:
         model = InterviewEvaluationForm
@@ -86,6 +86,7 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'vacancies',
             'application_deadline',
             'status',
+            'requirements_locked_at',
             'requirements',
             'interview_evaluation_form',
             'interview_evaluation_scorecard',
@@ -99,6 +100,7 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'organization_name',
             'recruiter',
             'recruiter_name',
+            'requirements_locked_at',
             'requirements',
             'interview_evaluation_form',
             'interview_evaluation_scorecard',
