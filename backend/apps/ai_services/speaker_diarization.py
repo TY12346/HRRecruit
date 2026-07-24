@@ -127,6 +127,13 @@ def run_speaker_diarization(audio_file):
             'Speaker diarization is not configured for this environment.',
             status=DIARIZATION_STATUS_NOT_CONFIGURED,
         )
+    token = os.getenv('PYANNOTE_AUTH_TOKEN', '').strip()
+    model_name = os.getenv('DIARIZATION_MODEL', 'pyannote/speaker-diarization-3.1').strip()
+    if not token:
+        raise DiarizationUnavailable(
+            f'Speaker diarization requires PYANNOTE_AUTH_TOKEN with access to {model_name}; accept the model terms on Hugging Face and configure the token.',
+            status=DIARIZATION_STATUS_NOT_CONFIGURED,
+        )
     try:
         pyannote_available = importlib.util.find_spec('pyannote.audio') is not None
     except ModuleNotFoundError:
@@ -137,8 +144,6 @@ def run_speaker_diarization(audio_file):
             status=DIARIZATION_STATUS_UNAVAILABLE,
         )
 
-    token = os.getenv('PYANNOTE_AUTH_TOKEN', '').strip()
-    model_name = os.getenv('DIARIZATION_MODEL', 'pyannote/speaker-diarization-3.1').strip()
     try:
         pyannote_audio = importlib.import_module('pyannote.audio')
         pipeline = _load_pyannote_pipeline(pyannote_audio, model_name, token)

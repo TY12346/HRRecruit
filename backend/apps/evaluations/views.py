@@ -123,6 +123,8 @@ class InterviewTranscriptGenerateSummaryAPIView(APIView):
 
     def post(self, request, transcript_id):
         transcript = assigned_transcript_or_404(request.user, transcript_id)
+        if transcript.processing_status != ProcessingStatus.COMPLETED:
+            raise ValidationError({'transcript': 'AI summary is available only for completed transcripts that passed transcription quality checks.'})
         summary_payload = generate_interview_summary(transcript)
         summary = InterviewAISummary.objects.create(transcript=transcript, **summary_payload)
         return Response(InterviewAISummarySerializer(summary, context={'request': request}).data, status=status.HTTP_201_CREATED)

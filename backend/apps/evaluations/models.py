@@ -51,6 +51,7 @@ class ProcessingStatus(models.TextChoices):
     PROCESSING = 'PROCESSING', 'Processing'
     COMPLETED = 'COMPLETED', 'Completed'
     FAILED = 'FAILED', 'Failed'
+    LOW_QUALITY = 'LOW_QUALITY', 'Low quality'
 
 
 class InterviewTranscript(models.Model):

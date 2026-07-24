@@ -6,7 +6,7 @@ import { generateTranscriptSummary, getInterview, transcribeRecording, uploadInt
 import InterviewerNav from './InterviewerNav.jsx';
 import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredSummaryId, setStoredTranscriptId } from './interviewerUtils.js';
 
-const processingLabels = { PENDING: 'Pending', PROCESSING: 'Processing', COMPLETED: 'Completed', FAILED: 'Failed' };
+const processingLabels = { PENDING: 'Pending', PROCESSING: 'Processing', COMPLETED: 'Completed', FAILED: 'Failed', LOW_QUALITY: 'Low quality' };
 
 const speakerSeparationLabels = {
   completed: 'Speaker separated',
@@ -70,11 +70,12 @@ function TranscriptResult({ transcript }) {
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Generated transcript
           </Typography>
-          <Chip size="small" color={processingStatus === 'FAILED' ? 'error' : processingStatus === 'COMPLETED' ? 'success' : 'warning'} label={processingLabels[processingStatus] || processingStatus} />
+          <Chip size="small" color={['FAILED', 'LOW_QUALITY'].includes(processingStatus) ? 'error' : processingStatus === 'COMPLETED' ? 'success' : 'warning'} label={processingLabels[processingStatus] || processingStatus} />
           <Chip size="small" label={speakerSeparationLabel} />
         </Stack>
         {processingStatus === 'PENDING' || processingStatus === 'PROCESSING' ? <Alert severity="info">Processing real transcription… This page refreshes automatically.</Alert> : null}
         {processingStatus === 'FAILED' ? <Alert severity="error">Real transcription failed: {transcript.processing_error || transcript.transcript_json?.error || 'No error details were returned.'}</Alert> : null}
+        {processingStatus === 'LOW_QUALITY' ? <Alert severity="error">Real transcription completed but failed quality checks and cannot be summarized: {transcript.processing_error || 'The returned text is likely unusable.'}</Alert> : null}
         {processingStatus === 'COMPLETED' && showSpeakerUnavailable ? (
           <Alert severity="info">
             <Stack spacing={0.5}>

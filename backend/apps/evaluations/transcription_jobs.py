@@ -25,8 +25,9 @@ def _process(transcript_id):
         else:
             payload = transcribe_recording_payload(transcript.recording)
             transcript.transcript_text, transcript.transcript_json = payload['transcript_text'], payload['transcript_json']
-        transcript.processing_status = ProcessingStatus.COMPLETED
-        transcript.processing_error = ''
+        assessment = transcript.transcript_json.get('quality_assessment', {})
+        transcript.processing_status = assessment.get('state', ProcessingStatus.COMPLETED)
+        transcript.processing_error = '; '.join(assessment.get('reasons', [])) if transcript.processing_status == ProcessingStatus.LOW_QUALITY else ''
         transcript.save(update_fields=['transcript_text', 'transcript_json', 'processing_status', 'processing_error'])
     except Exception as exc:
         message = str(exc) or f'{exc.__class__.__name__}: real transcription failed.'
