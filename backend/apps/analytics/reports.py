@@ -1,12 +1,29 @@
 """PDF report generation helpers for analytics exports."""
 
+from importlib.util import find_spec
 from io import BytesIO
 
 from django.utils import timezone
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+
+class ReportGenerationError(RuntimeError):
+    """Raised when the optional PDF reporting library is unavailable."""
+
+
+def _load_reportlab():
+    """Load ReportLab only when a user requests a PDF export."""
+    if find_spec('reportlab') is None:
+        raise ReportGenerationError(
+            'PDF analytics exports require reportlab. '
+            'Install backend dependencies with `pip install -r requirements.txt`.'
+        )
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    return colors, A4, getSampleStyleSheet, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 REPORT_TITLES = {
@@ -137,6 +154,8 @@ def _append_performance_table(story, styles, title, rows, columns):
 
 def build_analytics_summary_pdf(report_type, dashboard, user):
     """Return PDF bytes for a role-specific analytics dashboard payload."""
+    global colors, A4, getSampleStyleSheet, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    colors, A4, getSampleStyleSheet, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle = _load_reportlab()
     buffer = BytesIO()
     document = SimpleDocTemplate(
         buffer,
