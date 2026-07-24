@@ -53,6 +53,7 @@ class JobPosting(models.Model):
     vacancies = models.PositiveIntegerField(default=1)
     application_deadline = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=40, choices=Status.choices, default=Status.DRAFT)
+    requirements_locked_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

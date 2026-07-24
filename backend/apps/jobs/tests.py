@@ -150,7 +150,7 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual([item['id'] for item in response.data], [matching_job.id])
 
     def test_recruiter_can_configure_requirements_only_when_weights_sum_to_one(self):
-        job = self.create_job()
+        job = self.create_job(status=JobPosting.Status.DRAFT)
         self.authenticate(self.recruiter)
         requirements_url = reverse('job-requirements', args=[job.id])
         invalid_payload = {
@@ -173,7 +173,7 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(sum(job.requirements.values_list('weight_score', flat=True)), Decimal('1.00'))
 
     def test_recruiter_can_create_evaluation_scorecard_but_cannot_duplicate_job_configuration(self):
-        job = self.create_job()
+        job = self.create_job(status=JobPosting.Status.DRAFT)
         self.authenticate(self.recruiter)
         self.client.post(
             reverse('job-requirements', args=[job.id]),
@@ -263,6 +263,44 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(no_scorecard_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(open_response.status_code, status.HTTP_200_OK)
         self.assertEqual(open_response.data['status'], JobPosting.Status.OPEN)
+
+    def test_recruiter_cannot_change_requirements_after_job_is_posted(self):
+        job = self.create_job(status=JobPosting.Status.DRAFT)
+        self.authenticate(self.recruiter)
+        requirements_url = reverse('job-requirements', args=[job.id])
+        initial_requirements = {
+            'requirements': [
+                {'requirement_type': 'skill', 'description': 'Python', 'weight_score': '1.00', 'minimum_threshold': '0.50'},
+            ]
+        }
+        self.client.post(requirements_url, initial_requirements, format='json')
+        self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {
+                'title': 'Interview Evaluation Scorecard',
+                'criteria': [
+                    {'criterion_name': 'Technical fit', 'description': 'Technical quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                ],
+            },
+            format='json',
+        )
+        self.client.patch(reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json')
+
+        response = self.client.post(
+            requirements_url,
+            {
+                'requirements': [
+                    {'requirement_type': 'skill', 'description': 'Java', 'weight_score': '1.00', 'minimum_threshold': '0.50'},
+                ]
+            },
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('cannot be changed once this job has been posted', response.data['requirements'][0])
+        self.assertIsNotNone(job.requirements_locked_at)
+        self.assertEqual(list(job.requirements.values_list('description', flat=True)), ['Python'])
 
     def test_applicant_can_save_list_and_unsave_open_job(self):
         job = self.create_job()
