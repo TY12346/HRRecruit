@@ -219,10 +219,10 @@ export default function JobCreateEditPage() {
       />
       {isEdit ? (
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-          <TextField label="Approximate salary" type="number" value={form.approximate_salary} onChange={setField('approximate_salary')} />
-          <TextField label="Number of vacancies" type="number" inputProps={{ min: 1 }} value={form.vacancies} onChange={setField('vacancies')} />
-          <TextField label="Application deadline" type="date" InputLabelProps={{ shrink: true }} value={form.application_deadline} onChange={setField('application_deadline')} />
-          <FormControl>
+          <TextField sx={{ flex: 1, minWidth: 0 }} label="Approximate salary" type="number" value={form.approximate_salary} onChange={setField('approximate_salary')} />
+          <TextField sx={{ flex: 1, minWidth: 0 }} label="Number of vacancies" type="number" inputProps={{ min: 1 }} value={form.vacancies} onChange={setField('vacancies')} />
+          <TextField sx={{ flex: 1, minWidth: 0 }} label="Application deadline" type="date" InputLabelProps={{ shrink: true }} value={form.application_deadline} onChange={setField('application_deadline')} />
+          <FormControl sx={{ flex: 1, minWidth: 0 }}>
             <InputLabel>Status</InputLabel>
             <Select label="Status" value={form.status} onChange={setField('status')}>
               <MenuItem value="draft">Draft</MenuItem>
