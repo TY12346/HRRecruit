@@ -274,5 +274,21 @@ class BookSchedulingRequestSerializer(serializers.Serializer):
 
 
 class AssignInterviewerSerializer(serializers.Serializer):
-    interviewer_id = serializers.IntegerField(required=True)
+    interviewer_id = serializers.IntegerField(required=False)
+    interviewer_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=False,
+        max_length=3,
+    )
     note = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+
+    def validate(self, attrs):
+        interviewer_ids = attrs.get('interviewer_ids')
+        interviewer_id = attrs.get('interviewer_id')
+        if interviewer_ids is None and interviewer_id is None:
+            raise serializers.ValidationError({'interviewer_ids': 'Select at least one interviewer.'})
+        if interviewer_ids is not None and len(set(interviewer_ids)) != len(interviewer_ids):
+            raise serializers.ValidationError({'interviewer_ids': 'Each interviewer may only be selected once.'})
+        attrs['interviewer_ids'] = interviewer_ids if interviewer_ids is not None else [interviewer_id]
+        return attrs
