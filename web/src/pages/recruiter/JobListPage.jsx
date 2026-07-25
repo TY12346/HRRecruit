@@ -127,8 +127,6 @@ export default function JobListPage() {
                 <TableCell align="center">
                   <Stack direction="row" spacing={1} justifyContent="center">
                     <Button component={RouterLink} to={`/recruiter/jobs/${job.id}`} size="small">View</Button>
-                    <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/edit`} size="small">Edit</Button>
-                    <Button color="error" onClick={() => handleDelete(job)} size="small">Delete</Button>
                   </Stack>
                 </TableCell>
               </TableRow>
