@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   List,
   ListItem,
@@ -49,6 +50,38 @@ function EvaluationCard({ evaluation }) {
         </List>
       </CardContent>
     </Card>
+  );
+}
+
+function interviewerNames(interview) {
+  const assignedInterviewers = [
+    interview.interviewer,
+    ...(interview.panel_interviewers ?? []),
+  ];
+  const uniqueInterviewers = new Map(
+    assignedInterviewers
+      .filter(Boolean)
+      .map((interviewer) => [interviewer.id ?? interviewer.full_name, interviewer]),
+  );
+
+  return [...uniqueInterviewers.values()]
+    .map((interviewer) => interviewer.full_name)
+    .filter(Boolean);
+}
+
+function InterviewerCell({ interview }) {
+  const names = interviewerNames(interview);
+
+  return (
+    <TableCell>
+      {names.length
+        ? names.map((name, index) => (
+          <Typography key={`${name}-${index}`} component="span" display="block">
+            {name}
+          </Typography>
+        ))
+        : '—'}
+    </TableCell>
   );
 }
 
@@ -110,9 +143,20 @@ export default function InterviewEvaluationDetailPage() {
                 <TableRow key={interview.id}>
                   <TableCell>{interview.application?.applicant?.full_name || '—'}</TableCell>
                   <TableCell>{interview.application?.job_title || '—'}</TableCell>
-                  <TableCell>{interview.interviewer?.full_name || '—'}</TableCell>
+                  <InterviewerCell interview={interview} />
                   <TableCell>{formatDateTime(interview.scheduled_datetime)}</TableCell>
-                  <TableCell>{titleize(interview.status)}</TableCell>
+                  <TableCell>
+                    {titleize(interview.status)}
+                    {interview.availability_alert ? (
+                      <Chip
+                        color="warning"
+                        label="No common availability"
+                        size="small"
+                        sx={{ display: 'flex', mt: 0.5, width: 'fit-content' }}
+                        title={interview.availability_alert}
+                      />
+                    ) : null}
+                  </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" justifyContent="flex-end" spacing={1}>
                       <Button onClick={() => openDetail(interview)} size="small" variant="outlined">View evaluations</Button>

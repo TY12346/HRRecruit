@@ -313,12 +313,61 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(scheduling_request.interview.interviewer, self.interviewer)
         self.assertEqual(scheduling_request.interview.status, Interview.Status.INVITED)
         self.assertEqual(scheduling_request.interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
+        self.assertIsNone(scheduling_request.invitation_sent_at)
+        self.assertFalse(response.data['has_common_availability'])
+        self.assertIn('applicant has not been invited', response.data['availability_alert'].lower())
+        self.assertFalse(Notification.objects.filter(
+            recipient=self.applicant,
+            notification_type='interview_self_scheduling',
+        ).exists())
+
+        self.authenticate(self.applicant)
+        applicant_requests = self.client.get(reverse('interview-scheduling-request-list'))
+        self.assertEqual(applicant_requests.status_code, status.HTTP_200_OK)
+        self.assertEqual(applicant_requests.data, [])
 
         self.authenticate(self.interviewer)
         assigned_response = self.client.get(reverse('interview-assigned-list'))
 
         self.assertEqual(assigned_response.status_code, status.HTTP_200_OK)
         self.assertIn(scheduling_request.interview.id, {interview['id'] for interview in assigned_response.data})
+        assigned_interview = next(item for item in assigned_response.data if item['id'] == scheduling_request.interview.id)
+        self.assertIn('No common availability', assigned_interview['availability_alert'])
+
+    def test_applicant_is_invited_when_all_panel_interviewers_have_a_common_slot(self):
+        panel_interviewer = self.create_user('panel@example.com', User.Role.INTERVIEWER)
+        self.create_membership(panel_interviewer, self.organization, OrganizationMembership.Role.INTERVIEWER)
+        slot_date = timezone.localdate() + timedelta(days=2)
+        for interviewer in (self.interviewer, panel_interviewer):
+            InterviewerAvailabilityPattern.objects.create(
+                organization=self.organization,
+                interviewer=interviewer,
+                day_of_week=slot_date.weekday(),
+                start_time='09:00:00',
+                end_time='10:00:00',
+                slot_duration_minutes=60,
+                effective_from=timezone.localdate(),
+            )
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('application-create-scheduling-request', args=[self.application.id]),
+            {'interviewer_ids': [self.interviewer.id, panel_interviewer.id]},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertTrue(response.data['has_common_availability'])
+        self.assertEqual(response.data['availability_alert'], '')
+        self.assertIsNotNone(response.data['invitation_sent_at'])
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            notification_type='interview_self_scheduling',
+        ).exists())
+
+        self.authenticate(self.applicant)
+        applicant_requests = self.client.get(reverse('interview-scheduling-request-list'))
+        self.assertEqual(len(applicant_requests.data), 1)
 
 
     def test_booking_lock_queryset_avoids_nullable_select_related_joins(self):

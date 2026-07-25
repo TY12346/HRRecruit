@@ -137,6 +137,7 @@ def base_interview_queryset():
         'organization',
         'recruiter',
         'interviewer',
+        'scheduling_request',
     ).prefetch_related('application__job__interview_evaluation_form__criteria', 'status_history', 'calendar_events', 'panel_interviewers')
 
 
@@ -182,7 +183,7 @@ def visible_scheduling_requests_for(user):
         if membership:
             return requests.filter(Q(interviewer=user) | Q(panel_interviewers=user), organization=membership.organization).distinct()
     if user.role == User.Role.APPLICANT:
-        return requests.filter(application__applicant=user)
+        return requests.filter(application__applicant=user, invitation_sent_at__isnull=False)
     if user.role == User.Role.HR_HEAD:
         membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
         if membership:
@@ -205,7 +206,10 @@ def bookable_scheduling_requests_for_applicant(applicant):
         'organization',
         'recruiter',
         'interviewer',
-    ).prefetch_related('panel_interviewers').filter(application__applicant=applicant)
+    ).prefetch_related('panel_interviewers').filter(
+        application__applicant=applicant,
+        invitation_sent_at__isnull=False,
+    )
 
 
 def available_slots_for_interviewer(user):
@@ -255,6 +259,37 @@ def selectable_slots_for_scheduling_request(scheduling_request, selected_date=No
 
 def panel_interviewer_names(panel):
     return [interviewer.full_name for interviewer in panel if interviewer]
+
+
+def scheduling_request_has_common_slot(scheduling_request):
+    generated_slots, legacy_slots = selectable_slots_for_scheduling_request(scheduling_request)
+    return bool(generated_slots or legacy_slots)
+
+
+def send_newly_available_scheduling_invitations(interviewer, organization):
+    """Invite applicants once a pending panel obtains at least one common slot."""
+    pending_requests = InterviewSchedulingRequest.objects.filter(
+        Q(interviewer=interviewer) | Q(panel_interviewers=interviewer),
+        organization=organization,
+        status=InterviewSchedulingRequest.Status.PENDING,
+        invitation_sent_at__isnull=True,
+    ).select_related('application__applicant', 'application__job').prefetch_related('panel_interviewers').distinct()
+    for scheduling_request in pending_requests:
+        if not scheduling_request_has_common_slot(scheduling_request):
+            continue
+        sent_at = timezone.now()
+        updated = InterviewSchedulingRequest.objects.filter(
+            id=scheduling_request.id,
+            invitation_sent_at__isnull=True,
+        ).update(invitation_sent_at=sent_at, updated_at=sent_at)
+        if updated:
+            create_notification(
+                scheduling_request.application.applicant,
+                'interview_self_scheduling',
+                'Interview scheduling request',
+                f'Please choose an interview slot for {scheduling_request.application.job.title}.',
+                related_entity=scheduling_request,
+            )
 
 
 def active_interview_conflict_exists(panel, organization, selected_date, start_time, end_time):
@@ -444,6 +479,7 @@ class InterviewerAvailabilityPatternListCreateAPIView(APIView):
         serializer = InterviewerAvailabilityPatternSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         pattern = InterviewerAvailabilityPattern.objects.create(organization=membership.organization, interviewer=request.user, **serializer.validated_data)
+        send_newly_available_scheduling_invitations(request.user, membership.organization)
         return Response(InterviewerAvailabilityPatternSerializer(pattern).data, status=status.HTTP_201_CREATED)
 
 
@@ -526,6 +562,7 @@ class InterviewerAvailabilitySlotListCreateAPIView(APIView):
             )
         except IntegrityError as exc:
             raise ValidationError({'start_datetime': 'This availability slot could not be saved. Please check for duplicate or invalid times.'}) from exc
+        send_newly_available_scheduling_invitations(request.user, membership.organization)
         return Response(InterviewerAvailabilitySlotSerializer(slot, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -617,19 +654,27 @@ class CreateSchedulingRequestAPIView(APIView):
             expires_at=serializer.validated_data.get('expires_at'),
         )
         scheduling_request.panel_interviewers.set(panel_interviewers)
-        create_notification(
-            application.applicant,
-            'interview_self_scheduling',
-            'Interview scheduling request',
-            f'Please choose an interview slot for {application.job.title}.',
-            related_entity=scheduling_request,
-        )
+        has_common_slot = scheduling_request_has_common_slot(scheduling_request)
+        if has_common_slot:
+            scheduling_request.invitation_sent_at = timezone.now()
+            scheduling_request.save(update_fields=['invitation_sent_at', 'updated_at'])
+            create_notification(
+                application.applicant,
+                'interview_self_scheduling',
+                'Interview scheduling request',
+                f'Please choose an interview slot for {application.job.title}.',
+                related_entity=scheduling_request,
+            )
         for panel_interviewer in panel_interviewers:
             create_notification(
                 panel_interviewer,
                 'interview_self_scheduling',
-                'Panel interview scheduling request created',
-                f'{request.user.full_name} invited {application.applicant.full_name} to choose a panel interview slot.',
+                'Panel interview availability required' if not has_common_slot else 'Panel interview scheduling request created',
+                (
+                    'No common availability timeslot exists for the assigned panel. Update your availability before the applicant can be invited.'
+                    if not has_common_slot
+                    else f'{request.user.full_name} invited {application.applicant.full_name} to choose a panel interview slot.'
+                ),
                 related_entity=scheduling_request,
             )
         return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data, status=status.HTTP_201_CREATED)

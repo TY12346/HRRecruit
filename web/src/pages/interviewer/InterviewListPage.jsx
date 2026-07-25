@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
+  Chip,
   CircularProgress,
   MenuItem,
   Paper,
@@ -122,7 +123,18 @@ export default function InterviewListPage() {
                 <TableRow key={interview.id}>
                   <TableCell>{applicantName(interview)}</TableCell>
                   <TableCell>{jobTitle(interview)}</TableCell>
-                  <TableCell>{titleize(interview.status)}</TableCell>
+                  <TableCell>
+                    {titleize(interview.status)}
+                    {interview.availability_alert ? (
+                      <Chip
+                        color="warning"
+                        label="No common availability"
+                        size="small"
+                        sx={{ display: 'flex', mt: 0.5, width: 'fit-content' }}
+                        title={interview.availability_alert}
+                      />
+                    ) : null}
+                  </TableCell>
                   <TableCell>{formatDateTime(interview.scheduled_datetime)}</TableCell>
                   <TableCell>{titleize(interview.mode)}</TableCell>
                   <TableCell>{panelInterviewerNames(interview)}</TableCell>

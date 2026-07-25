@@ -80,7 +80,11 @@ export default function InterviewAssignmentPage() {
     try {
       const request = await createInterviewSchedulingRequest(applicationId, { interviewer_ids: interviewerIds.map(Number), remark });
       setSchedulingRequest(request);
-      setSuccess('Panel self-scheduling request created. The applicant can now choose from common panel availability slots.');
+      if (request.has_common_availability) {
+        setSuccess('Panel self-scheduling request created. The applicant can now choose from common panel availability slots.');
+      } else {
+        setError(request.availability_alert);
+      }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to assign interviewer.'));
     } finally {
@@ -89,7 +93,9 @@ export default function InterviewAssignmentPage() {
   };
 
   const nextStepMessage = schedulingRequest
-    ? `Interview-scheduling request #${schedulingRequest.id} has been sent. The interview will be created after the applicant chooses a slot.`
+    ? schedulingRequest.has_common_availability
+      ? `Interview-scheduling request #${schedulingRequest.id} has been sent. The interview will be created after the applicant chooses a slot.`
+      : `Interview-scheduling request #${schedulingRequest.id} is waiting for a common interviewer timeslot. The applicant has not been invited.`
     : 'The applicant should use the mobile Schedule interviews page to choose a common available panel slot.';
 
   return (
