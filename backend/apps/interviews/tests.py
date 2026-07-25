@@ -1293,6 +1293,30 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('deadline', response.data)
 
+    def test_interviewer_can_submit_evaluation_before_scheduled_datetime(self):
+        self.interview.scheduled_datetime = timezone.now() + timedelta(days=2)
+        self.interview.save(update_fields=['scheduled_datetime', 'updated_at'])
+        self.create_completed_transcript_summary_deliverables()
+        self.authenticate(self.interviewer)
+
+        response = self.client.post(
+            reverse('interview-evaluation-submit', args=[self.interview.id]),
+            {
+                'overall_comment': 'Early scorecard submitted for feature testing.',
+                'answers': [
+                    {'criterion_id': self.criterion_one.id, 'score': '8.00'},
+                    {'criterion_id': self.criterion_two.id, 'score': '9.00'},
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertTrue(InterviewEvaluation.objects.filter(
+            interview=self.interview,
+            interviewer=self.interviewer,
+        ).exists())
+
     def test_deadline_command_notifies_almost_late_and_late_interviewer_once(self):
         from django.core.management import call_command
 
