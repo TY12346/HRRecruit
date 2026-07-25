@@ -258,6 +258,10 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
                 'deliverables': f"Submit the interview {' and '.join(missing)} before submitting the evaluation scorecard."
             })
 
+        # Keep the submission window open before the scheduled start as well as
+        # after it. This intentionally supports pre-interview evaluation
+        # submissions used by the current testing/demo workflow; the deadline is
+        # an upper bound only.
         deadline = deliverable_deadline_for(interview)
         if deadline and timezone.now() > deadline:
             raise serializers.ValidationError({
