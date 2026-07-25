@@ -11,18 +11,9 @@ class PositionStatus(models.TextChoices):
 
 class JobPosting(models.Model):
     class Status(models.TextChoices):
-        DRAFT = 'draft', 'Draft'
+        DRAFTING = 'drafting', 'Drafting'
         OPEN = 'open', 'Open'
-        APPLICATION_INTAKE_CLOSED = 'application_intake_closed', 'Application Intake Closed'
-        INTERVIEWS_IN_PROGRESS = 'interviews_in_progress', 'Interviews In Progress'
-        READY_FOR_DECISION = 'ready_for_decision', 'Ready for Hiring Decision'
-        DECISION_PENDING = 'decision_pending', 'Decision Pending HR Approval'
-        DECISION_APPROVED = 'decision_approved', 'Decision Approved'
-        DECISION_REJECTED = 'decision_rejected', 'Decision Rejected / Returned for Review'
-        OFFER_STAGE = 'offer_stage', 'Offer Stage / Offer Sent'
-        CLOSED_FILLED = 'closed_filled', 'Closed - Filled'
-        CLOSED_NO_HIRE = 'closed_no_hire', 'Closed - No Hire'
-        CLOSED = 'closed', 'Closed (Legacy)'
+        CLOSED = 'closed', 'Closed'
 
     organization = models.ForeignKey(
         Organization,
@@ -52,7 +43,7 @@ class JobPosting(models.Model):
     impact_of_not_hiring = models.TextField(blank=True)
     vacancies = models.PositiveIntegerField(default=1)
     application_deadline = models.DateField(blank=True, null=True)
-    status = models.CharField(max_length=40, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(max_length=40, choices=Status.choices, default=Status.DRAFTING)
     requirements_locked_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

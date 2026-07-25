@@ -45,7 +45,7 @@ def generate_available_slots(interviewer, organization, days_ahead=28, from_date
         Q(interviewer=interviewer) | Q(panel_interviewers=interviewer),
         organization=organization,
         interview_date__range=(start_date, end_date),
-        status__in=[Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
+        status__in=[Interview.Status.INVITED, Interview.Status.SCHEDULED],
     ).distinct().values_list('interview_date', 'start_time', 'end_time'))
     slots = []
     for pattern in patterns:

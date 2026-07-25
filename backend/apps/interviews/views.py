@@ -268,7 +268,7 @@ def active_interview_conflict_exists(panel, organization, selected_date, start_t
         'interview_date': selected_date,
         'start_time': start_time,
         'end_time': end_time,
-        'status__in': [Interview.Status.ASSIGNED, Interview.Status.SCHEDULED],
+        'status__in': [Interview.Status.INVITED, Interview.Status.SCHEDULED],
     }
     primary_conflict = Interview.objects.filter(
         interviewer__in=panel,
@@ -549,7 +549,7 @@ class CreateSchedulingRequestAPIView(APIView):
     @transaction.atomic
     def post(self, request, application_id):
         application = recruiter_application_or_404(request.user, application_id)
-        if application.status in (JobApplication.Status.WITHDRAWN, JobApplication.Status.REJECTED):
+        if application.status in (JobApplication.Status.REJECTED, JobApplication.Status.REJECTED):
             raise ValidationError({'status': 'Withdrawn or rejected applications cannot be scheduled for interview.'})
         serializer = CreateSchedulingRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -580,7 +580,7 @@ class CreateSchedulingRequestAPIView(APIView):
                 'organization': application.job.organization,
                 'recruiter': request.user,
                 'interviewer': interviewer,
-                'status': Interview.Status.ASSIGNED,
+                'status': Interview.Status.INVITED,
                 'scheduling_method': Interview.SchedulingMethod.SELF_SCHEDULED,
             },
         )
@@ -594,8 +594,8 @@ class CreateSchedulingRequestAPIView(APIView):
         interview.panel_interviewers.set(panel_interviewers)
         if interview_created:
             interview.status_history.create(
-                from_status=Interview.Status.ASSIGNED,
-                to_status=Interview.Status.ASSIGNED,
+                from_status=Interview.Status.INVITED,
+                to_status=Interview.Status.INVITED,
                 changed_by=request.user,
                 note='Interview assigned through self-scheduling request.',
             )
@@ -709,7 +709,7 @@ def book_scheduling_request(request, scheduling_request):
             'organization': scheduling_request.organization,
             'recruiter': scheduling_request.recruiter,
             'interviewer': scheduling_request.interviewer,
-            'status': Interview.Status.ASSIGNED,
+            'status': Interview.Status.INVITED,
         },
     )
     interview.organization = scheduling_request.organization
@@ -740,7 +740,7 @@ def book_scheduling_request(request, scheduling_request):
     scheduling_request.save(update_fields=['status', 'selected_slot', 'interview', 'updated_at'])
     change_application_status(
         scheduling_request.application,
-        JobApplication.Status.INTERVIEW_ACCEPTED,
+        JobApplication.Status.SHORTLISTED,
         request.user,
         'Applicant selected an interview slot.',
     )
@@ -870,7 +870,7 @@ class AssignInterviewerAPIView(APIView):
     @transaction.atomic
     def post(self, request, application_id):
         application = recruiter_application_or_404(request.user, application_id)
-        if application.status in (JobApplication.Status.WITHDRAWN, JobApplication.Status.REJECTED):
+        if application.status in (JobApplication.Status.REJECTED, JobApplication.Status.REJECTED):
             raise ValidationError({'status': 'Withdrawn or rejected applications cannot be assigned for interview.'})
 
         serializer = AssignInterviewerSerializer(data=request.data)
@@ -904,7 +904,7 @@ class AssignInterviewerAPIView(APIView):
                 'organization': application.job.organization,
                 'recruiter': request.user,
                 'interviewer': interviewer,
-                'status': Interview.Status.ASSIGNED,
+                'status': Interview.Status.INVITED,
             },
         )
         previous_interviewer = interview.interviewer
@@ -915,7 +915,7 @@ class AssignInterviewerAPIView(APIView):
             interview.save(update_fields=['organization', 'recruiter', 'interviewer', 'updated_at'])
         interview.panel_interviewers.set([interviewer])
         if created:
-            interview.change_status(Interview.Status.ASSIGNED, changed_by=request.user, note='Interview assigned.')
+            interview.change_status(Interview.Status.INVITED, changed_by=request.user, note='Interview assigned.')
         elif previous_interviewer != interviewer:
             # Keep status unchanged but record assignment notes as a history row for traceability.
             interview.status_history.create(

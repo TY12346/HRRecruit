@@ -87,11 +87,8 @@ def enforce_job_status_transition(job, requested_status):
         return
 
     allowed_transitions = {
-        JobPosting.Status.DRAFT: {JobPosting.Status.OPEN},
-        JobPosting.Status.OPEN: {
-            JobPosting.Status.APPLICATION_INTAKE_CLOSED,
-            JobPosting.Status.CLOSED,
-        },
+        JobPosting.Status.DRAFTING: {JobPosting.Status.OPEN},
+        JobPosting.Status.OPEN: {JobPosting.Status.CLOSED},
     }
     if requested_status not in allowed_transitions.get(job.status, set()):
         raise ValidationError({
@@ -172,7 +169,7 @@ class JobRequisitionApproveAPIView(APIView):
             position_status=requisition.position_status,
             reason_for_hire=requisition.reason_for_hire,
             impact_of_not_hiring=requisition.impact_of_not_hiring,
-            status=JobPosting.Status.DRAFT,
+            status=JobPosting.Status.DRAFTING,
         )
         requisition.status = JobRequisition.Status.APPROVED
         requisition.reviewed_by = request.user
@@ -262,7 +259,7 @@ class JobCloseIntakeAPIView(APIView):
         job = recruiter_job_or_404(request.user, job_id)
         if job.status != JobPosting.Status.OPEN:
             raise ValidationError({'status': 'Application intake can only be closed for an open job posting.'})
-        job.status = JobPosting.Status.APPLICATION_INTAKE_CLOSED
+        job.status = JobPosting.Status.CLOSED
         job.save(update_fields=['status', 'updated_at'])
         readiness = refresh_job_readiness(job)
         return Response({'job': JobPostingSerializer(job, context={'request': request}).data, 'readiness': readiness})
@@ -282,7 +279,7 @@ class JobRequirementsAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can configure job requirements.')
         job = recruiter_job_or_404(request.user, job_id)
-        if job.requirements_locked_at is not None or job.status != JobPosting.Status.DRAFT:
+        if job.requirements_locked_at is not None or job.status != JobPosting.Status.DRAFTING:
             raise ValidationError({
                 'requirements': ['Job requirements cannot be changed once this job has been posted.']
             })

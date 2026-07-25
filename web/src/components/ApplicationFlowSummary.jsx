@@ -5,7 +5,7 @@ import { APPLICATION_PHASES, getApplicationPhaseIndex, getApplicationStatusInfo 
 export default function ApplicationFlowSummary({ status, role = 'recruiter', compact = false }) {
   const currentIndex = getApplicationPhaseIndex(status);
   const info = getApplicationStatusInfo(status, role);
-  const isClosed = ['rejected', 'withdrawn', 'offer_declined'].includes(status);
+  const isClosed = ['rejected'].includes(status);
 
   return (
     <Alert severity={isClosed ? 'warning' : 'info'} sx={{ alignItems: 'flex-start' }}>

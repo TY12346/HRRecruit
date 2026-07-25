@@ -24,7 +24,7 @@ export default function JobRequirementsPage() {
   useEffect(() => {
     getJob(jobId)
       .then((job) => {
-        setRequirementsLocked(Boolean(job.requirements_locked_at) || job.status !== 'draft');
+        setRequirementsLocked(Boolean(job.requirements_locked_at) || job.status !== 'drafting');
         if (job.requirements?.length) {
           setRequirements(job.requirements.map(hydrateRequirement));
         }

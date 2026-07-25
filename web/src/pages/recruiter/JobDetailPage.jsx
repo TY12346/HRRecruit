@@ -65,8 +65,8 @@ export default function JobDetailPage() {
         <Box><Typography variant="h5" sx={{ fontWeight: 700 }}>{job.title}</Typography><Typography color="text.secondary">{job.organization_name} • {job.location}</Typography><Chip label={titleize(job.status)} color={job.status === 'open' ? 'success' : 'default'} sx={{ mt: 1 }} /></Box>
         <Stack direction="row" alignItems="center" spacing={1} useFlexGap flexWrap="wrap">
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/edit`} variant="contained">Edit</Button>
-          {job.status === 'draft' ? <Button onClick={() => setShowPostConfirmation(true)} variant="outlined">Post</Button> : null}
-          {['open', 'application_intake_closed'].includes(job.status) ? <>
+          {job.status === 'drafting' ? <Button onClick={() => setShowPostConfirmation(true)} variant="outlined">Post</Button> : null}
+          {['open', 'closed'].includes(job.status) ? <>
             <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/ranking`} variant="outlined">View qualified applicants ranking</Button>
             <Button component={RouterLink} to={`/recruiter/interviews?job_id=${job.id}`} variant="outlined">View interviews</Button>
             <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/hiring-decision`} variant="outlined">Make hiring decision</Button>

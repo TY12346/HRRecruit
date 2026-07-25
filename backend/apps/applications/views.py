@@ -202,9 +202,15 @@ def apply_applicant_search_filters(applications, query_params, user):
     interviewer_status = (query_params.get('interviewer_status') or query_params.get('interview_status') or '').strip()
     if interviewer_status:
         if interviewer_status == 'upcoming':
-            applications = applications.filter(interviews__scheduled_datetime__gte=timezone.now()).exclude(interviews__status__in=[Interview.Status.COMPLETED, Interview.Status.CANCELLED])
+            applications = applications.filter(interviews__scheduled_datetime__gte=timezone.now()).exclude(
+                interviews__status__in=[
+                    Interview.Status.COMPLETED,
+                    Interview.Status.EVALUATION_SUBMITTED,
+                    Interview.Status.CANCELLED,
+                ]
+            )
         elif interviewer_status == 'completed':
-            applications = applications.filter(interviews__status=Interview.Status.COMPLETED)
+            applications = applications.filter(interviews__status__in=[Interview.Status.COMPLETED, Interview.Status.EVALUATION_SUBMITTED])
         elif interviewer_status == 'pending_evaluation':
             applications = applications.filter(interviews__status=Interview.Status.COMPLETED, interviews__evaluations__isnull=True)
         elif interviewer_status in Interview.Status.values:
@@ -403,7 +409,7 @@ class JobApplyAPIView(APIView):
                 )
                 active_application = previous_applications.exclude(
                     status__in=(
-                        JobApplication.Status.SCREENED_NOT_QUALIFIED,
+                        JobApplication.Status.REJECTED,
                         JobApplication.Status.REJECTED,
                     ),
                 ).order_by('-applied_at', '-id').first()
@@ -451,14 +457,14 @@ class JobApplyAPIView(APIView):
             raise PermissionDenied('Only applicants can withdraw job applications.')
         application = get_object_or_404(JobApplication, job_id=job_id, applicant=request.user)
         if application.status not in (
-            JobApplication.Status.SUBMITTED,
-            JobApplication.Status.SCREENED,
-            JobApplication.Status.SCREENED_QUALIFIED,
-            JobApplication.Status.SCREENED_NOT_QUALIFIED,
+            JobApplication.Status.APPLIED,
+            JobApplication.Status.APPLIED,
+            JobApplication.Status.APPLIED,
+            JobApplication.Status.REJECTED,
         ):
             raise ValidationError({'status': 'Applications can be withdrawn only while submitted or screened.'})
         application.change_status(
-            JobApplication.Status.WITHDRAWN,
+            JobApplication.Status.REJECTED,
             changed_by=request.user,
             note='Withdrawn by applicant.',
         )
@@ -556,7 +562,7 @@ class RankedApplicantsAPIView(APIView):
     def get(self, request, job_id):
         job = recruiter_job_or_404(request.user, job_id)
         applications = apply_application_search_filters(
-            job.applications.filter(status=JobApplication.Status.SCREENED_QUALIFIED).select_related(
+            job.applications.filter(status=JobApplication.Status.APPLIED).select_related(
                 'job',
                 'job__organization',
                 'applicant',

@@ -63,7 +63,7 @@ const blankJob = {
   impact_of_not_hiring: '',
   vacancies: 1,
   application_deadline: '',
-  status: 'draft',
+  status: 'drafting',
 };
 
 export default function JobCreateEditPage() {
@@ -75,7 +75,7 @@ export default function JobCreateEditPage() {
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
   const [showPostConfirmation, setShowPostConfirmation] = useState(false);
-  const [initialStatus, setInitialStatus] = useState('draft');
+  const [initialStatus, setInitialStatus] = useState('drafting');
 
   useEffect(() => {
     if (!isEdit) {
@@ -106,9 +106,9 @@ export default function JobCreateEditPage() {
           impact_of_not_hiring: job.impact_of_not_hiring ?? '',
           vacancies: job.vacancies ?? 1,
           application_deadline: job.application_deadline ?? '',
-          status: job.status ?? 'draft',
+          status: job.status ?? 'drafting',
         });
-        setInitialStatus(job.status ?? 'draft');
+        setInitialStatus(job.status ?? 'drafting');
       })
       .catch((err) => active && setError(getApiErrorMessage(err, 'Unable to load job.')))
       .finally(() => active && setIsLoading(false));
@@ -148,7 +148,7 @@ export default function JobCreateEditPage() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (isEdit && initialStatus === 'draft' && form.status === 'open') {
+    if (isEdit && initialStatus === 'drafting' && form.status === 'open') {
       setShowPostConfirmation(true);
       return;
     }
@@ -246,12 +246,12 @@ export default function JobCreateEditPage() {
           <FormControl>
             <InputLabel>Status</InputLabel>
             <Select label="Status" value={form.status} onChange={setField('status')}>
-              {initialStatus === 'draft' ? <MenuItem value="draft">Draft</MenuItem> : null}
-              {['draft', 'open'].includes(initialStatus) ? <MenuItem value="open">Open</MenuItem> : null}
-              {['open', 'application_intake_closed'].includes(initialStatus) ? (
-                <MenuItem value="application_intake_closed">Application Intake Closed</MenuItem>
+              {initialStatus === 'drafting' ? <MenuItem value="drafting">Drafting</MenuItem> : null}
+              {['drafting', 'open'].includes(initialStatus) ? <MenuItem value="open">Open</MenuItem> : null}
+              {['open', 'closed'].includes(initialStatus) ? (
+                <MenuItem value="closed">Closed</MenuItem>
               ) : null}
-              {!['draft', 'open', 'application_intake_closed'].includes(initialStatus) ? (
+              {!['drafting', 'open', 'closed'].includes(initialStatus) ? (
                 <MenuItem value={initialStatus}>{initialStatus.replaceAll('_', ' ')}</MenuItem>
               ) : null}
             </Select>

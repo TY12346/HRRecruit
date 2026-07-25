@@ -35,17 +35,9 @@ import {
 } from './applicationSearchViews.js';
 
 const STATUS_FILTERS = [
-  ['all', 'All statuses'],
-  ['submitted', 'Submitted'],
-  ['screened_qualified', 'Screened qualified'],
-  ['screened_not_qualified', 'Screened not qualified'],
+  ['all', 'All application statuses'],
+  ['applied', 'Applied'],
   ['shortlisted', 'Shortlisted'],
-  ['interview_invited', 'Interview invited'],
-  ['interview_accepted', 'Interview accepted'],
-  ['evaluation_submitted', 'Evaluation submitted'],
-  ['decision_pending', 'Decision pending'],
-  ['offer_sent', 'Offer sent'],
-  ['hired', 'Hired'],
   ['rejected', 'Rejected'],
 ];
 
@@ -164,7 +156,7 @@ export default function ApplicationsPage() {
   const resetFilters = () => applyFilters(APPLICATION_FILTER_DEFAULTS);
 
   const reject = async (app) => {
-    const defaultMessage = renderApplicationTemplate('rejection', app.status === 'evaluation_submitted' ? 'rejection_after_interview' : 'rejection_general', app);
+    const defaultMessage = renderApplicationTemplate('rejection', app.status === 'shortlisted' ? 'rejection_after_interview' : 'rejection_general', app);
     const reason = window.prompt('Applicant rejection message', defaultMessage);
     if (!reason) return;
     setBusyId(app.id);
