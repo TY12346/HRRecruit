@@ -83,7 +83,7 @@ def get_organization_deletion_blockers(organization):
     if active_job_count:
         blockers.append('Close all draft or open job postings before deleting the organization.')
 
-    active_application_statuses = [JobApplication.Status.SHORTLISTED]
+    active_application_statuses = [JobApplication.Status.UNDER_REVIEW]
     active_application_count = JobApplication.objects.filter(
         job__organization=organization,
         status__in=active_application_statuses,

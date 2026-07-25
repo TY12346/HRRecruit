@@ -47,6 +47,8 @@ class InterviewSerializer(serializers.ModelSerializer):
     ai_summary = serializers.SerializerMethodField()
     deliverable_status = serializers.SerializerMethodField()
     evaluation_submitted = serializers.SerializerMethodField()
+    has_common_availability = serializers.SerializerMethodField()
+    availability_alert = serializers.SerializerMethodField()
 
     class Meta:
         model = Interview
@@ -75,6 +77,8 @@ class InterviewSerializer(serializers.ModelSerializer):
             'ai_summary',
             'deliverable_status',
             'evaluation_submitted',
+            'has_common_availability',
+            'availability_alert',
             'created_at',
             'updated_at',
         ]
@@ -134,6 +138,17 @@ class InterviewSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated and request.user.role == User.Role.INTERVIEWER:
             return interview.evaluations.filter(interviewer=request.user).exists()
         return interview.evaluations.exists()
+
+    def get_has_common_availability(self, interview):
+        if interview.status != Interview.Status.INVITED:
+            return True
+        panel = list(interview.panel_interviewers.all()) or ([interview.interviewer] if interview.interviewer else [])
+        return bool(generate_common_available_slots(panel, interview.organization))
+
+    def get_availability_alert(self, interview):
+        if self.get_has_common_availability(interview):
+            return ''
+        return 'No common availability timeslot exists for all assigned interviewers. The applicant has not been invited.'
 
 
 class InterviewerAvailabilityPatternSerializer(serializers.ModelSerializer):
@@ -205,12 +220,15 @@ class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
     panel_interviewers = AssignedInterviewerSerializer(many=True, read_only=True)
     selected_slot = InterviewerAvailabilitySlotSerializer(read_only=True)
     available_slots = serializers.SerializerMethodField()
+    has_common_availability = serializers.SerializerMethodField()
+    availability_alert = serializers.SerializerMethodField()
 
     class Meta:
         model = InterviewSchedulingRequest
         fields = [
             'id', 'application', 'organization', 'recruiter', 'interviewer', 'panel_interviewers', 'remark', 'status',
-            'expires_at', 'selected_slot', 'interview', 'available_slots', 'created_at', 'updated_at',
+            'expires_at', 'selected_slot', 'interview', 'available_slots', 'has_common_availability',
+            'availability_alert', 'invitation_sent_at', 'created_at', 'updated_at',
         ]
         read_only_fields = fields
 
@@ -230,6 +248,24 @@ class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
                 start_datetime__gt=timezone.now(),
             ).order_by('start_datetime')
         return GeneratedInterviewSlotSerializer(generated_slots, many=True).data + InterviewerAvailabilitySlotSerializer(legacy_slots, many=True).data
+
+    def get_has_common_availability(self, obj):
+        if obj.status != InterviewSchedulingRequest.Status.PENDING:
+            return True
+        panel = list(obj.panel_interviewers.all()) or [obj.interviewer]
+        if generate_common_available_slots(panel, obj.organization):
+            return True
+        return len(panel) == 1 and InterviewerAvailabilitySlot.objects.filter(
+            organization=obj.organization,
+            interviewer=obj.interviewer,
+            status=InterviewerAvailabilitySlot.Status.AVAILABLE,
+            start_datetime__gt=timezone.now(),
+        ).exists()
+
+    def get_availability_alert(self, obj):
+        if self.get_has_common_availability(obj):
+            return ''
+        return 'No common availability timeslot exists for all assigned interviewers. The applicant has not been invited.'
 
 
 class CreateSchedulingRequestSerializer(serializers.Serializer):

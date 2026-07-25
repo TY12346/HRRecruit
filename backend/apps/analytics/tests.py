@@ -37,10 +37,10 @@ class AnalyticsAPITests(APITestCase):
         self.job = self.create_job(self.recruiter, self.organization, 'Backend Engineer')
         self.other_job = self.create_job(self.other_recruiter, self.other_organization, 'External Job')
         self.colleague_job = self.create_job(self.colleague_recruiter, self.organization, 'Colleague Job')
-        self.submitted_application = self.create_application(self.job, self.applicant, JobApplication.Status.SHORTLISTED)
-        self.shortlisted_application = self.create_application(self.job, self.applicant_two, JobApplication.Status.SHORTLISTED)
-        self.hired_application = self.create_application(self.job, self.applicant_three, JobApplication.Status.SHORTLISTED)
-        self.other_application = self.create_application(self.other_job, self.other_applicant, JobApplication.Status.SHORTLISTED)
+        self.submitted_application = self.create_application(self.job, self.applicant, JobApplication.Status.UNDER_REVIEW)
+        self.shortlisted_application = self.create_application(self.job, self.applicant_two, JobApplication.Status.UNDER_REVIEW)
+        self.hired_application = self.create_application(self.job, self.applicant_three, JobApplication.Status.UNDER_REVIEW)
+        self.other_application = self.create_application(self.other_job, self.other_applicant, JobApplication.Status.UNDER_REVIEW)
 
         applied_at = timezone.now() - timezone.timedelta(days=10)
         hired_at = timezone.now() - timezone.timedelta(days=1)
@@ -53,8 +53,8 @@ class AnalyticsAPITests(APITestCase):
         )
         ApplicationStageHistory.objects.create(
             application=self.hired_application,
-            from_stage=JobApplication.Status.SHORTLISTED,
-            to_stage=JobApplication.Status.SHORTLISTED,
+            from_stage=JobApplication.Status.UNDER_REVIEW,
+            to_stage=JobApplication.Status.UNDER_REVIEW,
             changed_by=self.recruiter,
             note='Applicant accepted and joined.',
         )
@@ -179,7 +179,7 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('pipeline_health', response.data['metrics'])
         self.assertIn('insights', response.data['metrics']['pipeline_health'])
-        self.assertEqual(response.data['metrics']['stage_transition_counts'][0]['to_stage'], JobApplication.Status.SHORTLISTED)
+        self.assertEqual(response.data['metrics']['stage_transition_counts'][0]['to_stage'], JobApplication.Status.UNDER_REVIEW)
         self.assertEqual(response.data['metrics']['applications_over_time'][timezone.now().strftime('%b %Y')], 3)
         self.assertEqual(response.data['top_jobs_by_applications'][0]['applications'], 3)
         self.assertEqual(response.data['top_jobs_by_applications'][0]['average_score'], 66.67)

@@ -47,7 +47,7 @@ export default function JobOfferPage() {
     setIsLoading(true);
     try {
       const [apps, jobOffers] = await Promise.all([getApplications(), getJobOffers()]);
-      const approvedApps = apps.filter((app) => app.status === 'shortlisted');
+      const approvedApps = apps.filter((app) => app.status === 'under_review');
       setApplications(approvedApps);
       setOffers(jobOffers);
       if (!applicationId && approvedApps[0]) setApplicationId(String(approvedApps[0].id));
@@ -63,7 +63,7 @@ export default function JobOfferPage() {
     Promise.all([getApplications(), getJobOffers()])
       .then(([apps, jobOffers]) => {
         if (!active) return;
-        const approvedApps = apps.filter((app) => app.status === 'shortlisted');
+        const approvedApps = apps.filter((app) => app.status === 'under_review');
         setApplications(approvedApps);
         setOffers(jobOffers);
         if (approvedApps[0]) setApplicationId(String(approvedApps[0].id));

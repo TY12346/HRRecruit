@@ -192,7 +192,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
     def test_hiring_decision_requires_completed_interview_evaluation(self):
         _, _, recruiter, recruiter_client, _, _ = self.create_organization_and_team()
         job, _ = self.create_job_with_evaluation_form(recruiter_client)
-        blocked_statuses = (JobApplication.Status.SHORTLISTED,)
+        blocked_statuses = (JobApplication.Status.UNDER_REVIEW,)
 
         for index, blocked_status in enumerate(blocked_statuses, start=1):
             _, applicant_client = self.register_applicant(
@@ -217,7 +217,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.upload_resume(eligible_client)
         eligible_application = self.apply_for_job(eligible_client, job)
         eligible_application.change_status(
-            JobApplication.Status.SHORTLISTED,
+            JobApplication.Status.UNDER_REVIEW,
             changed_by=recruiter,
             note='Completed interview evaluation for hiring decision.',
         )
@@ -230,7 +230,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         eligible_application.refresh_from_db()
-        self.assertEqual(eligible_application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(eligible_application.status, JobApplication.Status.UNDER_REVIEW)
 
     def mock_screening(self, application, changed_by):
         final_score = Decimal('91.00') if application.applicant.email == 'applicant@example.com' else Decimal('70.00')
@@ -246,7 +246,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         application.score_explanation = {'provider': 'mock', 'reason': 'Deterministic test screening.'}
         application.save()
         application.change_status(
-            JobApplication.Status.SHORTLISTED,
+            JobApplication.Status.UNDER_REVIEW,
             changed_by=changed_by,
             note='Mock AI-assisted resume screening completed.',
         )
@@ -308,7 +308,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
 
         application = self.apply_for_job(applicant_client, job)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(application.status, JobApplication.Status.UNDER_REVIEW)
         self.assertEqual(application.final_score, Decimal('91.00'))
 
         ranked_response = recruiter_client.get(reverse('job-ranked-applicants', args=[job.id]))
@@ -402,8 +402,8 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         offer.refresh_from_db()
         application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.ACCEPTED)
-        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
-        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(application.status, JobApplication.Status.UNDER_REVIEW)
+        self.assertEqual(application.status, JobApplication.Status.UNDER_REVIEW)
         analytics_response = recruiter_client.get(reverse('analytics-recruiter-dashboard'))
         self.assertEqual(analytics_response.status_code, status.HTTP_200_OK, analytics_response.data)
         self.assertEqual(analytics_response.data['metrics']['hired_count'], 1)
@@ -425,7 +425,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         )
         self.assertEqual(declining_assign_response.status_code, status.HTTP_201_CREATED, declining_assign_response.data)
         declining_application.change_status(
-            JobApplication.Status.SHORTLISTED,
+            JobApplication.Status.UNDER_REVIEW,
             changed_by=interviewer,
             note='Offline evaluation completed for alternate offer path.',
         )
@@ -464,7 +464,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.upload_resume(rejected_applicant_client)
         rejected_application = self.apply_for_job(rejected_applicant_client, job)
         rejected_application.change_status(
-            JobApplication.Status.SHORTLISTED,
+            JobApplication.Status.UNDER_REVIEW,
             changed_by=interviewer,
             note='Evaluation completed before HR rejection path.',
         )

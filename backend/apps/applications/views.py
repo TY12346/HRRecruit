@@ -454,8 +454,8 @@ class JobApplyAPIView(APIView):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can withdraw job applications.')
         application = get_object_or_404(JobApplication, job_id=job_id, applicant=request.user)
-        if application.status != JobApplication.Status.SHORTLISTED:
-            raise ValidationError({'status': 'Only shortlisted applications can be withdrawn.'})
+        if application.status != JobApplication.Status.UNDER_REVIEW:
+            raise ValidationError({'status': 'Only applications under review can be withdrawn.'})
         application.change_status(
             JobApplication.Status.REJECTED,
             changed_by=request.user,
@@ -553,7 +553,7 @@ class RankedApplicantsAPIView(APIView):
     def get(self, request, job_id):
         job = recruiter_job_or_404(request.user, job_id)
         applications = apply_application_search_filters(
-            job.applications.filter(status=JobApplication.Status.SHORTLISTED).select_related(
+            job.applications.filter(status=JobApplication.Status.UNDER_REVIEW).select_related(
                 'job',
                 'job__organization',
                 'applicant',
@@ -604,12 +604,12 @@ class ApplicationShortlistAPIView(APIView):
         remark = serializer.validated_data.get('remark', '')
         if remark:
             application.recruiter_remark = remark
-        application.status = JobApplication.Status.SHORTLISTED
+        application.status = JobApplication.Status.UNDER_REVIEW
         application.save(update_fields=['assigned_interviewer', 'recruiter_remark', 'status', 'updated_at'])
         create_stage_history(
             application,
             previous_status,
-            JobApplication.Status.SHORTLISTED,
+            JobApplication.Status.UNDER_REVIEW,
             request.user,
             f'Shortlisted and assigned to interviewer {interviewer.full_name}.',
         )
@@ -636,7 +636,7 @@ class ApplicationRejectAPIView(APIView):
     @transaction.atomic
     def post(self, request, application_id):
         application = recruiter_application_or_404(request.user, application_id)
-        serializer = ApplicationRejectSerializer(data=request.data)
+        serializer = ApplicationRejectSerializer(data=request.data, context={'application': application})
         serializer.is_valid(raise_exception=True)
         previous_status = application.status
         reason = serializer.validated_data.get('reason', '')

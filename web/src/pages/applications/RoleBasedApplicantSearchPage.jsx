@@ -49,7 +49,7 @@ const ROLE_CONFIG = {
 
 const STATUS_OPTIONS = [
   ['all', 'All application statuses'],
-  ['shortlisted', 'Shortlisted'],
+  ['under_review', 'Under review'],
   ['rejected', 'Rejected'],
 ];
 
