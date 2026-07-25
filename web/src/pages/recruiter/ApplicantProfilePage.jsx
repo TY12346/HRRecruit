@@ -125,7 +125,7 @@ export default function ApplicantProfilePage() {
                 <Typography color="text.secondary">{applicant?.email} • {applicant?.phone_number || 'No phone'}</Typography>
                 <Chip label={`Current stage: ${getApplicationStatusInfo(profile.status, 'recruiter').label}`} sx={{ mt: 1 }} />
               </Box>
-              {profile.status !== 'rejected' ? (
+              {profile.status !== 'rejected' && !profile.assigned_interviewer ? (
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   <Button component={RouterLink} to={`/recruiter/applications/${applicationId}/assign-interview`} variant="outlined">
                     Assign interviewer

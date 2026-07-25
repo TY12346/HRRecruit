@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
-
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Paper,
   Stack,
@@ -19,17 +23,14 @@ import {
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { getRankedApplicants } from '../../api/client.js';
+import { assignInterviewer, getOrganizationMembers, getRankedApplicants, rejectApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { applicantFitFromScore } from './applicantFit.js';
 import { applicationName, getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
 import {
   APPLICATION_FILTER_DEFAULTS,
   buildApplicationQueryParams,
-  deleteApplicationView,
   describeApplicationFilters,
-  loadSavedApplicationViews,
-  saveApplicationView,
 } from './applicationSearchViews.js';
 
 const RANKING_FILTER_DEFAULTS = {
@@ -62,57 +63,29 @@ function FitChip({ score }) {
   );
 }
 
-function RankingSavedViews({ scope, filters, onApply }) {
-  const [savedViews, setSavedViews] = useState(() => loadSavedApplicationViews(scope));
-  const [viewName, setViewName] = useState('');
-  const [selectedView, setSelectedView] = useState('');
-
-  const saveCurrentView = () => {
-    const nextViews = saveApplicationView(scope, viewName, filters);
-    setSavedViews(nextViews);
-    setSelectedView(viewName.trim());
-    setViewName('');
-  };
-
-  const applySavedView = (name) => {
-    setSelectedView(name);
-    const view = savedViews.find((item) => item.name === name);
-    if (view) onApply({ ...RANKING_FILTER_DEFAULTS, ...view.filters });
-  };
-
-  const removeSavedView = () => {
-    if (!selectedView) return;
-    setSavedViews(deleteApplicationView(scope, selectedView));
-    setSelectedView('');
-  };
-
-  return (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
-      <TextField size="small" label="Saved ranking view" value={viewName} onChange={(event) => setViewName(event.target.value)} />
-      <Button variant="outlined" onClick={saveCurrentView} disabled={!viewName.trim()}>Save view</Button>
-      <TextField select size="small" label="Apply saved view" value={selectedView} onChange={(event) => applySavedView(event.target.value)} sx={{ minWidth: 220 }}>
-        <MenuItem value="">Choose saved view</MenuItem>
-        {savedViews.map((view) => <MenuItem key={view.name} value={view.name}>{view.name}</MenuItem>)}
-      </TextField>
-      <Button color="error" onClick={removeSavedView} disabled={!selectedView}>Delete view</Button>
-    </Stack>
-  );
-}
-
 export default function ApplicantRankingPage() {
   const { jobId } = useParams();
   const [applicants, setApplicants] = useState([]);
   const [filters, setFilters] = useState(RANKING_FILTER_DEFAULTS);
   const [draftFilters, setDraftFilters] = useState(RANKING_FILTER_DEFAULTS);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [interviewers, setInterviewers] = useState([]);
+  const [selectedInterviewerId, setSelectedInterviewerId] = useState('');
+  const [assigningIds, setAssigningIds] = useState([]);
+  const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
     setIsLoading(true);
     getRankedApplicants(jobId, buildApplicationQueryParams(filters))
       .then((data) => {
-        if (active) setApplicants(data);
+        if (active) {
+          setApplicants(data);
+          setSelectedIds((current) => current.filter((id) => data.some((applicant) => applicant.id === id && applicant.status !== 'rejected' && !applicant.assigned_interviewer)));
+        }
       })
       .catch((err) => {
         if (active) setError(getApiErrorMessage(err, 'Unable to load ranked applicants.'));
@@ -133,6 +106,58 @@ export default function ApplicantRankingPage() {
 
   const resetFilters = () => applyFilters(RANKING_FILTER_DEFAULTS);
   const activeFilterLabels = describeApplicationFilters(filters).filter((label) => !label.startsWith('Status:'));
+  const actionableApplicants = applicants.filter((applicant) => applicant.status !== 'rejected' && !applicant.assigned_interviewer);
+  const allSelected = actionableApplicants.length > 0 && actionableApplicants.every((applicant) => selectedIds.includes(applicant.id));
+  const toggleAll = () => setSelectedIds(allSelected ? [] : actionableApplicants.map((applicant) => applicant.id));
+  const toggleOne = (id) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+
+  const openAssignment = async (ids) => {
+    setError('');
+    setAssigningIds(ids);
+    try {
+      const members = await getOrganizationMembers('');
+      setInterviewers(members.filter((member) => member.role === 'interviewer' && member.status === 'active' && member.user_id));
+    } catch (err) {
+      setAssigningIds([]);
+      setError(getApiErrorMessage(err, 'Unable to load interviewers.'));
+    }
+  };
+
+  const assignSelected = async () => {
+    setIsBusy(true);
+    try {
+      await Promise.all(assigningIds.map((id) => assignInterviewer(id, { interviewer_id: Number(selectedInterviewerId) })));
+      setApplicants((current) => current.map((applicant) => (
+        assigningIds.includes(applicant.id)
+          ? { ...applicant, assigned_interviewer: { id: Number(selectedInterviewerId) } }
+          : applicant
+      )));
+      setSuccess(`Interviewer assigned to ${assigningIds.length} applicant${assigningIds.length === 1 ? '' : 's'}.`);
+      setSelectedIds((current) => current.filter((id) => !assigningIds.includes(id)));
+      setAssigningIds([]);
+      setSelectedInterviewerId('');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to assign interviewer.'));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const rejectSelected = async (ids) => {
+    const reason = window.prompt(`Rejection reason for ${ids.length} applicant${ids.length === 1 ? '' : 's'}`);
+    if (!reason) return;
+    setIsBusy(true);
+    try {
+      await Promise.all(ids.map((id) => rejectApplication(id, { reason, remark: reason })));
+      setApplicants((current) => current.filter((applicant) => !ids.includes(applicant.id)));
+      setSelectedIds((current) => current.filter((id) => !ids.includes(id)));
+      setSuccess(`${ids.length} applicant${ids.length === 1 ? '' : 's'} rejected.`);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to reject applicant.'));
+    } finally {
+      setIsBusy(false);
+    }
+  };
 
   return (
     <Box>
@@ -140,9 +165,10 @@ export default function ApplicantRankingPage() {
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Qualified applicant ranking</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Real recruitment systems combine ranking with search, fit filters, saved views, and human review before action.
+          Compare qualified applicants using ranking, search, and AI fit filters before taking action.
         </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+        {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
 
         <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
           <Stack spacing={2}>
@@ -160,14 +186,20 @@ export default function ApplicantRankingPage() {
               <Button variant="outlined" onClick={resetFilters}>Reset</Button>
               {activeFilterLabels.length ? activeFilterLabels.map((label) => <Chip key={label} label={titleize(label)} size="small" />) : <Chip label="Default ranking" size="small" />}
             </Stack>
-            <RankingSavedViews scope={`ranking.${jobId}`} filters={filters} onApply={applyFilters} />
           </Stack>
         </Paper>
+
+        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+          <Button variant="contained" disabled={!selectedIds.length || isBusy} onClick={() => openAssignment(selectedIds)}>Assign interviewer</Button>
+          <Button variant="outlined" color="error" disabled={!selectedIds.length || isBusy} onClick={() => rejectSelected(selectedIds)}>Reject selected</Button>
+          {selectedIds.length ? <Typography color="text.secondary" sx={{ alignSelf: 'center' }}>{selectedIds.length} selected</Typography> : null}
+        </Stack>
 
         {isLoading ? <CircularProgress /> : null}
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell padding="checkbox"><Checkbox checked={allSelected} indeterminate={selectedIds.length > 0 && !allSelected} disabled={!actionableApplicants.length} onChange={toggleAll} inputProps={{ 'aria-label': 'Select all actionable applicants' }} /></TableCell>
               <TableCell>Rank</TableCell>
               <TableCell>Applicant</TableCell>
               <TableCell>Status</TableCell>
@@ -183,6 +215,7 @@ export default function ApplicantRankingPage() {
           <TableBody>
             {applicants.map((applicant, index) => (
               <TableRow key={applicant.id}>
+                <TableCell padding="checkbox"><Checkbox checked={selectedIds.includes(applicant.id)} disabled={applicant.status === 'rejected' || Boolean(applicant.assigned_interviewer)} onChange={() => toggleOne(applicant.id)} inputProps={{ 'aria-label': `Select ${applicationName(applicant)}` }} /></TableCell>
                 <TableCell>#{index + 1}</TableCell>
                 <TableCell>{applicationName(applicant)}</TableCell>
                 <TableCell><Chip label={titleize(applicant.status)} size="small" /></TableCell>
@@ -194,21 +227,38 @@ export default function ApplicantRankingPage() {
                 <TableCell><strong>{scoreText(applicant.final_score)}</strong></TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Button component={RouterLink} to={`/recruiter/applications/${applicant.id}`} size="small">
-                      Profile
-                    </Button>
+                    <Button component={RouterLink} to={`/recruiter/applications/${applicant.id}`} size="small">View</Button>
+                    {applicant.status !== 'rejected' && !applicant.assigned_interviewer ? (
+                      <>
+                        <Button size="small" disabled={isBusy} onClick={() => openAssignment([applicant.id])}>Assign interviewer</Button>
+                        <Button size="small" color="error" disabled={isBusy} onClick={() => rejectSelected([applicant.id])}>Reject</Button>
+                      </>
+                    ) : null}
                   </Stack>
                 </TableCell>
               </TableRow>
             ))}
             {!isLoading && applicants.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10}>No qualified applicants match the current search or saved ranking view.</TableCell>
+                <TableCell colSpan={11}>No qualified applicants match the current search.</TableCell>
               </TableRow>
             ) : null}
           </TableBody>
         </Table>
       </Paper>
+      <Dialog open={assigningIds.length > 0} onClose={() => !isBusy && setAssigningIds([])} fullWidth maxWidth="sm">
+        <DialogTitle>Assign interviewer</DialogTitle>
+        <DialogContent>
+          <TextField select fullWidth margin="dense" label="Interviewer" value={selectedInterviewerId} onChange={(event) => setSelectedInterviewerId(event.target.value)}>
+            {interviewers.map((interviewer) => <MenuItem key={interviewer.user_id} value={interviewer.user_id}>{interviewer.full_name} ({interviewer.email})</MenuItem>)}
+          </TextField>
+          {!interviewers.length ? <Typography color="text.secondary">No active interviewers are available.</Typography> : null}
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={isBusy} onClick={() => setAssigningIds([])}>Cancel</Button>
+          <Button variant="contained" disabled={!selectedInterviewerId || isBusy} onClick={assignSelected}>{isBusy ? 'Assigning…' : `Assign to ${assigningIds.length}`}</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
