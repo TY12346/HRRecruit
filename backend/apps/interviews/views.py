@@ -560,9 +560,9 @@ class CreateSchedulingRequestAPIView(APIView):
         interviewer = panel_interviewers[0]
 
         application.assigned_interviewer = interviewer
-        if application.status != JobApplication.Status.SHORTLISTED:
+        if application.status != JobApplication.Status.UNDER_REVIEW:
             previous_status = application.status
-            application.status = JobApplication.Status.SHORTLISTED
+            application.status = JobApplication.Status.UNDER_REVIEW
             application.save(update_fields=['assigned_interviewer', 'status', 'updated_at'])
             ApplicationStageHistory.objects.create(
                 application=application,
@@ -740,7 +740,7 @@ def book_scheduling_request(request, scheduling_request):
     scheduling_request.save(update_fields=['status', 'selected_slot', 'interview', 'updated_at'])
     change_application_status(
         scheduling_request.application,
-        JobApplication.Status.SHORTLISTED,
+        JobApplication.Status.UNDER_REVIEW,
         request.user,
         'Applicant selected an interview slot.',
     )
@@ -883,9 +883,9 @@ class AssignInterviewerAPIView(APIView):
 
         application.assigned_interviewer = interviewer
         update_fields = ['assigned_interviewer', 'updated_at']
-        if application.status != JobApplication.Status.SHORTLISTED:
+        if application.status != JobApplication.Status.UNDER_REVIEW:
             previous_status = application.status
-            application.status = JobApplication.Status.SHORTLISTED
+            application.status = JobApplication.Status.UNDER_REVIEW
             update_fields.append('status')
         else:
             previous_status = application.status

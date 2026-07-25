@@ -83,16 +83,19 @@ export default function ApplicantProfilePage() {
   }, [applicationId]);
 
   const reject = async () => {
-    const defaultMessage = renderApplicationTemplate(
-      'rejection',
-      profile?.status === 'shortlisted' ? 'rejection_after_interview' : 'rejection_general',
-      profile ?? {},
-    );
-    const reason = window.prompt('Applicant rejection message', defaultMessage);
-    if (!reason) return;
+    const wasAiShortlisted = profile?.status === 'under_review'
+      && profile?.scores?.explanation?.qualification_decision === 'qualified';
+    let reason = '';
+    if (wasAiShortlisted) {
+      if (!window.confirm('Reject this applicant? A rejection reason is optional.')) return;
+    } else {
+      const defaultMessage = renderApplicationTemplate('rejection', 'rejection_general', profile ?? {});
+      reason = window.prompt('Applicant rejection message', defaultMessage);
+      if (!reason) return;
+    }
 
     try {
-      await rejectApplication(applicationId, { reason, remark: reason });
+      await rejectApplication(applicationId, reason ? { reason, remark: reason } : {});
       setSuccess('Applicant rejected.');
       load();
     } catch (err) {
