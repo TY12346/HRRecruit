@@ -1254,7 +1254,7 @@ class InterviewEvaluationAPITests(APITestCase):
             summary_json={'provider': 'mock'},
         )
 
-    def test_evaluation_requires_transcript_and_ai_summary_deliverables(self):
+    def test_evaluation_can_be_submitted_without_transcript_and_ai_summary_deliverables(self):
         self.authenticate(self.interviewer)
 
         response = self.client.post(
@@ -1269,8 +1269,11 @@ class InterviewEvaluationAPITests(APITestCase):
             format='json',
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('deliverables', response.data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertTrue(InterviewEvaluation.objects.filter(
+            interview=self.interview,
+            interviewer=self.interviewer,
+        ).exists())
 
     def test_evaluation_is_rejected_after_three_day_deliverable_deadline(self):
         self.interview.scheduled_datetime = timezone.now() - timedelta(days=4)
@@ -1296,7 +1299,6 @@ class InterviewEvaluationAPITests(APITestCase):
     def test_interviewer_can_submit_evaluation_before_scheduled_datetime(self):
         self.interview.scheduled_datetime = timezone.now() + timedelta(days=2)
         self.interview.save(update_fields=['scheduled_datetime', 'updated_at'])
-        self.create_completed_transcript_summary_deliverables()
         self.authenticate(self.interviewer)
 
         response = self.client.post(

@@ -24,7 +24,6 @@ export default function SubmitEvaluationPage() {
 
   const criteria = useMemo(() => interview?.evaluation_criteria ?? [], [interview]);
   const deliverableStatus = interview?.deliverable_status;
-  const missingDeliverables = deliverableStatus?.missing ?? [];
   const deliverableDeadline = deliverableStatus?.deadline ? new Date(deliverableStatus.deadline).toLocaleString() : '';
 
   useEffect(() => {
@@ -145,7 +144,7 @@ export default function SubmitEvaluationPage() {
             );
           })}
 
-          <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0 || missingDeliverables.includes('transcript') || missingDeliverables.includes('ai_summary')} sx={{ alignSelf: 'flex-start' }}>
+          <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0} sx={{ alignSelf: 'flex-start' }}>
             {isSaving ? 'Submitting…' : 'Submit evaluation'}
           </Button>
         </Stack>

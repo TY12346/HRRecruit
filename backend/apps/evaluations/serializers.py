@@ -11,7 +11,7 @@ from rest_framework import serializers
 
 from apps.applications.models import JobApplication
 from apps.jobs.serializers import EvaluationCriterionSerializer
-from .deliverables import deliverable_deadline_for, latest_ai_summary_for, latest_transcript_for
+from .deliverables import deliverable_deadline_for
 from .models import (
     ALLOWED_INTERVIEW_AUDIO_EXTENSIONS,
     MAX_INTERVIEW_AUDIO_SIZE_MB,
@@ -248,20 +248,11 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
                 raise serializers.ValidationError({'answers': f'Score for {criterion.criterion_name} cannot exceed {criterion.max_score}.'})
             answer['criterion'] = criterion
 
-        missing = []
-        if not latest_transcript_for(interview):
-            missing.append('transcript')
-        if not latest_ai_summary_for(interview):
-            missing.append('AI summary')
-        if missing:
-            raise serializers.ValidationError({
-                'deliverables': f"Submit the interview {' and '.join(missing)} before submitting the evaluation scorecard."
-            })
-
         # Keep the submission window open before the scheduled start as well as
         # after it. This intentionally supports pre-interview evaluation
-        # submissions used by the current testing/demo workflow; the deadline is
-        # an upper bound only.
+        # submissions used by the current testing/demo workflow, including when
+        # transcript and AI-summary deliverables do not exist yet. The deadline
+        # is an upper bound only.
         deadline = deliverable_deadline_for(interview)
         if deadline and timezone.now() > deadline:
             raise serializers.ValidationError({
