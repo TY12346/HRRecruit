@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Card, CardContent, Chip, CircularProgress, Grid, List, ListItem, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, List, ListItem, Paper, Stack, Typography } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { closeJobApplicationIntake, getJob, getJobApplicantComparison, getRankedApplicants } from '../../api/client.js';
+import { closeJobApplicationIntake, getJob, getRankedApplicants, updateJob } from '../../api/client.js';
 import { formatJobDescriptionText } from '../../utils/jobDescriptionFormatting.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage, titleize } from './recruiterUtils.js';
@@ -11,28 +11,45 @@ export default function JobDetailPage() {
   const { jobId } = useParams();
   const [job, setJob] = useState(null);
   const [ranked, setRanked] = useState([]);
-  const [readiness, setReadiness] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [showPostConfirmation, setShowPostConfirmation] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
+  const [isClosingIntake, setIsClosingIntake] = useState(false);
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([getJob(jobId), getRankedApplicants(jobId), getJobApplicantComparison(jobId)]).then(([jobResult, rankedResult, comparisonResult]) => {
+    Promise.allSettled([getJob(jobId), getRankedApplicants(jobId)]).then(([jobResult, rankedResult]) => {
       if (!active) return;
       if (jobResult.status === 'fulfilled') setJob(jobResult.value); else setError(getApiErrorMessage(jobResult.reason, 'Unable to load job.'));
       if (rankedResult.status === 'fulfilled') setRanked(rankedResult.value);
-      if (comparisonResult.status === 'fulfilled') setReadiness(comparisonResult.value.readiness);
     }).finally(() => active && setIsLoading(false));
     return () => { active = false; };
   }, [jobId]);
 
-  const closeIntake = async () => {
+  const postJob = async () => {
     setError('');
+    setIsPosting(true);
     try {
-      const result = await closeJobApplicationIntake(jobId);
-      setJob(result.job);
-      setReadiness(result.readiness);
-    } catch (err) { setError(getApiErrorMessage(err, 'Unable to close application intake.')); }
+      const updatedJob = await updateJob(jobId, { status: 'open' });
+      setJob(updatedJob);
+      setShowPostConfirmation(false);
+    } catch (err) { setError(getApiErrorMessage(err, 'Unable to post job.')); } finally { setIsPosting(false); }
+  };
+
+  const closeApplicationIntake = async () => {
+    setError('');
+    setIsClosingIntake(true);
+    try {
+      const response = await closeJobApplicationIntake(jobId);
+      setJob(response.job);
+      setShowCloseConfirmation(false);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to close application intake.'));
+    } finally {
+      setIsClosingIntake(false);
+    }
   };
 
   const requirementsByType = ['skill', 'experience', 'education'].map((type) => ({
@@ -48,11 +65,15 @@ export default function JobDetailPage() {
         <Box><Typography variant="h5" sx={{ fontWeight: 700 }}>{job.title}</Typography><Typography color="text.secondary">{job.organization_name} • {job.location}</Typography><Chip label={titleize(job.status)} color={job.status === 'open' ? 'success' : 'default'} sx={{ mt: 1 }} /></Box>
         <Stack direction="row" alignItems="center" spacing={1} useFlexGap flexWrap="wrap">
           <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/edit`} variant="contained">Edit</Button>
-          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/requirements`} variant="outlined">Requirements</Button>
-          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/scorecard`} variant="outlined">Evaluation scorecard</Button>
-          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/ranking`} variant="outlined">View qualified applicants ranking</Button>
-          <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/hiring-decision`} variant="outlined">Make hiring decision</Button>
-          {job.status === 'open' ? <Button color="warning" onClick={closeIntake} variant="contained">Close application intake</Button> : null}
+          {job.status === 'draft' ? <Button onClick={() => setShowPostConfirmation(true)} variant="outlined">Post</Button> : null}
+          {['open', 'application_intake_closed'].includes(job.status) ? <>
+            <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/ranking`} variant="outlined">View qualified applicants ranking</Button>
+            <Button component={RouterLink} to={`/recruiter/interviews?job_id=${job.id}`} variant="outlined">View interviews</Button>
+            <Button component={RouterLink} to={`/recruiter/jobs/${job.id}/hiring-decision`} variant="outlined">Make hiring decision</Button>
+          </> : null}
+          {job.status === 'open' ? (
+            <Button color="warning" onClick={() => setShowCloseConfirmation(true)} variant="outlined">Close application intake</Button>
+          ) : null}
         </Stack>
       </Stack>
       <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{formatJobDescriptionText(job.description)}</Typography>
@@ -69,5 +90,28 @@ export default function JobDetailPage() {
         ))}
       </Box>
     </Stack> : null}
-  </Paper></Box>;
+  </Paper>
+    <Dialog open={showPostConfirmation} onClose={() => !isPosting && setShowPostConfirmation(false)}>
+      <DialogTitle>Confirm to post this job?</DialogTitle>
+      <DialogContent><DialogContentText>To ensure consistency of AI resume screening, the job requirements cannot be changed once this job is posted.</DialogContentText></DialogContent>
+      <DialogActions>
+        <Button disabled={isPosting} onClick={() => setShowPostConfirmation(false)}>Cancel</Button>
+        <Button autoFocus disabled={isPosting} onClick={postJob} variant="contained">Confirm and post</Button>
+      </DialogActions>
+    </Dialog>
+    <Dialog open={showCloseConfirmation} onClose={() => !isClosingIntake && setShowCloseConfirmation(false)}>
+      <DialogTitle>Close application intake?</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Applicants will no longer be able to apply for this job. This status change cannot be reversed.
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button disabled={isClosingIntake} onClick={() => setShowCloseConfirmation(false)}>Cancel</Button>
+        <Button autoFocus color="warning" disabled={isClosingIntake} onClick={closeApplicationIntake} variant="contained">
+          {isClosingIntake ? 'Closing…' : 'Close application intake'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </Box>;
 }
