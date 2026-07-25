@@ -9,8 +9,6 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.ai_services.linkedin_profile_importer import build_linkedin_profile_import
-from apps.ai_services.resume_text_extractor import ResumeTextExtractionError, extract_resume_text
-from apps.ai_services.resume_validation import validate_resume_text
 
 from .models import ApplicantEducation, ApplicantExperience, ApplicantResume, ApplicantSkill, User
 from .serializers import (
@@ -268,18 +266,6 @@ class ResumeUploadAPIView(APIView):
         serializer = ResumeUploadSerializer(data=upload_data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         resume = serializer.save()
-        try:
-            validation_result = validate_resume_text(extract_resume_text(resume.resume_file.path))
-        except ResumeTextExtractionError as exc:
-            validation_result = {
-                'is_valid': False,
-                'missing_fields': ['resume_text'],
-                'warnings': [str(exc)],
-                'detected_fields': {'skills': [], 'education': False, 'experience': False, 'internship': False, 'projects': False},
-                'message': 'Resume text could not be extracted. Please upload a readable PDF or DOCX resume.',
-            }
-        resume.validation_result = validation_result
-        resume.save(update_fields=['validation_result'])
         resume_data = ApplicantResumeSerializer(resume, context={'request': request}).data
         response_status = (
             status.HTTP_200_OK
@@ -288,8 +274,7 @@ class ResumeUploadAPIView(APIView):
         )
         return Response(
             {
-                'message': 'Resume uploaded successfully.' if validation_result.get('is_valid') else validation_result['message'],
-                'validation_result': validation_result,
+                'message': 'Resume uploaded successfully.',
                 'resume_file': resume.resume_file.url,
                 'resume': resume_data,
             },

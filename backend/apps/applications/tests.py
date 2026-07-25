@@ -1074,9 +1074,9 @@ class JobApplicationModelTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             JobApplication.objects.create(job=self.job, applicant=self.applicant)
 
-class ResumeValidationScreeningTests(JobApplicationAPITests):
+class ResumeScreeningWithoutContentValidationTests(JobApplicationAPITests):
     @patch('apps.ai_services.resume_screening.extract_resume_text')
-    def test_screening_is_not_executed_when_validation_fails(self, extract_resume_text):
+    def test_screening_runs_without_requiring_every_resume_section(self, extract_resume_text):
         self.attach_resume()
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
         extract_resume_text.return_value = 'Skills: Python Django SQL. Experience: Worked as developer at Example Company for 2 years building APIs.'
@@ -1084,9 +1084,7 @@ class ResumeValidationScreeningTests(JobApplicationAPITests):
 
         response = self.client.post(reverse('application-screen', args=[application.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(response.data['resume_validation_result']['is_valid'])
-        self.assertIn('education', response.data['resume_validation_result']['missing_fields'])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertIsNone(application.final_score)
-        self.assertFalse(application.resume_validation_result['is_valid'])
+        self.assertIsNotNone(application.final_score)
+        self.assertIsNone(application.extracted_education['level'])

@@ -56,7 +56,6 @@ class JobApplication(models.Model):
     education_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     final_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     score_explanation = models.JSONField(default=dict, blank=True)
-    resume_validation_result = models.JSONField(default=dict, blank=True)
     applied_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

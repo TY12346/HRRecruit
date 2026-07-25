@@ -5,15 +5,9 @@ from .models import ApplicationStageHistory, JobApplication
 
 @admin.register(JobApplication)
 class JobApplicationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'job', 'applicant', 'status', 'resume_content_valid', 'final_score', 'assigned_interviewer', 'applied_at', 'updated_at')
+    list_display = ('id', 'job', 'applicant', 'status', 'final_score', 'assigned_interviewer', 'applied_at', 'updated_at')
     list_filter = ('status', 'job')
     search_fields = ('job__title', 'applicant__email', 'applicant__full_name', 'assigned_interviewer__email', 'recruiter_remark')
-
-    @admin.display(boolean=True, description='Resume valid')
-    def resume_content_valid(self, obj):
-        result = obj.resume_validation_result or {}
-        return result.get('is_valid') if result else None
-
 
 @admin.register(ApplicationStageHistory)
 class ApplicationStageHistoryAdmin(admin.ModelAdmin):

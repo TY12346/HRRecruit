@@ -17,7 +17,6 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
-from apps.ai_services.resume_validation import ResumeContentValidationError
 from apps.hiring.models import HiringDecision
 from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting
@@ -443,10 +442,8 @@ class JobApplyAPIView(APIView):
                     selected_resume.resume_file if selected_resume else legacy_resume_file
                 )
                 save_application_resume_snapshot(application, source_resume_file)
-            application = screen_job_application(application, changed_by=None)
+            application = screen_job_application(application)
             EmployerInvite.objects.filter(job=job, applicant=request.user, response=EmployerInvite.Response.NO_RESPONSE).update(response=EmployerInvite.Response.APPLIED, responded_at=timezone.now())
-        except ResumeContentValidationError as exc:
-            return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
 
@@ -538,9 +535,7 @@ class ApplicationScreenAPIView(APIView):
             if not resume_file:
                 raise ValidationError({'resume_file': 'The applicant must upload a resume before screening.'})
             previous_status = application.status
-            application = screen_job_application(application, changed_by=request.user)
-        except ResumeContentValidationError as exc:
-            return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
+            application = screen_job_application(application)
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
 

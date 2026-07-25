@@ -74,7 +74,6 @@ class ApplicantResume(models.Model):
     title = models.CharField(max_length=255, blank=True)
     resume_file = models.FileField(upload_to='resumes/')
     is_default = models.BooleanField(default=False)
-    validation_result = models.JSONField(default=dict, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

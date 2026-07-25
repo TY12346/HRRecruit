@@ -56,13 +56,6 @@ const SORT_OPTIONS = [
   ['applicant_az', 'Applicant A-Z'],
 ];
 
-function ResumeValidationChip({ result }) {
-  if (!result || Object.keys(result).length === 0) return <Chip label="Not validated" size="small" variant="outlined" />;
-  if (result.is_valid) return <Chip color="success" label="Resume valid" size="small" />;
-  const missing = (result.missing_fields ?? []).join(', ');
-  return <Tooltip title={result.message ?? missing}><Chip color="warning" label="Resume incomplete" size="small" /></Tooltip>;
-}
-
 function FitChip({ score }) {
   const fit = applicantFitFromScore(score);
   return (
@@ -214,7 +207,6 @@ export default function ApplicationsPage() {
               <TableCell>Applicant</TableCell>
               <TableCell>Job</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Resume validation</TableCell>
               <TableCell>AI fit</TableCell>
               <TableCell>Final score</TableCell>
               <TableCell>Applied</TableCell>
@@ -227,7 +219,6 @@ export default function ApplicationsPage() {
                 <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{applicationName(app)}</Typography><Typography variant="caption" color="text.secondary">{getApplicationStatusInfo(app.status, 'recruiter').nextAction}</Typography></TableCell>
                 <TableCell>{app.job_title}</TableCell>
                 <TableCell><Tooltip title={getApplicationStatusInfo(app.status, 'recruiter').description}><Chip label={getApplicationStatusInfo(app.status, 'recruiter').label} size="small" /></Tooltip></TableCell>
-                <TableCell><ResumeValidationChip result={app.resume_validation_result} /></TableCell>
                 <TableCell><FitChip score={app.final_score} /></TableCell>
                 <TableCell>{scoreText(app.final_score)}</TableCell>
                 <TableCell>{formatDateTime(app.applied_at)}</TableCell>
