@@ -358,6 +358,53 @@ class JobPostingAPITests(APITestCase):
         self.assertIsNotNone(job.requirements_locked_at)
         self.assertEqual(list(job.requirements.values_list('description', flat=True)), ['Python'])
 
+    def test_recruiter_cannot_move_an_open_job_back_to_draft(self):
+        job = self.create_job(status=JobPosting.Status.OPEN)
+        self.authenticate(self.recruiter)
+
+        response = self.client.patch(
+            reverse('job-detail', args=[job.id]),
+            {'status': JobPosting.Status.DRAFT},
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Status changes cannot be reversed', response.data['status'][0])
+        self.assertEqual(job.status, JobPosting.Status.OPEN)
+
+    def test_recruiter_cannot_reopen_a_job_after_application_intake_is_closed(self):
+        job = self.create_job(status=JobPosting.Status.OPEN)
+        self.authenticate(self.recruiter)
+        close_response = self.client.post(reverse('job-close-intake', args=[job.id]))
+
+        reopen_response = self.client.patch(
+            reverse('job-detail', args=[job.id]),
+            {'status': JobPosting.Status.OPEN},
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(close_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(reopen_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Status changes cannot be reversed', reopen_response.data['status'][0])
+        self.assertEqual(job.status, JobPosting.Status.APPLICATION_INTAKE_CLOSED)
+
+    def test_recruiter_cannot_reopen_a_closed_job(self):
+        job = self.create_job(status=JobPosting.Status.CLOSED)
+        self.authenticate(self.recruiter)
+
+        response = self.client.patch(
+            reverse('job-detail', args=[job.id]),
+            {'status': JobPosting.Status.OPEN},
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Status changes cannot be reversed', response.data['status'][0])
+        self.assertEqual(job.status, JobPosting.Status.CLOSED)
+
     def test_applicant_can_save_list_and_unsave_open_job(self):
         job = self.create_job()
         self.authenticate(self.applicant)

@@ -246,9 +246,14 @@ export default function JobCreateEditPage() {
           <FormControl>
             <InputLabel>Status</InputLabel>
             <Select label="Status" value={form.status} onChange={setField('status')}>
-              <MenuItem value="draft">Draft</MenuItem>
-              <MenuItem value="open">Open</MenuItem>
-              <MenuItem value="application_intake_closed">Application Intake Closed</MenuItem>
+              {initialStatus === 'draft' ? <MenuItem value="draft">Draft</MenuItem> : null}
+              {['draft', 'open'].includes(initialStatus) ? <MenuItem value="open">Open</MenuItem> : null}
+              {['open', 'application_intake_closed'].includes(initialStatus) ? (
+                <MenuItem value="application_intake_closed">Application Intake Closed</MenuItem>
+              ) : null}
+              {!['draft', 'open', 'application_intake_closed'].includes(initialStatus) ? (
+                <MenuItem value={initialStatus}>{initialStatus.replaceAll('_', ' ')}</MenuItem>
+              ) : null}
             </Select>
           </FormControl>
         </Stack>

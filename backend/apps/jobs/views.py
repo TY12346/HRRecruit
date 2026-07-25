@@ -81,6 +81,27 @@ def enforce_job_ready_for_open(job, requested_status):
         })
 
 
+def enforce_job_status_transition(job, requested_status):
+    """Keep recruiter-managed job status changes moving forward only."""
+    if requested_status == job.status:
+        return
+
+    allowed_transitions = {
+        JobPosting.Status.DRAFT: {JobPosting.Status.OPEN},
+        JobPosting.Status.OPEN: {
+            JobPosting.Status.APPLICATION_INTAKE_CLOSED,
+            JobPosting.Status.CLOSED,
+        },
+    }
+    if requested_status not in allowed_transitions.get(job.status, set()):
+        raise ValidationError({
+            'status': [
+                f'Job status cannot be changed from {job.get_status_display()} '
+                f'to {JobPosting.Status(requested_status).label}. Status changes cannot be reversed.'
+            ]
+        })
+
+
 def recruiter_job_or_404(user, job_id):
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
@@ -214,6 +235,7 @@ class JobDetailAPIView(APIView):
         serializer = JobPostingSerializer(job, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         requested_status = serializer.validated_data.get('status', job.status)
+        enforce_job_status_transition(job, requested_status)
         enforce_job_ready_for_open(job, requested_status)
         enforce_job_opening_allowed(job.organization, requested_status, current_job=job)
         if requested_status == JobPosting.Status.OPEN and job.requirements_locked_at is None:
