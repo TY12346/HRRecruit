@@ -101,11 +101,11 @@ class JobHiringDecisionItem(models.Model):
 
 class JobOffer(models.Model):
     class OfferStatus(models.TextChoices):
-        SENT = 'sent', 'Sent'
-        ACCEPTED = 'accepted', 'Accepted'
-        DECLINED = 'declined', 'Declined'
-        EXPIRED = 'expired', 'Expired'
-        WITHDRAWN = 'withdrawn', 'Withdrawn'
+        DRAFTING = 'drafting', 'Drafting'
+        PENDING_APPROVAL = 'offer_pending_approval', 'Offer Pending Approval'
+        SENT = 'offer_sent', 'Offer Sent'
+        ACCEPTED = 'offer_accepted', 'Offer Accepted'
+        DECLINED = 'offer_declined', 'Offer Declined'
 
     application = models.ForeignKey(
         JobApplication,
@@ -123,7 +123,7 @@ class JobOffer(models.Model):
     benefits_summary = models.TextField(blank=True)
     internal_notes = models.TextField(blank=True)
     applicant_response_note = models.TextField(blank=True)
-    offer_status = models.CharField(max_length=20, choices=OfferStatus.choices, default=OfferStatus.SENT)
+    offer_status = models.CharField(max_length=30, choices=OfferStatus.choices, default=OfferStatus.SENT)
     respond_deadline = models.DateTimeField()
     sent_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(blank=True, null=True)

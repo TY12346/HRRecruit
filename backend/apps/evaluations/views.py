@@ -164,7 +164,11 @@ class InterviewEvaluationSubmitAPIView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         evaluation = serializer.save()
-        interview.change_status(Interview.Status.COMPLETED, changed_by=request.user, note='Interview evaluation submitted.')
+        interview.change_status(
+            Interview.Status.EVALUATION_SUBMITTED,
+            changed_by=request.user,
+            note='Interview evaluation submitted.',
+        )
         create_notification(
             interview.recruiter,
             'evaluation_submitted',

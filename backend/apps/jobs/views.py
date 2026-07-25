@@ -72,8 +72,31 @@ def enforce_job_ready_for_open(job, requested_status):
         return
     if not job.requirements.exists():
         raise ValidationError({'status': ['Configure job requirements before posting this job opening.']})
-    if not hasattr(job, 'interview_evaluation_form'):
-        raise ValidationError({'status': ['Configure an interview evaluation scorecard before posting this job opening.']})
+    if (
+        not hasattr(job, 'interview_evaluation_form')
+        or not job.interview_evaluation_form.criteria.exists()
+    ):
+        raise ValidationError({
+            'status': ['Configure a non-empty interview evaluation scorecard before posting this job opening.']
+        })
+
+
+def enforce_job_status_transition(job, requested_status):
+    """Keep recruiter-managed job status changes moving forward only."""
+    if requested_status == job.status:
+        return
+
+    allowed_transitions = {
+        JobPosting.Status.DRAFTING: {JobPosting.Status.OPEN},
+        JobPosting.Status.OPEN: {JobPosting.Status.CLOSED},
+    }
+    if requested_status not in allowed_transitions.get(job.status, set()):
+        raise ValidationError({
+            'status': [
+                f'Job status cannot be changed from {job.get_status_display()} '
+                f'to {JobPosting.Status(requested_status).label}. Status changes cannot be reversed.'
+            ]
+        })
 
 
 def recruiter_job_or_404(user, job_id):
@@ -146,7 +169,7 @@ class JobRequisitionApproveAPIView(APIView):
             position_status=requisition.position_status,
             reason_for_hire=requisition.reason_for_hire,
             impact_of_not_hiring=requisition.impact_of_not_hiring,
-            status=JobPosting.Status.DRAFT,
+            status=JobPosting.Status.DRAFTING,
         )
         requisition.status = JobRequisition.Status.APPROVED
         requisition.reviewed_by = request.user
@@ -209,9 +232,13 @@ class JobDetailAPIView(APIView):
         serializer = JobPostingSerializer(job, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         requested_status = serializer.validated_data.get('status', job.status)
+        enforce_job_status_transition(job, requested_status)
         enforce_job_ready_for_open(job, requested_status)
         enforce_job_opening_allowed(job.organization, requested_status, current_job=job)
-        serializer.save()
+        if requested_status == JobPosting.Status.OPEN and job.requirements_locked_at is None:
+            serializer.save(requirements_locked_at=timezone.now())
+        else:
+            serializer.save()
         return Response(serializer.data)
 
     def delete(self, request, job_id):
@@ -232,7 +259,7 @@ class JobCloseIntakeAPIView(APIView):
         job = recruiter_job_or_404(request.user, job_id)
         if job.status != JobPosting.Status.OPEN:
             raise ValidationError({'status': 'Application intake can only be closed for an open job posting.'})
-        job.status = JobPosting.Status.APPLICATION_INTAKE_CLOSED
+        job.status = JobPosting.Status.CLOSED
         job.save(update_fields=['status', 'updated_at'])
         readiness = refresh_job_readiness(job)
         return Response({'job': JobPostingSerializer(job, context={'request': request}).data, 'readiness': readiness})
@@ -252,6 +279,10 @@ class JobRequirementsAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can configure job requirements.')
         job = recruiter_job_or_404(request.user, job_id)
+        if job.requirements_locked_at is not None or job.status != JobPosting.Status.DRAFTING:
+            raise ValidationError({
+                'requirements': ['Job requirements cannot be changed once this job has been posted.']
+            })
         serializer = JobRequirementConfigurationSerializer(data=request.data, context={'job': job})
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -265,12 +296,13 @@ class JobEvaluationFormAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can create interview evaluation scorecards.')
         job = recruiter_job_or_404(request.user, job_id)
-        if hasattr(job, 'interview_evaluation_form'):
-            return Response({'detail': 'This job already has an interview evaluation scorecard.'}, status=status.HTTP_400_BAD_REQUEST)
-        serializer = InterviewEvaluationFormSerializer(data=request.data)
+        form = getattr(job, 'interview_evaluation_form', None)
+        is_update = form is not None
+        serializer = InterviewEvaluationFormSerializer(form, data=request.data) if form else InterviewEvaluationFormSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        form = serializer.save(job=job)
-        return Response(InterviewEvaluationFormSerializer(form).data, status=status.HTTP_201_CREATED)
+        form = serializer.save(job=job) if form is None else serializer.save()
+        response_status = status.HTTP_200_OK if is_update else status.HTTP_201_CREATED
+        return Response(InterviewEvaluationFormSerializer(form).data, status=response_status)
 
 
 class SavedJobListAPIView(APIView):

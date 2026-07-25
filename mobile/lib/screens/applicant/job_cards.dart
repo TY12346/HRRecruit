@@ -50,33 +50,14 @@ class ApplicationStatusInfo {
 
 const List<String> applicationFlowPhases = [
   'Applied',
-  'Screening',
-  'Shortlist',
-  'Interview',
-  'Evaluation',
-  'HR review',
-  'Offer',
-  'Hired',
+  'Shortlisted',
+  'Rejected',
 ];
 
 const Map<String, int> _applicationPhaseIndexes = {
-  'submitted': 0,
-  'screened': 0,
-  'screened_qualified': 1,
-  'screened_not_qualified': 1,
-  'shortlisted': 2,
-  'interview_invited': 2,
-  'interview_accepted': 3,
-  'interview_declined': 3,
-  'interviewing': 3,
-  'evaluation_submitted': 4,
-  'decision_pending': 5,
-  'hr_approved': 5,
-  'hr_rejected': 5,
-  'offer_sent': 6,
-  'offer_accepted': 6,
-  'offer_declined': 6,
-  'hired': 7,
+  'applied': 0,
+  'shortlisted': 1,
+  'rejected': 2,
 };
 
 int applicationPhaseIndex(String status) =>
@@ -84,101 +65,28 @@ int applicationPhaseIndex(String status) =>
 
 ApplicationStatusInfo applicationStatusInfo(String status) {
   switch (status) {
-    case 'submitted':
+    case 'applied':
       return const ApplicationStatusInfo(
         label: 'Applied',
-        description: 'Your application was submitted successfully.',
-        nextAction: 'Wait for the recruitment team to review your resume.',
-      );
-    case 'screened':
-      return const ApplicationStatusInfo(
-        label: 'Screening in progress',
-        description: 'Your resume is being reviewed.',
-        nextAction: 'No action is needed right now.',
-      );
-    case 'screened_qualified':
-      return const ApplicationStatusInfo(
-        label: 'Passed screening',
-        description: 'Your application passed the screening stage.',
-        nextAction: 'Wait for interview scheduling updates.',
-      );
-    case 'screened_not_qualified':
-      return const ApplicationStatusInfo(
-        label: 'Under recruiter review',
-        description:
-            'Screening found gaps, but the recruiter still reviews the application.',
-        nextAction: 'Wait for the recruitment team decision.',
+        description: 'Your application was received and is being reviewed.',
+        nextAction: 'Wait for the recruitment team to review your application.',
       );
     case 'shortlisted':
       return const ApplicationStatusInfo(
         label: 'Shortlisted',
-        description: 'You were selected for the interview stage.',
-        nextAction: 'Watch for an invitation to choose an interview slot.',
-      );
-    case 'interview_invited':
-      return const ApplicationStatusInfo(
-        label: 'Interview invitation sent',
-        description: 'You have an interview scheduling invitation.',
-        nextAction: 'Choose a suitable interview slot.',
-      );
-    case 'interview_accepted':
-      return const ApplicationStatusInfo(
-        label: 'Interview scheduled',
-        description: 'Your interview slot is confirmed.',
-        nextAction: 'Attend the interview at the scheduled time.',
-      );
-    case 'evaluation_submitted':
-      return const ApplicationStatusInfo(
-        label: 'Evaluation submitted',
-        description: 'The interviewer submitted feedback for recruiter review.',
-        nextAction: 'Wait for the hiring decision review.',
-      );
-    case 'decision_pending':
-      return const ApplicationStatusInfo(
-        label: 'Waiting for hiring manager approval',
-        description: 'The recruiter decision is being reviewed by HR.',
-        nextAction: 'Wait for the final internal review.',
-      );
-    case 'hr_approved':
-      return const ApplicationStatusInfo(
-        label: 'Approved for offer',
-        description: 'HR approved the hire decision.',
-        nextAction: 'Wait for the official job offer.',
-      );
-    case 'offer_sent':
-      return const ApplicationStatusInfo(
-        label: 'Offer sent',
-        description: 'A job offer has been sent to you.',
-        nextAction: 'Review the offer and accept or decline it before the deadline.',
-      );
-    case 'offer_declined':
-      return const ApplicationStatusInfo(
-        label: 'Offer declined',
-        description: 'You declined the job offer.',
-        nextAction: 'No further action is required.',
-      );
-    case 'hired':
-      return const ApplicationStatusInfo(
-        label: 'Hired',
-        description: 'You accepted the offer and the recruitment flow is complete.',
-        nextAction: 'Wait for next steps from the organization.',
+        description: 'You were selected to continue in the recruitment process.',
+        nextAction: 'Watch for interview invitations and offer updates.',
       );
     case 'rejected':
       return const ApplicationStatusInfo(
-        label: 'Not selected',
+        label: 'Rejected',
         description: 'This application is no longer moving forward.',
         nextAction: 'You may apply for other open roles.',
-      );
-    case 'withdrawn':
-      return const ApplicationStatusInfo(
-        label: 'Withdrawn',
-        description: 'You withdrew this application.',
-        nextAction: 'No further action is required.',
       );
     default:
       return ApplicationStatusInfo(
         label: titleCaseStatus(status),
-        description: 'This application is in a recruitment stage that needs review.',
+        description: 'This application status needs review.',
         nextAction: 'Check back later for updates.',
       );
   }

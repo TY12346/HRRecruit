@@ -5,23 +5,7 @@ from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting
 
 
-INCOMPLETE_SHORTLIST_STATUSES = {
-    JobApplication.Status.SHORTLISTED,
-    JobApplication.Status.INTERVIEW_INVITED,
-    JobApplication.Status.INTERVIEW_ACCEPTED,
-    JobApplication.Status.INTERVIEWING,
-}
-
-ELIGIBLE_DECISION_STATUSES = {
-    JobApplication.Status.EVALUATION_SUBMITTED,
-    JobApplication.Status.DECISION_PENDING,
-    JobApplication.Status.HR_APPROVED,
-    JobApplication.Status.HR_REJECTED,
-    JobApplication.Status.OFFER_SENT,
-    JobApplication.Status.OFFER_ACCEPTED,
-    JobApplication.Status.OFFER_DECLINED,
-    JobApplication.Status.HIRED,
-}
+ELIGIBLE_DECISION_STATUSES = {JobApplication.Status.SHORTLISTED}
 
 
 def interview_scorecard_progress(interview):
@@ -40,7 +24,7 @@ def interview_scorecard_progress(interview):
 
 def application_scorecard_progress(application):
     """Return scorecard progress and whether all completed interviews are ready."""
-    interviews = list(application.interviews.filter(status=Interview.Status.COMPLETED).prefetch_related(
+    interviews = list(application.interviews.filter(status=Interview.Status.EVALUATION_SUBMITTED).prefetch_related(
         'panel_interviewers', 'evaluations'
     ))
     submitted = required = 0
@@ -65,14 +49,9 @@ def decision_readiness(job):
         reasons.append('Application intake is still open.')
 
     applications = job.applications.all()
-    incomplete = applications.filter(status__in=INCOMPLETE_SHORTLIST_STATUSES)
-    if incomplete.exists():
-        names = ', '.join(incomplete.values_list('applicant__full_name', flat=True)[:5])
-        reasons.append(f'Shortlisted applicants still require a final interview/evaluation state: {names}.')
-
     completed_interviews = Interview.objects.filter(
         application__job=job,
-        status=Interview.Status.COMPLETED,
+        status=Interview.Status.EVALUATION_SUBMITTED,
     ).prefetch_related('panel_interviewers', 'evaluations')
     incomplete_scorecards = 0
     for interview in completed_interviews:
@@ -96,12 +75,12 @@ def decision_readiness(job):
 def refresh_job_readiness(job):
     readiness = decision_readiness(job)
     transitional = {
-        JobPosting.Status.APPLICATION_INTAKE_CLOSED,
-        JobPosting.Status.INTERVIEWS_IN_PROGRESS,
-        JobPosting.Status.READY_FOR_DECISION,
+        JobPosting.Status.CLOSED,
+        JobPosting.Status.CLOSED,
+        JobPosting.Status.CLOSED,
     }
     if job.status in transitional:
-        desired = JobPosting.Status.READY_FOR_DECISION if readiness['ready'] else JobPosting.Status.INTERVIEWS_IN_PROGRESS
+        desired = JobPosting.Status.CLOSED if readiness['ready'] else JobPosting.Status.CLOSED
         if job.status != desired:
             job.status = desired
             job.save(update_fields=['status', 'updated_at'])

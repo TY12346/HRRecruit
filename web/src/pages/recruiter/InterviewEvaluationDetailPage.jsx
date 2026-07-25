@@ -19,7 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { getInterviewEvaluationDetail, getInterviews } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
@@ -53,17 +53,19 @@ function EvaluationCard({ evaluation }) {
 }
 
 export default function InterviewEvaluationDetailPage() {
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get('job_id');
   const [interviews, setInterviews] = useState([]);
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    getInterviews()
+    getInterviews(jobId ? { job_id: jobId } : {})
       .then(setInterviews)
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load interviews.')))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [jobId]);
 
   const openDetail = async (interview) => {
     setDetail(null);
@@ -83,10 +85,10 @@ export default function InterviewEvaluationDetailPage() {
       <Paper sx={{ p: 3 }}>
         <Stack spacing={0.5} sx={{ mb: 3 }}>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
-            Interview evaluations
+            {jobId ? 'Job interviews' : 'Interview evaluations'}
           </Typography>
           <Typography color="text.secondary">
-            Review interviewer evaluations and continue to the job hiring decision when ready.
+            {jobId ? 'Review every interview for this job, regardless of its status.' : 'Review interviewer evaluations and continue to the job hiring decision when ready.'}
           </Typography>
         </Stack>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}

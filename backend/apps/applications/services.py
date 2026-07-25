@@ -31,15 +31,11 @@ def screen_job_application(application, changed_by):
     screening_result['score_explanation']['qualification_decision'] = (
         'qualified' if is_qualified else 'not_qualified'
     )
-    new_status = (
-        JobApplication.Status.SCREENED_QUALIFIED
-        if is_qualified
-        else JobApplication.Status.SCREENED_NOT_QUALIFIED
-    )
+    new_status = JobApplication.Status.APPLIED
     history_note = (
         'AI-assisted resume screening completed. Recruiter review is still required.'
         if is_qualified
-        else 'AI-assisted resume screening found this applicant not qualified; recruiter review remains available.'
+        else 'AI-assisted resume screening found gaps; recruiter review is still required.'
     )
 
     with transaction.atomic():

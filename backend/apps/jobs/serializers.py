@@ -35,7 +35,7 @@ class EvaluationCriterionSerializer(serializers.ModelSerializer):
 
 
 class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
-    criteria = EvaluationCriterionSerializer(many=True)
+    criteria = EvaluationCriterionSerializer(many=True, allow_empty=False)
 
     class Meta:
         model = InterviewEvaluationForm
@@ -50,6 +50,17 @@ class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
             EvaluationCriterion(form=form, **criterion) for criterion in criteria
         )
         return form
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        criteria = validated_data.pop('criteria')
+        instance.title = validated_data.get('title', instance.title)
+        instance.save(update_fields=['title'])
+        instance.criteria.all().delete()
+        EvaluationCriterion.objects.bulk_create(
+            EvaluationCriterion(form=instance, **criterion) for criterion in criteria
+        )
+        return instance
 
 
 class JobPostingSerializer(serializers.ModelSerializer):
@@ -86,6 +97,7 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'vacancies',
             'application_deadline',
             'status',
+            'requirements_locked_at',
             'requirements',
             'interview_evaluation_form',
             'interview_evaluation_scorecard',
@@ -99,6 +111,7 @@ class JobPostingSerializer(serializers.ModelSerializer):
             'organization_name',
             'recruiter',
             'recruiter_name',
+            'requirements_locked_at',
             'requirements',
             'interview_evaluation_form',
             'interview_evaluation_scorecard',

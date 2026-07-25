@@ -1,17 +1,34 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from django.test import SimpleTestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from django.utils import timezone
-
+from apps.applications.models import JobApplication
 from apps.billing.models import Subscription, SubscriptionPlan
+from apps.hiring.models import JobOffer
+from apps.interviews.models import Interview
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
-from .models import InterviewEvaluationForm, JobPosting, SavedJobPosting
+from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, SavedJobPosting
+
+
+class RecruitmentStatusVocabularyTests(SimpleTestCase):
+    def test_recruitment_models_expose_the_simplified_statuses(self):
+        self.assertEqual(JobPosting.Status.values, ['drafting', 'open', 'closed'])
+        self.assertEqual(JobApplication.Status.values, ['applied', 'shortlisted', 'rejected'])
+        self.assertEqual(
+            Interview.Status.values,
+            ['invited', 'scheduled', 'cancelled', 'completed', 'evaluation_submitted'],
+        )
+        self.assertEqual(
+            JobOffer.OfferStatus.values,
+            ['drafting', 'offer_pending_approval', 'offer_sent', 'offer_accepted', 'offer_declined'],
+        )
 
 
 class JobPostingAPITests(APITestCase):
@@ -72,7 +89,7 @@ class JobPostingAPITests(APITestCase):
         self.client.force_authenticate(user)
 
     def test_recruiter_cannot_create_job_directly_but_can_patch_and_delete_own_job(self):
-        job = self.create_job(status=JobPosting.Status.DRAFT)
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
         self.authenticate(self.recruiter)
 
         create_response = self.client.post(reverse('job-list-create'), self.job_payload, format='json')
@@ -138,7 +155,7 @@ class JobPostingAPITests(APITestCase):
     def test_applicant_only_sees_open_jobs_and_can_search_and_filter(self):
         matching_job = self.create_job()
         self.create_job(title='Designer', location='Penang')
-        self.create_job(title='Backend Engineer Intern', status=JobPosting.Status.DRAFT)
+        self.create_job(title='Backend Engineer Intern', status=JobPosting.Status.DRAFTING)
         self.authenticate(self.applicant)
 
         response = self.client.get(
@@ -150,7 +167,7 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual([item['id'] for item in response.data], [matching_job.id])
 
     def test_recruiter_can_configure_requirements_only_when_weights_sum_to_one(self):
-        job = self.create_job()
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
         self.authenticate(self.recruiter)
         requirements_url = reverse('job-requirements', args=[job.id])
         invalid_payload = {
@@ -172,8 +189,8 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(job.requirements.count(), 2)
         self.assertEqual(sum(job.requirements.values_list('weight_score', flat=True)), Decimal('1.00'))
 
-    def test_recruiter_can_create_evaluation_scorecard_but_cannot_duplicate_job_configuration(self):
-        job = self.create_job()
+    def test_recruiter_can_create_and_update_evaluation_scorecard(self):
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
         self.authenticate(self.recruiter)
         self.client.post(
             reverse('job-requirements', args=[job.id]),
@@ -195,12 +212,23 @@ class JobPostingAPITests(APITestCase):
             format='json',
         )
 
-        duplicate_response = self.client.post(reverse('job-duplicate', args=[job.id]))
+        update_response = self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {
+                'title': 'Updated Interview Scorecard',
+                'criteria': [
+                    {'criterion_name': 'Communication', 'description': 'Communication quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                ],
+            },
+            format='json',
+        )
 
         self.assertEqual(form_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(duplicate_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
         self.assertTrue(InterviewEvaluationForm.objects.filter(job=job).exists())
         self.assertEqual(job.interview_evaluation_form.criteria.count(), 1)
+        self.assertEqual(job.interview_evaluation_form.title, 'Updated Interview Scorecard')
+        self.assertEqual(job.interview_evaluation_form.criteria.get().criterion_name, 'Communication')
 
 
     def test_hr_approval_creates_draft_job_for_recruiter_configuration(self):
@@ -228,12 +256,12 @@ class JobPostingAPITests(APITestCase):
 
         self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
         job = JobPosting.objects.get(id=approve_response.data['job_posting_id'])
-        self.assertEqual(job.status, JobPosting.Status.DRAFT)
+        self.assertEqual(job.status, JobPosting.Status.DRAFTING)
         self.assertEqual(job.salary_range, requisition_payload['salary_range'])
         self.assertEqual(job.core_responsibilities, requisition_payload['core_responsibilities'])
 
     def test_recruiter_cannot_open_approved_job_before_requirements_and_scorecard(self):
-        job = self.create_job(status=JobPosting.Status.DRAFT)
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
         self.authenticate(self.recruiter)
 
         no_config_response = self.client.patch(reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json')
@@ -264,6 +292,136 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(open_response.status_code, status.HTTP_200_OK)
         self.assertEqual(open_response.data['status'], JobPosting.Status.OPEN)
 
+    def test_recruiter_cannot_open_job_with_an_empty_scorecard(self):
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
+        self.authenticate(self.recruiter)
+        self.client.post(
+            reverse('job-requirements', args=[job.id]),
+            {
+                'requirements': [
+                    {'requirement_type': 'skill', 'description': 'Python', 'weight_score': '1.00', 'minimum_threshold': '0.50'},
+                ]
+            },
+            format='json',
+        )
+        form = InterviewEvaluationForm.objects.create(job=job, title='Empty scorecard')
+
+        empty_scorecard_response = self.client.patch(
+            reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json'
+        )
+        EvaluationCriterion.objects.create(
+            form=form,
+            criterion_name='Technical fit',
+            description='Technical quality',
+            max_score='10.00',
+            weight_score='1.00',
+        )
+        open_response = self.client.patch(
+            reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json'
+        )
+
+        self.assertEqual(empty_scorecard_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('non-empty interview evaluation scorecard', empty_scorecard_response.data['status'][0])
+        self.assertEqual(open_response.status_code, status.HTTP_200_OK)
+
+    def test_scorecard_creation_rejects_empty_criteria(self):
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {'title': 'Empty scorecard', 'criteria': []},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('criteria', response.data)
+
+    def test_recruiter_cannot_change_requirements_after_job_is_posted(self):
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
+        self.authenticate(self.recruiter)
+        requirements_url = reverse('job-requirements', args=[job.id])
+        initial_requirements = {
+            'requirements': [
+                {'requirement_type': 'skill', 'description': 'Python', 'weight_score': '1.00', 'minimum_threshold': '0.50'},
+            ]
+        }
+        self.client.post(requirements_url, initial_requirements, format='json')
+        self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {
+                'title': 'Interview Evaluation Scorecard',
+                'criteria': [
+                    {'criterion_name': 'Technical fit', 'description': 'Technical quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                ],
+            },
+            format='json',
+        )
+        self.client.patch(reverse('job-detail', args=[job.id]), {'status': JobPosting.Status.OPEN}, format='json')
+
+        response = self.client.post(
+            requirements_url,
+            {
+                'requirements': [
+                    {'requirement_type': 'skill', 'description': 'Java', 'weight_score': '1.00', 'minimum_threshold': '0.50'},
+                ]
+            },
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('cannot be changed once this job has been posted', response.data['requirements'][0])
+        self.assertIsNotNone(job.requirements_locked_at)
+        self.assertEqual(list(job.requirements.values_list('description', flat=True)), ['Python'])
+
+    def test_recruiter_cannot_move_an_open_job_back_to_draft(self):
+        job = self.create_job(status=JobPosting.Status.OPEN)
+        self.authenticate(self.recruiter)
+
+        response = self.client.patch(
+            reverse('job-detail', args=[job.id]),
+            {'status': JobPosting.Status.DRAFTING},
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Status changes cannot be reversed', response.data['status'][0])
+        self.assertEqual(job.status, JobPosting.Status.OPEN)
+
+    def test_recruiter_cannot_reopen_a_job_after_application_intake_is_closed(self):
+        job = self.create_job(status=JobPosting.Status.OPEN)
+        self.authenticate(self.recruiter)
+        close_response = self.client.post(reverse('job-close-intake', args=[job.id]))
+
+        reopen_response = self.client.patch(
+            reverse('job-detail', args=[job.id]),
+            {'status': JobPosting.Status.OPEN},
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(close_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(reopen_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Status changes cannot be reversed', reopen_response.data['status'][0])
+        self.assertEqual(job.status, JobPosting.Status.CLOSED)
+
+    def test_recruiter_cannot_reopen_a_closed_job(self):
+        job = self.create_job(status=JobPosting.Status.CLOSED)
+        self.authenticate(self.recruiter)
+
+        response = self.client.patch(
+            reverse('job-detail', args=[job.id]),
+            {'status': JobPosting.Status.OPEN},
+            format='json',
+        )
+
+        job.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Status changes cannot be reversed', response.data['status'][0])
+        self.assertEqual(job.status, JobPosting.Status.CLOSED)
+
     def test_applicant_can_save_list_and_unsave_open_job(self):
         job = self.create_job()
         self.authenticate(self.applicant)
@@ -282,7 +440,7 @@ class JobPostingAPITests(APITestCase):
         self.assertFalse(SavedJobPosting.objects.filter(applicant=self.applicant, job=job).exists())
 
     def test_applicant_cannot_view_or_save_draft_job(self):
-        job = self.create_job(status=JobPosting.Status.DRAFT)
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
         self.authenticate(self.applicant)
 
         detail_response = self.client.get(reverse('job-detail', args=[job.id]))

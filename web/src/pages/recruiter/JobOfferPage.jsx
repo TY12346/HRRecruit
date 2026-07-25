@@ -47,7 +47,7 @@ export default function JobOfferPage() {
     setIsLoading(true);
     try {
       const [apps, jobOffers] = await Promise.all([getApplications(), getJobOffers()]);
-      const approvedApps = apps.filter((app) => app.status === 'hr_approved');
+      const approvedApps = apps.filter((app) => app.status === 'shortlisted');
       setApplications(approvedApps);
       setOffers(jobOffers);
       if (!applicationId && approvedApps[0]) setApplicationId(String(approvedApps[0].id));
@@ -63,7 +63,7 @@ export default function JobOfferPage() {
     Promise.all([getApplications(), getJobOffers()])
       .then(([apps, jobOffers]) => {
         if (!active) return;
-        const approvedApps = apps.filter((app) => app.status === 'hr_approved');
+        const approvedApps = apps.filter((app) => app.status === 'shortlisted');
         setApplications(approvedApps);
         setOffers(jobOffers);
         if (approvedApps[0]) setApplicationId(String(approvedApps[0].id));
@@ -193,7 +193,7 @@ export default function JobOfferPage() {
                     <TableCell>{offer.start_date || 'TBD'} / {offer.work_arrangement || 'TBD'}</TableCell>
                     <TableCell>{formatDateTime(offer.respond_deadline)}</TableCell>
                     <TableCell>{formatDateTime(offer.sent_at)}</TableCell>
-                    <TableCell>{offer.offer_status === 'sent' ? <Button color="warning" onClick={() => withdrawOffer(offer.id)} size="small">Withdraw</Button> : null}</TableCell>
+                    <TableCell>{offer.offer_status === 'offer_sent' ? <Button color="warning" onClick={() => withdrawOffer(offer.id)} size="small">Withdraw</Button> : null}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
