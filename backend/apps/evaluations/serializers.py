@@ -77,6 +77,7 @@ class InterviewRecordingUploadSerializer(serializers.ModelSerializer):
 
 
 class InterviewTranscriptSerializer(serializers.ModelSerializer):
+    audio_url = serializers.SerializerMethodField()
     transcript = serializers.SerializerMethodField()
     speaker_labelled_transcript = serializers.SerializerMethodField()
     speaker_segments = serializers.SerializerMethodField()
@@ -88,6 +89,7 @@ class InterviewTranscriptSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'recording',
+            'audio_url',
             'transcript_text',
             'transcript_json',
             'generated_at',
@@ -100,6 +102,13 @@ class InterviewTranscriptSerializer(serializers.ModelSerializer):
             'diarization_warning',
         ]
         read_only_fields = fields
+
+    def get_audio_url(self, obj):
+        if not obj.recording.audio_file:
+            return None
+        request = self.context.get('request')
+        url = obj.recording.audio_file.url
+        return request.build_absolute_uri(url) if request else url
 
     def _metadata(self, obj):
         return obj.transcript_json or {}
@@ -285,11 +294,6 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
             changed_by=request.user,
             note='Interview evaluation submitted.',
         )
-        # A panel interview is ready only after every assigned interviewer has
-        # submitted. Refresh the job immediately so recruiters do not see a
-        # stale "Interviews In Progress" state after the final scorecard.
-        from apps.hiring.services import refresh_job_readiness
-        refresh_job_readiness(interview.application.job)
         return evaluation
 
 
@@ -308,7 +312,7 @@ class InterviewEvaluationDetailSerializer(serializers.Serializer):
 
     def get_transcript(self, interview):
         transcript = InterviewTranscript.objects.filter(recording__interview=interview).order_by('-generated_at').first()
-        return InterviewTranscriptSerializer(transcript).data if transcript else None
+        return InterviewTranscriptSerializer(transcript, context=self.context).data if transcript else None
 
     def get_ai_summary(self, interview):
         summary = InterviewAISummary.objects.filter(transcript__recording__interview=interview).order_by('-updated_at').first()

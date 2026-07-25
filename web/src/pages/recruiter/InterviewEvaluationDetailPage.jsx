@@ -75,11 +75,11 @@ function InterviewerCell({ interview }) {
   return (
     <TableCell>
       {names.length
-        ? names.map((name, index) => (
-          <Typography key={`${name}-${index}`} component="span" display="block">
-            {name}
-          </Typography>
-        ))
+        ? <Stack spacing={0.75} alignItems="flex-start">
+          {names.map((name, index) => (
+            <Chip key={`${name}-${index}`} label={name} size="small" variant="outlined" />
+          ))}
+        </Stack>
         : '—'}
     </TableCell>
   );
@@ -159,8 +159,17 @@ export default function InterviewEvaluationDetailPage() {
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" justifyContent="flex-end" spacing={1}>
-                      <Button onClick={() => openDetail(interview)} size="small" variant="outlined">View evaluations</Button>
-                      <Button component={RouterLink} size="small" to={`/recruiter/jobs/${interview.application?.job}/hiring-decision`}>Job decision</Button>
+                      <Button
+                        component={RouterLink}
+                        size="small"
+                        to={`/recruiter/applications/${interview.application?.id}`}
+                        variant="outlined"
+                      >
+                        View applicant profile
+                      </Button>
+                      {interview.status === 'evaluation_submitted' ? (
+                        <Button onClick={() => openDetail(interview)} size="small" variant="outlined">View evaluations</Button>
+                      ) : null}
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -187,9 +196,25 @@ export default function InterviewEvaluationDetailPage() {
                 <Typography color="text.secondary">No interviewer evaluations submitted yet.</Typography>
               )}
               <Typography variant="h6" sx={{ mt: 2 }}>AI summary</Typography>
-              <Typography>{detail.ai_summary?.editable_summary_text || detail.ai_summary?.summary_text || 'No AI summary generated yet.'}</Typography>
+              {detail.ai_summary ? (
+                <Stack spacing={0.75}>
+                  <Typography whiteSpace="pre-line">{detail.ai_summary.editable_summary_text}</Typography>
+                  <Typography><strong>Strengths:</strong> {detail.ai_summary.strengths || '—'}</Typography>
+                  <Typography><strong>Weaknesses:</strong> {detail.ai_summary.weaknesses || '—'}</Typography>
+                  <Typography><strong>Communication score:</strong> {detail.ai_summary.communication_score ?? '—'}</Typography>
+                  <Typography><strong>Overall impression:</strong> {detail.ai_summary.overall_impression || '—'}</Typography>
+                </Stack>
+              ) : <Typography>No AI summary generated yet.</Typography>}
+              <Typography variant="h6" sx={{ mt: 2 }}>Interview audio</Typography>
+              {detail.transcript?.audio_url ? (
+                <Box component="audio" controls preload="metadata" src={detail.transcript.audio_url} sx={{ width: '100%', mt: 1 }}>
+                  Your browser does not support audio playback.
+                </Box>
+              ) : <Typography color="text.secondary">No interview audio uploaded.</Typography>}
               <Typography variant="h6" sx={{ mt: 2 }}>Transcript</Typography>
-              <Typography whiteSpace="pre-line">{detail.transcript?.transcript_text || 'No transcript uploaded yet.'}</Typography>
+              <Typography whiteSpace="pre-line">
+                {detail.transcript?.speaker_labelled_transcript || detail.transcript?.transcript_text || 'No transcript generated yet.'}
+              </Typography>
             </Paper>
           ) : null}
         </Stack>
