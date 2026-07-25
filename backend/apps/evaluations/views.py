@@ -164,11 +164,16 @@ class InterviewEvaluationSubmitAPIView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         evaluation = serializer.save()
-        interview.change_status(
-            Interview.Status.EVALUATION_SUBMITTED,
-            changed_by=request.user,
-            note='Interview evaluation submitted.',
-        )
+        from .deliverables import deliverable_status_for
+
+        if deliverable_status_for(interview)['is_complete']:
+            interview.change_status(
+                Interview.Status.EVALUATION_SUBMITTED,
+                changed_by=request.user,
+                note='All interview deliverables and evaluator scorecards submitted.',
+            )
+        from apps.hiring.services import refresh_job_readiness
+        refresh_job_readiness(interview.application.job)
         create_notification(
             interview.recruiter,
             'evaluation_submitted',
@@ -184,4 +189,4 @@ class InterviewEvaluationDetailAPIView(APIView):
 
     def get(self, request, interview_id):
         interview = recruiter_owned_interview_or_404(request.user, interview_id)
-        return Response(InterviewEvaluationDetailSerializer(interview).data)
+        return Response(InterviewEvaluationDetailSerializer(interview, context={'request': request}).data)

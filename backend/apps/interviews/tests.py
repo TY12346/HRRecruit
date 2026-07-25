@@ -1092,6 +1092,7 @@ class InterviewEvaluationAPITests(APITestCase):
         return InterviewTranscript.objects.create(
             recording=recording,
             transcript_text=text,
+            processing_status=ProcessingStatus.COMPLETED,
             transcript_json={'provider': 'openai', 'mode': 'real'},
         )
 
@@ -1373,6 +1374,8 @@ class InterviewEvaluationAPITests(APITestCase):
             format='json',
         )
         self.assertEqual(first_response.status_code, status.HTTP_201_CREATED, first_response.data)
+        self.interview.refresh_from_db()
+        self.assertNotEqual(self.interview.status, Interview.Status.EVALUATION_SUBMITTED)
 
         self.authenticate(panel_interviewer)
         second_response = self.client.post(
@@ -1381,6 +1384,8 @@ class InterviewEvaluationAPITests(APITestCase):
             format='json',
         )
         self.assertEqual(second_response.status_code, status.HTTP_201_CREATED, second_response.data)
+        self.interview.refresh_from_db()
+        self.assertEqual(self.interview.status, Interview.Status.EVALUATION_SUBMITTED)
         self.assertEqual(InterviewEvaluation.objects.filter(interview=self.interview).count(), 2)
         self.assertTrue(InterviewEvaluation.objects.filter(interview=self.interview, interviewer=self.interviewer).exists())
         self.assertTrue(InterviewEvaluation.objects.filter(interview=self.interview, interviewer=panel_interviewer).exists())
