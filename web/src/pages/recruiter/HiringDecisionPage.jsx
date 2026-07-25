@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { Box, Button, Checkbox, CircularProgress, FormControlLabel, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { useParams } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import { getJobApplicantComparison, getJobHiringDecisions, submitJobHiringDecision } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage, scoreText, titleize } from './recruiterUtils.js';
@@ -40,14 +40,16 @@ export default function HiringDecisionPage() {
     {!data ? <CircularProgress /> : <>
       <Typography><strong>{data.job.title}</strong> • {data.job.vacancies} vacancy/vacancies • {titleize(data.job.status)}</Typography>
       {pendingDecision ? <Alert severity="info">Hiring Decision #{pendingDecision.id} is already pending hiring manager approval.</Alert> : null}
-      {!data.readiness.ready ? <Alert severity="warning">Not ready: {data.readiness.reasons.join(' ')}</Alert> : <Alert severity="success">Ready for Hiring Decision.</Alert>}
-      <Table><TableHead><TableRow><TableCell>Select</TableCell><TableCell>Applicant</TableCell><TableCell>Application</TableCell><TableCell>AI score</TableCell><TableCell>Interview / evaluation</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
+      <Table><TableHead><TableRow><TableCell>Select</TableCell><TableCell>Applicant</TableCell><TableCell>AI Match Score</TableCell><TableCell>Matched Skills</TableCell><TableCell>Missing Skills</TableCell><TableCell>AI Interview Summary</TableCell><TableCell>Interviewer remarks</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
         {data.applicants.map((applicant) => <TableRow key={applicant.application_id}>
           <TableCell><Checkbox checked={selected.includes(applicant.application_id)} disabled={noHire || !applicant.eligible_for_decision || (!selected.includes(applicant.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(applicant.application_id)} /></TableCell>
-          <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.recruiter_remark || 'No recruiter remarks'}</Typography></TableCell>
-          <TableCell><Chip size="small" label={titleize(applicant.application_status)} /></TableCell><TableCell>{scoreText(applicant.ai_resume_score)}</TableCell>
-          <TableCell>{applicant.interview_statuses.map(titleize).join(', ') || 'No interview'} / {titleize(applicant.evaluation_status)}<Typography variant="caption" display="block">Scorecards: {applicant.scorecards_submitted}/{applicant.scorecards_required} submitted</Typography><Typography variant="caption" display="block">{applicant.evaluation_score ?? 'No evaluation score'} {applicant.evaluation_summary}</Typography></TableCell>
-          <TableCell>Transcript: {titleize(applicant.transcript_status)}<br />AI summary: {titleize(applicant.ai_summary_status)}<br />Skills: {(applicant.extracted_skills || []).join(', ') || '—'}</TableCell>
+          <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.applicant_email}{applicant.applicant_phone ? ` • ${applicant.applicant_phone}` : ''}</Typography>{applicant.resume_url ? <Button size="small" component="a" href={applicant.resume_url} target="_blank" rel="noreferrer">View resume</Button> : <Typography variant="caption" display="block">No resume</Typography>}</TableCell>
+          <TableCell>{scoreText(applicant.ai_resume_score)}</TableCell>
+          <TableCell>{(applicant.matched_skills || []).join(', ') || '—'}</TableCell>
+          <TableCell>{(applicant.missing_skills || []).join(', ') || '—'}</TableCell>
+          <TableCell>{(applicant.ai_interview_summaries || []).map((summary, index) => <Typography key={index} variant="body2">{summary}</Typography>)}{!applicant.ai_interview_summaries?.length ? '—' : null}</TableCell>
+          <TableCell>{(applicant.interviewer_remarks || []).map((remark, index) => <Typography key={index} variant="body2">{remark}</Typography>)}{!applicant.interviewer_remarks?.length ? '—' : null}</TableCell>
+          <TableCell><Stack alignItems="flex-start">{applicant.resume_url ? <Button size="small" component="a" href={applicant.resume_url} target="_blank" rel="noreferrer">View resume</Button> : null}{(applicant.interviews || []).map((interview) => <Button key={interview.id} size="small" component={RouterLink} to={`/recruiter/interviews/${interview.id}/evaluations?job_id=${jobId}`}>View interview evaluation</Button>)}</Stack></TableCell>
         </TableRow>)}
       </TableBody></Table>
       <Typography>{selected.length} of {data.job.vacancies} vacancy slots selected.</Typography>
