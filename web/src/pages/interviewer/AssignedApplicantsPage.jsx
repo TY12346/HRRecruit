@@ -81,9 +81,6 @@ export default function AssignedApplicantsPage() {
             >
               <MenuItem value="all">All statuses</MenuItem>
               <MenuItem value="shortlisted">Shortlisted</MenuItem>
-              <MenuItem value="interview_invited">Interview invited</MenuItem>
-              <MenuItem value="interview_scheduled">Interview scheduled</MenuItem>
-              <MenuItem value="evaluation_submitted">Evaluation submitted</MenuItem>
             </TextField>
             <Button type="submit" variant="outlined">Search</Button>
           </Stack>

@@ -8,25 +8,9 @@ from apps.users.models import ApplicantResume, User
 
 class JobApplication(models.Model):
     class Status(models.TextChoices):
-        SUBMITTED = 'submitted', 'Submitted'
-        WITHDRAWN = 'withdrawn', 'Withdrawn'
-        SCREENED = 'screened', 'Screened'
-        SCREENED_QUALIFIED = 'screened_qualified', 'Screened Qualified'
-        SCREENED_NOT_QUALIFIED = 'screened_not_qualified', 'Screened Not Qualified'
+        APPLIED = 'applied', 'Applied'
         SHORTLISTED = 'shortlisted', 'Shortlisted'
         REJECTED = 'rejected', 'Rejected'
-        INTERVIEW_INVITED = 'interview_invited', 'Interview Invited'
-        INTERVIEW_ACCEPTED = 'interview_accepted', 'Interview Accepted'
-        INTERVIEW_DECLINED = 'interview_declined', 'Interview Declined'
-        INTERVIEWING = 'interviewing', 'Interviewing'
-        EVALUATION_SUBMITTED = 'evaluation_submitted', 'Evaluation Submitted'
-        DECISION_PENDING = 'decision_pending', 'Decision Pending'
-        HR_APPROVED = 'hr_approved', 'HR Approved'
-        HR_REJECTED = 'hr_rejected', 'HR Rejected'
-        OFFER_SENT = 'offer_sent', 'Offer Sent'
-        OFFER_ACCEPTED = 'offer_accepted', 'Offer Accepted'
-        OFFER_DECLINED = 'offer_declined', 'Offer Declined'
-        HIRED = 'hired', 'Hired'
 
     job = models.ForeignKey(
         JobPosting,
@@ -52,7 +36,7 @@ class JobApplication(models.Model):
         null=True,
     )
     application_resume_name = models.CharField(max_length=255, blank=True)
-    status = models.CharField(max_length=30, choices=Status.choices, default=Status.SUBMITTED)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.APPLIED)
     recruiter_remark = models.TextField(blank=True)
     assigned_interviewer = models.ForeignKey(
         User,
@@ -72,7 +56,6 @@ class JobApplication(models.Model):
     education_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     final_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     score_explanation = models.JSONField(default=dict, blank=True)
-    resume_validation_result = models.JSONField(default=dict, blank=True)
     applied_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -81,10 +64,7 @@ class JobApplication(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['applicant', 'job'],
-                condition=~Q(status__in=[
-                    'screened_not_qualified',
-                    'rejected',
-                ]),
+                condition=~Q(status='rejected'),
                 name='unique_job_application',
             ),
         ]

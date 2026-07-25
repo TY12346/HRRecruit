@@ -39,7 +39,7 @@ export default function InterviewListPage() {
   const filtered = useMemo(() => {
     const query = submittedSearch.trim().toLowerCase();
     return interviews.filter((interview) => {
-      const matchesStatus = filter === 'all' || (filter === 'upcoming' ? ['assigned', 'scheduled'].includes(interview.status) : interview.status === filter);
+      const matchesStatus = filter === 'all' || (filter === 'upcoming' ? ['invited', 'scheduled'].includes(interview.status) : interview.status === filter);
       const matchesMode = modeFilter === 'all' || interview.mode === modeFilter;
       const matchesSearch = !query || [applicantName(interview), jobTitle(interview), interview.meeting_link, interview.location]
         .some((value) => String(value ?? '').toLowerCase().includes(query));
@@ -83,7 +83,7 @@ export default function InterviewListPage() {
               <MenuItem value="all">All statuses</MenuItem>
               <MenuItem value="upcoming">Upcoming</MenuItem>
               <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="declined">Declined</MenuItem>
+              <MenuItem value="cancelled">Cancelled</MenuItem>
               <MenuItem value="cancelled">Cancelled</MenuItem>
             </TextField>
             <TextField

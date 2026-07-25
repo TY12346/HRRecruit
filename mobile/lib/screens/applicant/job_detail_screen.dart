@@ -183,8 +183,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   bool _canApplyAgain(JobApplication? application) {
     if (application == null) return true;
-    if (application.status != 'screened_not_qualified' &&
-        application.status != 'rejected') {
+    if (application.status != 'rejected') {
       return false;
     }
     final appliedAt = application.appliedAt;

@@ -17,7 +17,6 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from apps.ai_services.resume_text_extractor import ResumeTextExtractionError
-from apps.ai_services.resume_validation import ResumeContentValidationError
 from apps.hiring.models import HiringDecision
 from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting
@@ -202,9 +201,15 @@ def apply_applicant_search_filters(applications, query_params, user):
     interviewer_status = (query_params.get('interviewer_status') or query_params.get('interview_status') or '').strip()
     if interviewer_status:
         if interviewer_status == 'upcoming':
-            applications = applications.filter(interviews__scheduled_datetime__gte=timezone.now()).exclude(interviews__status__in=[Interview.Status.COMPLETED, Interview.Status.CANCELLED])
+            applications = applications.filter(interviews__scheduled_datetime__gte=timezone.now()).exclude(
+                interviews__status__in=[
+                    Interview.Status.COMPLETED,
+                    Interview.Status.EVALUATION_SUBMITTED,
+                    Interview.Status.CANCELLED,
+                ]
+            )
         elif interviewer_status == 'completed':
-            applications = applications.filter(interviews__status=Interview.Status.COMPLETED)
+            applications = applications.filter(interviews__status__in=[Interview.Status.COMPLETED, Interview.Status.EVALUATION_SUBMITTED])
         elif interviewer_status == 'pending_evaluation':
             applications = applications.filter(interviews__status=Interview.Status.COMPLETED, interviews__evaluations__isnull=True)
         elif interviewer_status in Interview.Status.values:
@@ -403,7 +408,7 @@ class JobApplyAPIView(APIView):
                 )
                 active_application = previous_applications.exclude(
                     status__in=(
-                        JobApplication.Status.SCREENED_NOT_QUALIFIED,
+                        JobApplication.Status.REJECTED,
                         JobApplication.Status.REJECTED,
                     ),
                 ).order_by('-applied_at', '-id').first()
@@ -437,10 +442,8 @@ class JobApplyAPIView(APIView):
                     selected_resume.resume_file if selected_resume else legacy_resume_file
                 )
                 save_application_resume_snapshot(application, source_resume_file)
-            application = screen_job_application(application, changed_by=None)
+            application = screen_job_application(application)
             EmployerInvite.objects.filter(job=job, applicant=request.user, response=EmployerInvite.Response.NO_RESPONSE).update(response=EmployerInvite.Response.APPLIED, responded_at=timezone.now())
-        except ResumeContentValidationError as exc:
-            return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
 
@@ -451,14 +454,14 @@ class JobApplyAPIView(APIView):
             raise PermissionDenied('Only applicants can withdraw job applications.')
         application = get_object_or_404(JobApplication, job_id=job_id, applicant=request.user)
         if application.status not in (
-            JobApplication.Status.SUBMITTED,
-            JobApplication.Status.SCREENED,
-            JobApplication.Status.SCREENED_QUALIFIED,
-            JobApplication.Status.SCREENED_NOT_QUALIFIED,
+            JobApplication.Status.APPLIED,
+            JobApplication.Status.APPLIED,
+            JobApplication.Status.APPLIED,
+            JobApplication.Status.REJECTED,
         ):
             raise ValidationError({'status': 'Applications can be withdrawn only while submitted or screened.'})
         application.change_status(
-            JobApplication.Status.WITHDRAWN,
+            JobApplication.Status.REJECTED,
             changed_by=request.user,
             note='Withdrawn by applicant.',
         )
@@ -532,9 +535,7 @@ class ApplicationScreenAPIView(APIView):
             if not resume_file:
                 raise ValidationError({'resume_file': 'The applicant must upload a resume before screening.'})
             previous_status = application.status
-            application = screen_job_application(application, changed_by=request.user)
-        except ResumeContentValidationError as exc:
-            return Response({'resume_validation_result': exc.validation_result}, status=status.HTTP_400_BAD_REQUEST)
+            application = screen_job_application(application)
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
 
@@ -556,7 +557,7 @@ class RankedApplicantsAPIView(APIView):
     def get(self, request, job_id):
         job = recruiter_job_or_404(request.user, job_id)
         applications = apply_application_search_filters(
-            job.applications.filter(status=JobApplication.Status.SCREENED_QUALIFIED).select_related(
+            job.applications.filter(status=JobApplication.Status.APPLIED).select_related(
                 'job',
                 'job__organization',
                 'applicant',

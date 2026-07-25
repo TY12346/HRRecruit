@@ -112,7 +112,7 @@ class JobApplicationAPITests(APITestCase):
         self.authenticate(self.applicant)
 
         def mark_screened(application, changed_by):
-            application.status = JobApplication.Status.SCREENED_QUALIFIED
+            application.status = JobApplication.Status.APPLIED
             application.final_score = '88.00'
             application.save(update_fields=['status', 'final_score', 'updated_at'])
             return application
@@ -122,7 +122,7 @@ class JobApplicationAPITests(APITestCase):
         duplicate_response = self.client.post(reverse('job-apply', args=[self.job.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(response.data['status'], JobApplication.Status.APPLIED)
         self.assertEqual(response.data['final_score'], '88.00')
         self.assertEqual(duplicate_response.status_code, status.HTTP_400_BAD_REQUEST)
         application = JobApplication.objects.get(job=self.job, applicant=self.applicant)
@@ -157,7 +157,7 @@ class JobApplicationAPITests(APITestCase):
         application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SCREENED_NOT_QUALIFIED,
+            status=JobApplication.Status.REJECTED,
         )
         self.authenticate(self.applicant)
         screen_job_application.side_effect = lambda application, changed_by: application
@@ -191,7 +191,7 @@ class JobApplicationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         self.assertEqual(JobApplication.objects.filter(job=self.job, applicant=self.applicant).count(), 2)
-        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+        self.assertEqual(response.data['status'], JobApplication.Status.APPLIED)
 
     @patch('apps.applications.views.screen_job_application')
     def test_applicant_can_choose_one_of_multiple_resumes_for_a_job(self, screen_job_application):
@@ -230,7 +230,7 @@ class JobApplicationAPITests(APITestCase):
         self.assertFalse(JobApplication.objects.filter(job=self.job, applicant=self.applicant).exists())
 
     def test_applicant_cannot_apply_to_non_open_job(self):
-        draft_job = self.create_job(self.recruiter, status=JobPosting.Status.DRAFT)
+        draft_job = self.create_job(self.recruiter, status=JobPosting.Status.DRAFTING)
         self.authenticate(self.applicant)
 
         response = self.client.post(reverse('job-apply', args=[draft_job.id]))
@@ -246,10 +246,10 @@ class JobApplicationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.WITHDRAWN)
+        self.assertEqual(application.status, JobApplication.Status.REJECTED)
         history = ApplicationStageHistory.objects.get(application=application)
-        self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
-        self.assertEqual(history.to_stage, JobApplication.Status.WITHDRAWN)
+        self.assertEqual(history.from_stage, JobApplication.Status.APPLIED)
+        self.assertEqual(history.to_stage, JobApplication.Status.REJECTED)
         self.assertEqual(history.changed_by, self.applicant)
 
         repeated_response = self.client.delete(reverse('job-apply', args=[self.job.id]))
@@ -259,7 +259,7 @@ class JobApplicationAPITests(APITestCase):
     def test_applicant_can_view_only_own_applications_and_history(self):
         own_application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
         other_application = JobApplication.objects.create(job=self.job, applicant=self.other_applicant)
-        own_application.change_status(JobApplication.Status.SCREENED, changed_by=self.recruiter)
+        own_application.change_status(JobApplication.Status.SHORTLISTED, changed_by=self.recruiter)
         self.authenticate(self.applicant)
 
         list_response = self.client.get(reverse('application-list'))
@@ -271,7 +271,7 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual([item['id'] for item in list_response.data], [own_application.id])
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(history_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(history_response.data[0]['to_stage'], JobApplication.Status.SCREENED)
+        self.assertEqual(history_response.data[0]['to_stage'], JobApplication.Status.SHORTLISTED)
         self.assertEqual(forbidden_detail_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_recruiter_views_only_applications_for_jobs_they_created(self):
@@ -306,7 +306,7 @@ class JobApplicationAPITests(APITestCase):
         backend_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='92.00',
             recruiter_remark='Strong Django API applicant.',
             extracted_resume_text='Python Django APIs',
@@ -347,7 +347,7 @@ class JobApplicationAPITests(APITestCase):
         backend_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='92.00',
             recruiter_remark='Shortlist for API team.',
             extracted_resume_text='Python Django Bachelor developer',
@@ -427,7 +427,7 @@ class JobApplicationAPITests(APITestCase):
         application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.DECISION_PENDING,
+            status=JobApplication.Status.SHORTLISTED,
             final_score='87.00',
         )
         HiringDecision.objects.create(
@@ -462,20 +462,20 @@ class JobApplicationAPITests(APITestCase):
         high_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='91.25',
         )
         low_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.other_applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='64.50',
         )
         colleague_job = self.create_job(self.other_recruiter, title='Designer')
         JobApplication.objects.create(
             job=colleague_job,
             applicant=self.create_user('third@example.com', User.Role.APPLICANT),
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='99.00',
         )
         self.authenticate(self.recruiter)
@@ -491,7 +491,7 @@ class JobApplicationAPITests(APITestCase):
         qualified_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='91.25',
         )
         JobApplication.objects.create(
@@ -511,14 +511,14 @@ class JobApplicationAPITests(APITestCase):
         django_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='88.00',
             extracted_resume_text='Django API developer',
         )
         react_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.other_applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='70.00',
             extracted_resume_text='React frontend developer',
         )
@@ -536,25 +536,25 @@ class JobApplicationAPITests(APITestCase):
         newest_equal_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='80.00',
         )
         oldest_equal_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.other_applicant,
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='80.00',
         )
         top_score_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.create_user('top-score@example.com', User.Role.APPLICANT),
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score='90.00',
         )
         unscored_application = JobApplication.objects.create(
             job=self.job,
             applicant=self.create_user('unscored@example.com', User.Role.APPLICANT),
-            status=JobApplication.Status.SCREENED_QUALIFIED,
+            status=JobApplication.Status.APPLIED,
             final_score=None,
         )
         base_time = timezone.now() - timezone.timedelta(days=4)
@@ -599,7 +599,7 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(response.data['resume_info']['extracted_experience'], {'years': 4})
         self.assertEqual(response.data['extracted_skills'], ['python', 'django'])
         self.assertEqual(response.data['scores']['final_score'], '83.00')
-        self.assertEqual(response.data['status'], JobApplication.Status.SUBMITTED)
+        self.assertEqual(response.data['status'], JobApplication.Status.APPLIED)
 
     def test_shortlist_requires_same_organization_interviewer_and_records_history(self):
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
@@ -627,7 +627,7 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(application.assigned_interviewer, self.interviewer)
         self.assertEqual(application.recruiter_remark, 'Strong backend applicant.')
         history = application.stage_history.get()
-        self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
+        self.assertEqual(history.from_stage, JobApplication.Status.APPLIED)
         self.assertEqual(history.to_stage, JobApplication.Status.SHORTLISTED)
         self.assertEqual(history.changed_by, self.recruiter)
 
@@ -821,7 +821,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(application.status, JobApplication.Status.APPLIED)
         self.assertEqual(float(application.skill_score), 100.0)
         explanation = application.score_explanation
         self.assertEqual(explanation['matched_skills'], ['apple pay', 'salesforce', 'slack', 'square'])
@@ -838,10 +838,10 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         response = self.client.post(reverse('job-apply', args=[self.job.id]))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(response.data['status'], JobApplication.Status.APPLIED)
         self.assertEqual(response.data['final_score'], '92.00')
         application = JobApplication.objects.get(id=response.data['id'])
-        self.assertEqual(application.stage_history.get().to_stage, JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertFalse(application.stage_history.exists())
 
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=80.0)
     def test_job_owner_screens_uploaded_resume_and_persists_qualified_breakdown(self, _semantic_similarity):
@@ -854,7 +854,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(application.status, JobApplication.Status.APPLIED)
         self.assertEqual(float(application.semantic_score), 80.0)
         self.assertEqual(float(application.skill_score), 100.0)
         self.assertEqual(float(application.experience_score), 100.0)
@@ -911,10 +911,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
         self.assertIn('experience', explanation)
         self.assertIn('education', explanation)
         self.assertEqual(explanation['skills']['matched'], ['django', 'python'])
-        history = application.stage_history.get()
-        self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
-        self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_QUALIFIED)
-        self.assertEqual(history.changed_by, self.recruiter)
+        self.assertFalse(application.stage_history.exists())
 
     @patch('apps.ai_services.resume_screening.semantic_similarity', return_value=50.0)
     def test_screening_uses_weighted_skill_scoring_from_job_requirements(self, _semantic_similarity):
@@ -960,11 +957,9 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.SCREENED_NOT_QUALIFIED)
+        self.assertEqual(application.status, JobApplication.Status.APPLIED)
         self.assertEqual(float(application.final_score), 0.0)
-        history = application.stage_history.get()
-        self.assertEqual(history.to_stage, JobApplication.Status.SCREENED_NOT_QUALIFIED)
-        self.assertIn('recruiter review', history.note)
+        self.assertFalse(application.stage_history.exists())
 
     def test_score_explanation_contains_nested_required_sections_for_not_qualified_screening(self):
         self.create_resume('High school graduate with Java experience.')
@@ -1006,7 +1001,7 @@ class ApplicationResumeScreeningAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.SUBMITTED)
+        self.assertEqual(application.status, JobApplication.Status.APPLIED)
 
     def test_non_recruiter_cannot_screen_an_application(self):
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
@@ -1056,13 +1051,13 @@ class JobApplicationModelTests(TestCase):
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
         self.assertEqual(ApplicationStageHistory.objects.count(), 1)
-        self.assertEqual(history.from_stage, JobApplication.Status.SUBMITTED)
+        self.assertEqual(history.from_stage, JobApplication.Status.APPLIED)
         self.assertEqual(history.to_stage, JobApplication.Status.SHORTLISTED)
         self.assertEqual(history.changed_by, self.recruiter)
         self.assertEqual(history.note, 'Strong applicant.')
 
     def test_change_status_does_not_create_history_when_status_is_unchanged(self):
-        history = self.application.change_status(JobApplication.Status.SUBMITTED)
+        history = self.application.change_status(JobApplication.Status.APPLIED)
 
         self.assertIsNone(history)
         self.assertFalse(ApplicationStageHistory.objects.exists())
@@ -1072,16 +1067,16 @@ class JobApplicationModelTests(TestCase):
             self.application.change_status('invalid_status')
 
         self.application.refresh_from_db()
-        self.assertEqual(self.application.status, JobApplication.Status.SUBMITTED)
+        self.assertEqual(self.application.status, JobApplication.Status.APPLIED)
         self.assertFalse(ApplicationStageHistory.objects.exists())
 
     def test_applicant_cannot_apply_for_the_same_job_twice(self):
         with self.assertRaises(IntegrityError), transaction.atomic():
             JobApplication.objects.create(job=self.job, applicant=self.applicant)
 
-class ResumeValidationScreeningTests(JobApplicationAPITests):
+class ResumeScreeningWithoutContentValidationTests(JobApplicationAPITests):
     @patch('apps.ai_services.resume_screening.extract_resume_text')
-    def test_screening_is_not_executed_when_validation_fails(self, extract_resume_text):
+    def test_screening_runs_without_requiring_every_resume_section(self, extract_resume_text):
         self.attach_resume()
         application = JobApplication.objects.create(job=self.job, applicant=self.applicant)
         extract_resume_text.return_value = 'Skills: Python Django SQL. Experience: Worked as developer at Example Company for 2 years building APIs.'
@@ -1089,9 +1084,7 @@ class ResumeValidationScreeningTests(JobApplicationAPITests):
 
         response = self.client.post(reverse('application-screen', args=[application.id]))
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(response.data['resume_validation_result']['is_valid'])
-        self.assertIn('education', response.data['resume_validation_result']['missing_fields'])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         application.refresh_from_db()
-        self.assertIsNone(application.final_score)
-        self.assertFalse(application.resume_validation_result['is_valid'])
+        self.assertIsNotNone(application.final_score)
+        self.assertIsNone(application.extracted_education['level'])

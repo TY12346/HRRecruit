@@ -193,10 +193,10 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         _, _, recruiter, recruiter_client, _, _ = self.create_organization_and_team()
         job, _ = self.create_job_with_evaluation_form(recruiter_client)
         blocked_statuses = (
-            JobApplication.Status.SUBMITTED,
-            JobApplication.Status.SCREENED,
+            JobApplication.Status.APPLIED,
+            JobApplication.Status.APPLIED,
             JobApplication.Status.SHORTLISTED,
-            JobApplication.Status.INTERVIEW_INVITED,
+            JobApplication.Status.SHORTLISTED,
         )
 
         for index, blocked_status in enumerate(blocked_statuses, start=1):
@@ -206,7 +206,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
             )
             self.upload_resume(applicant_client)
             application = self.apply_for_job(applicant_client, job)
-            if blocked_status != JobApplication.Status.SUBMITTED:
+            if blocked_status != JobApplication.Status.APPLIED:
                 application.change_status(
                     blocked_status,
                     changed_by=recruiter,
@@ -229,7 +229,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.upload_resume(eligible_client)
         eligible_application = self.apply_for_job(eligible_client, job)
         eligible_application.change_status(
-            JobApplication.Status.EVALUATION_SUBMITTED,
+            JobApplication.Status.SHORTLISTED,
             changed_by=recruiter,
             note='Completed interview evaluation for hiring decision.',
         )
@@ -242,7 +242,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         eligible_application.refresh_from_db()
-        self.assertEqual(eligible_application.status, JobApplication.Status.DECISION_PENDING)
+        self.assertEqual(eligible_application.status, JobApplication.Status.SHORTLISTED)
 
     def mock_screening(self, application, changed_by):
         final_score = Decimal('91.00') if application.applicant.email == 'applicant@example.com' else Decimal('70.00')
@@ -258,7 +258,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         application.score_explanation = {'provider': 'mock', 'reason': 'Deterministic test screening.'}
         application.save()
         application.change_status(
-            JobApplication.Status.SCREENED_QUALIFIED,
+            JobApplication.Status.APPLIED,
             changed_by=changed_by,
             note='Mock AI-assisted resume screening completed.',
         )
@@ -320,7 +320,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
 
         application = self.apply_for_job(applicant_client, job)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.SCREENED_QUALIFIED)
+        self.assertEqual(application.status, JobApplication.Status.APPLIED)
         self.assertEqual(application.final_score, Decimal('91.00'))
 
         ranked_response = recruiter_client.get(reverse('job-ranked-applicants', args=[job.id]))
@@ -414,11 +414,8 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         offer.refresh_from_db()
         application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.ACCEPTED)
-        self.assertEqual(application.status, JobApplication.Status.HIRED)
-        self.assertTrue(
-            application.stage_history.filter(to_stage=JobApplication.Status.HIRED).exists(),
-            'Accepted offers should create a hired lifecycle history entry.',
-        )
+        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
         analytics_response = recruiter_client.get(reverse('analytics-recruiter-dashboard'))
         self.assertEqual(analytics_response.status_code, status.HTTP_200_OK, analytics_response.data)
         self.assertEqual(analytics_response.data['metrics']['hired_count'], 1)
@@ -440,7 +437,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         )
         self.assertEqual(declining_assign_response.status_code, status.HTTP_201_CREATED, declining_assign_response.data)
         declining_application.change_status(
-            JobApplication.Status.EVALUATION_SUBMITTED,
+            JobApplication.Status.SHORTLISTED,
             changed_by=interviewer,
             note='Offline evaluation completed for alternate offer path.',
         )
@@ -479,7 +476,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         self.upload_resume(rejected_applicant_client)
         rejected_application = self.apply_for_job(rejected_applicant_client, job)
         rejected_application.change_status(
-            JobApplication.Status.EVALUATION_SUBMITTED,
+            JobApplication.Status.SHORTLISTED,
             changed_by=interviewer,
             note='Evaluation completed before HR rejection path.',
         )

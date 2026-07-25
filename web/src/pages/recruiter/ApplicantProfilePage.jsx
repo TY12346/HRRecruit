@@ -85,7 +85,7 @@ export default function ApplicantProfilePage() {
   const reject = async () => {
     const defaultMessage = renderApplicationTemplate(
       'rejection',
-      profile?.status === 'evaluation_submitted' ? 'rejection_after_interview' : 'rejection_general',
+      profile?.status === 'shortlisted' ? 'rejection_after_interview' : 'rejection_general',
       profile ?? {},
     );
     const reason = window.prompt('Applicant rejection message', defaultMessage);

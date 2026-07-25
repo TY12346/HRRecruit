@@ -199,11 +199,11 @@ class Interview(models.Model):
         PHONE = 'phone', 'Phone'
 
     class Status(models.TextChoices):
-        ASSIGNED = 'assigned', 'Assigned'
+        INVITED = 'invited', 'Invited'
         SCHEDULED = 'scheduled', 'Scheduled'
-        DECLINED = 'declined', 'Declined'
-        COMPLETED = 'completed', 'Completed'
         CANCELLED = 'cancelled', 'Cancelled'
+        COMPLETED = 'completed', 'Completed'
+        EVALUATION_SUBMITTED = 'evaluation_submitted', 'Evaluation Submitted'
 
     application = models.ForeignKey(
         JobApplication,
@@ -250,7 +250,7 @@ class Interview(models.Model):
     mode = models.CharField(max_length=20, choices=Mode.choices, default=Mode.ONLINE)
     meeting_link = models.URLField(blank=True)
     location = models.CharField(max_length=255, blank=True)
-    status = models.CharField(max_length=30, choices=Status.choices, default=Status.ASSIGNED)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.INVITED)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -259,7 +259,7 @@ class Interview(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['interviewer', 'interview_date', 'start_time', 'end_time'],
-                condition=models.Q(status__in=['assigned', 'scheduled']),
+                condition=models.Q(status__in=['invited', 'scheduled']),
                 name='unique_active_interview_booking_time',
             ),
         ]

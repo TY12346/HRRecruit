@@ -15,105 +15,18 @@ from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
 
-DROPOUT_STATUSES = (
-    JobApplication.Status.WITHDRAWN,
-    JobApplication.Status.INTERVIEW_DECLINED,
-    JobApplication.Status.OFFER_DECLINED,
-)
-
-REJECTED_STATUSES = (
-    JobApplication.Status.REJECTED,
-    JobApplication.Status.HR_REJECTED,
-    JobApplication.Status.SCREENED_NOT_QUALIFIED,
-)
-
-SHORTLIST_OR_BEYOND_STATUSES = (
-    JobApplication.Status.SHORTLISTED,
-    JobApplication.Status.INTERVIEW_INVITED,
-    JobApplication.Status.INTERVIEW_ACCEPTED,
-    JobApplication.Status.INTERVIEW_DECLINED,
-    JobApplication.Status.INTERVIEWING,
-    JobApplication.Status.EVALUATION_SUBMITTED,
-    JobApplication.Status.DECISION_PENDING,
-    JobApplication.Status.HR_APPROVED,
-    JobApplication.Status.OFFER_SENT,
-    JobApplication.Status.OFFER_ACCEPTED,
-    JobApplication.Status.OFFER_DECLINED,
-    JobApplication.Status.HIRED,
-)
-
-INTERVIEW_OR_BEYOND_STATUSES = (
-    JobApplication.Status.INTERVIEW_INVITED,
-    JobApplication.Status.INTERVIEW_ACCEPTED,
-    JobApplication.Status.INTERVIEW_DECLINED,
-    JobApplication.Status.INTERVIEWING,
-    JobApplication.Status.EVALUATION_SUBMITTED,
-    JobApplication.Status.DECISION_PENDING,
-    JobApplication.Status.HR_APPROVED,
-    JobApplication.Status.OFFER_SENT,
-    JobApplication.Status.OFFER_ACCEPTED,
-    JobApplication.Status.OFFER_DECLINED,
-    JobApplication.Status.HIRED,
-)
-
-EVALUATION_OR_BEYOND_STATUSES = (
-    JobApplication.Status.EVALUATION_SUBMITTED,
-    JobApplication.Status.DECISION_PENDING,
-    JobApplication.Status.HR_APPROVED,
-    JobApplication.Status.OFFER_SENT,
-    JobApplication.Status.OFFER_ACCEPTED,
-    JobApplication.Status.OFFER_DECLINED,
-    JobApplication.Status.HIRED,
-)
-
-OFFER_OR_BEYOND_STATUSES = (
-    JobApplication.Status.OFFER_SENT,
-    JobApplication.Status.OFFER_ACCEPTED,
-    JobApplication.Status.OFFER_DECLINED,
-    JobApplication.Status.HIRED,
-)
+DROPOUT_STATUSES = (JobApplication.Status.REJECTED,)
+REJECTED_STATUSES = (JobApplication.Status.REJECTED,)
+SHORTLIST_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
+INTERVIEW_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
+EVALUATION_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
+OFFER_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
 
 FUNNEL_STAGES = OrderedDict(
     (
-        ('Applied', (JobApplication.Status.SUBMITTED,)),
-        (
-            'Screened',
-            (
-                JobApplication.Status.SCREENED,
-                JobApplication.Status.SCREENED_QUALIFIED,
-                JobApplication.Status.SCREENED_NOT_QUALIFIED,
-            ),
-        ),
+        ('Applied', (JobApplication.Status.APPLIED,)),
         ('Shortlisted', (JobApplication.Status.SHORTLISTED,)),
-        (
-            'Interview',
-            (
-                JobApplication.Status.INTERVIEW_INVITED,
-                JobApplication.Status.INTERVIEW_ACCEPTED,
-                JobApplication.Status.INTERVIEW_DECLINED,
-                JobApplication.Status.INTERVIEWING,
-            ),
-        ),
-        ('Evaluated', (JobApplication.Status.EVALUATION_SUBMITTED,)),
-        ('Decision Pending', (JobApplication.Status.DECISION_PENDING,)),
-        (
-            'HR Review',
-            (
-                JobApplication.Status.HR_APPROVED,
-                JobApplication.Status.HR_REJECTED,
-            ),
-        ),
-        (
-            'Offer',
-            (
-                JobApplication.Status.OFFER_SENT,
-                JobApplication.Status.OFFER_ACCEPTED,
-                JobApplication.Status.OFFER_DECLINED,
-            ),
-        ),
-        ('Hired', (JobApplication.Status.HIRED,)),
         ('Rejected', REJECTED_STATUSES),
-        ('Dropped Out', DROPOUT_STATUSES),
     )
 )
 
@@ -194,24 +107,16 @@ def applicant_funnel(applications):
 
 
 def average_time_to_hire_days(applications):
-    hired_applications = applications.filter(status=JobApplication.Status.HIRED).only('id', 'applied_at', 'updated_at')
-    hired_ids = list(hired_applications.values_list('id', flat=True))
-    if not hired_ids:
+    accepted_offers = JobOffer.objects.filter(
+        application__in=applications,
+        offer_status=JobOffer.OfferStatus.ACCEPTED,
+    ).select_related('application')
+    if not accepted_offers:
         return 0.0
-
-    hired_history = {
-        history['application_id']: history['changed_at']
-        for history in ApplicationStageHistory.objects.filter(
-            application_id__in=hired_ids,
-            to_stage=JobApplication.Status.HIRED,
-        )
-        .order_by('application_id', 'changed_at')
-        .values('application_id', 'changed_at')
-    }
-    durations = []
-    for application in hired_applications:
-        hired_at = hired_history.get(application.id) or application.updated_at
-        durations.append((hired_at - application.applied_at).total_seconds() / 86400)
+    durations = [
+        ((offer.responded_at or offer.sent_at) - offer.application.applied_at).total_seconds() / 86400
+        for offer in accepted_offers
+    ]
     return round(sum(durations) / len(durations), 2)
 
 
@@ -227,10 +132,10 @@ def conversion_rates(applications):
     return OrderedDict(
         (
             ('shortlist_rate', rate(applications.filter(status__in=SHORTLIST_OR_BEYOND_STATUSES).count(), total)),
-            ('interview_rate', rate(applications.filter(status__in=INTERVIEW_OR_BEYOND_STATUSES).count(), total)),
-            ('evaluation_rate', rate(applications.filter(status__in=EVALUATION_OR_BEYOND_STATUSES).count(), total)),
-            ('offer_rate', rate(applications.filter(status__in=OFFER_OR_BEYOND_STATUSES).count(), total)),
-            ('hire_rate', rate(applications.filter(status=JobApplication.Status.HIRED).count(), total)),
+            ('interview_rate', rate(applications.filter(interviews__isnull=False).distinct().count(), total)),
+            ('evaluation_rate', rate(applications.filter(interviews__status=Interview.Status.EVALUATION_SUBMITTED).distinct().count(), total)),
+            ('offer_rate', rate(applications.filter(job_offers__isnull=False).distinct().count(), total)),
+            ('hire_rate', rate(applications.filter(job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED).distinct().count(), total)),
         )
     )
 
@@ -321,7 +226,7 @@ def top_jobs_by_applications(jobs, applications, limit=5):
                 'job_id': job.id,
                 'job_title': job.title,
                 'applications': total,
-                'hires': job_applications.filter(status=JobApplication.Status.HIRED).count(),
+                'hires': job_applications.filter(job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED).distinct().count(),
                 'average_score': round(float(job_applications.aggregate(value=Avg('final_score'))['value'] or 0), 2),
             }
         )
@@ -354,7 +259,7 @@ def base_application_metrics(jobs, applications):
     total_applications = applications.count()
     shortlisted_count = applications.filter(status=JobApplication.Status.SHORTLISTED).count()
     rejected_count = applications.filter(status__in=REJECTED_STATUSES).count()
-    hired_count = applications.filter(status=JobApplication.Status.HIRED).count()
+    hired_count = applications.filter(job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED).distinct().count()
     dropout_count = applications.filter(status__in=DROPOUT_STATUSES).count()
     offers = JobOffer.objects.filter(application__in=applications)
     total_offers = offers.count()
@@ -378,7 +283,7 @@ def base_application_metrics(jobs, applications):
         'pending_hr_approval_count': decisions.filter(status=JobHiringDecision.Status.PENDING_HR_APPROVAL).count(),
         'decision_approved_count': decisions.filter(status=JobHiringDecision.Status.APPROVED).count(),
         'decision_rejected_count': decisions.filter(status=JobHiringDecision.Status.REJECTED).count(),
-        'closed_no_hire_count': jobs.filter(status=JobPosting.Status.CLOSED_NO_HIRE).count(),
+        'closed_no_hire_count': jobs.filter(status=JobPosting.Status.CLOSED).count(),
         'conversion_rates': conversion_rates(applications),
         'score_distribution': score_distribution(applications),
         'applications_over_time': applications_over_time(applications),
@@ -426,7 +331,9 @@ def interviewer_dashboard(user):
     metrics.update(
         {
             'assigned_interviews': interviews.count(),
-            'completed_interviews': interviews.filter(status=Interview.Status.COMPLETED).count(),
+            'completed_interviews': interviews.filter(
+                status__in=[Interview.Status.COMPLETED, Interview.Status.EVALUATION_SUBMITTED]
+            ).count(),
             'interviewer_evaluation_count': evaluations.count(),
             'average_evaluation_score': round(float(evaluations.aggregate(value=Avg('total_score'))['value'] or 0), 2),
         }
@@ -483,7 +390,7 @@ def recruiter_performance(organization):
                 'recruiter_name': recruiter.full_name,
                 'job_postings': jobs.count(),
                 'applications': applications.count(),
-                'hire_count': applications.filter(status=JobApplication.Status.HIRED).count(),
+                'hire_count': applications.filter(job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED).distinct().count(),
             }
         )
     return rows
@@ -516,7 +423,9 @@ def interviewer_performance(organization):
                 'interviewer_id': interviewer.id,
                 'interviewer_name': interviewer.full_name,
                 'assigned_interviews': interviews.count(),
-                'completed_interviews': interviews.filter(status=Interview.Status.COMPLETED).count(),
+                'completed_interviews': interviews.filter(
+                    status__in=[Interview.Status.COMPLETED, Interview.Status.EVALUATION_SUBMITTED]
+                ).count(),
                 'evaluation_count': evaluations.count(),
                 'average_evaluation_score': round(float(evaluations.aggregate(value=Avg('total_score'))['value'] or 0), 2),
             }

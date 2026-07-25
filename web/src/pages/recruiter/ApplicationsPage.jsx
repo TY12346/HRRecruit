@@ -35,17 +35,9 @@ import {
 } from './applicationSearchViews.js';
 
 const STATUS_FILTERS = [
-  ['all', 'All statuses'],
-  ['submitted', 'Submitted'],
-  ['screened_qualified', 'Screened qualified'],
-  ['screened_not_qualified', 'Screened not qualified'],
+  ['all', 'All application statuses'],
+  ['applied', 'Applied'],
   ['shortlisted', 'Shortlisted'],
-  ['interview_invited', 'Interview invited'],
-  ['interview_accepted', 'Interview accepted'],
-  ['evaluation_submitted', 'Evaluation submitted'],
-  ['decision_pending', 'Decision pending'],
-  ['offer_sent', 'Offer sent'],
-  ['hired', 'Hired'],
   ['rejected', 'Rejected'],
 ];
 
@@ -63,13 +55,6 @@ const SORT_OPTIONS = [
   ['score_asc', 'Lowest score'],
   ['applicant_az', 'Applicant A-Z'],
 ];
-
-function ResumeValidationChip({ result }) {
-  if (!result || Object.keys(result).length === 0) return <Chip label="Not validated" size="small" variant="outlined" />;
-  if (result.is_valid) return <Chip color="success" label="Resume valid" size="small" />;
-  const missing = (result.missing_fields ?? []).join(', ');
-  return <Tooltip title={result.message ?? missing}><Chip color="warning" label="Resume incomplete" size="small" /></Tooltip>;
-}
 
 function FitChip({ score }) {
   const fit = applicantFitFromScore(score);
@@ -164,7 +149,7 @@ export default function ApplicationsPage() {
   const resetFilters = () => applyFilters(APPLICATION_FILTER_DEFAULTS);
 
   const reject = async (app) => {
-    const defaultMessage = renderApplicationTemplate('rejection', app.status === 'evaluation_submitted' ? 'rejection_after_interview' : 'rejection_general', app);
+    const defaultMessage = renderApplicationTemplate('rejection', app.status === 'shortlisted' ? 'rejection_after_interview' : 'rejection_general', app);
     const reason = window.prompt('Applicant rejection message', defaultMessage);
     if (!reason) return;
     setBusyId(app.id);
@@ -222,7 +207,6 @@ export default function ApplicationsPage() {
               <TableCell>Applicant</TableCell>
               <TableCell>Job</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Resume validation</TableCell>
               <TableCell>AI fit</TableCell>
               <TableCell>Final score</TableCell>
               <TableCell>Applied</TableCell>
@@ -235,7 +219,6 @@ export default function ApplicationsPage() {
                 <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{applicationName(app)}</Typography><Typography variant="caption" color="text.secondary">{getApplicationStatusInfo(app.status, 'recruiter').nextAction}</Typography></TableCell>
                 <TableCell>{app.job_title}</TableCell>
                 <TableCell><Tooltip title={getApplicationStatusInfo(app.status, 'recruiter').description}><Chip label={getApplicationStatusInfo(app.status, 'recruiter').label} size="small" /></Tooltip></TableCell>
-                <TableCell><ResumeValidationChip result={app.resume_validation_result} /></TableCell>
                 <TableCell><FitChip score={app.final_score} /></TableCell>
                 <TableCell>{scoreText(app.final_score)}</TableCell>
                 <TableCell>{formatDateTime(app.applied_at)}</TableCell>

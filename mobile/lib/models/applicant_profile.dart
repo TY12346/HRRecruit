@@ -99,7 +99,6 @@ class ApplicantResume {
     required this.resumeFile,
     this.resumeUrl,
     required this.isDefault,
-    this.validationResult = const <String, dynamic>{},
     this.uploadedAt,
   });
 
@@ -108,7 +107,6 @@ class ApplicantResume {
   final String resumeFile;
   final String? resumeUrl;
   final bool isDefault;
-  final Map<String, dynamic> validationResult;
   final DateTime? uploadedAt;
 
   factory ApplicantResume.fromJson(Map<String, dynamic> json) {
@@ -118,7 +116,6 @@ class ApplicantResume {
       resumeFile: json['resume_file'] as String? ?? '',
       resumeUrl: json['resume_url'] as String?,
       isDefault: json['is_default'] as bool? ?? false,
-      validationResult: Map<String, dynamic>.from(json['validation_result'] as Map? ?? const <String, dynamic>{}),
       uploadedAt: DateTime.tryParse(json['uploaded_at'] as String? ?? ''),
     );
   }

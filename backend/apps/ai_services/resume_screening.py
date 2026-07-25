@@ -9,7 +9,6 @@ from .education_extractor import EDUCATION_LEVELS, extract_education
 from .experience_extractor import extract_experience
 from .resume_preprocessor import preprocess_for_matching
 from .resume_text_extractor import extract_resume_text
-from .resume_validation import ensure_resume_text_is_valid_for_screening
 from .scoring import calculate_score_breakdown
 from .semantic_matcher import semantic_similarity
 from .skill_extractor import extract_skills, normalize_skill_key
@@ -21,7 +20,6 @@ def build_resume_screening(application):
     """Extract a local resume and return the complete screening result."""
     resume_file = get_application_resume_file(application)
     resume_text = extract_resume_text(resume_file.path)
-    resume_validation_result = ensure_resume_text_is_valid_for_screening(resume_text)
     requirements = list(application.job.requirements.all())
     comparison_text = _build_job_comparison_text(application.job, requirements)
 
@@ -152,7 +150,6 @@ def build_resume_screening(application):
         'education_score': scores['education_score'],
         'final_score': final_score,
         'score_explanation': explanation,
-        'resume_validation_result': resume_validation_result,
     }
 
 
