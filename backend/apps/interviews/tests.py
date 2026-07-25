@@ -641,6 +641,44 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(interview.organization, self.organization)
         self.assertEqual(interview.interviewer, self.interviewer)
 
+    def test_recruiter_assigns_panel_of_up_to_three_interviewers(self):
+        second_interviewer = self.create_user('panel-two@example.com', User.Role.INTERVIEWER)
+        third_interviewer = self.create_user('panel-three@example.com', User.Role.INTERVIEWER)
+        self.create_membership(second_interviewer, self.organization, OrganizationMembership.Role.INTERVIEWER)
+        self.create_membership(third_interviewer, self.organization, OrganizationMembership.Role.INTERVIEWER)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('application-assign-interviewer', args=[self.application.id]),
+            {'interviewer_ids': [self.interviewer.id, second_interviewer.id, third_interviewer.id]},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        interview = Interview.objects.get(application=self.application)
+        self.assertEqual(interview.interviewer, self.interviewer)
+        self.assertSetEqual(
+            set(interview.panel_interviewers.values_list('id', flat=True)),
+            {self.interviewer.id, second_interviewer.id, third_interviewer.id},
+        )
+
+    def test_recruiter_cannot_assign_more_than_three_interviewers(self):
+        interviewer_ids = [self.interviewer.id]
+        for index in range(3):
+            panelist = self.create_user(f'panel-limit-{index}@example.com', User.Role.INTERVIEWER)
+            self.create_membership(panelist, self.organization, OrganizationMembership.Role.INTERVIEWER)
+            interviewer_ids.append(panelist.id)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('application-assign-interviewer', args=[self.application.id]),
+            {'interviewer_ids': interviewer_ids},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Interview.objects.filter(application=self.application).exists())
+
     def test_assigned_interviewer_can_view_assigned_interviews_only(self):
         self.assign_interviewer()
         other_interview = Interview.objects.create(

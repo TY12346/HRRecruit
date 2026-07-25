@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -73,7 +74,7 @@ export default function ApplicantRankingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
   const [interviewers, setInterviewers] = useState([]);
-  const [selectedInterviewerId, setSelectedInterviewerId] = useState('');
+  const [selectedInterviewerIds, setSelectedInterviewerIds] = useState([]);
   const [assigningIds, setAssigningIds] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
 
@@ -126,16 +127,16 @@ export default function ApplicantRankingPage() {
   const assignSelected = async () => {
     setIsBusy(true);
     try {
-      await Promise.all(assigningIds.map((id) => assignInterviewer(id, { interviewer_id: Number(selectedInterviewerId) })));
+      await Promise.all(assigningIds.map((id) => assignInterviewer(id, { interviewer_ids: selectedInterviewerIds.map(Number) })));
       setApplicants((current) => current.map((applicant) => (
         assigningIds.includes(applicant.id)
-          ? { ...applicant, assigned_interviewer: { id: Number(selectedInterviewerId) } }
+          ? { ...applicant, assigned_interviewer: { id: Number(selectedInterviewerIds[0]) } }
           : applicant
       )));
       setSuccess(`Interviewer assigned to ${assigningIds.length} applicant${assigningIds.length === 1 ? '' : 's'}.`);
       setSelectedIds((current) => current.filter((id) => !assigningIds.includes(id)));
       setAssigningIds([]);
-      setSelectedInterviewerId('');
+      setSelectedInterviewerIds([]);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to assign interviewer.'));
     } finally {
@@ -249,14 +250,22 @@ export default function ApplicantRankingPage() {
       <Dialog open={assigningIds.length > 0} onClose={() => !isBusy && setAssigningIds([])} fullWidth maxWidth="sm">
         <DialogTitle>Assign interviewer</DialogTitle>
         <DialogContent>
-          <TextField select fullWidth margin="dense" label="Interviewer" value={selectedInterviewerId} onChange={(event) => setSelectedInterviewerId(event.target.value)}>
-            {interviewers.map((interviewer) => <MenuItem key={interviewer.user_id} value={interviewer.user_id}>{interviewer.full_name} ({interviewer.email})</MenuItem>)}
-          </TextField>
+          <Autocomplete
+            multiple
+            disableCloseOnSelect
+            options={interviewers}
+            value={interviewers.filter((interviewer) => selectedInterviewerIds.includes(interviewer.user_id))}
+            getOptionDisabled={(option) => selectedInterviewerIds.length >= 3 && !selectedInterviewerIds.includes(option.user_id)}
+            isOptionEqualToValue={(option, value) => option.user_id === value.user_id}
+            getOptionLabel={(option) => `${option.full_name} (${option.email})`}
+            onChange={(_, selected) => setSelectedInterviewerIds(selected.slice(0, 3).map((interviewer) => interviewer.user_id))}
+            renderInput={(params) => <TextField {...params} margin="dense" label="Interviewers" helperText="Select up to 3 interviewers." />}
+          />
           {!interviewers.length ? <Typography color="text.secondary">No active interviewers are available.</Typography> : null}
         </DialogContent>
         <DialogActions>
           <Button disabled={isBusy} onClick={() => setAssigningIds([])}>Cancel</Button>
-          <Button variant="contained" disabled={!selectedInterviewerId || isBusy} onClick={assignSelected}>{isBusy ? 'Assigning…' : `Assign to ${assigningIds.length}`}</Button>
+          <Button variant="contained" disabled={!selectedInterviewerIds.length || isBusy} onClick={assignSelected}>{isBusy ? 'Assigning…' : `Assign panel to ${assigningIds.length}`}</Button>
         </DialogActions>
       </Dialog>
     </Box>

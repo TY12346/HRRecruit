@@ -875,10 +875,11 @@ class AssignInterviewerAPIView(APIView):
 
         serializer = AssignInterviewerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        interviewer = active_interviewer_for_organization_or_404(
-            serializer.validated_data['interviewer_id'],
-            application.job.organization,
-        )
+        interviewers = [
+            active_interviewer_for_organization_or_404(interviewer_id, application.job.organization)
+            for interviewer_id in serializer.validated_data['interviewer_ids']
+        ]
+        interviewer = interviewers[0]
 
         application.assigned_interviewer = interviewer
         update_fields = ['assigned_interviewer', 'updated_at']
@@ -913,7 +914,7 @@ class AssignInterviewerAPIView(APIView):
             interview.recruiter = request.user
             interview.interviewer = interviewer
             interview.save(update_fields=['organization', 'recruiter', 'interviewer', 'updated_at'])
-        interview.panel_interviewers.set([interviewer])
+        interview.panel_interviewers.set(interviewers)
         if created:
             interview.change_status(Interview.Status.INVITED, changed_by=request.user, note='Interview assigned.')
         elif previous_interviewer != interviewer:
@@ -925,11 +926,12 @@ class AssignInterviewerAPIView(APIView):
                 note=f'Interviewer reassigned to {interviewer.full_name}.',
             )
 
-        create_notification(
-            interviewer,
-            'interview_assignment',
-            'New interview assignment',
-            f'You were assigned to interview {application.applicant.full_name} for {application.job.title}.',
-            related_entity=interview,
-        )
+        for panel_interviewer in interviewers:
+            create_notification(
+                panel_interviewer,
+                'interview_assignment',
+                'New interview assignment',
+                f'You were assigned to interview {application.applicant.full_name} for {application.job.title}.',
+                related_entity=interview,
+            )
         return Response(InterviewSerializer(interview, context={'request': request}).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
