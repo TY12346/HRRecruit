@@ -247,12 +247,12 @@ AI screening automatically separates qualified and underqualified applicants. Qu
 
 ```text
 If final_score >= threshold:
-    status = screened_qualified
+    status = shortlisted
 else:
     status = rejected
 ```
 
-The recruiter must still manually decide whether qualified applicants should be:
+The recruiter may still review AI-shortlisted applicants and decide whether they should be:
 
 - assigned to an interviewer
 - rejected

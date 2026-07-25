@@ -1,18 +1,9 @@
 export const APPLICATION_PHASES = [
-  { key: 'applied', label: 'Applied', statuses: ['applied'] },
   { key: 'shortlisted', label: 'Shortlisted', statuses: ['shortlisted'] },
   { key: 'rejected', label: 'Rejected', statuses: ['rejected'] },
 ];
 
 const STATUS_DETAILS = {
-  applied: {
-    label: 'Applied',
-    description: 'The application was received and is being reviewed.',
-    nextActions: {
-      recruiter: 'Review the AI screening evidence, then shortlist or reject the applicant.',
-      applicant: 'Wait for the recruitment team to review your application.',
-    },
-  },
   shortlisted: {
     label: 'Shortlisted',
     description: 'The recruiter selected the applicant to continue in the recruitment process.',

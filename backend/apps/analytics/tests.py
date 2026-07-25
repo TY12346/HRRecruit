@@ -37,7 +37,7 @@ class AnalyticsAPITests(APITestCase):
         self.job = self.create_job(self.recruiter, self.organization, 'Backend Engineer')
         self.other_job = self.create_job(self.other_recruiter, self.other_organization, 'External Job')
         self.colleague_job = self.create_job(self.colleague_recruiter, self.organization, 'Colleague Job')
-        self.submitted_application = self.create_application(self.job, self.applicant, JobApplication.Status.APPLIED)
+        self.submitted_application = self.create_application(self.job, self.applicant, JobApplication.Status.SHORTLISTED)
         self.shortlisted_application = self.create_application(self.job, self.applicant_two, JobApplication.Status.SHORTLISTED)
         self.hired_application = self.create_application(self.job, self.applicant_three, JobApplication.Status.SHORTLISTED)
         self.other_application = self.create_application(self.other_job, self.other_applicant, JobApplication.Status.SHORTLISTED)

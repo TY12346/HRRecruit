@@ -8,7 +8,6 @@ from apps.users.models import ApplicantResume, User
 
 class JobApplication(models.Model):
     class Status(models.TextChoices):
-        APPLIED = 'applied', 'Applied'
         SHORTLISTED = 'shortlisted', 'Shortlisted'
         REJECTED = 'rejected', 'Rejected'
 
@@ -36,7 +35,7 @@ class JobApplication(models.Model):
         null=True,
     )
     application_resume_name = models.CharField(max_length=255, blank=True)
-    status = models.CharField(max_length=30, choices=Status.choices, default=Status.APPLIED)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.SHORTLISTED)
     recruiter_remark = models.TextField(blank=True)
     assigned_interviewer = models.ForeignKey(
         User,

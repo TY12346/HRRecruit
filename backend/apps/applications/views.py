@@ -407,10 +407,7 @@ class JobApplyAPIView(APIView):
                     applicant=request.user,
                 )
                 active_application = previous_applications.exclude(
-                    status__in=(
-                        JobApplication.Status.REJECTED,
-                        JobApplication.Status.REJECTED,
-                    ),
+                    status=JobApplication.Status.REJECTED,
                 ).order_by('-applied_at', '-id').first()
                 previous_application = active_application or previous_applications.order_by(
                     '-applied_at', '-id',
@@ -442,8 +439,12 @@ class JobApplyAPIView(APIView):
                     selected_resume.resume_file if selected_resume else legacy_resume_file
                 )
                 save_application_resume_snapshot(application, source_resume_file)
-            application = screen_job_application(application)
-            EmployerInvite.objects.filter(job=job, applicant=request.user, response=EmployerInvite.Response.NO_RESPONSE).update(response=EmployerInvite.Response.APPLIED, responded_at=timezone.now())
+                application = screen_job_application(application)
+                EmployerInvite.objects.filter(
+                    job=job,
+                    applicant=request.user,
+                    response=EmployerInvite.Response.NO_RESPONSE,
+                ).update(response=EmployerInvite.Response.APPLIED, responded_at=timezone.now())
         except ResumeTextExtractionError as exc:
             raise ValidationError({'resume_file': str(exc)}) from exc
 
@@ -453,13 +454,8 @@ class JobApplyAPIView(APIView):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can withdraw job applications.')
         application = get_object_or_404(JobApplication, job_id=job_id, applicant=request.user)
-        if application.status not in (
-            JobApplication.Status.APPLIED,
-            JobApplication.Status.APPLIED,
-            JobApplication.Status.APPLIED,
-            JobApplication.Status.REJECTED,
-        ):
-            raise ValidationError({'status': 'Applications can be withdrawn only while submitted or screened.'})
+        if application.status != JobApplication.Status.SHORTLISTED:
+            raise ValidationError({'status': 'Only shortlisted applications can be withdrawn.'})
         application.change_status(
             JobApplication.Status.REJECTED,
             changed_by=request.user,
@@ -557,7 +553,7 @@ class RankedApplicantsAPIView(APIView):
     def get(self, request, job_id):
         job = recruiter_job_or_404(request.user, job_id)
         applications = apply_application_search_filters(
-            job.applications.filter(status=JobApplication.Status.APPLIED).select_related(
+            job.applications.filter(status=JobApplication.Status.SHORTLISTED).select_related(
                 'job',
                 'job__organization',
                 'applicant',

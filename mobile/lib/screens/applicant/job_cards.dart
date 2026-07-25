@@ -51,15 +51,13 @@ class ApplicationStatusInfo {
 }
 
 const List<String> applicationFlowPhases = [
-  'Applied',
   'Shortlisted',
   'Rejected',
 ];
 
 const Map<String, int> _applicationPhaseIndexes = {
-  'applied': 0,
-  'shortlisted': 1,
-  'rejected': 2,
+  'shortlisted': 0,
+  'rejected': 1,
 };
 
 int applicationPhaseIndex(String status) =>
@@ -67,17 +65,10 @@ int applicationPhaseIndex(String status) =>
 
 ApplicationStatusInfo applicationStatusInfo(String status) {
   switch (status) {
-    case 'applied':
-      return const ApplicationStatusInfo(
-        label: 'Applied',
-        description: 'Your application was received and is being reviewed.',
-        nextAction: 'Wait for the recruitment team to review your application.',
-      );
     case 'shortlisted':
       return const ApplicationStatusInfo(
         label: 'Shortlisted',
-        description:
-            'You were selected to continue in the recruitment process.',
+        description: 'You were selected to continue in the recruitment process.',
         nextAction: 'Watch for interview invitations and offer updates.',
       );
     case 'rejected':

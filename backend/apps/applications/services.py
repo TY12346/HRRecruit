@@ -14,11 +14,20 @@ def screen_job_application(application):
     screening_result['score_explanation']['qualification_decision'] = (
         'qualified' if is_qualified else 'not_qualified'
     )
+    screened_status = (
+        JobApplication.Status.SHORTLISTED
+        if is_qualified
+        else JobApplication.Status.REJECTED
+    )
     with transaction.atomic():
         application = JobApplication.objects.select_for_update().get(pk=application.pk)
         for field, value in screening_result.items():
             setattr(application, field, value)
         application.save(update_fields=[*screening_result, 'updated_at'])
+        application.change_status(
+            screened_status,
+            note='AI resume screening completed; the recruiter retains the final decision.',
+        )
 
     application.refresh_from_db()
     return application

@@ -192,12 +192,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
     def test_hiring_decision_requires_completed_interview_evaluation(self):
         _, _, recruiter, recruiter_client, _, _ = self.create_organization_and_team()
         job, _ = self.create_job_with_evaluation_form(recruiter_client)
-        blocked_statuses = (
-            JobApplication.Status.APPLIED,
-            JobApplication.Status.APPLIED,
-            JobApplication.Status.SHORTLISTED,
-            JobApplication.Status.SHORTLISTED,
-        )
+        blocked_statuses = (JobApplication.Status.SHORTLISTED,)
 
         for index, blocked_status in enumerate(blocked_statuses, start=1):
             _, applicant_client = self.register_applicant(
@@ -206,13 +201,6 @@ class HRRecruitBusinessFlowAPITests(TestCase):
             )
             self.upload_resume(applicant_client)
             application = self.apply_for_job(applicant_client, job)
-            if blocked_status != JobApplication.Status.APPLIED:
-                application.change_status(
-                    blocked_status,
-                    changed_by=recruiter,
-                    note='Set status for hiring gate regression test.',
-                )
-
             response = recruiter_client.post(
                 reverse('application-hiring-decision', args=[application.id]),
                 {'decision': HiringDecision.Decision.HIRE, 'justification': 'Trying too early.'},
@@ -258,7 +246,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
         application.score_explanation = {'provider': 'mock', 'reason': 'Deterministic test screening.'}
         application.save()
         application.change_status(
-            JobApplication.Status.APPLIED,
+            JobApplication.Status.SHORTLISTED,
             changed_by=changed_by,
             note='Mock AI-assisted resume screening completed.',
         )
@@ -320,7 +308,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
 
         application = self.apply_for_job(applicant_client, job)
         application.refresh_from_db()
-        self.assertEqual(application.status, JobApplication.Status.APPLIED)
+        self.assertEqual(application.status, JobApplication.Status.SHORTLISTED)
         self.assertEqual(application.final_score, Decimal('91.00'))
 
         ranked_response = recruiter_client.get(reverse('job-ranked-applicants', args=[job.id]))

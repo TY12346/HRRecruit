@@ -468,12 +468,12 @@ Use this behavior:
 
 ```text
 If final_score >= threshold:
-    status = screened_qualified
+    status = shortlisted
 else:
     status = rejected
 ```
 
-Underqualified applicants are rejected automatically by the screening threshold. The recruiter must manually decide whether qualified applicants should be:
+Underqualified applicants are rejected automatically by the screening threshold. The recruiter may still review AI-shortlisted applicants and decide whether they should be:
 
 ```text
 assign interviewer

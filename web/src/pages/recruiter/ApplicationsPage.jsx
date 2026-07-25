@@ -36,7 +36,6 @@ import {
 
 const STATUS_FILTERS = [
   ['all', 'All application statuses'],
-  ['applied', 'Applied'],
   ['shortlisted', 'Shortlisted'],
   ['rejected', 'Rejected'],
 ];

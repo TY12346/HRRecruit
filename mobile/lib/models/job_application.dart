@@ -25,7 +25,7 @@ class JobApplication {
   final DateTime? appliedAt;
   final DateTime? updatedAt;
 
-  bool get canWithdraw => status == 'applied';
+  bool get canWithdraw => status == 'shortlisted';
 
   factory JobApplication.fromJson(Map<String, dynamic> json) {
     return JobApplication(

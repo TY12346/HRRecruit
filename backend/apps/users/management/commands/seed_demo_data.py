@@ -334,7 +334,7 @@ class Command(BaseCommand):
                 },
             },
         )
-        self._ensure_application_history(application, JobApplication.Status.APPLIED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'Recruiter shortlisted applicant for interview.')
+        self._ensure_application_history(application, JobApplication.Status.REJECTED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'AI screening shortlisted applicant for recruiter review.')
         return application
 
     def _ensure_application_history(self, application, from_stage, to_stage, changed_by, note):

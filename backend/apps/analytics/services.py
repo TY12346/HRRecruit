@@ -24,7 +24,6 @@ OFFER_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
 
 FUNNEL_STAGES = OrderedDict(
     (
-        ('Applied', (JobApplication.Status.APPLIED,)),
         ('Shortlisted', (JobApplication.Status.SHORTLISTED,)),
         ('Rejected', REJECTED_STATUSES),
     )
