@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
   Paper,
   Stack,
   Table,
@@ -21,37 +15,9 @@ import {
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
-import { getInterviewEvaluationDetail, getInterviews } from '../../api/client.js';
+import { getInterviews } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
-
-function EvaluationCard({ evaluation }) {
-  return (
-    <Card variant="outlined" sx={{ mt: 2 }}>
-      <CardContent>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-          {evaluation.interviewer_name || 'Interviewer evaluation'}
-        </Typography>
-        <Typography>
-          <strong>Total score:</strong> {evaluation.total_score ?? 'Not submitted'}
-        </Typography>
-        <Typography>
-          <strong>Overall comment:</strong> {evaluation.overall_comment || '—'}
-        </Typography>
-        <List dense>
-          {evaluation.answers?.map((answer) => (
-            <ListItem key={answer.id} disableGutters>
-              <ListItemText
-                primary={`${answer.criterion?.criterion_name}: ${answer.score}`}
-                secondary={answer.comment || answer.criterion?.description}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </CardContent>
-    </Card>
-  );
-}
 
 function interviewerNames(interview) {
   const assignedInterviewers = [
@@ -89,7 +55,6 @@ export default function InterviewEvaluationDetailPage() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('job_id');
   const [interviews, setInterviews] = useState([]);
-  const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -99,18 +64,6 @@ export default function InterviewEvaluationDetailPage() {
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load interviews.')))
       .finally(() => setIsLoading(false));
   }, [jobId]);
-
-  const openDetail = async (interview) => {
-    setDetail(null);
-    setError('');
-    try {
-      setDetail(await getInterviewEvaluationDetail(interview.id));
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Evaluation detail is not available yet.'));
-    }
-  };
-
-  const submittedEvaluations = detail?.evaluations ?? (detail?.evaluation ? [detail.evaluation] : []);
 
   return (
     <Box>
@@ -168,7 +121,14 @@ export default function InterviewEvaluationDetailPage() {
                         View applicant profile
                       </Button>
                       {interview.status === 'evaluation_submitted' ? (
-                        <Button onClick={() => openDetail(interview)} size="small" variant="outlined">View evaluations</Button>
+                        <Button
+                          component={RouterLink}
+                          to={`/recruiter/interviews/${interview.id}/evaluations${jobId ? `?job_id=${encodeURIComponent(jobId)}` : ''}`}
+                          size="small"
+                          variant="outlined"
+                        >
+                          View evaluations
+                        </Button>
                       ) : null}
                     </Stack>
                   </TableCell>
@@ -182,42 +142,6 @@ export default function InterviewEvaluationDetailPage() {
             </TableBody>
           </Table>
         </Box>
-
-        <Stack spacing={2} sx={{ mt: 2 }}>
-          {detail ? (
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {detail.applicant_name || 'Applicant'} — {detail.job_title || 'Job'}
-              </Typography>
-              <Typography variant="h6" sx={{ mt: 2 }}>Submitted evaluations</Typography>
-              {submittedEvaluations.length ? (
-                submittedEvaluations.map((evaluation) => <EvaluationCard key={evaluation.id} evaluation={evaluation} />)
-              ) : (
-                <Typography color="text.secondary">No interviewer evaluations submitted yet.</Typography>
-              )}
-              <Typography variant="h6" sx={{ mt: 2 }}>AI summary</Typography>
-              {detail.ai_summary ? (
-                <Stack spacing={0.75}>
-                  <Typography whiteSpace="pre-line">{detail.ai_summary.editable_summary_text}</Typography>
-                  <Typography><strong>Strengths:</strong> {detail.ai_summary.strengths || '—'}</Typography>
-                  <Typography><strong>Weaknesses:</strong> {detail.ai_summary.weaknesses || '—'}</Typography>
-                  <Typography><strong>Communication score:</strong> {detail.ai_summary.communication_score ?? '—'}</Typography>
-                  <Typography><strong>Overall impression:</strong> {detail.ai_summary.overall_impression || '—'}</Typography>
-                </Stack>
-              ) : <Typography>No AI summary generated yet.</Typography>}
-              <Typography variant="h6" sx={{ mt: 2 }}>Interview audio</Typography>
-              {detail.transcript?.audio_url ? (
-                <Box component="audio" controls preload="metadata" src={detail.transcript.audio_url} sx={{ width: '100%', mt: 1 }}>
-                  Your browser does not support audio playback.
-                </Box>
-              ) : <Typography color="text.secondary">No interview audio uploaded.</Typography>}
-              <Typography variant="h6" sx={{ mt: 2 }}>Transcript</Typography>
-              <Typography whiteSpace="pre-line">
-                {detail.transcript?.speaker_labelled_transcript || detail.transcript?.transcript_text || 'No transcript generated yet.'}
-              </Typography>
-            </Paper>
-          ) : null}
-        </Stack>
       </Paper>
     </Box>
   );
