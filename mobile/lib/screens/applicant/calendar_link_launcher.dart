@@ -34,8 +34,7 @@ Future<void> _openCalendarLink(
 
 String _googleCalendarApiLink(String storedCalendarLink) {
   final uri = Uri.tryParse(storedCalendarLink);
-  final isGoogleCalendarLink =
-      uri?.host == 'calendar.google.com' ||
+  final isGoogleCalendarLink = uri?.host == 'calendar.google.com' ||
       (uri?.host.endsWith('google.com') == true &&
           uri?.path.contains('calendar') == true);
   if (uri == null || !uri.hasScheme || !isGoogleCalendarLink) {

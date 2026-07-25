@@ -16,7 +16,8 @@ class ApplicationDetailScreen extends StatefulWidget {
   final int applicationId;
 
   @override
-  State<ApplicationDetailScreen> createState() => _ApplicationDetailScreenState();
+  State<ApplicationDetailScreen> createState() =>
+      _ApplicationDetailScreenState();
 }
 
 class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
@@ -47,10 +48,15 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Withdraw application?'),
-        content: const Text('You can only withdraw while the application is submitted or screened.'),
+        content: const Text(
+            'You can only withdraw while the application is submitted or screened.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Withdraw')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Withdraw')),
         ],
       ),
     );
@@ -58,7 +64,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
 
     setState(() => _isWithdrawing = true);
     try {
-      await context.read<JobDiscoveryService>().withdrawApplication(application.jobId);
+      await context
+          .read<JobDiscoveryService>()
+          .withdrawApplication(application.jobId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Application withdrawn.')),
@@ -76,14 +84,18 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     final resumeUrl = application.resumeUrl;
     if (resumeUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('The resume used for this application is not available.')),
+        const SnackBar(
+            content:
+                Text('The resume used for this application is not available.')),
       );
       return;
     }
 
     try {
-      final resumeUri = await context.read<ApiClient>().resolveBackendFileUri(resumeUrl);
-      final opened = await launchUrl(resumeUri, mode: LaunchMode.externalApplication);
+      final resumeUri =
+          await context.read<ApiClient>().resolveBackendFileUri(resumeUrl);
+      final opened =
+          await launchUrl(resumeUri, mode: LaunchMode.externalApplication);
       if (!opened) throw Exception('Unable to open the application resume.');
     } catch (error) {
       if (!mounted) return;
@@ -98,104 +110,109 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
         appBar: appScreenAppBar(context, title: 'Application details'),
         body: SafeArea(
           child: FutureBuilder<_ApplicationDetailData>(
-          future: _detailFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return _ApplicationDetailError(error: snapshot.error!, onRetry: _refresh);
-            }
-            final data = snapshot.data!;
-            final application = data.application;
-            final statusInfo = applicationStatusInfo(application.status);
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  application.jobTitle,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  application.organizationName,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Chip(label: Text(statusInfo.label)),
-                    Chip(label: Text('Applied ${formatDate(application.appliedAt)}')),
-                    if (application.finalScore != null)
+            future: _detailFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return _ApplicationDetailError(
+                    error: snapshot.error!, onRetry: _refresh);
+              }
+              final data = snapshot.data!;
+              final application = data.application;
+              final statusInfo = applicationStatusInfo(application.status);
+              return ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    application.jobTitle,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    application.organizationName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Chip(label: Text(statusInfo.label)),
                       Chip(
-                        label: Text(
-                          'AI score ${application.finalScore!.toStringAsFixed(2)}',
+                          label: Text(
+                              'Applied ${formatDate(application.appliedAt)}')),
+                      if (application.finalScore != null)
+                        Chip(
+                          label: Text(
+                            'AI score ${application.finalScore!.toStringAsFixed(2)}',
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ApplicationFlowCard(status: application.status),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              context.push('/jobs/${application.jobId}'),
+                          icon: const Icon(Icons.work_outline),
+                          label: const Text('View job'),
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                ApplicationFlowCard(status: application.status),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.push('/jobs/${application.jobId}'),
-                        icon: const Icon(Icons.work_outline),
-                        label: const Text('View job'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: application.canWithdraw && !_isWithdrawing
+                              ? () => _withdraw(application)
+                              : null,
+                          icon: const Icon(Icons.undo),
+                          label: Text(
+                              _isWithdrawing ? 'Withdrawing...' : 'Withdraw'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: application.canWithdraw && !_isWithdrawing
-                            ? () => _withdraw(application)
-                            : null,
-                        icon: const Icon(Icons.undo),
-                        label: Text(_isWithdrawing ? 'Withdrawing...' : 'Withdraw'),
-                      ),
-                    ),
-                  ],
-                ),
-                if (application.resumeUrl != null) ...[
-                  const SizedBox(height: 20),
-                  OutlinedButton.icon(
-                    onPressed: () => _viewApplicationResume(application),
-                    icon: const Icon(Icons.description_outlined),
-                    label: Text(
-                      application.resumeTitle.isEmpty
-                          ? 'View resume used for this application'
-                          : 'View resume: ${application.resumeTitle}',
-                    ),
+                    ],
                   ),
-                ],
-                if (application.recruiterRemark.isNotEmpty) ...[
+                  if (application.resumeUrl != null) ...[
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      onPressed: () => _viewApplicationResume(application),
+                      icon: const Icon(Icons.description_outlined),
+                      label: Text(
+                        application.resumeTitle.isEmpty
+                            ? 'View resume used for this application'
+                            : 'View resume: ${application.resumeTitle}',
+                      ),
+                    ),
+                  ],
+                  if (application.recruiterRemark.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      'Recruiter remark',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(application.recruiterRemark),
+                  ],
                   const SizedBox(height: 24),
                   Text(
-                    'Recruiter remark',
+                    'Status history',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Text(application.recruiterRemark),
+                  if (data.history.isEmpty)
+                    const Text('No status history is available yet.')
+                  else
+                    ...data.history.map(
+                      (history) => TimelineTile(history: history),
+                    ),
                 ],
-                const SizedBox(height: 24),
-                Text(
-                  'Status history',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                if (data.history.isEmpty)
-                  const Text('No status history is available yet.')
-                else
-                  ...data.history.map(
-                    (history) => TimelineTile(history: history),
-                  ),
-              ],
-            );
-          },
+              );
+            },
           ),
         ),
       ),
@@ -302,7 +319,8 @@ class _ApplicationDetailError extends StatelessWidget {
 }
 
 class _ApplicationDetailData {
-  const _ApplicationDetailData({required this.application, required this.history});
+  const _ApplicationDetailData(
+      {required this.application, required this.history});
 
   final JobApplication application;
   final List<ApplicationStageHistory> history;

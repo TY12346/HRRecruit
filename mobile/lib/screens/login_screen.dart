@@ -122,11 +122,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           : const Text('Login'),
                     ),
                     TextButton(
-                      onPressed: isLoading ? null : () => context.push('/forgot-password'),
+                      onPressed: isLoading
+                          ? null
+                          : () => context.push('/forgot-password'),
                       child: const Text('Forgot password?'),
                     ),
                     TextButton(
-                      onPressed: isLoading ? null : () => context.push('/register'),
+                      onPressed:
+                          isLoading ? null : () => context.push('/register'),
                       child: const Text('Create applicant account'),
                     ),
                     const ApiSettingsButton(),

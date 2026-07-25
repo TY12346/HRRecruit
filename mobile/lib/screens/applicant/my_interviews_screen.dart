@@ -38,51 +38,61 @@ class _MyInterviewsScreenState extends State<MyInterviewsScreen> {
       child: Scaffold(
         appBar: appScreenAppBar(context, title: 'My interviews'),
         body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            _refresh();
-            await _interviewsFuture;
-          },
-          child: FutureBuilder<List<ApplicantInterview>>(
-            future: _interviewsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return ApiErrorMessage(error: snapshot.error!, onRetry: _refresh);
-              }
-              final interviews = snapshot.data ?? [];
-              if (interviews.isEmpty) {
-                return const ApplicantWorkflowMessage(
-                  icon: Icons.event_outlined,
-                  title: 'No interviews yet',
-                  message: 'Accepted, upcoming, and completed interviews will appear here.',
-                );
-              }
-
-              final upcoming = interviews.where((interview) => !interview.isCompleted).toList();
-              final completed = interviews.where((interview) => interview.isCompleted).toList();
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (upcoming.isNotEmpty) ...[
-                    Text('Upcoming', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    ...upcoming.map((interview) => InterviewCard(interview: interview)),
-                  ],
-                  if (completed.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text('Completed', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    ...completed.map((interview) => InterviewCard(interview: interview)),
-                  ],
-                ],
-              );
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _refresh();
+              await _interviewsFuture;
             },
+            child: FutureBuilder<List<ApplicantInterview>>(
+              future: _interviewsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return ApiErrorMessage(
+                      error: snapshot.error!, onRetry: _refresh);
+                }
+                final interviews = snapshot.data ?? [];
+                if (interviews.isEmpty) {
+                  return const ApplicantWorkflowMessage(
+                    icon: Icons.event_outlined,
+                    title: 'No interviews yet',
+                    message:
+                        'Accepted, upcoming, and completed interviews will appear here.',
+                  );
+                }
+
+                final upcoming = interviews
+                    .where((interview) => !interview.isCompleted)
+                    .toList();
+                final completed = interviews
+                    .where((interview) => interview.isCompleted)
+                    .toList();
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (upcoming.isNotEmpty) ...[
+                      Text('Upcoming',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      ...upcoming.map(
+                          (interview) => InterviewCard(interview: interview)),
+                    ],
+                    if (completed.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text('Completed',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      ...completed.map(
+                          (interview) => InterviewCard(interview: interview)),
+                    ],
+                  ],
+                );
+              },
+            ),
           ),
         ),
-      ),
       ),
     );
   }

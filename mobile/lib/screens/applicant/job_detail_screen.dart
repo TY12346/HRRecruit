@@ -67,8 +67,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _apply(JobPosting job) async {
-    final resumes =
-        context.read<AuthController>().profile?.resumes ??
+    final resumes = context.read<AuthController>().profile?.resumes ??
         const <ApplicantResume>[];
     if (resumes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,11 +171,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     List<JobApplication> applications,
     int jobId,
   ) {
-    final matching = applications.where((application) => application.jobId == jobId);
+    final matching =
+        applications.where((application) => application.jobId == jobId);
     if (matching.isEmpty) return null;
     return matching.reduce((latest, application) {
-      final latestDate = latest.appliedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final applicationDate = application.appliedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final latestDate =
+          latest.appliedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final applicationDate =
+          application.appliedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return applicationDate.isAfter(latestDate) ? application : latest;
     });
   }
@@ -188,14 +190,25 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
     final appliedAt = application.appliedAt;
     if (appliedAt == null) return false;
-    return !DateTime.now().isBefore(appliedAt.toLocal().add(const Duration(days: 30)));
+    return !DateTime.now()
+        .isBefore(appliedAt.toLocal().add(const Duration(days: 30)));
   }
 
   String _applicationDateLabel(DateTime? date) {
     if (date == null) return 'an earlier date';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final local = date.toLocal();
     return '${local.day} ${months[local.month - 1]} ${local.year}';
@@ -210,135 +223,144 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           child: FutureBuilder<JobPosting>(
             future: _jobFuture,
             builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return _DetailError(error: snapshot.error!, onRetry: _refresh);
-            }
-            final job = snapshot.data!;
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  job.title,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  job.organizationName,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Chip(
-                      label: Text(
-                        job.location.isEmpty ? 'Location n/a' : job.location,
-                      ),
-                    ),
-                    Chip(
-                      label: Text(
-                        job.employmentType.isEmpty
-                            ? 'Type n/a'
-                            : job.employmentType,
-                      ),
-                    ),
-                    Chip(label: Text(formatMoney(job.approximateSalary))),
-                    Chip(label: Text(titleCaseStatus(job.status))),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isSaving ? null : () => _toggleSaved(job),
-                        icon: Icon(
-                          job.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                        ),
-                        label: Text(job.isSaved ? 'Unsave job' : 'Save job'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FutureBuilder<List<JobApplication>>(
-                        future: _applicationsFuture,
-                        builder: (context, applicationSnapshot) {
-                          final application = _latestApplicationFor(
-                            applicationSnapshot.data ?? const <JobApplication>[],
-                            job.id,
-                          );
-                          final canApply = _canApplyAgain(application);
-                          if (application != null && !canApply) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                FilledButton.icon(
-                                  onPressed: null,
-                                  icon: const Icon(Icons.check_circle_outline),
-                                  label: const Text('Applied'),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'You applied on ${_applicationDateLabel(application.appliedAt)}.',
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            );
-                          }
-                          return FilledButton.icon(
-                            onPressed: _isApplying || job.status != 'open'
-                                ? null
-                                : () => _apply(job),
-                            icon: const Icon(Icons.send_outlined),
-                            label: Text(_isApplying ? 'Applying...' : 'Apply'),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Description',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  job.description.isEmpty
-                      ? 'No description provided.'
-                      : formatJobDescriptionText(job.description),
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Requirements',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                if (job.requirements.isEmpty)
-                  const Text('No requirements configured yet.')
-                else
-                  ...job.requirements.map(
-                    (requirement) => Card(
-                      child: ListTile(
-                        title: Text(requirement.description),
-                        subtitle: Text(
-                          '${titleCaseStatus(requirement.requirementType)} · '
-                          'Weight ${(requirement.weightScore * 100).toStringAsFixed(0)}% · '
-                          'Threshold ${(requirement.minimumThreshold * 100).toStringAsFixed(0)}%',
-                        ),
-                      ),
-                    ),
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return _DetailError(error: snapshot.error!, onRetry: _refresh);
+              }
+              final job = snapshot.data!;
+              return ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    job.title,
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                const SizedBox(height: 24),
-                Text('Posted ${formatDate(job.createdAt)}'),
-              ],
-            );
+                  const SizedBox(height: 6),
+                  Text(
+                    job.organizationName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Chip(
+                        label: Text(
+                          job.location.isEmpty ? 'Location n/a' : job.location,
+                        ),
+                      ),
+                      Chip(
+                        label: Text(
+                          job.employmentType.isEmpty
+                              ? 'Type n/a'
+                              : job.employmentType,
+                        ),
+                      ),
+                      Chip(label: Text(formatMoney(job.approximateSalary))),
+                      Chip(label: Text(titleCaseStatus(job.status))),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isSaving ? null : () => _toggleSaved(job),
+                          icon: Icon(
+                            job.isSaved
+                                ? Icons.bookmark
+                                : Icons.bookmark_border,
+                          ),
+                          label: Text(job.isSaved ? 'Unsave job' : 'Save job'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FutureBuilder<List<JobApplication>>(
+                          future: _applicationsFuture,
+                          builder: (context, applicationSnapshot) {
+                            final application = _latestApplicationFor(
+                              applicationSnapshot.data ??
+                                  const <JobApplication>[],
+                              job.id,
+                            );
+                            final canApply = _canApplyAgain(application);
+                            if (application != null && !canApply) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  FilledButton.icon(
+                                    onPressed: null,
+                                    icon:
+                                        const Icon(Icons.check_circle_outline),
+                                    label: const Text('Applied'),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'You applied on ${_applicationDateLabel(application.appliedAt)}.',
+                                    textAlign: TextAlign.center,
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              );
+                            }
+                            return FilledButton.icon(
+                              onPressed: _isApplying || job.status != 'open'
+                                  ? null
+                                  : () => _apply(job),
+                              icon: const Icon(Icons.send_outlined),
+                              label:
+                                  Text(_isApplying ? 'Applying...' : 'Apply'),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Description',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    job.description.isEmpty
+                        ? 'No description provided.'
+                        : formatJobDescriptionText(job.description),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(height: 1.5),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Requirements',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  if (job.requirements.isEmpty)
+                    const Text('No requirements configured yet.')
+                  else
+                    ...job.requirements.map(
+                      (requirement) => Card(
+                        child: ListTile(
+                          title: Text(requirement.description),
+                          subtitle: Text(
+                            '${titleCaseStatus(requirement.requirementType)} · '
+                            'Weight ${(requirement.weightScore * 100).toStringAsFixed(0)}% · '
+                            'Threshold ${(requirement.minimumThreshold * 100).toStringAsFixed(0)}%',
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  Text('Posted ${formatDate(job.createdAt)}'),
+                ],
+              );
             },
           ),
         ),

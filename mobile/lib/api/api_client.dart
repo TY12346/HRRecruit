@@ -67,7 +67,8 @@ class ApiClient {
       TargetPlatform.linux ||
       TargetPlatform.windows =>
         'http://localhost:8000/api/',
-      TargetPlatform.android || TargetPlatform.fuchsia =>
+      TargetPlatform.android ||
+      TargetPlatform.fuchsia =>
         'http://10.0.2.2:8000/api/',
     };
   }
@@ -106,14 +107,11 @@ class ApiClient {
         uri.host == '127.0.0.1' ||
         uri.host == '10.0.2.2' ||
         _isPrivateIpv4Address(uri.host);
-    final shouldUseDjangoDevPort = uri.scheme == 'http' &&
-        isLocalDevelopmentHost &&
-        !uri.hasPort;
+    final shouldUseDjangoDevPort =
+        uri.scheme == 'http' && isLocalDevelopmentHost && !uri.hasPort;
     final normalizedPath = _normalizeApiPath(uri.path);
     final normalizedUri = uri.replace(
-      port: shouldUseDjangoDevPort
-          ? 8000
-          : (uri.hasPort ? uri.port : null),
+      port: shouldUseDjangoDevPort ? 8000 : (uri.hasPort ? uri.port : null),
       path: normalizedPath,
     );
 
@@ -181,9 +179,7 @@ class ApiClient {
   Future<Uri> resolveBackendFileUri(String fileUrlOrPath) async {
     final trimmed = fileUrlOrPath.trim();
     final parsedUri = Uri.tryParse(trimmed);
-    if (parsedUri != null &&
-        parsedUri.hasScheme &&
-        parsedUri.host.isNotEmpty) {
+    if (parsedUri != null && parsedUri.hasScheme && parsedUri.host.isNotEmpty) {
       return parsedUri;
     }
 
@@ -193,9 +189,8 @@ class ApiClient {
       query: null,
       fragment: null,
     );
-    final normalizedPath = trimmed.startsWith('/')
-        ? trimmed.substring(1)
-        : trimmed;
+    final normalizedPath =
+        trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
     return backendRootUri.resolve(normalizedPath);
   }
 

@@ -59,7 +59,8 @@ class _HRRecruitApplicantAppState extends State<HRRecruitApplicantApp> {
         Provider<TokenStorage>.value(value: _tokenStorage),
         Provider<ApiClient>.value(value: _apiClient),
         Provider<ApplicantAuthService>.value(value: _authService),
-        Provider<PushNotificationService>.value(value: _pushNotificationService),
+        Provider<PushNotificationService>.value(
+            value: _pushNotificationService),
         Provider<JobDiscoveryService>(
           create: (_) => JobDiscoveryService(_apiClient),
         ),

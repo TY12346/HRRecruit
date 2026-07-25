@@ -63,117 +63,121 @@ class _RegisterScreenState extends State<RegisterScreen> {
           fallbackLocation: '/login',
         ),
         body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Create your applicant account',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Use this account to apply for jobs and maintain your resume profile.'),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _fullNameController,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Full name',
-                        border: OutlineInputBorder(),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Create your applicant account',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      validator: (value) => value == null || value.trim().isEmpty
-                          ? 'Full name is required.'
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 8),
+                      const Text(
+                          'Use this account to apply for jobs and maintain your resume profile.'),
+                      const SizedBox(height: 24),
+                      TextFormField(
+                        controller: _fullNameController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Full name',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                                ? 'Full name is required.'
+                                : null,
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Email is required.';
-                        }
-                        if (!value.contains('@')) {
-                          return 'Enter a valid email address.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone number',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email is required.';
+                          }
+                          if (!value.contains('@')) {
+                            return 'Enter a valid email address.';
+                          }
+                          return null;
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone number',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.length < 8) {
-                          return 'Password must be at least 8 characters.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Confirm password',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Password',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.length < 8) {
+                            return 'Password must be at least 8 characters.';
+                          }
+                          return null;
+                        },
                       ),
-                      validator: (value) => value != _passwordController.text
-                          ? 'Passwords do not match.'
-                          : null,
-                      onFieldSubmitted: (_) {
-                        if (!isLoading) _submit();
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: isLoading ? null : _submit,
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Register'),
-                    ),
-                    TextButton(
-                      onPressed: isLoading ? null : () => context.push('/login'),
-                      child: const Text('Already have an account? Login'),
-                    ),
-                    const ApiSettingsButton(),
-                  ],
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirm password',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) => value != _passwordController.text
+                            ? 'Passwords do not match.'
+                            : null,
+                        onFieldSubmitted: (_) {
+                          if (!isLoading) _submit();
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: isLoading ? null : _submit,
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Register'),
+                      ),
+                      TextButton(
+                        onPressed:
+                            isLoading ? null : () => context.push('/login'),
+                        child: const Text('Already have an account? Login'),
+                      ),
+                      const ApiSettingsButton(),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

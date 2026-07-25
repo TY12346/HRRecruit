@@ -12,10 +12,12 @@ class InterviewSchedulingRequestsScreen extends StatefulWidget {
   const InterviewSchedulingRequestsScreen({super.key});
 
   @override
-  State<InterviewSchedulingRequestsScreen> createState() => _InterviewSchedulingRequestsScreenState();
+  State<InterviewSchedulingRequestsScreen> createState() =>
+      _InterviewSchedulingRequestsScreenState();
 }
 
-class _InterviewSchedulingRequestsScreenState extends State<InterviewSchedulingRequestsScreen> {
+class _InterviewSchedulingRequestsScreenState
+    extends State<InterviewSchedulingRequestsScreen> {
   late Future<List<InterviewSchedulingRequest>> _requestsFuture;
   int? _bookingRequestId;
 
@@ -26,7 +28,9 @@ class _InterviewSchedulingRequestsScreenState extends State<InterviewSchedulingR
   }
 
   Future<List<InterviewSchedulingRequest>> _loadRequests() {
-    return context.read<ApplicantWorkflowService>().getInterviewSchedulingRequests();
+    return context
+        .read<ApplicantWorkflowService>()
+        .getInterviewSchedulingRequests();
   }
 
   void _refresh() {
@@ -62,14 +66,16 @@ class _InterviewSchedulingRequestsScreenState extends State<InterviewSchedulingR
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return ApiErrorMessage(error: snapshot.error!, onRetry: _refresh);
+                  return ApiErrorMessage(
+                      error: snapshot.error!, onRetry: _refresh);
                 }
                 final requests = snapshot.data ?? [];
                 if (requests.isEmpty) {
                   return const ApplicantWorkflowMessage(
                     icon: Icons.event_available_outlined,
                     title: 'No self-scheduling requests yet',
-                    message: 'When a recruiter asks you to choose an interview time, the request will appear here.',
+                    message:
+                        'When a recruiter asks you to choose an interview time, the request will appear here.',
                   );
                 }
                 return ListView.builder(
@@ -115,18 +121,25 @@ class _SchedulingRequestCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              application?.jobTitle.isNotEmpty == true ? application!.jobTitle : 'Interview scheduling request',
+              application?.jobTitle.isNotEmpty == true
+                  ? application!.jobTitle
+                  : 'Interview scheduling request',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
-            Text(application?.organizationName.isNotEmpty == true ? application!.organizationName : 'Organization not available'),
+            Text(application?.organizationName.isNotEmpty == true
+                ? application!.organizationName
+                : 'Organization not available'),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 Chip(label: Text(titleCaseStatus(request.status))),
-                if (request.expiresAt != null) Chip(label: Text('Expires ${formatDateTime(request.expiresAt)}')),
+                if (request.expiresAt != null)
+                  Chip(
+                      label:
+                          Text('Expires ${formatDateTime(request.expiresAt)}')),
               ],
             ),
             if (request.interviewerName.isNotEmpty) ...[
@@ -139,7 +152,8 @@ class _SchedulingRequestCard extends StatelessWidget {
             ],
             if (selectedSlot != null) ...[
               const SizedBox(height: 12),
-              Text('Selected slot: ${formatDateTime(selectedSlot.startDatetime)}'),
+              Text(
+                  'Selected slot: ${formatDateTime(selectedSlot.startDatetime)}'),
             ],
             if (request.status == 'pending') ...[
               const SizedBox(height: 12),
@@ -162,10 +176,12 @@ class InterviewSlotSelectionScreen extends StatefulWidget {
   final InterviewSchedulingRequest request;
 
   @override
-  State<InterviewSlotSelectionScreen> createState() => _InterviewSlotSelectionScreenState();
+  State<InterviewSlotSelectionScreen> createState() =>
+      _InterviewSlotSelectionScreenState();
 }
 
-class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScreen> {
+class _InterviewSlotSelectionScreenState
+    extends State<InterviewSlotSelectionScreen> {
   late Future<List<InterviewAvailableDate>> _datesFuture;
   Future<List<InterviewerAvailabilitySlot>>? _slotsFuture;
   InterviewAvailableDate? _selectedDate;
@@ -182,7 +198,9 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
   }
 
   Future<List<InterviewAvailableDate>> _loadDates() {
-    return context.read<ApplicantWorkflowService>().getInterviewAvailableDates(_applicationId);
+    return context
+        .read<ApplicantWorkflowService>()
+        .getInterviewAvailableDates(_applicationId);
   }
 
   Future<List<InterviewerAvailabilitySlot>> _loadSlots(String dateKey) {
@@ -212,11 +230,15 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
     if (slot == null) return;
     setState(() => _isBooking = true);
     try {
-      await context.read<ApplicantWorkflowService>().bookInterviewSchedulingRequest(
+      await context
+          .read<ApplicantWorkflowService>()
+          .bookInterviewSchedulingRequest(
             requestId: widget.request.id,
             slot: slot,
             mode: slot.mode.isEmpty ? 'online' : slot.mode,
-            meetingLink: slot.meetingLink.isEmpty ? 'https://meet.example.com/hrrecruit-interview' : slot.meetingLink,
+            meetingLink: slot.meetingLink.isEmpty
+                ? 'https://meet.example.com/hrrecruit-interview'
+                : slot.meetingLink,
             location: slot.location,
           );
       if (!mounted) return;
@@ -227,12 +249,14 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to book slot. ${readableApiError(error)}')),
+        SnackBar(
+            content: Text('Unable to book slot. ${readableApiError(error)}')),
       );
       setState(() {
         _step = 1;
         _selectedSlot = null;
-        if (_selectedDate != null) _slotsFuture = _loadSlots(_selectedDate!.dateKey);
+        if (_selectedDate != null)
+          _slotsFuture = _loadSlots(_selectedDate!.dateKey);
       });
     } finally {
       if (mounted) setState(() => _isBooking = false);
@@ -245,7 +269,12 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
         ? widget.request.application!.jobTitle
         : 'Interview';
     return Scaffold(
-      appBar: appScreenAppBar(context, title: _step == 0 ? 'Select Interview Date' : _step == 1 ? 'Select Interview Time' : 'Confirm Interview Slot'),
+      appBar: appScreenAppBar(context,
+          title: _step == 0
+              ? 'Select Interview Date'
+              : _step == 1
+                  ? 'Select Interview Time'
+                  : 'Confirm Interview Slot'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -255,7 +284,9 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
               Text(title, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 4),
               Text(
-                widget.request.remark.isNotEmpty ? widget.request.remark : 'Interview stage',
+                widget.request.remark.isNotEmpty
+                    ? widget.request.remark
+                    : 'Interview stage',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
@@ -281,14 +312,17 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return ApiErrorMessage(error: snapshot.error!, onRetry: () => setState(() => _datesFuture = _loadDates()));
+          return ApiErrorMessage(
+              error: snapshot.error!,
+              onRetry: () => setState(() => _datesFuture = _loadDates()));
         }
         final dates = snapshot.data ?? [];
         if (dates.isEmpty) {
           return const ApplicantWorkflowMessage(
             icon: Icons.event_busy_outlined,
             title: 'No dates available',
-            message: 'There are no interview dates available right now. Please check again later.',
+            message:
+                'There are no interview dates available right now. Please check again later.',
           );
         }
         return Column(
@@ -299,15 +333,22 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final availableDate = dates[index];
-                  final isSelected = availableDate.dateKey == _selectedDate?.dateKey;
+                  final isSelected =
+                      availableDate.dateKey == _selectedDate?.dateKey;
                   return Card(
-                    color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : null,
                     child: ListTile(
-                      onTap: () => setState(() => _selectedDate = availableDate),
+                      onTap: () =>
+                          setState(() => _selectedDate = availableDate),
                       leading: const Icon(Icons.calendar_month_outlined),
-                      title: Text('${availableDate.dayOfWeek}, ${formatDate(availableDate.date)}'),
-                      subtitle: Text('${availableDate.availableSlotCount} slots available'),
-                      trailing: isSelected ? const Icon(Icons.check_circle) : null,
+                      title: Text(
+                          '${availableDate.dayOfWeek}, ${formatDate(availableDate.date)}'),
+                      subtitle: Text(
+                          '${availableDate.availableSlotCount} slots available'),
+                      trailing:
+                          isSelected ? const Icon(Icons.check_circle) : null,
                     ),
                   );
                 },
@@ -347,7 +388,10 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
               if (snapshot.hasError) {
                 return ApiErrorMessage(
                   error: snapshot.error!,
-                  onRetry: selectedDate == null ? () {} : () => setState(() => _slotsFuture = _loadSlots(selectedDate.dateKey)),
+                  onRetry: selectedDate == null
+                      ? () {}
+                      : () => setState(() =>
+                          _slotsFuture = _loadSlots(selectedDate.dateKey)),
                 );
               }
               final slots = snapshot.data ?? [];
@@ -355,7 +399,8 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
                 return const ApplicantWorkflowMessage(
                   icon: Icons.schedule_outlined,
                   title: 'No times available',
-                  message: 'This date no longer has available slots. Please go back and choose another date.',
+                  message:
+                      'This date no longer has available slots. Please go back and choose another date.',
                 );
               }
               return ListView.separated(
@@ -365,13 +410,19 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
                   final slot = slots[index];
                   final isSelected = slot.id == _selectedSlot?.id;
                   return Card(
-                    color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : null,
                     child: ListTile(
                       onTap: () => setState(() => _selectedSlot = slot),
                       leading: const Icon(Icons.schedule_outlined),
-                      title: Text('${_formatTime(slot.startDatetime)} - ${_formatTime(slot.endDatetime)}'),
-                      subtitle: Text(slot.mode.isEmpty ? 'Interview mode not specified' : titleCaseStatus(slot.mode)),
-                      trailing: isSelected ? const Icon(Icons.check_circle) : null,
+                      title: Text(
+                          '${_formatTime(slot.startDatetime)} - ${_formatTime(slot.endDatetime)}'),
+                      subtitle: Text(slot.mode.isEmpty
+                          ? 'Interview mode not specified'
+                          : titleCaseStatus(slot.mode)),
+                      trailing:
+                          isSelected ? const Icon(Icons.check_circle) : null,
                     ),
                   );
                 },
@@ -381,9 +432,16 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
         ),
         Row(
           children: [
-            Expanded(child: OutlinedButton(onPressed: () => setState(() => _step = 0), child: const Text('Back'))),
+            Expanded(
+                child: OutlinedButton(
+                    onPressed: () => setState(() => _step = 0),
+                    child: const Text('Back'))),
             const SizedBox(width: 12),
-            Expanded(child: FilledButton(onPressed: _selectedSlot == null ? null : _goToConfirmationStep, child: const Text('Continue'))),
+            Expanded(
+                child: FilledButton(
+                    onPressed:
+                        _selectedSlot == null ? null : _goToConfirmationStep,
+                    child: const Text('Continue'))),
           ],
         ),
       ],
@@ -402,13 +460,27 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _SummaryRow(label: 'Job title', value: application?.jobTitle ?? 'Interview'),
-                _SummaryRow(label: 'Interview date', value: formatDate(slot?.startDatetime)),
-                _SummaryRow(label: 'Interview time', value: '${_formatTime(slot?.startDatetime)} - ${_formatTime(slot?.endDatetime)}'),
-                _SummaryRow(label: 'Mode', value: slot?.mode.isNotEmpty == true ? titleCaseStatus(slot!.mode) : 'Not specified'),
-                _SummaryRow(label: 'Interviewer', value: _interviewerSummary(slot)),
-                if (slot?.meetingLink.isNotEmpty == true) _SummaryRow(label: 'Meeting link', value: slot!.meetingLink),
-                if (slot?.location.isNotEmpty == true) _SummaryRow(label: 'Location', value: slot!.location),
+                _SummaryRow(
+                    label: 'Job title',
+                    value: application?.jobTitle ?? 'Interview'),
+                _SummaryRow(
+                    label: 'Interview date',
+                    value: formatDate(slot?.startDatetime)),
+                _SummaryRow(
+                    label: 'Interview time',
+                    value:
+                        '${_formatTime(slot?.startDatetime)} - ${_formatTime(slot?.endDatetime)}'),
+                _SummaryRow(
+                    label: 'Mode',
+                    value: slot?.mode.isNotEmpty == true
+                        ? titleCaseStatus(slot!.mode)
+                        : 'Not specified'),
+                _SummaryRow(
+                    label: 'Interviewer', value: _interviewerSummary(slot)),
+                if (slot?.meetingLink.isNotEmpty == true)
+                  _SummaryRow(label: 'Meeting link', value: slot!.meetingLink),
+                if (slot?.location.isNotEmpty == true)
+                  _SummaryRow(label: 'Location', value: slot!.location),
               ],
             ),
           ),
@@ -416,13 +488,20 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
         const Spacer(),
         Row(
           children: [
-            Expanded(child: OutlinedButton(onPressed: _isBooking ? null : () => setState(() => _step = 1), child: const Text('Back'))),
+            Expanded(
+                child: OutlinedButton(
+                    onPressed:
+                        _isBooking ? null : () => setState(() => _step = 1),
+                    child: const Text('Back'))),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
                 onPressed: _isBooking ? null : _confirmBooking,
                 child: _isBooking
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const Text('Confirm Slot'),
               ),
             ),
@@ -442,9 +521,15 @@ class _InterviewSlotSelectionScreenState extends State<InterviewSlotSelectionScr
   }
 
   String _interviewerSummary(InterviewerAvailabilitySlot? slot) {
-    if (slot == null) return widget.request.interviewerName.isEmpty ? 'Not available' : widget.request.interviewerName;
-    if (slot.interviewerNames.isNotEmpty) return slot.interviewerNames.join(', ');
-    return widget.request.interviewerName.isEmpty ? 'Not available' : widget.request.interviewerName;
+    if (slot == null)
+      return widget.request.interviewerName.isEmpty
+          ? 'Not available'
+          : widget.request.interviewerName;
+    if (slot.interviewerNames.isNotEmpty)
+      return slot.interviewerNames.join(', ');
+    return widget.request.interviewerName.isEmpty
+        ? 'Not available'
+        : widget.request.interviewerName;
   }
 }
 

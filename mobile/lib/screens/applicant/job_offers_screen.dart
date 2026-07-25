@@ -39,10 +39,15 @@ class _JobOffersScreenState extends State<JobOffersScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Accept job offer?'),
-        content: const Text('This will notify the recruiter and HR team that you accepted the offer.'),
+        content: const Text(
+            'This will notify the recruiter and HR team that you accepted the offer.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Accept')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Accept')),
         ],
       ),
     );
@@ -61,7 +66,9 @@ class _JobOffersScreenState extends State<JobOffersScreen> {
 
     await _submitOfferAction(
       offer,
-      () => context.read<ApplicantWorkflowService>().declineJobOffer(offer.id, reason: reason),
+      () => context
+          .read<ApplicantWorkflowService>()
+          .declineJobOffer(offer.id, reason: reason),
       'Job offer declined.',
     );
   }
@@ -75,7 +82,8 @@ class _JobOffersScreenState extends State<JobOffersScreen> {
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(successMessage)));
       _refresh();
     } catch (error) {
       if (!mounted) return;
@@ -101,7 +109,9 @@ class _JobOffersScreenState extends State<JobOffersScreen> {
           maxLines: 4,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text('Decline'),
@@ -119,45 +129,47 @@ class _JobOffersScreenState extends State<JobOffersScreen> {
       child: Scaffold(
         appBar: appScreenAppBar(context, title: 'Job offers'),
         body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            _refresh();
-            await _offersFuture;
-          },
-          child: FutureBuilder<List<JobOffer>>(
-            future: _offersFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return ApiErrorMessage(error: snapshot.error!, onRetry: _refresh);
-              }
-              final offers = snapshot.data ?? [];
-              if (offers.isEmpty) {
-                return const ApplicantWorkflowMessage(
-                  icon: Icons.card_giftcard_outlined,
-                  title: 'No job offers yet',
-                  message: 'Approved offers from recruiters will appear here.',
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: offers.length,
-                itemBuilder: (context, index) {
-                  final offer = offers[index];
-                  return JobOfferCard(
-                    offer: offer,
-                    isBusy: _busyOfferId == offer.id,
-                    onAccept: () => _accept(offer),
-                    onDecline: () => _decline(offer),
-                  );
-                },
-              );
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _refresh();
+              await _offersFuture;
             },
+            child: FutureBuilder<List<JobOffer>>(
+              future: _offersFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return ApiErrorMessage(
+                      error: snapshot.error!, onRetry: _refresh);
+                }
+                final offers = snapshot.data ?? [];
+                if (offers.isEmpty) {
+                  return const ApplicantWorkflowMessage(
+                    icon: Icons.card_giftcard_outlined,
+                    title: 'No job offers yet',
+                    message:
+                        'Approved offers from recruiters will appear here.',
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: offers.length,
+                  itemBuilder: (context, index) {
+                    final offer = offers[index];
+                    return JobOfferCard(
+                      offer: offer,
+                      isBusy: _busyOfferId == offer.id,
+                      onAccept: () => _accept(offer),
+                      onDecline: () => _decline(offer),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
-      ),
       ),
     );
   }

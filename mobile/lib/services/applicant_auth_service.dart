@@ -101,7 +101,8 @@ class ApplicantAuthService {
   }
 
   Future<ApplicantProfile> getProfile() async {
-    final response = await _apiClient.dio.get<Map<String, dynamic>>('auth/profile/');
+    final response =
+        await _apiClient.dio.get<Map<String, dynamic>>('auth/profile/');
     return ApplicantProfile.fromJson(response.data!);
   }
 

@@ -34,7 +34,9 @@ class _HeadhuntInvitesScreenState extends State<HeadhuntInvitesScreen> {
 
   Future<void> _decline(EmployerInvite invite) async {
     try {
-      await context.read<JobDiscoveryService>().declineEmployerInvite(invite.id);
+      await context
+          .read<JobDiscoveryService>()
+          .declineEmployerInvite(invite.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invitation declined.')),
@@ -85,13 +87,15 @@ class _HeadhuntInvitesScreenState extends State<HeadhuntInvitesScreen> {
                   return Card(
                     child: ListTile(
                       title: Text(invite.jobTitle),
-                      subtitle: Text('${invite.organizationName}\n$responseLabel'),
+                      subtitle:
+                          Text('${invite.organizationName}\n$responseLabel'),
                       isThreeLine: true,
                       trailing: Wrap(
                         spacing: 4,
                         children: [
                           TextButton(
-                            onPressed: () => context.push('/jobs/${invite.jobId}'),
+                            onPressed: () =>
+                                context.push('/jobs/${invite.jobId}'),
                             child: const Text('View job'),
                           ),
                           if (unanswered)

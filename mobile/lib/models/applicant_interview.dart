@@ -110,7 +110,9 @@ class InterviewerAvailabilitySlot {
       meetingLink: json['meeting_link'] as String? ?? '',
       location: json['location'] as String? ?? '',
       interviewerNames: json['interviewer_names'] is List
-          ? (json['interviewer_names'] as List).map((value) => value.toString()).toList()
+          ? (json['interviewer_names'] as List)
+              .map((value) => value.toString())
+              .toList()
           : const [],
     );
   }

@@ -275,8 +275,9 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
                       ),
                       const SizedBox(height: 16),
                       OutlinedButton.icon(
-                        onPressed:
-                            auth.isLoading || !canUploadMore ? null : _pickResume,
+                        onPressed: auth.isLoading || !canUploadMore
+                            ? null
+                            : _pickResume,
                         icon: const Icon(Icons.attach_file),
                         label: const Text('Choose resume'),
                       ),
@@ -311,7 +312,8 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
     );
   }
 
-  Widget _resumeTile(BuildContext context, ApplicantResume resume, bool isLoading) {
+  Widget _resumeTile(
+      BuildContext context, ApplicantResume resume, bool isLoading) {
     return Card.outlined(
       child: ListTile(
         leading: const Icon(Icons.description_outlined),

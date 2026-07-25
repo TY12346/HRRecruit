@@ -17,7 +17,8 @@ class JobDiscoveryService {
       'jobs/',
       queryParameters: {
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
-        if (location != null && location.trim().isNotEmpty) 'location': location.trim(),
+        if (location != null && location.trim().isNotEmpty)
+          'location': location.trim(),
         if (employmentType != null && employmentType.trim().isNotEmpty)
           'employment_type': employmentType.trim(),
       },
@@ -29,7 +30,8 @@ class JobDiscoveryService {
   }
 
   Future<JobPosting> getJob(int jobId) async {
-    final response = await _apiClient.dio.get<Map<String, dynamic>>('jobs/$jobId/');
+    final response =
+        await _apiClient.dio.get<Map<String, dynamic>>('jobs/$jobId/');
     return JobPosting.fromJson(response.data!);
   }
 
@@ -59,7 +61,8 @@ class JobDiscoveryService {
   }
 
   Future<JobApplication> withdrawApplication(int jobId) async {
-    final response = await _apiClient.dio.delete<Map<String, dynamic>>('jobs/$jobId/apply/');
+    final response =
+        await _apiClient.dio.delete<Map<String, dynamic>>('jobs/$jobId/apply/');
     return JobApplication.fromJson(response.data!);
   }
 
@@ -72,11 +75,13 @@ class JobDiscoveryService {
   }
 
   Future<JobApplication> getApplication(int applicationId) async {
-    final response = await _apiClient.dio.get<Map<String, dynamic>>('applications/$applicationId/');
+    final response = await _apiClient.dio
+        .get<Map<String, dynamic>>('applications/$applicationId/');
     return JobApplication.fromJson(response.data!);
   }
 
-  Future<List<ApplicationStageHistory>> getApplicationHistory(int applicationId) async {
+  Future<List<ApplicationStageHistory>> getApplicationHistory(
+      int applicationId) async {
     final response = await _apiClient.dio.get<List<dynamic>>(
       'applications/$applicationId/status-history/',
     );
@@ -89,11 +94,16 @@ class JobDiscoveryService {
 
 extension EmployerInviteDiscovery on JobDiscoveryService {
   Future<List<EmployerInvite>> getEmployerInvites() async {
-    final response = await _apiClient.dio.get<List<dynamic>>('applications/employer-invites/');
-    return (response.data ?? []).whereType<Map<String, dynamic>>().map(EmployerInvite.fromJson).toList();
+    final response = await _apiClient.dio
+        .get<List<dynamic>>('applications/employer-invites/');
+    return (response.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(EmployerInvite.fromJson)
+        .toList();
   }
 
   Future<void> declineEmployerInvite(int inviteId) async {
-    await _apiClient.dio.post<void>('applications/employer-invites/$inviteId/decline/');
+    await _apiClient.dio
+        .post<void>('applications/employer-invites/$inviteId/decline/');
   }
 }

@@ -85,107 +85,112 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
       child: Scaffold(
         appBar: appScreenAppBar(context, title: 'Find jobs'),
         body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            _search();
-            await _jobsFuture;
-          },
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              TextField(
-                controller: _searchController,
-                textInputAction: TextInputAction.search,
-                decoration: const InputDecoration(
-                  labelText: 'Search title or description',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _search();
+              await _jobsFuture;
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    labelText: 'Search title or description',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) => _search(),
                 ),
-                onSubmitted: (_) => _search(),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _locationController,
-                      decoration: const InputDecoration(
-                        labelText: 'Location',
-                        border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _locationController,
+                        decoration: const InputDecoration(
+                          labelText: 'Location',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _employmentType,
-                      decoration: const InputDecoration(
-                        labelText: 'Employment type',
-                        border: OutlineInputBorder(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _employmentType,
+                        decoration: const InputDecoration(
+                          labelText: 'Employment type',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _employmentTypeOptions
+                            .map((option) => DropdownMenuItem(
+                                  value: option['value'],
+                                  child: Text(option['label']!),
+                                ))
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => _employmentType = value ?? ''),
                       ),
-                      items: _employmentTypeOptions
-                          .map((option) => DropdownMenuItem(
-                                value: option['value'],
-                                child: Text(option['label']!),
-                              ))
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _search,
+                        icon: const Icon(Icons.tune),
+                        label: const Text('Apply filters'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    TextButton(
+                        onPressed: _clearFilters, child: const Text('Clear')),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                FutureBuilder<List<JobPosting>>(
+                  future: _jobsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                          child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(),
+                      ));
+                    }
+                    if (snapshot.hasError) {
+                      return _ErrorState(
+                          error: snapshot.error!, onRetry: _search);
+                    }
+                    final jobs = snapshot.data ?? [];
+                    if (jobs.isEmpty) {
+                      return const _EmptyState(
+                        icon: Icons.work_outline,
+                        title: 'No open jobs found',
+                        message:
+                            'Try changing your search keyword, location, or employment type.',
+                      );
+                    }
+                    return Column(
+                      children: jobs
+                          .map(
+                            (job) => JobSummaryCard(
+                              job: job,
+                              onTap: () => context.push('/jobs/${job.id}'),
+                              onSaveToggle: () => _toggleSaved(job),
+                            ),
+                          )
                           .toList(),
-                      onChanged: (value) => setState(() => _employmentType = value ?? ''),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _search,
-                      icon: const Icon(Icons.tune),
-                      label: const Text('Apply filters'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  TextButton(onPressed: _clearFilters, child: const Text('Clear')),
-                ],
-              ),
-              const SizedBox(height: 16),
-              FutureBuilder<List<JobPosting>>(
-                future: _jobsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: CircularProgressIndicator(),
-                    ));
-                  }
-                  if (snapshot.hasError) {
-                    return _ErrorState(error: snapshot.error!, onRetry: _search);
-                  }
-                  final jobs = snapshot.data ?? [];
-                  if (jobs.isEmpty) {
-                    return const _EmptyState(
-                      icon: Icons.work_outline,
-                      title: 'No open jobs found',
-                      message: 'Try changing your search keyword, location, or employment type.',
                     );
-                  }
-                  return Column(
-                    children: jobs
-                        .map(
-                          (job) => JobSummaryCard(
-                            job: job,
-                            onTap: () => context.push('/jobs/${job.id}'),
-                            onSaveToggle: () => _toggleSaved(job),
-                          ),
-                        )
-                        .toList(),
-                  );
-                },
-              ),
-            ],
+                  },
+                ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -212,7 +217,8 @@ class _ErrorState extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.title, required this.message});
+  const _EmptyState(
+      {required this.icon, required this.title, required this.message});
 
   final IconData icon;
   final String title;

@@ -8,15 +8,18 @@ class ApplicantWorkflowService {
 
   final ApiClient _apiClient;
 
-  Future<List<InterviewSchedulingRequest>> getInterviewSchedulingRequests() async {
-    final response = await _apiClient.dio.get<List<dynamic>>('interviews/scheduling-requests/');
+  Future<List<InterviewSchedulingRequest>>
+      getInterviewSchedulingRequests() async {
+    final response = await _apiClient.dio
+        .get<List<dynamic>>('interviews/scheduling-requests/');
     return (response.data ?? [])
         .whereType<Map<String, dynamic>>()
         .map(InterviewSchedulingRequest.fromJson)
         .toList();
   }
 
-  Future<InterviewSchedulingRequest> getInterviewSchedulingRequest(int requestId) async {
+  Future<InterviewSchedulingRequest> getInterviewSchedulingRequest(
+      int requestId) async {
     final requests = await getInterviewSchedulingRequests();
     return requests.firstWhere(
       (request) => request.id == requestId,
@@ -24,9 +27,8 @@ class ApplicantWorkflowService {
     );
   }
 
-
-
-  Future<List<InterviewAvailableDate>> getInterviewAvailableDates(int applicationId) async {
+  Future<List<InterviewAvailableDate>> getInterviewAvailableDates(
+      int applicationId) async {
     final response = await _apiClient.dio.get<List<dynamic>>(
       'applications/$applicationId/interview-available-dates/',
     );
@@ -48,7 +50,8 @@ class ApplicantWorkflowService {
     return (response.data ?? [])
         .whereType<Map<String, dynamic>>()
         .map(InterviewerAvailabilitySlot.fromJson)
-        .where((slot) => slot.startDatetime == null || slot.startDatetime!.isAfter(now))
+        .where((slot) =>
+            slot.startDatetime == null || slot.startDatetime!.isAfter(now))
         .toList();
   }
 
@@ -124,7 +127,8 @@ class ApplicantWorkflowService {
   }
 
   Future<int> markAllNotificationsRead() async {
-    final response = await _apiClient.dio.patch<Map<String, dynamic>>('notifications/read-all/');
+    final response = await _apiClient.dio
+        .patch<Map<String, dynamic>>('notifications/read-all/');
     final count = response.data?['updated_count'];
     if (count is num) return count.toInt();
     return int.tryParse(count?.toString() ?? '') ?? 0;

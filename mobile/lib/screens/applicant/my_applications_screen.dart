@@ -40,52 +40,55 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
       child: Scaffold(
         appBar: appScreenAppBar(context, title: 'My applications'),
         body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            _refresh();
-            await _applicationsFuture;
-          },
-          child: FutureBuilder<List<JobApplication>>(
-            future: _applicationsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return _ApplicationsMessage(
-                  icon: Icons.error_outline,
-                  title: 'Could not load applications',
-                  message: readableApiError(snapshot.error!),
-                  action: OutlinedButton(onPressed: _refresh, child: const Text('Retry')),
-                );
-              }
-              final applications = snapshot.data ?? [];
-              if (applications.isEmpty) {
-                return _ApplicationsMessage(
-                  icon: Icons.assignment_outlined,
-                  title: 'No applications yet',
-                  message: 'Apply to open jobs to track your application progress here.',
-                  action: FilledButton(
-                    onPressed: () => context.push('/jobs'),
-                    child: const Text('Find jobs'),
-                  ),
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: applications.length,
-                itemBuilder: (context, index) {
-                  final application = applications[index];
-                  return ApplicationSummaryCard(
-                    application: application,
-                    onTap: () => context.push('/applications/${application.id}'),
-                  );
-                },
-              );
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _refresh();
+              await _applicationsFuture;
             },
+            child: FutureBuilder<List<JobApplication>>(
+              future: _applicationsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return _ApplicationsMessage(
+                    icon: Icons.error_outline,
+                    title: 'Could not load applications',
+                    message: readableApiError(snapshot.error!),
+                    action: OutlinedButton(
+                        onPressed: _refresh, child: const Text('Retry')),
+                  );
+                }
+                final applications = snapshot.data ?? [];
+                if (applications.isEmpty) {
+                  return _ApplicationsMessage(
+                    icon: Icons.assignment_outlined,
+                    title: 'No applications yet',
+                    message:
+                        'Apply to open jobs to track your application progress here.',
+                    action: FilledButton(
+                      onPressed: () => context.push('/jobs'),
+                      child: const Text('Find jobs'),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: applications.length,
+                  itemBuilder: (context, index) {
+                    final application = applications[index];
+                    return ApplicationSummaryCard(
+                      application: application,
+                      onTap: () =>
+                          context.push('/applications/${application.id}'),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -111,7 +114,9 @@ class _ApplicationsMessage extends StatelessWidget {
       children: [
         Icon(icon, size: 56),
         const SizedBox(height: 12),
-        Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+        Text(title,
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center),
         const SizedBox(height: 8),
         Text(message, textAlign: TextAlign.center),
         if (action != null) ...[
