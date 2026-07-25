@@ -281,7 +281,7 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
             for answer in answers_data
         )
         interview.application.change_status(
-            JobApplication.Status.EVALUATION_SUBMITTED,
+            JobApplication.Status.SHORTLISTED,
             changed_by=request.user,
             note='Interview evaluation submitted.',
         )

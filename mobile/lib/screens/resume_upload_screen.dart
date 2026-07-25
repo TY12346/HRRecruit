@@ -316,7 +316,7 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
       child: ListTile(
         leading: const Icon(Icons.description_outlined),
         title: Text(_resumeLabel(resume)),
-        subtitle: Text(_resumeValidationLabel(resume)),
+        subtitle: const Text('Available for job applications'),
         trailing: PopupMenuButton<String>(
           enabled: !isLoading,
           onSelected: (value) {
@@ -332,15 +332,6 @@ class _ResumeUploadScreenState extends State<ResumeUploadScreen> {
         ),
       ),
     );
-  }
-
-  String _resumeValidationLabel(ApplicantResume resume) {
-    final result = resume.validationResult;
-    if (result.isEmpty) return 'Available for job applications';
-    if (result['is_valid'] == true) return 'Resume validated for screening';
-    final missing = (result['missing_fields'] as List?)?.join(', ');
-    if (missing != null && missing.isNotEmpty) return 'Incomplete resume: $missing';
-    return result['message'] as String? ?? 'Resume needs correction before screening';
   }
 
   String _resumeLabel(ApplicantResume resume) {

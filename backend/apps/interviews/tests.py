@@ -311,7 +311,7 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(scheduling_request.remark, 'Please choose a technical interview slot.')
         self.assertIsNotNone(scheduling_request.interview)
         self.assertEqual(scheduling_request.interview.interviewer, self.interviewer)
-        self.assertEqual(scheduling_request.interview.status, Interview.Status.ASSIGNED)
+        self.assertEqual(scheduling_request.interview.status, Interview.Status.INVITED)
         self.assertEqual(scheduling_request.interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
 
         self.authenticate(self.interviewer)
@@ -371,7 +371,7 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
         self.assertEqual(interview.meeting_link, 'https://meet.example.com/self-scheduled')
         self.application.refresh_from_db()
-        self.assertEqual(self.application.status, JobApplication.Status.INTERVIEW_ACCEPTED)
+        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
 
 
     @patch('apps.interviews.views.sync_calendar_event_for_interview')
@@ -550,14 +550,14 @@ class InterviewManagementAPITests(APITestCase):
             organization=self.organization,
             recruiter=self.recruiter,
             interviewer=self.interviewer,
-            status=Interview.Status.ASSIGNED,
+            status=Interview.Status.INVITED,
         )
         latest_interview = Interview.objects.create(
             application=self.application,
             organization=self.organization,
             recruiter=self.recruiter,
             interviewer=self.interviewer,
-            status=Interview.Status.ASSIGNED,
+            status=Interview.Status.INVITED,
         )
         slot = InterviewerAvailabilitySlot.objects.create(
             organization=self.organization,
@@ -588,7 +588,7 @@ class InterviewManagementAPITests(APITestCase):
         scheduling_request.refresh_from_db()
         self.assertEqual(scheduling_request.interview, latest_interview)
         older_interview.refresh_from_db()
-        self.assertEqual(older_interview.status, Interview.Status.ASSIGNED)
+        self.assertEqual(older_interview.status, Interview.Status.INVITED)
 
     def test_applicant_cannot_book_unavailable_slot(self):
         slot = InterviewerAvailabilitySlot.objects.create(
@@ -1221,8 +1221,8 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(str(evaluation.total_score), '8.40')
         self.application.refresh_from_db()
         self.interview.refresh_from_db()
-        self.assertEqual(self.application.status, JobApplication.Status.EVALUATION_SUBMITTED)
-        self.assertEqual(self.interview.status, Interview.Status.COMPLETED)
+        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.interview.status, Interview.Status.EVALUATION_SUBMITTED)
 
         interview_response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
         self.assertEqual(interview_response.status_code, status.HTTP_200_OK)

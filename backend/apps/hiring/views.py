@@ -191,7 +191,7 @@ def decision_for_hr_or_404(user, decision_id):
 # Recruiters may only request hiring manager approval after an interviewer has submitted
 # the interview evaluation. This keeps the FYP demo workflow in the required
 # interview -> evaluation -> hiring-decision order.
-HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES = (JobApplication.Status.EVALUATION_SUBMITTED,)
+HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES = (JobApplication.Status.SHORTLISTED,)
 
 
 class JobApplicantComparisonAPIView(APIView):
@@ -279,7 +279,7 @@ class JobHiringDecisionListCreateAPIView(APIView):
         if JobHiringDecision.objects.filter(job_posting=job, status=JobHiringDecision.Status.PENDING_HR_APPROVAL).exists():
             raise ValidationError({'job_posting': 'This job already has a decision pending hiring manager approval.'})
         readiness = refresh_job_readiness(job)
-        if not readiness['ready'] or job.status not in (JobPosting.Status.READY_FOR_DECISION, JobPosting.Status.DECISION_REJECTED):
+        if not readiness['ready'] or job.status not in (JobPosting.Status.CLOSED, JobPosting.Status.CLOSED):
             raise ValidationError({'readiness': readiness['reasons'] or ['Job is not ready for a hiring decision.']})
 
         decision_type = serializer.validated_data['decision_type']
@@ -315,7 +315,7 @@ class JobHiringDecisionListCreateAPIView(APIView):
                                         selection_order=index, reason=reasons.get(str(application.id), ''), selected_for_offer=True)
             for index, application in enumerate(applications, start=1)
         ])
-        job.status = JobPosting.Status.DECISION_PENDING
+        job.status = JobPosting.Status.CLOSED
         job.save(update_fields=['status', 'updated_at'])
         create_bulk_notifications(list(organization_hr_heads(job.organization)), 'hiring_decision_submitted',
                                   'Job-level hiring decision pending approval',
@@ -338,11 +338,11 @@ class JobHiringDecisionApproveAPIView(APIView):
         decision.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'hr_remarks', 'updated_at'])
         job = decision.job_posting
         if decision.decision_type == JobHiringDecision.DecisionType.RECOMMEND_NO_HIRE:
-            job.status = JobPosting.Status.CLOSED_NO_HIRE
+            job.status = JobPosting.Status.CLOSED
         else:
-            job.status = JobPosting.Status.DECISION_APPROVED
+            job.status = JobPosting.Status.CLOSED
             for item in decision.items.select_related('application'):
-                change_application_status(item.application, JobApplication.Status.HR_APPROVED, request.user, 'Selected in approved job-level hiring decision.')
+                change_application_status(item.application, JobApplication.Status.SHORTLISTED, request.user, 'Selected in approved job-level hiring decision.')
         job.save(update_fields=['status', 'updated_at'])
         create_notification(decision.recruiter, 'hiring_decision_reviewed', 'Hiring decision approved',
                             f'Hiring manager approved the hiring decision for {job.title}.', related_entity=decision)
@@ -363,7 +363,7 @@ class JobHiringDecisionRejectAPIView(APIView):
         decision.hr_remarks = serializer.validated_data['hr_remarks']
         decision.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'hr_remarks', 'updated_at'])
         job = decision.job_posting
-        job.status = JobPosting.Status.DECISION_REJECTED
+        job.status = JobPosting.Status.CLOSED
         job.save(update_fields=['status', 'updated_at'])
         create_notification(decision.recruiter, 'hiring_decision_reviewed', 'Hiring decision returned for review',
                             f'Hiring manager rejected the hiring decision for {job.title}.', related_entity=decision)
@@ -419,7 +419,7 @@ class HiringDecisionApproveAPIView(APIView):
 
         application = decision.application
         if decision.decision == HiringDecision.Decision.HIRE:
-            new_status = JobApplication.Status.HR_APPROVED
+            new_status = JobApplication.Status.SHORTLISTED
             note = f'Hiring manager approved hire decision: {decision.hr_head_justification}'
         else:
             new_status = JobApplication.Status.REJECTED
@@ -463,7 +463,7 @@ class HiringDecisionRejectAPIView(APIView):
         application = decision.application
         change_application_status(
             application,
-            JobApplication.Status.HR_REJECTED,
+            JobApplication.Status.REJECTED,
             request.user,
             f'Hiring manager rejected {decision.decision} decision: {decision.hr_head_justification}',
         )
@@ -491,7 +491,7 @@ class JobOfferCreateAPIView(APIView):
             decision__decision_type=JobHiringDecision.DecisionType.RECOMMEND_HIRE,
             decision__status=JobHiringDecision.Status.APPROVED,
         ).exists()
-        if not approved_hire_exists or application.status != JobApplication.Status.HR_APPROVED:
+        if not approved_hire_exists or application.status != JobApplication.Status.SHORTLISTED:
             raise ValidationError({'application': 'A job offer can only be sent to a applicant selected in an HR-approved job-level hiring decision.'})
         if JobOffer.objects.filter(application=application, offer_status=JobOffer.OfferStatus.SENT).exists():
             raise ValidationError({'application': 'This application already has a sent job offer.'})
@@ -499,8 +499,8 @@ class JobOfferCreateAPIView(APIView):
         serializer = JobOfferCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         offer = JobOffer.objects.create(application=application, **serializer.validated_data)
-        change_application_status(application, JobApplication.Status.OFFER_SENT, request.user, 'Recruiter sent job offer.')
-        application.job.status = JobPosting.Status.OFFER_STAGE
+        change_application_status(application, JobApplication.Status.SHORTLISTED, request.user, 'Recruiter sent job offer.')
+        application.job.status = JobPosting.Status.CLOSED
         application.job.save(update_fields=['status', 'updated_at'])
         create_notification(
             application.applicant,
@@ -539,7 +539,7 @@ class JobOfferAcceptAPIView(APIView):
         if offer.offer_status != JobOffer.OfferStatus.SENT:
             raise ValidationError({'offer_status': 'Only sent job offers can be accepted.'})
         if offer.respond_deadline < timezone.now():
-            offer.offer_status = JobOffer.OfferStatus.EXPIRED
+            offer.offer_status = JobOffer.OfferStatus.DECLINED
             offer.save(update_fields=['offer_status'])
             raise ValidationError({'respond_deadline': 'This job offer has expired.'})
 
@@ -553,11 +553,11 @@ class JobOfferAcceptAPIView(APIView):
         application = offer.application
         change_application_status(
             application,
-            JobApplication.Status.HIRED,
+            JobApplication.Status.SHORTLISTED,
             request.user,
             'Applicant accepted job offer; application marked as hired for final lifecycle and analytics.',
         )
-        application.job.status = JobPosting.Status.CLOSED_FILLED
+        application.job.status = JobPosting.Status.CLOSED
         application.job.save(update_fields=['status', 'updated_at'])
         create_notification(
             application.job.recruiter,
@@ -595,7 +595,7 @@ class JobOfferDeclineAPIView(APIView):
         offer.save(update_fields=['offer_status', 'responded_at', 'applicant_response_note'])
         application = offer.application
         decline_note = serializer.validated_data.get('reason') or 'Applicant declined job offer.'
-        change_application_status(application, JobApplication.Status.OFFER_DECLINED, request.user, decline_note)
+        change_application_status(application, JobApplication.Status.REJECTED, request.user, decline_note)
         create_notification(
             application.job.recruiter,
             'offer_response',
@@ -621,14 +621,14 @@ class JobOfferWithdrawAPIView(APIView):
         if offer.offer_status != JobOffer.OfferStatus.SENT:
             raise ValidationError({'offer_status': 'Only sent job offers can be withdrawn.'})
 
-        offer.offer_status = JobOffer.OfferStatus.WITHDRAWN
+        offer.offer_status = JobOffer.OfferStatus.DECLINED
         offer.withdrawn_at = timezone.now()
         offer.internal_notes = request.data.get('internal_notes', offer.internal_notes)
         offer.save(update_fields=['offer_status', 'withdrawn_at', 'internal_notes'])
         application = offer.application
         change_application_status(
             application,
-            JobApplication.Status.HR_APPROVED,
+            JobApplication.Status.SHORTLISTED,
             request.user,
             'Recruiter withdrew the sent job offer; applicant remains HR-approved for a revised offer.',
         )

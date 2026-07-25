@@ -19,10 +19,12 @@ export default function JobRequirementsPage() {
   const [requirements, setRequirements] = useState([cloneRequirement()]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [requirementsLocked, setRequirementsLocked] = useState(false);
 
   useEffect(() => {
     getJob(jobId)
       .then((job) => {
+        setRequirementsLocked(Boolean(job.requirements_locked_at) || job.status !== 'drafting');
         if (job.requirements?.length) {
           setRequirements(job.requirements.map(hydrateRequirement));
         }
@@ -63,6 +65,11 @@ export default function JobRequirementsPage() {
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Job requirements</Typography>
+        {requirementsLocked ? (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Requirements are locked because this job has been posted, ensuring consistent AI resume screening.
+          </Alert>
+        ) : null}
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         <Box component="form" onSubmit={save}>
@@ -73,6 +80,7 @@ export default function JobRequirementsPage() {
                   <TextField
                     label="Type"
                     select
+                    disabled={requirementsLocked}
                     value={req.requirement_type}
                     onChange={(event) => update(index, 'requirement_type', event.target.value)}
                   >
@@ -85,6 +93,7 @@ export default function JobRequirementsPage() {
                   <TextField
                     label="Description"
                     required
+                    disabled={requirementsLocked}
                     value={req.description}
                     onChange={(event) => update(index, 'description', event.target.value)}
                   />
@@ -92,6 +101,7 @@ export default function JobRequirementsPage() {
                     <TextField
                       label="Importance"
                       select
+                      disabled={requirementsLocked}
                       value={req.importance_level}
                       onChange={(event) => update(index, 'importance_level', event.target.value)}
                     >
@@ -104,7 +114,7 @@ export default function JobRequirementsPage() {
                   </Stack>
                   <Button
                     color="error"
-                    disabled={requirements.length === 1}
+                    disabled={requirementsLocked || requirements.length === 1}
                     onClick={() => setRequirements((items) => items.filter((_, itemIndex) => itemIndex !== index))}
                   >
                     Remove
@@ -113,10 +123,10 @@ export default function JobRequirementsPage() {
               </Paper>
             ))}
             <Stack direction="row" spacing={1}>
-              <Button onClick={() => setRequirements((items) => [...items, cloneRequirement()])} variant="outlined">
+              <Button disabled={requirementsLocked} onClick={() => setRequirements((items) => [...items, cloneRequirement()])} variant="outlined">
                 Add requirement
               </Button>
-              <Button type="submit" variant="contained">Save requirements</Button>
+              <Button disabled={requirementsLocked} type="submit" variant="contained">Save requirements</Button>
               <Button onClick={() => navigate(`/recruiter/jobs/${jobId}`)}>Back to job</Button>
             </Stack>
           </Stack>

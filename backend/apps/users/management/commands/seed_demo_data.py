@@ -303,7 +303,7 @@ class Command(BaseCommand):
             applicant=users[User.Role.APPLICANT],
             job=job,
             defaults={
-                'status': JobApplication.Status.HIRED,
+                'status': JobApplication.Status.SHORTLISTED,
                 'resume': selected_resume,
                 'recruiter_remark': 'Demo applicant completed the full FYP workflow and accepted the offer.',
                 'assigned_interviewer': users[User.Role.INTERVIEWER],
@@ -334,11 +334,7 @@ class Command(BaseCommand):
                 },
             },
         )
-        self._ensure_application_history(application, JobApplication.Status.SUBMITTED, JobApplication.Status.SCREENED_QUALIFIED, users[User.Role.RECRUITER], 'AI screening qualified for recruiter review.')
-        self._ensure_application_history(application, JobApplication.Status.SCREENED_QUALIFIED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'Recruiter shortlisted applicant for interview.')
-        self._ensure_application_history(application, JobApplication.Status.SHORTLISTED, JobApplication.Status.INTERVIEW_ACCEPTED, users[User.Role.APPLICANT], 'Applicant accepted scheduled interview.')
-        self._ensure_application_history(application, JobApplication.Status.INTERVIEW_ACCEPTED, JobApplication.Status.EVALUATION_SUBMITTED, users[User.Role.INTERVIEWER], 'Interviewer submitted evaluation.')
-        self._ensure_application_history(application, JobApplication.Status.EVALUATION_SUBMITTED, JobApplication.Status.HIRED, users[User.Role.HR_HEAD], 'hiring manager approved hiring and applicant accepted offer.')
+        self._ensure_application_history(application, JobApplication.Status.REJECTED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'AI screening shortlisted applicant for recruiter review.')
         return application
 
     def _ensure_application_history(self, application, from_stage, to_stage, changed_by, note):
@@ -361,11 +357,12 @@ class Command(BaseCommand):
                 'mode': Interview.Mode.ONLINE,
                 'meeting_link': 'https://meet.example.com/hrrecruit-demo-software-engineer',
                 'location': '',
-                'status': Interview.Status.COMPLETED,
+                'status': Interview.Status.EVALUATION_SUBMITTED,
             },
         )
-        self._ensure_interview_history(interview, Interview.Status.ASSIGNED, Interview.Status.SCHEDULED, users[User.Role.RECRUITER], 'Recruiter scheduled interview.')
+        self._ensure_interview_history(interview, Interview.Status.INVITED, Interview.Status.SCHEDULED, users[User.Role.RECRUITER], 'Recruiter scheduled interview.')
         self._ensure_interview_history(interview, Interview.Status.SCHEDULED, Interview.Status.COMPLETED, users[User.Role.INTERVIEWER], 'Interview completed for demo workflow.')
+        self._ensure_interview_history(interview, Interview.Status.COMPLETED, Interview.Status.EVALUATION_SUBMITTED, users[User.Role.INTERVIEWER], 'Interview evaluation submitted.')
         recording = self._seed_recording(interview, users[User.Role.INTERVIEWER])
         transcript = self._seed_transcript(recording)
         self._seed_ai_summary(transcript, users[User.Role.INTERVIEWER])

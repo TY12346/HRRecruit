@@ -49,19 +49,8 @@ const ROLE_CONFIG = {
 
 const STATUS_OPTIONS = [
   ['all', 'All application statuses'],
-  ['submitted', 'Submitted'],
-  ['screened_qualified', 'Screened qualified'],
-  ['screened_not_qualified', 'Screened not qualified'],
   ['shortlisted', 'Shortlisted'],
   ['rejected', 'Rejected'],
-  ['interview_invited', 'Interview invited'],
-  ['interview_accepted', 'Interview accepted'],
-  ['evaluation_submitted', 'Evaluation submitted'],
-  ['decision_pending', 'Decision pending'],
-  ['hr_approved', 'Hiring manager approved'],
-  ['hr_rejected', 'Hiring manager rejected'],
-  ['offer_sent', 'Offer sent'],
-  ['hired', 'Hired'],
 ];
 
 const INTERVIEW_OPTIONS = [
@@ -69,7 +58,7 @@ const INTERVIEW_OPTIONS = [
   ['upcoming', 'Upcoming interviews'],
   ['completed', 'Completed interviews'],
   ['pending_evaluation', 'Pending evaluation'],
-  ['assigned', 'Assigned'],
+  ['invited', 'Invited'],
   ['scheduled', 'Scheduled'],
   ['cancelled', 'Cancelled'],
 ];

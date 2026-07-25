@@ -83,21 +83,7 @@ def get_organization_deletion_blockers(organization):
     if active_job_count:
         blockers.append('Close all draft or open job postings before deleting the organization.')
 
-    active_application_statuses = [
-        JobApplication.Status.SUBMITTED,
-        JobApplication.Status.SCREENED,
-        JobApplication.Status.SCREENED_QUALIFIED,
-        JobApplication.Status.SCREENED_NOT_QUALIFIED,
-        JobApplication.Status.SHORTLISTED,
-        JobApplication.Status.INTERVIEW_INVITED,
-        JobApplication.Status.INTERVIEW_ACCEPTED,
-        JobApplication.Status.INTERVIEWING,
-        JobApplication.Status.EVALUATION_SUBMITTED,
-        JobApplication.Status.DECISION_PENDING,
-        JobApplication.Status.HR_APPROVED,
-        JobApplication.Status.OFFER_SENT,
-        JobApplication.Status.OFFER_ACCEPTED,
-    ]
+    active_application_statuses = [JobApplication.Status.SHORTLISTED]
     active_application_count = JobApplication.objects.filter(
         job__organization=organization,
         status__in=active_application_statuses,
@@ -107,12 +93,12 @@ def get_organization_deletion_blockers(organization):
 
     active_interview_count = organization.interviews.filter(
         status__in=[
-            Interview.Status.ASSIGNED,
+            Interview.Status.INVITED,
             Interview.Status.SCHEDULED,
         ],
     ).count()
     if active_interview_count:
-        blockers.append('Complete, cancel, or decline all active interviews before deleting the organization.')
+        blockers.append('Complete or cancel all active interviews before deleting the organization.')
 
     pending_decision_count = HiringDecision.objects.filter(
         application__job__organization=organization,
@@ -123,10 +109,14 @@ def get_organization_deletion_blockers(organization):
 
     sent_offer_count = JobOffer.objects.filter(
         application__job__organization=organization,
-        offer_status=JobOffer.OfferStatus.SENT,
+        offer_status__in=[
+            JobOffer.OfferStatus.DRAFTING,
+            JobOffer.OfferStatus.PENDING_APPROVAL,
+            JobOffer.OfferStatus.SENT,
+        ],
     ).count()
     if sent_offer_count:
-        blockers.append('Wait for sent job offers to be accepted, declined, or expired before deleting the organization.')
+        blockers.append('Resolve all drafting, pending, or sent job offers before deleting the organization.')
 
     active_subscription_count = organization.subscriptions.filter(
         status__in=[Subscription.Status.PENDING, Subscription.Status.ACTIVE],

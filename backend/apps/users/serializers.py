@@ -127,8 +127,8 @@ class ApplicantResumeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ApplicantResume
-        fields = ['id', 'title', 'resume_file', 'resume_url', 'is_default', 'validation_result', 'uploaded_at']
-        read_only_fields = ['id', 'resume_url', 'validation_result', 'uploaded_at']
+        fields = ['id', 'title', 'resume_file', 'resume_url', 'is_default', 'uploaded_at']
+        read_only_fields = ['id', 'resume_url', 'uploaded_at']
 
     def get_resume_url(self, resume):
         if not resume.resume_file:
@@ -347,8 +347,8 @@ class ResumeUploadSerializer(ApplicantResumeSerializer):
     resume_file = serializers.FileField(write_only=True)
 
     class Meta(ApplicantResumeSerializer.Meta):
-        fields = ['id', 'title', 'resume_file', 'resume_url', 'is_default', 'validation_result', 'uploaded_at']
-        read_only_fields = ['id', 'resume_url', 'validation_result', 'uploaded_at']
+        fields = ['id', 'title', 'resume_file', 'resume_url', 'is_default', 'uploaded_at']
+        read_only_fields = ['id', 'resume_url', 'uploaded_at']
 
     def validate(self, attrs):
         request = self.context['request']

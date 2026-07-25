@@ -37,10 +37,10 @@ class AnalyticsAPITests(APITestCase):
         self.job = self.create_job(self.recruiter, self.organization, 'Backend Engineer')
         self.other_job = self.create_job(self.other_recruiter, self.other_organization, 'External Job')
         self.colleague_job = self.create_job(self.colleague_recruiter, self.organization, 'Colleague Job')
-        self.submitted_application = self.create_application(self.job, self.applicant, JobApplication.Status.SUBMITTED)
+        self.submitted_application = self.create_application(self.job, self.applicant, JobApplication.Status.SHORTLISTED)
         self.shortlisted_application = self.create_application(self.job, self.applicant_two, JobApplication.Status.SHORTLISTED)
-        self.hired_application = self.create_application(self.job, self.applicant_three, JobApplication.Status.HIRED)
-        self.other_application = self.create_application(self.other_job, self.other_applicant, JobApplication.Status.HIRED)
+        self.hired_application = self.create_application(self.job, self.applicant_three, JobApplication.Status.SHORTLISTED)
+        self.other_application = self.create_application(self.other_job, self.other_applicant, JobApplication.Status.SHORTLISTED)
 
         applied_at = timezone.now() - timezone.timedelta(days=10)
         hired_at = timezone.now() - timezone.timedelta(days=1)
@@ -53,8 +53,8 @@ class AnalyticsAPITests(APITestCase):
         )
         ApplicationStageHistory.objects.create(
             application=self.hired_application,
-            from_stage=JobApplication.Status.OFFER_ACCEPTED,
-            to_stage=JobApplication.Status.HIRED,
+            from_stage=JobApplication.Status.SHORTLISTED,
+            to_stage=JobApplication.Status.SHORTLISTED,
             changed_by=self.recruiter,
             note='Applicant accepted and joined.',
         )
@@ -65,7 +65,7 @@ class AnalyticsAPITests(APITestCase):
             organization=self.organization,
             recruiter=self.recruiter,
             interviewer=self.interviewer,
-            status=Interview.Status.COMPLETED,
+            status=Interview.Status.EVALUATION_SUBMITTED,
         )
         InterviewEvaluation.objects.create(
             interview=self.interview,
@@ -78,6 +78,7 @@ class AnalyticsAPITests(APITestCase):
             offer_message='Welcome aboard.',
             offer_status=JobOffer.OfferStatus.ACCEPTED,
             respond_deadline=timezone.now() + timezone.timedelta(days=7),
+            responded_at=hired_at,
         )
 
     def create_user(self, email, role, full_name):
@@ -178,7 +179,7 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('pipeline_health', response.data['metrics'])
         self.assertIn('insights', response.data['metrics']['pipeline_health'])
-        self.assertEqual(response.data['metrics']['stage_transition_counts'][0]['to_stage'], JobApplication.Status.HIRED)
+        self.assertEqual(response.data['metrics']['stage_transition_counts'][0]['to_stage'], JobApplication.Status.SHORTLISTED)
         self.assertEqual(response.data['metrics']['applications_over_time'][timezone.now().strftime('%b %Y')], 3)
         self.assertEqual(response.data['top_jobs_by_applications'][0]['applications'], 3)
         self.assertEqual(response.data['top_jobs_by_applications'][0]['average_score'], 66.67)

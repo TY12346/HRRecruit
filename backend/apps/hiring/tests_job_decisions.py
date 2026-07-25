@@ -21,7 +21,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         for user, role in ((self.hr, OrganizationMembership.Role.HR_HEAD), (self.recruiter, OrganizationMembership.Role.RECRUITER), (self.interviewer, OrganizationMembership.Role.INTERVIEWER)):
             OrganizationMembership.objects.create(organization=self.organization, user=user, role=role)
         self.job = JobPosting.objects.create(organization=self.organization, recruiter=self.recruiter, title='Engineer', description='Build', employment_type='Full time', location='Remote', status=JobPosting.Status.OPEN, vacancies=1)
-        self.application = JobApplication.objects.create(job=self.job, applicant=self.applicant, status=JobApplication.Status.EVALUATION_SUBMITTED, final_score='88.00')
+        self.application = JobApplication.objects.create(job=self.job, applicant=self.applicant, status=JobApplication.Status.SHORTLISTED, final_score='88.00')
 
     def close_intake(self):
         self.client.force_authenticate(self.recruiter)
@@ -40,7 +40,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         response = self.close_intake()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['readiness']['ready'])
-        self.assertEqual(response.data['job']['status'], JobPosting.Status.READY_FOR_DECISION)
+        self.assertEqual(response.data['job']['status'], JobPosting.Status.CLOSED)
         self.client.force_authenticate(self.applicant)
         apply_response = self.client.post(reverse('job-apply', args=[self.job.id]), {}, format='json')
         self.assertEqual(apply_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -49,7 +49,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(self.submit().status_code, status.HTTP_400_BAD_REQUEST)
         self.close_intake()
         second = User.objects.create_user(email='second-flow@example.com', password='pass', full_name='Second', role=User.Role.APPLICANT)
-        second_application = JobApplication.objects.create(job=self.job, applicant=second, status=JobApplication.Status.EVALUATION_SUBMITTED)
+        second_application = JobApplication.objects.create(job=self.job, applicant=second, status=JobApplication.Status.SHORTLISTED)
         response = self.submit(application_ids=[self.application.id, second_application.id])
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('application_ids', response.data)
@@ -82,7 +82,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         )
         interview = Interview.objects.create(
             application=self.application, organization=self.organization, recruiter=self.recruiter,
-            interviewer=self.interviewer, status=Interview.Status.COMPLETED,
+            interviewer=self.interviewer, status=Interview.Status.EVALUATION_SUBMITTED,
         )
         interview.panel_interviewers.add(panel_interviewer)
         InterviewEvaluation.objects.create(
@@ -108,7 +108,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         review = self.client.post(reverse('job-hiring-decision-approve', args=[response.data['id']]), {'hr_remarks': 'No suitable applicant.'}, format='json')
         self.assertEqual(review.status_code, status.HTTP_200_OK)
         self.job.refresh_from_db()
-        self.assertEqual(self.job.status, JobPosting.Status.CLOSED_NO_HIRE)
+        self.assertEqual(self.job.status, JobPosting.Status.CLOSED)
 
     def test_hr_rejects_whole_decision_and_applicant_cannot_access_it(self):
         self.close_intake()
@@ -144,7 +144,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
             organization=self.organization,
             recruiter=self.recruiter,
             interviewer=self.interviewer,
-            status=Interview.Status.COMPLETED,
+            status=Interview.Status.EVALUATION_SUBMITTED,
         )
         interview.panel_interviewers.add(panel_interviewer)
 
