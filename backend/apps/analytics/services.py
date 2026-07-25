@@ -17,14 +17,14 @@ from apps.users.models import User
 
 DROPOUT_STATUSES = (JobApplication.Status.REJECTED,)
 REJECTED_STATUSES = (JobApplication.Status.REJECTED,)
-SHORTLIST_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
-INTERVIEW_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
-EVALUATION_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
-OFFER_OR_BEYOND_STATUSES = (JobApplication.Status.SHORTLISTED,)
+SHORTLIST_OR_BEYOND_STATUSES = (JobApplication.Status.UNDER_REVIEW,)
+INTERVIEW_OR_BEYOND_STATUSES = (JobApplication.Status.UNDER_REVIEW,)
+EVALUATION_OR_BEYOND_STATUSES = (JobApplication.Status.UNDER_REVIEW,)
+OFFER_OR_BEYOND_STATUSES = (JobApplication.Status.UNDER_REVIEW,)
 
 FUNNEL_STAGES = OrderedDict(
     (
-        ('Shortlisted', (JobApplication.Status.SHORTLISTED,)),
+        ('Under review', (JobApplication.Status.UNDER_REVIEW,)),
         ('Rejected', REJECTED_STATUSES),
     )
 )
@@ -256,7 +256,7 @@ def base_application_metrics(jobs, applications):
     from apps.hiring.models import JobHiringDecision
     from apps.jobs.models import JobPosting
     total_applications = applications.count()
-    shortlisted_count = applications.filter(status=JobApplication.Status.SHORTLISTED).count()
+    shortlisted_count = applications.filter(status=JobApplication.Status.UNDER_REVIEW).count()
     rejected_count = applications.filter(status__in=REJECTED_STATUSES).count()
     hired_count = applications.filter(job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED).distinct().count()
     dropout_count = applications.filter(status__in=DROPOUT_STATUSES).count()

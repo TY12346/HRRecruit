@@ -35,7 +35,7 @@ class InterviewManagementAPITests(APITestCase):
         self.application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SHORTLISTED,
+            status=JobApplication.Status.UNDER_REVIEW,
         )
 
     def create_user(self, email, role):
@@ -371,7 +371,7 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
         self.assertEqual(interview.meeting_link, 'https://meet.example.com/self-scheduled')
         self.application.refresh_from_db()
-        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
 
 
     @patch('apps.interviews.views.sync_calendar_event_for_interview')
@@ -738,7 +738,7 @@ class InterviewEvaluationAPITests(APITestCase):
         self.application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SHORTLISTED,
+            status=JobApplication.Status.UNDER_REVIEW,
         )
         self.form = InterviewEvaluationForm.objects.create(job=self.job, title='Technical Interview')
         self.criterion_one = EvaluationCriterion.objects.create(
@@ -1259,7 +1259,7 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(str(evaluation.total_score), '8.40')
         self.application.refresh_from_db()
         self.interview.refresh_from_db()
-        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
         self.assertEqual(self.interview.status, Interview.Status.EVALUATION_SUBMITTED)
 
         interview_response = self.client.get(reverse('interview-detail', args=[self.interview.id]))
@@ -1495,7 +1495,7 @@ class WeeklyAvailabilitySchedulingTests(InterviewManagementAPITests):
     @patch('apps.interviews.views.sync_calendar_event_for_interview')
     def test_applicant_books_generated_slot_and_second_applicant_cannot_double_book(self, _mock_sync_calendar):
         pattern = self.create_monday_pattern()
-        other_application = JobApplication.objects.create(job=self.job, applicant=self.other_applicant, status=JobApplication.Status.SHORTLISTED)
+        other_application = JobApplication.objects.create(job=self.job, applicant=self.other_applicant, status=JobApplication.Status.UNDER_REVIEW)
         first_request = InterviewSchedulingRequest.objects.create(application=self.application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
         second_request = InterviewSchedulingRequest.objects.create(application=other_application, organization=self.organization, recruiter=self.recruiter, interviewer=self.interviewer)
         payload = {

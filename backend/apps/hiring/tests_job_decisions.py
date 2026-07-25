@@ -21,7 +21,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         for user, role in ((self.hr, OrganizationMembership.Role.HR_HEAD), (self.recruiter, OrganizationMembership.Role.RECRUITER), (self.interviewer, OrganizationMembership.Role.INTERVIEWER)):
             OrganizationMembership.objects.create(organization=self.organization, user=user, role=role)
         self.job = JobPosting.objects.create(organization=self.organization, recruiter=self.recruiter, title='Engineer', description='Build', employment_type='Full time', location='Remote', status=JobPosting.Status.OPEN, vacancies=1)
-        self.application = JobApplication.objects.create(job=self.job, applicant=self.applicant, status=JobApplication.Status.SHORTLISTED, final_score='88.00')
+        self.application = JobApplication.objects.create(job=self.job, applicant=self.applicant, status=JobApplication.Status.UNDER_REVIEW, final_score='88.00')
 
     def close_intake(self):
         self.client.force_authenticate(self.recruiter)
@@ -49,7 +49,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(self.submit().status_code, status.HTTP_400_BAD_REQUEST)
         self.close_intake()
         second = User.objects.create_user(email='second-flow@example.com', password='pass', full_name='Second', role=User.Role.APPLICANT)
-        second_application = JobApplication.objects.create(job=self.job, applicant=second, status=JobApplication.Status.SHORTLISTED)
+        second_application = JobApplication.objects.create(job=self.job, applicant=second, status=JobApplication.Status.UNDER_REVIEW)
         response = self.submit(application_ids=[self.application.id, second_application.id])
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('application_ids', response.data)

@@ -20,7 +20,7 @@ from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, Sa
 class RecruitmentStatusVocabularyTests(SimpleTestCase):
     def test_recruitment_models_expose_the_simplified_statuses(self):
         self.assertEqual(JobPosting.Status.values, ['drafting', 'open', 'closed'])
-        self.assertEqual(JobApplication.Status.values, ['shortlisted', 'rejected'])
+        self.assertEqual(JobApplication.Status.values, ['under_review', 'rejected'])
         self.assertEqual(
             Interview.Status.values,
             ['invited', 'scheduled', 'cancelled', 'completed', 'evaluation_submitted'],

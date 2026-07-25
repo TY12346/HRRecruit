@@ -28,7 +28,7 @@ class HiringWorkflowAPITests(APITestCase):
         self.application = JobApplication.objects.create(
             job=self.job,
             applicant=self.applicant,
-            status=JobApplication.Status.SHORTLISTED,
+            status=JobApplication.Status.UNDER_REVIEW,
         )
 
     def create_user(self, email, role):
@@ -103,7 +103,7 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertEqual(submit_response.status_code, status.HTTP_201_CREATED)
         decision = HiringDecision.objects.get(application=self.application)
         self.application.refresh_from_db()
-        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
         self.assertTrue(Notification.objects.filter(recipient=self.hr_head, title='Hiring decision pending approval').exists())
 
         self.authenticate(self.hr_head)
@@ -117,14 +117,14 @@ class HiringWorkflowAPITests(APITestCase):
         self.application.refresh_from_db()
         self.assertEqual(decision.status, HiringDecision.Status.APPROVED)
         self.assertEqual(decision.hr_head, self.hr_head)
-        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
         self.assertTrue(Notification.objects.filter(recipient=self.recruiter, title='Hiring decision approved').exists())
 
         offer_response = self.send_offer()
         self.assertEqual(offer_response.status_code, status.HTTP_201_CREATED)
         offer = JobOffer.objects.get(application=self.application)
         self.application.refresh_from_db()
-        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
         self.assertEqual(offer.salary_amount, 8500)
         self.assertEqual(offer.salary_currency, 'MYR')
         self.assertEqual(offer.work_arrangement, 'Hybrid')
@@ -145,7 +145,7 @@ class HiringWorkflowAPITests(APITestCase):
         self.application.refresh_from_db()
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.ACCEPTED)
         self.assertEqual(offer.applicant_response_note, 'I am excited to join.')
-        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
         self.assertTrue(Notification.objects.filter(recipient=self.recruiter, title='Job offer accepted').exists())
 
     def test_hr_head_rejects_hiring_decision_and_records_status_history(self):
@@ -253,5 +253,5 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.DECLINED)
         self.assertIsNotNone(offer.withdrawn_at)
         self.assertEqual(offer.internal_notes, 'Applicant requested a revised start date.')
-        self.assertEqual(self.application.status, JobApplication.Status.SHORTLISTED)
+        self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
         self.assertTrue(Notification.objects.filter(recipient=self.applicant, title='Job offer withdrawn').exists())

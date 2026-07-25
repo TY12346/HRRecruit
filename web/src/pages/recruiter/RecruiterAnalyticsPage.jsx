@@ -197,7 +197,7 @@ export default function RecruiterAnalyticsPage() {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={3}><Stat label="Job postings" value={metrics.total_job_postings} /></Grid>
               <Grid item xs={12} sm={6} md={3}><Stat label="Applications" value={metrics.total_applications} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Shortlisted" value={metrics.shortlisted_count} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><Stat label="Under review" value={metrics.shortlisted_count} /></Grid>
               <Grid item xs={12} sm={6} md={3}><Stat label="Hired" value={metrics.hired_count} /></Grid>
               <Grid item xs={12} sm={6} md={3}><Stat label="Rejected" value={metrics.rejected_count} /></Grid>
               <Grid item xs={12} sm={6} md={3}><Stat label="Avg. time-to-hire" value={`${metrics.average_time_to_hire_days ?? 0} days`} /></Grid>

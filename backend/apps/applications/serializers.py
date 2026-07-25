@@ -232,8 +232,14 @@ class ApplicationRejectSerializer(serializers.Serializer):
     remark = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
     def validate(self, attrs):
-        if not attrs.get('reason') and not attrs.get('remark'):
-            raise serializers.ValidationError({'reason': 'Rejecting a applicant requires a reason or remark.'})
+        application = self.context.get('application')
+        was_ai_shortlisted = (
+            application
+            and application.status == JobApplication.Status.UNDER_REVIEW
+            and application.score_explanation.get('qualification_decision') == 'qualified'
+        )
+        if not was_ai_shortlisted and not attrs.get('reason') and not attrs.get('remark'):
+            raise serializers.ValidationError({'reason': 'Rejecting an applicant requires a reason or remark.'})
         return attrs
 
 

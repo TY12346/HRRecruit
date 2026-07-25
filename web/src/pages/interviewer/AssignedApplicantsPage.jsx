@@ -80,7 +80,7 @@ export default function AssignedApplicantsPage() {
               value={statusFilter}
             >
               <MenuItem value="all">All statuses</MenuItem>
-              <MenuItem value="shortlisted">Shortlisted</MenuItem>
+              <MenuItem value="under_review">Under review</MenuItem>
             </TextField>
             <Button type="submit" variant="outlined">Search</Button>
           </Stack>

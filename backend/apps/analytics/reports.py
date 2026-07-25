@@ -35,7 +35,7 @@ REPORT_TITLES = {
 METRIC_LABELS = {
     'total_job_postings': 'Total Job Postings',
     'total_applications': 'Total Applications',
-    'shortlisted_count': 'Shortlisted Applicants',
+    'shortlisted_count': 'Applications Under Review',
     'rejected_count': 'Rejected Applicants',
     'hired_count': 'Hired Applicants',
     'average_time_to_hire_days': 'Average Time to Hire (Days)',

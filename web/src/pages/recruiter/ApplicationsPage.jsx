@@ -36,7 +36,7 @@ import {
 
 const STATUS_FILTERS = [
   ['all', 'All application statuses'],
-  ['shortlisted', 'Shortlisted'],
+  ['under_review', 'Under review'],
   ['rejected', 'Rejected'],
 ];
 
@@ -148,12 +148,18 @@ export default function ApplicationsPage() {
   const resetFilters = () => applyFilters(APPLICATION_FILTER_DEFAULTS);
 
   const reject = async (app) => {
-    const defaultMessage = renderApplicationTemplate('rejection', app.status === 'shortlisted' ? 'rejection_after_interview' : 'rejection_general', app);
-    const reason = window.prompt('Applicant rejection message', defaultMessage);
-    if (!reason) return;
+    const wasAiShortlisted = app.status === 'under_review' && app.score_explanation?.qualification_decision === 'qualified';
+    let reason = '';
+    if (wasAiShortlisted) {
+      if (!window.confirm('Reject this applicant? A rejection reason is optional.')) return;
+    } else {
+      const defaultMessage = renderApplicationTemplate('rejection', 'rejection_general', app);
+      reason = window.prompt('Applicant rejection message', defaultMessage);
+      if (!reason) return;
+    }
     setBusyId(app.id);
     try {
-      await rejectApplication(app.id, { reason, remark: reason });
+      await rejectApplication(app.id, reason ? { reason, remark: reason } : {});
       setSuccess('Applicant rejected.');
       load(filters);
     } catch (err) {

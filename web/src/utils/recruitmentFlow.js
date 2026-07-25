@@ -1,12 +1,12 @@
 export const APPLICATION_PHASES = [
-  { key: 'shortlisted', label: 'Shortlisted', statuses: ['shortlisted'] },
+  { key: 'under_review', label: 'Under review', statuses: ['under_review'] },
   { key: 'rejected', label: 'Rejected', statuses: ['rejected'] },
 ];
 
 const STATUS_DETAILS = {
-  shortlisted: {
-    label: 'Shortlisted',
-    description: 'The recruiter selected the applicant to continue in the recruitment process.',
+  under_review: {
+    label: 'Under review',
+    description: 'The application is being reviewed by the recruitment team.',
     nextActions: {
       recruiter: 'Arrange and monitor the applicant interviews.',
       interviewer: 'Review your interview assignment and complete the interview evaluation.',

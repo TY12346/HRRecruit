@@ -303,7 +303,7 @@ class Command(BaseCommand):
             applicant=users[User.Role.APPLICANT],
             job=job,
             defaults={
-                'status': JobApplication.Status.SHORTLISTED,
+                'status': JobApplication.Status.UNDER_REVIEW,
                 'resume': selected_resume,
                 'recruiter_remark': 'Demo applicant completed the full FYP workflow and accepted the offer.',
                 'assigned_interviewer': users[User.Role.INTERVIEWER],
@@ -334,7 +334,7 @@ class Command(BaseCommand):
                 },
             },
         )
-        self._ensure_application_history(application, JobApplication.Status.REJECTED, JobApplication.Status.SHORTLISTED, users[User.Role.RECRUITER], 'AI screening shortlisted applicant for recruiter review.')
+        self._ensure_application_history(application, JobApplication.Status.REJECTED, JobApplication.Status.UNDER_REVIEW, users[User.Role.RECRUITER], 'AI screening shortlisted applicant for recruiter review.')
         return application
 
     def _ensure_application_history(self, application, from_stage, to_stage, changed_by, note):

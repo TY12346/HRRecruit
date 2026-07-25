@@ -241,7 +241,7 @@ export default function HiringManagerAnalyticsPage() {
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}><MetricCard label="Job postings" value={metrics.total_job_postings} /></Grid>
           <Grid item xs={12} sm={6} md={3}><MetricCard label="Applications" value={metrics.total_applications} /></Grid>
-          <Grid item xs={12} sm={6} md={3}><MetricCard label="Shortlisted" value={metrics.shortlisted_count} /></Grid>
+          <Grid item xs={12} sm={6} md={3}><MetricCard label="Under review" value={metrics.shortlisted_count} /></Grid>
           <Grid item xs={12} sm={6} md={3}><MetricCard label="Hired" value={metrics.hired_count} /></Grid>
           <Grid item xs={12} sm={6} md={3}><MetricCard label="Hiring success" value={`${metrics.hiring_success_rate ?? 0}%`} /></Grid>
           <Grid item xs={12} sm={6} md={3}><MetricCard label="Rejection rate" value={`${metrics.rejection_rate ?? 0}%`} /></Grid>

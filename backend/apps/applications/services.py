@@ -15,7 +15,7 @@ def screen_job_application(application):
         'qualified' if is_qualified else 'not_qualified'
     )
     screened_status = (
-        JobApplication.Status.SHORTLISTED
+        JobApplication.Status.UNDER_REVIEW
         if is_qualified
         else JobApplication.Status.REJECTED
     )

@@ -5,7 +5,7 @@ from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting
 
 
-ELIGIBLE_DECISION_STATUSES = {JobApplication.Status.SHORTLISTED}
+ELIGIBLE_DECISION_STATUSES = {JobApplication.Status.UNDER_REVIEW}
 
 
 def interview_scorecard_progress(interview):
