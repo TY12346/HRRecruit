@@ -7,18 +7,16 @@ import '../api/api_client.dart';
 String readableApiError(Object error, {String? apiBaseUrl}) {
   if (error is DioException) {
     if (_isTimeoutProblem(error)) {
-      final currentUrl = apiBaseUrl == null
-          ? ''
-          : '\nCurrent API URL: $apiBaseUrl';
+      final currentUrl =
+          apiBaseUrl == null ? '' : '\nCurrent API URL: $apiBaseUrl';
       return 'The HRRecruit API took too long to respond.$currentUrl\n\n'
           'Please wait a moment and try again. If this keeps happening, '
           'confirm Django is still running and increase local machine resources for the demo.';
     }
 
     if (_isConnectionProblem(error)) {
-      final currentUrl = apiBaseUrl == null
-          ? ''
-          : '\nCurrent API URL: $apiBaseUrl';
+      final currentUrl =
+          apiBaseUrl == null ? '' : '\nCurrent API URL: $apiBaseUrl';
       final details = _connectionErrorDetails(error);
       return 'Could not reach the HRRecruit API.$currentUrl\n\n'
           'Network detail: $details\n\n'

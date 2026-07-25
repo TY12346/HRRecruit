@@ -169,7 +169,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _changePassword() async {
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New password and confirmation do not match.')),
+        const SnackBar(
+            content: Text('New password and confirmation do not match.')),
       );
       return;
     }
@@ -211,7 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _dialogField(companyName, 'Company name'),
                 _employmentTypeDropdown(
                   value: employmentType,
-                  onChanged: (value) => setDialogState(() => employmentType = value ?? ''),
+                  onChanged: (value) =>
+                      setDialogState(() => employmentType = value ?? ''),
                 ),
                 _dialogField(startDate, 'Start date (YYYY-MM-DD)'),
                 _dialogField(location, 'Location'),
@@ -219,7 +221,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel')),
             FilledButton(
               onPressed: () {
                 if (jobTitle.text.trim().isEmpty) return;
@@ -265,7 +269,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               if (schoolName.text.trim().isEmpty) return;
@@ -294,11 +300,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Add skill'),
         content: _dialogField(skillName, 'Skill name'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               if (skillName.text.trim().isEmpty) return;
-              Navigator.of(dialogContext).pop(ApplicantSkill(skillName: skillName.text.trim()));
+              Navigator.of(dialogContext)
+                  .pop(ApplicantSkill(skillName: skillName.text.trim()));
             },
             child: const Text('Add'),
           ),
@@ -316,9 +325,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
         initialValue: value,
-        decoration: const InputDecoration(labelText: 'Employment type', border: OutlineInputBorder()),
+        decoration: const InputDecoration(
+            labelText: 'Employment type', border: OutlineInputBorder()),
         items: _employmentTypeOptions
-            .map((option) => DropdownMenuItem(value: option, child: Text(option.isEmpty ? 'Not specified' : option)))
+            .map((option) => DropdownMenuItem(
+                value: option,
+                child: Text(option.isEmpty ? 'Not specified' : option)))
             .toList(),
         onChanged: onChanged,
       ),
@@ -330,7 +342,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: controller,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+            labelText: label, border: const OutlineInputBorder()),
       ),
     );
   }
@@ -349,8 +362,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Row(
               children: [
-                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-                IconButton(onPressed: onAdd, icon: const Icon(Icons.add_circle_outline)),
+                Expanded(
+                    child: Text(title,
+                        style: Theme.of(context).textTheme.titleMedium)),
+                IconButton(
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add_circle_outline)),
               ],
             ),
             if (children.isEmpty) Text(emptyText) else ...children,
@@ -369,7 +386,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         for (final entry in _experiences.indexed)
           ListTile(
             title: Text(entry.$2.jobTitle),
-            subtitle: Text([entry.$2.companyName, entry.$2.employmentType, entry.$2.location].where((value) => value.isNotEmpty).join(' • ')),
+            subtitle: Text([
+              entry.$2.companyName,
+              entry.$2.employmentType,
+              entry.$2.location
+            ].where((value) => value.isNotEmpty).join(' • ')),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () => setState(() => _experiences.removeAt(entry.$1)),
@@ -388,7 +409,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         for (final entry in _educations.indexed)
           ListTile(
             title: Text(entry.$2.schoolName),
-            subtitle: Text([entry.$2.degreeName, entry.$2.fieldOfStudy, entry.$2.grade].where((value) => value.isNotEmpty).join(' • ')),
+            subtitle: Text([
+              entry.$2.degreeName,
+              entry.$2.fieldOfStudy,
+              entry.$2.grade
+            ].where((value) => value.isNotEmpty).join(' • ')),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () => setState(() => _educations.removeAt(entry.$1)),
@@ -413,7 +438,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   for (final entry in _skills.indexed)
                     InputChip(
                       label: Text(entry.$2.skillName),
-                      onDeleted: () => setState(() => _skills.removeAt(entry.$1)),
+                      onDeleted: () =>
+                          setState(() => _skills.removeAt(entry.$1)),
                     ),
                 ],
               ),
@@ -438,126 +464,126 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextFormField(
-                  initialValue: auth.profile?.email ?? '',
-                  enabled: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
+                    initialValue: auth.profile?.email ?? '',
+                    enabled: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _fullNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _fullNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Full name',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Full name is required.'
+                        : null,
                   ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Full name is required.'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone number',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone number',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _linkedinController,
-                  keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(
-                    labelText: 'LinkedIn URL',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _linkedinController,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'LinkedIn URL',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final text = value?.trim() ?? '';
+                      if (text.isEmpty) return null;
+                      final uri = Uri.tryParse(text);
+                      if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+                        return 'Enter a valid URL, for example https://linkedin.com/in/name.';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    final text = value?.trim() ?? '';
-                    if (text.isEmpty) return null;
-                    final uri = Uri.tryParse(text);
-                    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-                      return 'Enter a valid URL, for example https://linkedin.com/in/name.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: auth.isLoading || _isImportingLinkedIn
-                      ? null
-                      : _importLinkedInProfile,
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: _isImportingLinkedIn
-                      ? const Text('Importing LinkedIn PDF...')
-                      : const Text('Import LinkedIn PDF'),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _summaryController,
-                  minLines: 4,
-                  maxLines: 8,
-                  decoration: const InputDecoration(
-                    labelText: 'Personal summary',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: auth.isLoading || _isImportingLinkedIn
+                        ? null
+                        : _importLinkedInProfile,
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: _isImportingLinkedIn
+                        ? const Text('Importing LinkedIn PDF...')
+                        : const Text('Import LinkedIn PDF'),
                   ),
-                ),
-                const SizedBox(height: 24),
-                _experienceSections(),
-                const SizedBox(height: 12),
-                _educationSection(),
-                const SizedBox(height: 12),
-                _skillsSection(),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: auth.isLoading ? null : _save,
-                  icon: const Icon(Icons.save_outlined),
-                  label: auth.isLoading
-                      ? const Text('Saving...')
-                      : const Text('Save profile'),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Change password',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _currentPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Current password',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _summaryController,
+                    minLines: 4,
+                    maxLines: 8,
+                    decoration: const InputDecoration(
+                      labelText: 'Personal summary',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _newPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'New password',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 24),
+                  _experienceSections(),
+                  const SizedBox(height: 12),
+                  _educationSection(),
+                  const SizedBox(height: 12),
+                  _skillsSection(),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: auth.isLoading ? null : _save,
+                    icon: const Icon(Icons.save_outlined),
+                    label: auth.isLoading
+                        ? const Text('Saving...')
+                        : const Text('Save profile'),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm new password',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Change password',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: auth.isLoading ? null : _changePassword,
-                  icon: const Icon(Icons.lock_reset_outlined),
-                  label: auth.isLoading
-                      ? const Text('Changing...')
-                      : const Text('Change password'),
-                ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _currentPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Current password',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _newPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'New password',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm new password',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: auth.isLoading ? null : _changePassword,
+                    icon: const Icon(Icons.lock_reset_outlined),
+                    label: auth.isLoading
+                        ? const Text('Changing...')
+                        : const Text('Change password'),
+                  ),
                 ],
               ),
             ),

@@ -24,14 +24,16 @@ String formatMoney(double value) {
   return 'RM ${value.toStringAsFixed(2)}';
 }
 
-
 String formatJobDescriptionText(String value) {
   if (value.trim().isEmpty) return '';
   return value
       .replaceAll(RegExp(r'\r\n?'), '\n')
-      .replaceAllMapped(RegExp(r'\s+(#{1,6}\s+)'), (match) => '\n\n${match.group(1)}')
-      .replaceAllMapped(RegExp(r'([^\n])\s+(\*\s+[A-Z0-9])'), (match) => '${match.group(1)}\n${match.group(2)}')
-      .replaceAllMapped(RegExp(r'([^\n])\s+([•-]\s+[A-Z0-9])'), (match) => '${match.group(1)}\n${match.group(2)}')
+      .replaceAllMapped(
+          RegExp(r'\s+(#{1,6}\s+)'), (match) => '\n\n${match.group(1)}')
+      .replaceAllMapped(RegExp(r'([^\n])\s+(\*\s+[A-Z0-9])'),
+          (match) => '${match.group(1)}\n${match.group(2)}')
+      .replaceAllMapped(RegExp(r'([^\n])\s+([•-]\s+[A-Z0-9])'),
+          (match) => '${match.group(1)}\n${match.group(2)}')
       .replaceAll(RegExp(r'\n{3,}'), '\n\n')
       .trim();
 }
@@ -88,7 +90,8 @@ String titleCaseStatus(String status) {
   if (status.isEmpty) return 'Unknown';
   return status
       .split('_')
-      .map((part) => part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}')
+      .map((part) =>
+          part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}')
       .join(' ');
 }
 
@@ -127,7 +130,8 @@ class JobSummaryCard extends StatelessWidget {
                   IconButton(
                     tooltip: job.isSaved ? 'Unsave job' : 'Save job',
                     onPressed: onSaveToggle,
-                    icon: Icon(job.isSaved ? Icons.bookmark : Icons.bookmark_border),
+                    icon: Icon(
+                        job.isSaved ? Icons.bookmark : Icons.bookmark_border),
                   ),
                 ],
               ),
@@ -138,8 +142,14 @@ class JobSummaryCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  Chip(label: Text(job.location.isEmpty ? 'Remote/unspecified' : job.location)),
-                  Chip(label: Text(job.employmentType.isEmpty ? 'Employment type n/a' : job.employmentType)),
+                  Chip(
+                      label: Text(job.location.isEmpty
+                          ? 'Remote/unspecified'
+                          : job.location)),
+                  Chip(
+                      label: Text(job.employmentType.isEmpty
+                          ? 'Employment type n/a'
+                          : job.employmentType)),
                   Chip(label: Text(formatMoney(job.approximateSalary))),
                 ],
               ),

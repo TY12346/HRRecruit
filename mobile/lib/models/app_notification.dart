@@ -26,7 +26,9 @@ class AppNotification {
       title: json['title'] as String? ?? '',
       message: json['message'] as String? ?? '',
       relatedEntityType: json['related_entity_type'] as String? ?? '',
-      relatedEntityId: json['related_entity_id'] == null ? null : _asInt(json['related_entity_id']),
+      relatedEntityId: json['related_entity_id'] == null
+          ? null
+          : _asInt(json['related_entity_id']),
       isRead: json['is_read'] == true,
       createdAt: _asDateTime(json['created_at']),
     );

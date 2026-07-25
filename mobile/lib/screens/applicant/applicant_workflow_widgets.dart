@@ -28,7 +28,9 @@ class ApplicantWorkflowMessage extends StatelessWidget {
       children: [
         Icon(icon, size: 56),
         const SizedBox(height: 12),
-        Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+        Text(title,
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center),
         const SizedBox(height: 8),
         Text(message, textAlign: TextAlign.center),
         if (action != null) ...[
@@ -56,11 +58,15 @@ class InterviewCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              application?.jobTitle.isNotEmpty == true ? application!.jobTitle : 'Interview',
+              application?.jobTitle.isNotEmpty == true
+                  ? application!.jobTitle
+                  : 'Interview',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
-            Text(application?.organizationName.isNotEmpty == true ? application!.organizationName : 'Organization not available'),
+            Text(application?.organizationName.isNotEmpty == true
+                ? application!.organizationName
+                : 'Organization not available'),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -79,7 +85,8 @@ class InterviewCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text('Location: ${interview.location}'),
             ],
-            if (interview.meetingLink.isNotEmpty || interview.calendarLink.isNotEmpty) ...[
+            if (interview.meetingLink.isNotEmpty ||
+                interview.calendarLink.isNotEmpty) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -92,7 +99,8 @@ class InterviewCard extends StatelessWidget {
                     ),
                   if (interview.calendarLink.isNotEmpty)
                     OutlinedButton.icon(
-                      onPressed: () => openInterviewCalendarLink(context, interview),
+                      onPressed: () =>
+                          openInterviewCalendarLink(context, interview),
                       icon: const Icon(Icons.calendar_month_outlined),
                       label: const Text('Calendar'),
                     ),
@@ -130,18 +138,24 @@ class JobOfferCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              application?.jobTitle.isNotEmpty == true ? application!.jobTitle : 'Job offer',
+              application?.jobTitle.isNotEmpty == true
+                  ? application!.jobTitle
+                  : 'Job offer',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
-            Text(application?.organizationName.isNotEmpty == true ? application!.organizationName : 'Organization not available'),
+            Text(application?.organizationName.isNotEmpty == true
+                ? application!.organizationName
+                : 'Organization not available'),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 Chip(label: Text(titleCaseStatus(offer.offerStatus))),
-                Chip(label: Text('Deadline ${formatDateTime(offer.respondDeadline)}')),
+                Chip(
+                    label: Text(
+                        'Deadline ${formatDateTime(offer.respondDeadline)}')),
               ],
             ),
             const SizedBox(height: 12),
@@ -184,7 +198,8 @@ class JobOfferCard extends StatelessWidget {
 }
 
 class ApiErrorMessage extends StatelessWidget {
-  const ApiErrorMessage({super.key, required this.error, required this.onRetry});
+  const ApiErrorMessage(
+      {super.key, required this.error, required this.onRetry});
 
   final Object error;
   final VoidCallback onRetry;

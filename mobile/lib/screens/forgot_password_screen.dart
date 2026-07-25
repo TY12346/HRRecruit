@@ -79,7 +79,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset successful. Please log in.')),
+        const SnackBar(
+            content: Text('Password reset successful. Please log in.')),
       );
       context.go('/login');
     } catch (error) {
@@ -143,7 +144,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 24),
               if (_step == _ForgotPasswordStep.requestEmail)
                 _buildEmailStep(isLoading),
-              if (_step == _ForgotPasswordStep.enterOtp) _buildOtpStep(isLoading),
+              if (_step == _ForgotPasswordStep.enterOtp)
+                _buildOtpStep(isLoading),
               if (_step == _ForgotPasswordStep.enterNewPassword)
                 _buildPasswordStep(isLoading),
             ],
@@ -197,8 +199,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               labelText: 'OTP',
               border: OutlineInputBorder(),
             ),
-            validator: (value) =>
-                (value?.trim().length ?? 0) == 6 ? null : 'Enter the 6-digit OTP.',
+            validator: (value) => (value?.trim().length ?? 0) == 6
+                ? null
+                : 'Enter the 6-digit OTP.',
           ),
           const SizedBox(height: 12),
           FilledButton(
@@ -239,7 +242,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               labelText: 'Confirm new password',
               border: OutlineInputBorder(),
             ),
-            validator: (value) => value == _newPasswordController.text ? null : 'Passwords do not match.',
+            validator: (value) => value == _newPasswordController.text
+                ? null
+                : 'Passwords do not match.',
           ),
           const SizedBox(height: 16),
           FilledButton(

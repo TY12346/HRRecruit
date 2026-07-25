@@ -115,7 +115,6 @@ GoRouter createAppRouter(AuthController authController) {
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
       ),
-
     ],
   );
 }

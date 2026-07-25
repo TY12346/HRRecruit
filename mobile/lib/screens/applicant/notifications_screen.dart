@@ -40,7 +40,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (notification.isRead) return;
     setState(() => _busyNotificationId = notification.id);
     try {
-      await context.read<ApplicantWorkflowService>().markNotificationRead(notification.id);
+      await context
+          .read<ApplicantWorkflowService>()
+          .markNotificationRead(notification.id);
       if (!mounted) return;
       _refresh();
     } catch (error) {
@@ -54,10 +56,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _markAllRead() async {
     setState(() => _isMarkingAll = true);
     try {
-      final updated = await context.read<ApplicantWorkflowService>().markAllNotificationsRead();
+      final updated = await context
+          .read<ApplicantWorkflowService>()
+          .markAllNotificationsRead();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Marked $updated notification${updated == 1 ? '' : 's'} as read.')),
+        SnackBar(
+            content: Text(
+                'Marked $updated notification${updated == 1 ? '' : 's'} as read.')),
       );
       _refresh();
     } catch (error) {
@@ -83,63 +89,70 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
         body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            _refresh();
-            await _notificationsFuture;
-          },
-          child: FutureBuilder<List<AppNotification>>(
-            future: _notificationsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return ApiErrorMessage(error: snapshot.error!, onRetry: _refresh);
-              }
-              final notifications = snapshot.data ?? [];
-              if (notifications.isEmpty) {
-                return const ApplicantWorkflowMessage(
-                  icon: Icons.notifications_none,
-                  title: 'No notifications yet',
-                  message: 'Application, interview, and offer updates will appear here.',
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: notifications.length,
-                itemBuilder: (context, index) {
-                  final notification = notifications[index];
-                  return Card(
-                    color: notification.isRead ? null : Theme.of(context).colorScheme.primaryContainer,
-                    child: ListTile(
-                      leading: Icon(notification.isRead ? Icons.notifications_none : Icons.notifications),
-                      title: Text(notification.title),
-                      subtitle: Text(
-                        '${notification.message}\n${formatDateTime(notification.createdAt)}',
-                      ),
-                      isThreeLine: true,
-                      trailing: notification.isRead
-                          ? const Icon(Icons.done)
-                          : _busyNotificationId == notification.id
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : TextButton(
-                                  onPressed: () => _markRead(notification),
-                                  child: const Text('Read'),
-                                ),
-                      onTap: () => _markRead(notification),
-                    ),
-                  );
-                },
-              );
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _refresh();
+              await _notificationsFuture;
             },
+            child: FutureBuilder<List<AppNotification>>(
+              future: _notificationsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return ApiErrorMessage(
+                      error: snapshot.error!, onRetry: _refresh);
+                }
+                final notifications = snapshot.data ?? [];
+                if (notifications.isEmpty) {
+                  return const ApplicantWorkflowMessage(
+                    icon: Icons.notifications_none,
+                    title: 'No notifications yet',
+                    message:
+                        'Application, interview, and offer updates will appear here.',
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    final notification = notifications[index];
+                    return Card(
+                      color: notification.isRead
+                          ? null
+                          : Theme.of(context).colorScheme.primaryContainer,
+                      child: ListTile(
+                        leading: Icon(notification.isRead
+                            ? Icons.notifications_none
+                            : Icons.notifications),
+                        title: Text(notification.title),
+                        subtitle: Text(
+                          '${notification.message}\n${formatDateTime(notification.createdAt)}',
+                        ),
+                        isThreeLine: true,
+                        trailing: notification.isRead
+                            ? const Icon(Icons.done)
+                            : _busyNotificationId == notification.id
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : TextButton(
+                                    onPressed: () => _markRead(notification),
+                                    child: const Text('Read'),
+                                  ),
+                        onTap: () => _markRead(notification),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
-      ),
       ),
     );
   }

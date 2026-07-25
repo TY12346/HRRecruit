@@ -63,7 +63,8 @@ class _ApiSettingsButtonState extends State<ApiSettingsButton> {
 
   Future<void> _showApiSettingsDialog(BuildContext context) async {
     final apiClient = context.read<ApiClient>();
-    final controller = TextEditingController(text: await apiClient.currentBaseUrl());
+    final controller =
+        TextEditingController(text: await apiClient.currentBaseUrl());
 
     if (!context.mounted) {
       controller.dispose();
