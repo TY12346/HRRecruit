@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.applications.models import JobApplication
+from apps.applications.serializers import build_resume_payload
 from apps.jobs.models import JobPosting
 from apps.interviews.models import Interview
 from apps.notifications.email_service import send_job_offer_email
@@ -225,8 +226,13 @@ class JobApplicantComparisonAPIView(APIView):
             applicants.append({
                 'application_id': application.id,
                 'applicant_name': application.applicant.full_name,
+                'applicant_email': application.applicant.email,
+                'applicant_phone': application.applicant.phone_number,
+                'resume_url': build_resume_payload(application, {'request': request})['resume_url'],
                 'application_status': application.status,
                 'ai_resume_score': application.final_score,
+                'matched_skills': application.score_explanation.get('matched_skills', []),
+                'missing_skills': application.score_explanation.get('missing_skills', []),
                 'extracted_skills': application.extracted_skills,
                 'extracted_education': application.extracted_education,
                 'extracted_experience': application.extracted_experience,
@@ -240,8 +246,11 @@ class JobApplicantComparisonAPIView(APIView):
                 'scorecards_required': scorecards['required'],
                 'evaluation_score': evaluations[-1].total_score if evaluations else None,
                 'evaluation_summary': evaluations[-1].overall_comment if evaluations else '',
+                'interviewer_remarks': [evaluation.overall_comment for evaluation in evaluations],
+                'interviews': [{'id': interview.id} for interview in interviews],
                 'transcript_status': 'available' if transcripts else 'not_available',
                 'ai_summary_status': 'available' if summaries else 'not_available',
+                'ai_interview_summaries': [summary.editable_summary_text for summary in summaries],
                 'recruiter_remark': application.recruiter_remark,
                 'eligible_for_decision': (
                     application.status in HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES
@@ -279,7 +288,7 @@ class JobHiringDecisionListCreateAPIView(APIView):
         if JobHiringDecision.objects.filter(job_posting=job, status=JobHiringDecision.Status.PENDING_HR_APPROVAL).exists():
             raise ValidationError({'job_posting': 'This job already has a decision pending hiring manager approval.'})
         readiness = refresh_job_readiness(job)
-        if not readiness['ready'] or job.status not in (JobPosting.Status.CLOSED, JobPosting.Status.CLOSED):
+        if not readiness['ready']:
             raise ValidationError({'readiness': readiness['reasons'] or ['Job is not ready for a hiring decision.']})
 
         decision_type = serializer.validated_data['decision_type']

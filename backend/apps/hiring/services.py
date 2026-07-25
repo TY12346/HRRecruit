@@ -44,29 +44,16 @@ def application_scorecard_progress(application):
 
 
 def decision_readiness(job):
-    reasons = []
-    if job.status == JobPosting.Status.OPEN:
-        reasons.append('Application intake is still open.')
-
-    applications = job.applications.all()
-    completed_interviews = Interview.objects.filter(
-        application__job=job,
-        status=Interview.Status.EVALUATION_SUBMITTED,
-    ).prefetch_related('panel_interviewers', 'evaluations')
-    incomplete_scorecards = 0
-    for interview in completed_interviews:
-        submitted, required = interview_scorecard_progress(interview)
-        if not required or submitted < required:
-            incomplete_scorecards += 1
-
-    if incomplete_scorecards:
-        reasons.append(
-            f'{incomplete_scorecards} completed interview(s) still require scorecards from all assigned interviewers.'
-        )
-
-    eligible_count = applications.filter(status__in=ELIGIBLE_DECISION_STATUSES).count()
+    applications = job.applications.filter(status__in=ELIGIBLE_DECISION_STATUSES).prefetch_related(
+        'interviews__panel_interviewers', 'interviews__evaluations'
+    )
+    eligible_count = sum(
+        application_scorecard_progress(application)['complete']
+        for application in applications
+    )
+    reasons = [] if eligible_count else ['At least one applicant must be available for hiring.']
     return {
-        'ready': not reasons,
+        'ready': eligible_count > 0,
         'reasons': reasons,
         'eligible_applicant_count': eligible_count,
     }
