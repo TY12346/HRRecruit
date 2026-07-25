@@ -4,6 +4,11 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControl,
   InputLabel,
   MenuItem,
@@ -14,7 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { createJobRequisition, getJob, updateJob } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
@@ -69,6 +74,8 @@ export default function JobCreateEditPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPostConfirmation, setShowPostConfirmation] = useState(false);
+  const [initialStatus, setInitialStatus] = useState('draft');
 
   useEffect(() => {
     if (!isEdit) {
@@ -101,6 +108,7 @@ export default function JobCreateEditPage() {
           application_deadline: job.application_deadline ?? '',
           status: job.status ?? 'draft',
         });
+        setInitialStatus(job.status ?? 'draft');
       })
       .catch((err) => active && setError(getApiErrorMessage(err, 'Unable to load job.')))
       .finally(() => active && setIsLoading(false));
@@ -119,8 +127,7 @@ export default function JobCreateEditPage() {
     custom_department: form.department === 'Other' ? form.custom_department : '',
   });
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const saveJob = async () => {
     setIsSaving(true);
     setError('');
 
@@ -137,6 +144,20 @@ export default function JobCreateEditPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (isEdit && initialStatus === 'draft' && form.status === 'open') {
+      setShowPostConfirmation(true);
+      return;
+    }
+    saveJob();
+  };
+
+  const confirmPost = () => {
+    setShowPostConfirmation(false);
+    saveJob();
   };
 
   const renderDetails = () => (
@@ -225,9 +246,14 @@ export default function JobCreateEditPage() {
           <FormControl>
             <InputLabel>Status</InputLabel>
             <Select label="Status" value={form.status} onChange={setField('status')}>
-              <MenuItem value="draft">Draft</MenuItem>
-              <MenuItem value="open">Open</MenuItem>
-              <MenuItem value="application_intake_closed">Application Intake Closed</MenuItem>
+              {initialStatus === 'draft' ? <MenuItem value="draft">Draft</MenuItem> : null}
+              {['draft', 'open'].includes(initialStatus) ? <MenuItem value="open">Open</MenuItem> : null}
+              {['open', 'application_intake_closed'].includes(initialStatus) ? (
+                <MenuItem value="application_intake_closed">Application Intake Closed</MenuItem>
+              ) : null}
+              {!['draft', 'open', 'application_intake_closed'].includes(initialStatus) ? (
+                <MenuItem value={initialStatus}>{initialStatus.replaceAll('_', ' ')}</MenuItem>
+              ) : null}
             </Select>
           </FormControl>
         </Stack>
@@ -250,6 +276,16 @@ export default function JobCreateEditPage() {
           <CircularProgress />
         ) : (
           <Stack spacing={2}>
+            {isEdit ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
+                <Button component={RouterLink} to={`/recruiter/jobs/${jobId}/requirements`} variant="outlined">
+                  Edit job requirements (AI resume screening)
+                </Button>
+                <Button component={RouterLink} to={`/recruiter/jobs/${jobId}/scorecard`} variant="outlined">
+                  Edit evaluation scorecard
+                </Button>
+              </Stack>
+            ) : null}
             {renderDetails()}
             <Stack direction="row" spacing={1}>
               <Button disabled={isSaving} type="submit" variant="contained">
@@ -260,6 +296,20 @@ export default function JobCreateEditPage() {
           </Stack>
         )}
       </Paper>
+      <Dialog open={showPostConfirmation} onClose={() => !isSaving && setShowPostConfirmation(false)}>
+        <DialogTitle>Confirm to post this job?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            To ensure consistency of AI resume screening, the job requirements cannot be changed once this job is posted.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={isSaving} onClick={() => setShowPostConfirmation(false)}>Cancel</Button>
+          <Button autoFocus disabled={isSaving} onClick={confirmPost} variant="contained">
+            Confirm and post
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
