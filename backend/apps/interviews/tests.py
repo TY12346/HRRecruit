@@ -690,6 +690,36 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(interview.organization, self.organization)
         self.assertEqual(interview.interviewer, self.interviewer)
 
+    def test_assigning_interviewer_sends_self_scheduling_request_to_applicant(self):
+        slot_date = timezone.localdate() + timedelta(days=2)
+        InterviewerAvailabilityPattern.objects.create(
+            organization=self.organization,
+            interviewer=self.interviewer,
+            day_of_week=slot_date.weekday(),
+            start_time='09:00:00',
+            end_time='10:00:00',
+            slot_duration_minutes=60,
+            effective_from=timezone.localdate(),
+        )
+
+        response = self.assign_interviewer()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        scheduling_request = InterviewSchedulingRequest.objects.get(application=self.application)
+        self.assertEqual(scheduling_request.interview_id, response.data['id'])
+        self.assertIsNotNone(scheduling_request.invitation_sent_at)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            notification_type='interview_self_scheduling',
+            related_entity_id=scheduling_request.id,
+        ).exists())
+
+        self.authenticate(self.applicant)
+        applicant_response = self.client.get(reverse('interview-scheduling-request-list'))
+
+        self.assertEqual(applicant_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in applicant_response.data], [scheduling_request.id])
+
     def test_recruiter_assigns_panel_of_up_to_three_interviewers(self):
         second_interviewer = self.create_user('panel-two@example.com', User.Role.INTERVIEWER)
         third_interviewer = self.create_user('panel-three@example.com', User.Role.INTERVIEWER)

@@ -971,6 +971,46 @@ class AssignInterviewerAPIView(APIView):
                 note=f'Interviewer reassigned to {interviewer.full_name}.',
             )
 
+        # Assigning an interviewer is the recruiter action that starts the
+        # applicant self-scheduling flow.  Previously this endpoint only
+        # created the Interview, so the Flutter scheduling-request endpoint
+        # had no request to return unless the recruiter performed a second,
+        # separate API action.
+        scheduling_request, scheduling_request_created = InterviewSchedulingRequest.objects.get_or_create(
+            interview=interview,
+            defaults={
+                'application': application,
+                'organization': application.job.organization,
+                'recruiter': request.user,
+                'interviewer': interviewer,
+            },
+        )
+        if not scheduling_request_created and scheduling_request.status == InterviewSchedulingRequest.Status.PENDING:
+            scheduling_request.application = application
+            scheduling_request.organization = application.job.organization
+            scheduling_request.recruiter = request.user
+            scheduling_request.interviewer = interviewer
+            scheduling_request.save(update_fields=[
+                'application', 'organization', 'recruiter', 'interviewer', 'updated_at',
+            ])
+        if scheduling_request.status == InterviewSchedulingRequest.Status.PENDING:
+            scheduling_request.panel_interviewers.set(interviewers)
+
+        if (
+            scheduling_request.status == InterviewSchedulingRequest.Status.PENDING
+            and scheduling_request.invitation_sent_at is None
+            and scheduling_request_has_common_slot(scheduling_request)
+        ):
+            scheduling_request.invitation_sent_at = timezone.now()
+            scheduling_request.save(update_fields=['invitation_sent_at', 'updated_at'])
+            create_notification(
+                application.applicant,
+                'interview_self_scheduling',
+                'Interview scheduling request',
+                f'Please choose an interview slot for {application.job.title}.',
+                related_entity=scheduling_request,
+            )
+
         for panel_interviewer in interviewers:
             create_notification(
                 panel_interviewer,
