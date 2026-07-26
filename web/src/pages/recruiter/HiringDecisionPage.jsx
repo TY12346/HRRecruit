@@ -10,6 +10,7 @@ export default function HiringDecisionPage() {
   const { jobId } = useParams();
   const [data, setData] = useState(null);
   const [selected, setSelected] = useState([]);
+  const [comparisonSelected, setComparisonSelected] = useState([]);
   const [noHire, setNoHire] = useState(false);
   const [justification, setJustification] = useState('');
   const [error, setError] = useState('');
@@ -25,6 +26,13 @@ export default function HiringDecisionPage() {
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load applicant comparison.')));
   }, [jobId]);
   const toggle = (id) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const toggleComparison = (id) => {
+    setComparisonSelected((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 3) return current;
+      return [...current, id];
+    });
+  };
   const submit = async () => {
     setError('');
     try {
@@ -40,9 +48,24 @@ export default function HiringDecisionPage() {
     {!data ? <CircularProgress /> : <>
       <Typography><strong>{data.job.title}</strong> • {data.job.vacancies} vacancy/vacancies • {titleize(data.job.status)}</Typography>
       {pendingDecision ? <Alert severity="info">Hiring Decision #{pendingDecision.id} is already pending hiring manager approval.</Alert> : null}
-      <Table><TableHead><TableRow><TableCell>Select</TableCell><TableCell>Applicant</TableCell><TableCell>AI Match Score</TableCell><TableCell>Matched Skills</TableCell><TableCell>Missing Skills</TableCell><TableCell>AI Interview Summary</TableCell><TableCell>Interviewer remarks</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
+        <Box>
+          <Typography sx={{ fontWeight: 600 }}>Applicant comparison</Typography>
+          <Typography variant="body2" color="text.secondary">Select 2 or 3 applicants in the Compare column.</Typography>
+        </Box>
+        <Button
+          component={RouterLink}
+          to={`/recruiter/jobs/${jobId}/applicant-comparison?applications=${comparisonSelected.join(',')}`}
+          variant="outlined"
+          disabled={comparisonSelected.length < 2}
+        >
+          Compare selected applicants ({comparisonSelected.length})
+        </Button>
+      </Stack>
+      <Table><TableHead><TableRow><TableCell>Hire</TableCell><TableCell>Compare</TableCell><TableCell>Applicant</TableCell><TableCell>AI Match Score</TableCell><TableCell>Matched Skills</TableCell><TableCell>Missing Skills</TableCell><TableCell>AI Interview Summary</TableCell><TableCell>Interviewer remarks</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
         {data.applicants.map((applicant) => <TableRow key={applicant.application_id}>
           <TableCell><Checkbox checked={selected.includes(applicant.application_id)} disabled={noHire || !applicant.eligible_for_decision || (!selected.includes(applicant.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(applicant.application_id)} /></TableCell>
+          <TableCell><Checkbox inputProps={{ 'aria-label': `Compare ${applicant.applicant_name}` }} checked={comparisonSelected.includes(applicant.application_id)} disabled={!comparisonSelected.includes(applicant.application_id) && comparisonSelected.length >= 3} onChange={() => toggleComparison(applicant.application_id)} /></TableCell>
           <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.applicant_email}{applicant.applicant_phone ? ` • ${applicant.applicant_phone}` : ''}</Typography>{applicant.resume_url ? <Button size="small" component="a" href={applicant.resume_url} target="_blank" rel="noreferrer">View resume</Button> : <Typography variant="caption" display="block">No resume</Typography>}</TableCell>
           <TableCell>{scoreText(applicant.ai_resume_score)}</TableCell>
           <TableCell>{(applicant.matched_skills || []).join(', ') || '—'}</TableCell>
