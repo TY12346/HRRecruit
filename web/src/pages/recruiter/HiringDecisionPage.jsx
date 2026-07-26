@@ -38,12 +38,11 @@ export default function HiringDecisionPage() {
     try {
       const result = await submitJobHiringDecision({ job_posting: Number(jobId), decision_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
       setPendingDecision(result);
-      setSuccess(`Hiring Decision #${result.id} submitted. Status: Pending HR Approval.`);
+      setSuccess(`Hiring Decision #${result.id} submitted.`);
     } catch (err) { setError(getApiErrorMessage(err, 'Unable to submit hiring decision.')); }
   };
   return <Box><RecruiterNav /><Paper sx={{ p: 3 }}><Stack spacing={2}>
     <Typography variant="h5" sx={{ fontWeight: 700 }}>Job-level Hiring Decision</Typography>
-    <Typography color="text.secondary">Compare every applicant for this job. AI and interview evidence support, but do not replace, the human decision.</Typography>
     {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}
     {!data ? <CircularProgress /> : <>
       <Typography><strong>{data.job.title}</strong> • {data.job.vacancies} vacancy/vacancies • {titleize(data.job.status)}</Typography>
@@ -66,7 +65,7 @@ export default function HiringDecisionPage() {
         {data.applicants.map((applicant) => <TableRow key={applicant.application_id}>
           <TableCell><Checkbox checked={selected.includes(applicant.application_id)} disabled={noHire || !applicant.eligible_for_decision || (!selected.includes(applicant.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(applicant.application_id)} /></TableCell>
           <TableCell><Checkbox inputProps={{ 'aria-label': `Compare ${applicant.applicant_name}` }} checked={comparisonSelected.includes(applicant.application_id)} disabled={!comparisonSelected.includes(applicant.application_id) && comparisonSelected.length >= 3} onChange={() => toggleComparison(applicant.application_id)} /></TableCell>
-          <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.applicant_email}{applicant.applicant_phone ? ` • ${applicant.applicant_phone}` : ''}</Typography>{applicant.resume_url ? <Button size="small" component="a" href={applicant.resume_url} target="_blank" rel="noreferrer">View resume</Button> : <Typography variant="caption" display="block">No resume</Typography>}</TableCell>
+          <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.applicant_email}{applicant.applicant_phone ? ` • ${applicant.applicant_phone}` : ''}</Typography></TableCell>
           <TableCell>{scoreText(applicant.ai_resume_score)}</TableCell>
           <TableCell>{(applicant.matched_skills || []).join(', ') || '—'}</TableCell>
           <TableCell>{(applicant.missing_skills || []).join(', ') || '—'}</TableCell>
