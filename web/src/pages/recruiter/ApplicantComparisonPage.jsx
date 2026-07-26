@@ -37,8 +37,16 @@ export default function ApplicantComparisonPage() {
   ] : [];
 
   return <Box><RecruiterNav /><Paper sx={{ p: { xs: 2, md: 3 } }}><Stack spacing={2.5}>
+    <Button
+      aria-label="Back to hiring decision"
+      component={RouterLink}
+      to={`/recruiter/jobs/${jobId}/hiring-decision`}
+      variant="outlined"
+      sx={{ alignSelf: 'flex-start' }}
+    >
+      ← Back
+    </Button>
     <Box>
-      <Button component={RouterLink} to={`/recruiter/jobs/${jobId}/hiring-decision`} sx={{ mb: 1 }}>← Back to hiring decision</Button>
       <Typography variant="h5" sx={{ fontWeight: 700 }}>Compare selected applicants</Typography>
       <Typography color="text.secondary">Review applicant evidence side by side. This comparison supports, but does not replace, your hiring decision.</Typography>
     </Box>
