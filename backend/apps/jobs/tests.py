@@ -27,7 +27,8 @@ class RecruitmentStatusVocabularyTests(SimpleTestCase):
         )
         self.assertEqual(
             JobOffer.OfferStatus.values,
-            ['drafting', 'offer_pending_approval', 'offer_sent', 'offer_accepted', 'offer_declined'],
+            ['drafting', 'pending_hr_approval', 'approved_by_hr', 'pending_applicant_response',
+             'disapproved_by_hr', 'accepted_by_applicant', 'rejected_by_applicant'],
         )
 
 

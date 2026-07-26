@@ -25,6 +25,7 @@ from .serializers import (
     JobOfferAcceptSerializer,
     JobOfferCreateSerializer,
     JobOfferDeclineSerializer,
+    JobOfferReviewSerializer,
     JobOfferSerializer,
     JobHiringDecisionSerializer,
     JobDecisionReviewSerializer,
@@ -100,7 +101,14 @@ def base_offer_queryset():
 def visible_offers_for(user):
     offers = base_offer_queryset()
     if user.role == User.Role.APPLICANT:
-        return offers.filter(application__applicant=user)
+        return offers.filter(
+            application__applicant=user,
+            offer_status__in=[
+                JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE,
+                JobOffer.OfferStatus.ACCEPTED,
+                JobOffer.OfferStatus.REJECTED,
+            ],
+        )
     if user.role == User.Role.RECRUITER:
         membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
         if membership:
@@ -159,6 +167,16 @@ def applicant_offer_for_update_or_404(user, offer_id):
     if offer.application.applicant_id != user.id:
         raise Http404('Job offer not found.')
     return offer
+
+
+def hr_offer_for_update_or_404(user, offer_id):
+    membership = get_active_membership(user, OrganizationMembership.Role.HR_HEAD)
+    if not membership:
+        raise PermissionDenied('An active hiring manager organization membership is required.')
+    return get_object_or_404(
+        JobOffer.objects.select_for_update().select_related('application', 'application__job', 'application__applicant'),
+        id=offer_id, application__job__organization=membership.organization,
+    )
 
 
 def change_application_status(application, new_status, changed_by, note):
@@ -298,6 +316,8 @@ class JobHiringDecisionListCreateAPIView(APIView):
             decisions = decisions.filter(job_posting__organization=membership.organization) if membership else decisions.none()
         else:
             raise PermissionDenied('Your role cannot access job-level hiring decisions.')
+        if request.query_params.get('job_posting'):
+            decisions = decisions.filter(job_posting_id=request.query_params['job_posting'])
         if request.query_params.get('status'):
             decisions = decisions.filter(status=request.query_params['status'])
         return Response(JobHiringDecisionSerializer(decisions, many=True, context={'request': request}).data)
@@ -526,30 +546,22 @@ class JobOfferCreateAPIView(APIView):
         ).exists()
         if not approved_hire_exists or application.status != JobApplication.Status.UNDER_REVIEW:
             raise ValidationError({'application': 'A job offer can only be sent to a applicant selected in an HR-approved job-level hiring decision.'})
-        if JobOffer.objects.filter(application=application, offer_status=JobOffer.OfferStatus.SENT).exists():
-            raise ValidationError({'application': 'This application already has a sent job offer.'})
+        if JobOffer.objects.filter(application=application).exists():
+            raise ValidationError({'application': 'This application already has a job offer. Edit and resubmit a disapproved offer instead.'})
 
         serializer = JobOfferCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        offer = JobOffer.objects.create(application=application, **serializer.validated_data)
-        change_application_status(application, JobApplication.Status.UNDER_REVIEW, request.user, 'Recruiter sent job offer.')
-        application.job.status = JobPosting.Status.CLOSED
-        application.job.save(update_fields=['status', 'updated_at'])
-        create_notification(
-            application.applicant,
-            'job_offer_sent',
-            'Job offer received',
-            offer.offer_message,
-            related_entity=offer,
+        offer = JobOffer.objects.create(
+            application=application, offer_status=JobOffer.OfferStatus.PENDING_APPROVAL,
+            **serializer.validated_data,
         )
         create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
-            'job_offer_sent',
-            'Job offer sent',
-            f'{request.user.full_name} sent a job offer to {application.applicant.full_name}.',
+            'job_offer_approval_requested',
+            'Job offer pending approval',
+            f'{request.user.full_name} submitted a job offer for {application.applicant.full_name}.',
             related_entity=offer,
         )
-        send_job_offer_email(offer)
         return Response(JobOfferSerializer(offer, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -558,7 +570,93 @@ class JobOfferListAPIView(APIView):
 
     def get(self, request):
         offers = visible_offers_for(request.user)
+        job_posting = request.query_params.get('job_posting')
+        if job_posting:
+            if not job_posting.isdigit():
+                raise ValidationError({'job_posting': 'A valid job posting id is required.'})
+            offers = offers.filter(application__job_id=job_posting)
         return Response(JobOfferSerializer(offers, many=True, context={'request': request}).data)
+
+
+class JobOfferApproveAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, offer_id):
+        offer = hr_offer_for_update_or_404(request.user, offer_id)
+        if offer.offer_status != JobOffer.OfferStatus.PENDING_APPROVAL:
+            raise ValidationError({'offer_status': 'Only offers pending approval can be approved.'})
+        serializer = JobOfferReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        offer.offer_status = JobOffer.OfferStatus.APPROVED
+        offer.reviewed_by = request.user
+        offer.reviewed_at = timezone.now()
+        offer.hiring_manager_remarks = serializer.validated_data['remarks']
+        offer.save(update_fields=['offer_status', 'reviewed_by', 'reviewed_at', 'hiring_manager_remarks'])
+        create_notification(offer.application.job.recruiter, 'job_offer_reviewed', 'Job offer approved',
+                            f'The job offer for {offer.application.applicant.full_name} was approved. Send it to the applicant when ready.', related_entity=offer)
+        return Response(JobOfferSerializer(offer, context={'request': request}).data)
+
+
+class JobOfferDisapproveAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, offer_id):
+        offer = hr_offer_for_update_or_404(request.user, offer_id)
+        if offer.offer_status != JobOffer.OfferStatus.PENDING_APPROVAL:
+            raise ValidationError({'offer_status': 'Only offers pending approval can be disapproved.'})
+        serializer = JobOfferReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data['remarks']:
+            raise ValidationError({'remarks': 'A reason is required when disapproving an offer.'})
+        offer.offer_status = JobOffer.OfferStatus.DISAPPROVED
+        offer.reviewed_by = request.user
+        offer.reviewed_at = timezone.now()
+        offer.hiring_manager_remarks = serializer.validated_data['remarks']
+        offer.save(update_fields=['offer_status', 'reviewed_by', 'reviewed_at', 'hiring_manager_remarks'])
+        create_notification(offer.application.job.recruiter, 'job_offer_reviewed', 'Job offer changes requested',
+                            serializer.validated_data['remarks'], related_entity=offer)
+        return Response(JobOfferSerializer(offer, context={'request': request}).data)
+
+
+class JobOfferResubmitAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    @transaction.atomic
+    def patch(self, request, offer_id):
+        offer = recruiter_offer_for_update_or_404(request.user, offer_id)
+        if offer.offer_status != JobOffer.OfferStatus.DISAPPROVED:
+            raise ValidationError({'offer_status': 'Only disapproved offers can be edited and resubmitted.'})
+        serializer = JobOfferCreateSerializer(offer, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        for field, value in serializer.validated_data.items():
+            setattr(offer, field, value)
+        offer.offer_status = JobOffer.OfferStatus.PENDING_APPROVAL
+        offer.reviewed_by = None
+        offer.reviewed_at = None
+        offer.save()
+        create_bulk_notifications(list(organization_hr_heads(offer.application.job.organization)),
+                                  'job_offer_approval_requested', 'Revised job offer pending approval',
+                                  f'{request.user.full_name} resubmitted the offer for {offer.application.applicant.full_name}.', related_entity=offer)
+        return Response(JobOfferSerializer(offer, context={'request': request}).data)
+
+
+class JobOfferSendAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, offer_id):
+        offer = recruiter_offer_for_update_or_404(request.user, offer_id)
+        if offer.offer_status != JobOffer.OfferStatus.APPROVED:
+            raise ValidationError({'offer_status': 'Only hiring-manager-approved offers can be sent to applicants.'})
+        offer.offer_status = JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE
+        offer.sent_at = timezone.now()
+        offer.save(update_fields=['offer_status', 'sent_at'])
+        create_notification(offer.application.applicant, 'job_offer_sent', 'Job offer received', offer.offer_message, related_entity=offer)
+        send_job_offer_email(offer)
+        return Response(JobOfferSerializer(offer, context={'request': request}).data)
 
 
 class JobOfferAcceptAPIView(APIView):
@@ -569,10 +667,10 @@ class JobOfferAcceptAPIView(APIView):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can accept job offers.')
         offer = applicant_offer_for_update_or_404(request.user, offer_id)
-        if offer.offer_status != JobOffer.OfferStatus.SENT:
+        if offer.offer_status != JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE:
             raise ValidationError({'offer_status': 'Only sent job offers can be accepted.'})
         if offer.respond_deadline < timezone.now():
-            offer.offer_status = JobOffer.OfferStatus.DECLINED
+            offer.offer_status = JobOffer.OfferStatus.REJECTED
             offer.save(update_fields=['offer_status'])
             raise ValidationError({'respond_deadline': 'This job offer has expired.'})
 
@@ -590,8 +688,12 @@ class JobOfferAcceptAPIView(APIView):
             request.user,
             'Applicant accepted job offer; application marked as hired for final lifecycle and analytics.',
         )
-        application.job.status = JobPosting.Status.CLOSED
-        application.job.save(update_fields=['status', 'updated_at'])
+        job = JobPosting.objects.select_for_update().get(pk=application.job_id)
+        if job.vacancies <= 0:
+            raise ValidationError({'vacancies': 'This job has no remaining vacancy.'})
+        job.vacancies -= 1
+        job.status = JobPosting.Status.CLOSED if job.vacancies == 0 else JobPosting.Status.OPEN
+        job.save(update_fields=['vacancies', 'status', 'updated_at'])
         create_notification(
             application.job.recruiter,
             'offer_response',
@@ -617,18 +719,20 @@ class JobOfferDeclineAPIView(APIView):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can decline job offers.')
         offer = applicant_offer_for_update_or_404(request.user, offer_id)
-        if offer.offer_status != JobOffer.OfferStatus.SENT:
+        if offer.offer_status != JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE:
             raise ValidationError({'offer_status': 'Only sent job offers can be declined.'})
         serializer = JobOfferDeclineSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        offer.offer_status = JobOffer.OfferStatus.DECLINED
+        offer.offer_status = JobOffer.OfferStatus.REJECTED
         offer.responded_at = timezone.now()
         offer.applicant_response_note = serializer.validated_data.get('reason', '')
         offer.save(update_fields=['offer_status', 'responded_at', 'applicant_response_note'])
         application = offer.application
         decline_note = serializer.validated_data.get('reason') or 'Applicant declined job offer.'
         change_application_status(application, JobApplication.Status.REJECTED, request.user, decline_note)
+        application.job.status = JobPosting.Status.OPEN
+        application.job.save(update_fields=['status', 'updated_at'])
         create_notification(
             application.job.recruiter,
             'offer_response',
@@ -651,10 +755,10 @@ class JobOfferWithdrawAPIView(APIView):
     @transaction.atomic
     def post(self, request, offer_id):
         offer = recruiter_offer_for_update_or_404(request.user, offer_id)
-        if offer.offer_status != JobOffer.OfferStatus.SENT:
+        if offer.offer_status != JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE:
             raise ValidationError({'offer_status': 'Only sent job offers can be withdrawn.'})
 
-        offer.offer_status = JobOffer.OfferStatus.DECLINED
+        offer.offer_status = JobOffer.OfferStatus.REJECTED
         offer.withdrawn_at = timezone.now()
         offer.internal_notes = request.data.get('internal_notes', offer.internal_notes)
         offer.save(update_fields=['offer_status', 'withdrawn_at', 'internal_notes'])

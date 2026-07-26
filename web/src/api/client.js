@@ -434,8 +434,8 @@ export const getHiringDecision = async (decisionId) => {
   return response.data;
 };
 
-export const getJobOffers = async () => {
-  const response = await apiClient.get('/job-offers/');
+export const getJobOffers = async (params = {}) => {
+  const response = await apiClient.get('/job-offers/', { params });
   return response.data;
 };
 
@@ -460,6 +460,15 @@ export const withdrawJobOffer = async (offerId, payload = {}) => {
   const response = await apiClient.post(`/job-offers/${offerId}/withdraw/`, payload);
   return response.data;
 };
+
+export const approveJobOffer = async (offerId, remarks = '') =>
+  (await apiClient.post(`/job-offers/${offerId}/approve/`, { remarks })).data;
+export const disapproveJobOffer = async (offerId, remarks) =>
+  (await apiClient.post(`/job-offers/${offerId}/disapprove/`, { remarks })).data;
+export const sendApprovedJobOffer = async (offerId) =>
+  (await apiClient.post(`/job-offers/${offerId}/send/`)).data;
+export const resubmitJobOffer = async (offerId, payload) =>
+  (await apiClient.patch(`/job-offers/${offerId}/resubmit/`, payload)).data;
 
 export const getGoogleCalendarStatus = async () => {
   const response = await apiClient.get('/interviews/calendar/google/status/');

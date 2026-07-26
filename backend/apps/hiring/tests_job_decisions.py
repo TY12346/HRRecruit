@@ -1,10 +1,11 @@
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import JobApplication
 from apps.evaluations.models import EvaluationAnswer, InterviewEvaluation
-from apps.hiring.models import JobHiringDecision
+from apps.hiring.models import JobHiringDecision, JobOffer
 from apps.interviews.models import Interview
 from apps.jobs.models import EvaluationCriterion, InterviewEvaluationForm, JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
@@ -17,7 +18,10 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.recruiter = User.objects.create_user(email='recruiter-flow@example.com', password='pass', full_name='Recruiter', role=User.Role.RECRUITER)
         self.applicant = User.objects.create_user(email='applicant-flow@example.com', password='pass', full_name='Applicant', role=User.Role.APPLICANT)
         self.interviewer = User.objects.create_user(email='interviewer-flow@example.com', password='pass', full_name='Interviewer', role=User.Role.INTERVIEWER)
-        self.organization = Organization.objects.create(name='Flow Org', registration_no='FLOW-1', email='flow@example.com', contact_number='1', address='Address', created_by=self.hr)
+        self.organization = Organization.objects.create(
+            name='Flow Org', registration_no='FLOW-1', email='flow@example.com', contact_number='1',
+            address='Address', created_by=self.hr, status=Organization.Status.ACTIVE,
+        )
         for user, role in ((self.hr, OrganizationMembership.Role.HR_HEAD), (self.recruiter, OrganizationMembership.Role.RECRUITER), (self.interviewer, OrganizationMembership.Role.INTERVIEWER)):
             OrganizationMembership.objects.create(organization=self.organization, user=user, role=role)
         self.job = JobPosting.objects.create(organization=self.organization, recruiter=self.recruiter, title='Engineer', description='Build', employment_type='Full time', location='Remote', status=JobPosting.Status.OPEN, vacancies=1)
@@ -116,6 +120,27 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(duplicate.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('already has a decision pending', str(duplicate.data))
 
+    def test_recruiter_can_filter_submitted_decisions_by_job(self):
+        other_job = JobPosting.objects.create(
+            organization=self.organization, recruiter=self.recruiter, title='Designer', description='Design',
+            employment_type='Full time', location='Remote', status=JobPosting.Status.CLOSED, vacancies=1,
+        )
+        JobHiringDecision.objects.create(
+            job_posting=other_job, recruiter=self.recruiter,
+            decision_type=JobHiringDecision.DecisionType.RECOMMEND_NO_HIRE,
+            justification='No suitable designer.', status=JobHiringDecision.Status.APPROVED,
+        )
+        self.close_intake()
+        submitted = self.submit()
+        self.assertEqual(submitted.status_code, status.HTTP_201_CREATED)
+
+        response = self.client.get(
+            reverse('job-hiring-decision-list-create'), {'job_posting': self.job.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([decision['id'] for decision in response.data], [submitted.data['id']])
+
     def test_comparison_requires_all_panel_scorecards_before_application_is_eligible(self):
         panel_interviewer = User.objects.create_user(
             email='comparison-panel@example.com', password='pass', full_name='Panel', role=User.Role.INTERVIEWER,
@@ -152,6 +177,88 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(review.status_code, status.HTTP_200_OK)
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, JobPosting.Status.CLOSED)
+
+    def test_approved_offer_is_manually_sent_and_acceptance_fills_vacancy(self):
+        self.close_intake()
+        decision_response = self.submit()
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-hiring-decision-approve', args=[decision_response.data['id']]), {}, format='json')
+        self.client.force_authenticate(self.recruiter)
+        created = self.client.post(reverse('application-job-offer', args=[self.application.id]), {
+            'offer_message': 'Please join us.',
+            'respond_deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+        }, format='json')
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(created.data['offer_status'], JobOffer.OfferStatus.PENDING_APPROVAL)
+        offer_id = created.data['id']
+        scoped_offers = self.client.get(reverse('job-offer-list'), {'job_posting': self.job.id})
+        self.assertEqual([offer['id'] for offer in scoped_offers.data], [offer_id])
+        other_job_offers = self.client.get(reverse('job-offer-list'), {'job_posting': self.job.id + 999})
+        self.assertEqual(other_job_offers.data, [])
+
+        self.client.force_authenticate(self.applicant)
+        self.assertEqual(self.client.get(reverse('job-offer-list')).data, [])
+        self.client.force_authenticate(self.hr)
+        approved = self.client.post(reverse('job-offer-approve', args=[offer_id]), {'remarks': 'Terms approved.'})
+        self.assertEqual(approved.data['offer_status'], JobOffer.OfferStatus.APPROVED)
+        self.client.force_authenticate(self.applicant)
+        self.assertEqual(self.client.get(reverse('job-offer-list')).data, [])
+
+        self.client.force_authenticate(self.recruiter)
+        sent = self.client.post(reverse('job-offer-send', args=[offer_id]))
+        self.assertEqual(sent.data['offer_status'], JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE)
+        self.client.force_authenticate(self.applicant)
+        accepted = self.client.post(reverse('job-offer-accept', args=[offer_id]), {})
+        self.assertEqual(accepted.data['offer_status'], JobOffer.OfferStatus.ACCEPTED)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.vacancies, 0)
+        self.assertEqual(self.job.status, JobPosting.Status.CLOSED)
+        self.client.force_authenticate(self.recruiter)
+        comparison = self.client.get(reverse('job-applicant-comparison', args=[self.job.id]))
+        self.assertFalse(comparison.data['readiness']['ready'])
+
+    def test_disapproved_offer_can_be_edited_and_resubmitted(self):
+        self.close_intake()
+        decision_response = self.submit()
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-hiring-decision-approve', args=[decision_response.data['id']]), {})
+        self.client.force_authenticate(self.recruiter)
+        created = self.client.post(reverse('application-job-offer', args=[self.application.id]), {
+            'offer_message': 'Initial terms.',
+            'respond_deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+        }, format='json')
+        self.client.force_authenticate(self.hr)
+        rejected = self.client.post(reverse('job-offer-disapprove', args=[created.data['id']]), {'remarks': 'Revise the terms.'})
+        self.assertEqual(rejected.data['offer_status'], JobOffer.OfferStatus.DISAPPROVED)
+        self.client.force_authenticate(self.recruiter)
+        revised = self.client.patch(reverse('job-offer-resubmit', args=[created.data['id']]), {'offer_message': 'Revised terms.'}, format='json')
+        self.assertEqual(revised.data['offer_status'], JobOffer.OfferStatus.PENDING_APPROVAL)
+        self.assertEqual(revised.data['offer_message'], 'Revised terms.')
+
+    def test_applicant_rejected_offer_keeps_vacancy_and_reopens_job(self):
+        self.close_intake()
+        decision_response = self.submit()
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-hiring-decision-approve', args=[decision_response.data['id']]), {})
+        self.client.force_authenticate(self.recruiter)
+        created = self.client.post(reverse('application-job-offer', args=[self.application.id]), {
+            'offer_message': 'Please join us.',
+            'respond_deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+        }, format='json')
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-offer-approve', args=[created.data['id']]), {})
+        self.client.force_authenticate(self.recruiter)
+        self.client.post(reverse('job-offer-send', args=[created.data['id']]))
+
+        self.client.force_authenticate(self.applicant)
+        declined = self.client.post(reverse('job-offer-decline', args=[created.data['id']]), {
+            'reason': 'Accepted another role.',
+        })
+
+        self.assertEqual(declined.data['offer_status'], JobOffer.OfferStatus.REJECTED)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.vacancies, 1)
+        self.assertEqual(self.job.status, JobPosting.Status.OPEN)
 
     def test_hr_rejects_whole_decision_and_applicant_cannot_access_it(self):
         self.close_intake()
