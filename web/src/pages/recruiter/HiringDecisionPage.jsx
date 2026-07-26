@@ -38,12 +38,11 @@ export default function HiringDecisionPage() {
     try {
       const result = await submitJobHiringDecision({ job_posting: Number(jobId), decision_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
       setPendingDecision(result);
-      setSuccess(`Hiring Decision #${result.id} submitted. Status: Pending HR Approval.`);
+      setSuccess(`Hiring Decision #${result.id} submitted.`);
     } catch (err) { setError(getApiErrorMessage(err, 'Unable to submit hiring decision.')); }
   };
   return <Box><RecruiterNav /><Paper sx={{ p: 3 }}><Stack spacing={2}>
     <Typography variant="h5" sx={{ fontWeight: 700 }}>Job-level Hiring Decision</Typography>
-    <Typography color="text.secondary">Compare every applicant for this job. AI and interview evidence support, but do not replace, the human decision.</Typography>
     {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}
     {!data ? <CircularProgress /> : <>
       <Typography><strong>{data.job.title}</strong> • {data.job.vacancies} vacancy/vacancies • {titleize(data.job.status)}</Typography>
