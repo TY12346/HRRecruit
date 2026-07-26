@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
 import { Link as RouterLink, useParams, useSearchParams } from 'react-router-dom';
 import { getJobApplicantComparison } from '../../api/client.js';
@@ -10,37 +10,53 @@ const ListValue = ({ values }) => values?.length
   : '—';
 
 function InterviewerEvaluationTable({ applicants }) {
-  const evaluations = applicants.flatMap((applicant) => (applicant.interviewer_evaluations || []).map((evaluation) => ({
-    ...evaluation,
+  const applicantGroups = applicants.map((applicant) => ({
+    applicantId: applicant.application_id,
     applicantName: applicant.applicant_name,
-  })));
+    evaluations: applicant.interviewer_evaluations || [],
+  }));
+  const evaluations = applicantGroups.flatMap((group) => group.evaluations);
   const criteria = [...new Map(evaluations.flatMap((evaluation) => evaluation.answers || [])
     .map((answer) => [answer.criterion_id, answer])).values()];
 
   if (!evaluations.length) return '—';
   return <Box sx={{ overflowX: 'auto' }}>
-    <Table size="small" sx={{ minWidth: Math.max(560, 220 + evaluations.length * 220), '& th': { fontWeight: 700 } }}>
+    <Table size="small" sx={{
+      minWidth: Math.max(560, 220 + evaluations.length * 220 + (applicantGroups.length - 1) * 24),
+      '& th': { fontWeight: 700 },
+      '& .evaluation-group-gap': { bgcolor: 'background.paper', borderBottom: 0, maxWidth: 24, minWidth: 24, p: 0, width: 24 },
+    }}>
       <TableHead>
         <TableRow>
-          <TableCell>Criteria</TableCell>
-          {evaluations.map((evaluation, index) => <TableCell key={`${evaluation.applicantName}-${evaluation.interviewer_name}-${index}`}>
-            {evaluation.interviewer_name}
-            <Typography variant="caption" color="text.secondary" display="block">{evaluation.applicantName}</Typography>
-          </TableCell>)}
+          <TableCell rowSpan={2}>Criteria</TableCell>
+          {applicantGroups.map((group, groupIndex) => <Fragment key={group.applicantId}>
+            {groupIndex > 0 ? <TableCell className="evaluation-group-gap" rowSpan={2} /> : null}
+            <TableCell align="center" colSpan={Math.max(group.evaluations.length, 1)}>{group.applicantName}</TableCell>
+          </Fragment>)}
+        </TableRow>
+        <TableRow>
+          {applicantGroups.map((group) => <Fragment key={group.applicantId}>
+            {group.evaluations.length
+              ? group.evaluations.map((evaluation, index) => <TableCell key={`${evaluation.interviewer_name}-${index}`}>{evaluation.interviewer_name}</TableCell>)
+              : <TableCell>No submitted evaluation</TableCell>}
+          </Fragment>)}
         </TableRow>
       </TableHead>
       <TableBody>
         {criteria.map((criterion) => <TableRow key={criterion.criterion_id}>
           <TableCell component="th" scope="row">{criterion.criterion_name}</TableCell>
-          {evaluations.map((evaluation, index) => {
-            const answer = evaluation.answers?.find((item) => item.criterion_id === criterion.criterion_id);
-            return <TableCell key={`${evaluation.applicantName}-${criterion.criterion_id}-${index}`}>
-              {answer ? <>
-                <Typography sx={{ fontWeight: 600 }}>{answer.score} / {answer.max_score}</Typography>
-                <Typography variant="body2" color="text.secondary">{answer.comment || 'No comment'}</Typography>
-              </> : '—'}
-            </TableCell>;
-          })}
+          {applicantGroups.map((group, groupIndex) => <Fragment key={group.applicantId}>
+            {groupIndex > 0 ? <TableCell className="evaluation-group-gap" /> : null}
+            {group.evaluations.length ? group.evaluations.map((evaluation, index) => {
+              const answer = evaluation.answers?.find((item) => item.criterion_id === criterion.criterion_id);
+              return <TableCell key={`${evaluation.interviewer_name}-${criterion.criterion_id}-${index}`}>
+                {answer ? <>
+                  <Typography sx={{ fontWeight: 600 }}>{answer.score} / {answer.max_score}</Typography>
+                  <Typography variant="body2" color="text.secondary">{answer.comment || 'No comment'}</Typography>
+                </> : '—'}
+              </TableCell>;
+            }) : <TableCell>—</TableCell>}
+          </Fragment>)}
         </TableRow>)}
       </TableBody>
     </Table>
