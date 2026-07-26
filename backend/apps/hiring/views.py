@@ -298,6 +298,8 @@ class JobHiringDecisionListCreateAPIView(APIView):
             decisions = decisions.filter(job_posting__organization=membership.organization) if membership else decisions.none()
         else:
             raise PermissionDenied('Your role cannot access job-level hiring decisions.')
+        if request.query_params.get('job_posting'):
+            decisions = decisions.filter(job_posting_id=request.query_params['job_posting'])
         if request.query_params.get('status'):
             decisions = decisions.filter(status=request.query_params['status'])
         return Response(JobHiringDecisionSerializer(decisions, many=True, context={'request': request}).data)
