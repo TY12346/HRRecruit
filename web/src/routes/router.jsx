@@ -37,6 +37,7 @@ import InterviewerNotificationsPage from '../pages/interviewer/NotificationsPage
 import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx';
 import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
 import HiringManagerDashboardPage from '../pages/hiring_manager/HiringManagerDashboardPage.jsx';
+import JobOffersApprovalPage from '../pages/hiring_manager/JobOffersApprovalPage.jsx';
 import OrganizationProfilePage from '../pages/hiring_manager/OrganizationProfilePage.jsx';
 import OrganizationOnboardingPage from '../pages/hiring_manager/OrganizationOnboardingPage.jsx';
 import SubscriptionOnboardingPage from '../pages/hiring_manager/SubscriptionOnboardingPage.jsx';
@@ -140,6 +141,7 @@ export const router = createBrowserRouter([
               { path: 'hiring-manager/team/create', element: <CreateTeamMemberPage /> },
               { path: 'hiring-manager/team/bulk-import', element: <BulkImportMembersPage /> },
               { path: 'hiring-manager/hiring-decisions', element: <PendingHiringDecisionsPage /> },
+              { path: 'hiring-manager/job-offers', element: <JobOffersApprovalPage /> },
               { path: 'hiring-manager/applicant-search', element: <RoleBasedApplicantSearchPage role="hr_head" /> },
               { path: 'hiring-manager/job-requisitions', element: <HiringManagerJobRequisitionsPage /> },
               { path: 'hiring-manager/billing', element: <BillingPage /> },

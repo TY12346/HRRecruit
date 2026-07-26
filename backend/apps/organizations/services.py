@@ -112,7 +112,8 @@ def get_organization_deletion_blockers(organization):
         offer_status__in=[
             JobOffer.OfferStatus.DRAFTING,
             JobOffer.OfferStatus.PENDING_APPROVAL,
-            JobOffer.OfferStatus.SENT,
+            JobOffer.OfferStatus.APPROVED,
+            JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE,
         ],
     ).count()
     if sent_offer_count:
