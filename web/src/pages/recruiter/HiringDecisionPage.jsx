@@ -65,7 +65,7 @@ export default function HiringDecisionPage() {
         {data.applicants.map((applicant) => <TableRow key={applicant.application_id}>
           <TableCell><Checkbox checked={selected.includes(applicant.application_id)} disabled={noHire || !applicant.eligible_for_decision || (!selected.includes(applicant.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(applicant.application_id)} /></TableCell>
           <TableCell><Checkbox inputProps={{ 'aria-label': `Compare ${applicant.applicant_name}` }} checked={comparisonSelected.includes(applicant.application_id)} disabled={!comparisonSelected.includes(applicant.application_id) && comparisonSelected.length >= 3} onChange={() => toggleComparison(applicant.application_id)} /></TableCell>
-          <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.applicant_email}{applicant.applicant_phone ? ` • ${applicant.applicant_phone}` : ''}</Typography></TableCell>
+          <TableCell>{applicant.applicant_name}<Typography variant="caption" display="block">{applicant.applicant_email}{applicant.applicant_phone ? ` • ${applicant.applicant_phone}` : ''}</Typography>{applicant.resume_url ? <Button size="small" component="a" href={applicant.resume_url} target="_blank" rel="noreferrer">View resume</Button> : <Typography variant="caption" display="block">No resume</Typography>}</TableCell>
           <TableCell>{scoreText(applicant.ai_resume_score)}</TableCell>
           <TableCell>{(applicant.matched_skills || []).join(', ') || '—'}</TableCell>
           <TableCell>{(applicant.missing_skills || []).join(', ') || '—'}</TableCell>
