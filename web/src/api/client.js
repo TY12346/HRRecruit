@@ -434,8 +434,8 @@ export const getHiringDecision = async (decisionId) => {
   return response.data;
 };
 
-export const getJobOffers = async () => {
-  const response = await apiClient.get('/job-offers/');
+export const getJobOffers = async (params = {}) => {
+  const response = await apiClient.get('/job-offers/', { params });
   return response.data;
 };
 

@@ -570,6 +570,11 @@ class JobOfferListAPIView(APIView):
 
     def get(self, request):
         offers = visible_offers_for(request.user)
+        job_posting = request.query_params.get('job_posting')
+        if job_posting:
+            if not job_posting.isdigit():
+                raise ValidationError({'job_posting': 'A valid job posting id is required.'})
+            offers = offers.filter(application__job_id=job_posting)
         return Response(JobOfferSerializer(offers, many=True, context={'request': request}).data)
 
 

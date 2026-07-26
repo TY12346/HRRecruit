@@ -17,13 +17,34 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { getApplications, getJobOffers, resubmitJobOffer, sendApprovedJobOffer, sendJobOffer, withdrawJobOffer } from '../../api/client.js';
+import { useParams } from 'react-router-dom';
+import { getApplications, getJobHiringDecisions, getJobOffers, resubmitJobOffer, sendApprovedJobOffer, sendJobOffer, withdrawJobOffer } from '../../api/client.js';
 import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
 import { applicationName, formatDate, formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
 import { getCommunicationTemplates, renderApplicationTemplate } from './communicationTemplates.js';
 
+const offerNextStep = (offer) => {
+  if (offer.offer_status === 'pending_hr_approval') return 'Wait for the hiring manager to review the offer.';
+  if (offer.offer_status === 'approved_by_hr') return 'Send the approved offer to the applicant.';
+  if (offer.offer_status === 'disapproved_by_hr') return 'Review the feedback, edit the offer, and resubmit it.';
+  if (offer.offer_status === 'pending_applicant_response') return 'Wait for the applicant response.';
+  if (offer.offer_status === 'accepted_by_applicant') return 'No further action is required; the vacancy has been updated.';
+  if (offer.offer_status === 'rejected_by_applicant') return 'The vacancy remains open; make another hiring decision if needed.';
+  return 'Complete the offer terms and submit them for approval.';
+};
+
+const approvedOfferApplications = (apps, decisions) => {
+  const approvedIds = new Set(
+    decisions
+      .filter((decision) => decision.status === 'approved' && decision.decision_type === 'recommend_hire')
+      .flatMap((decision) => decision.items.map((item) => item.application.id)),
+  );
+  return apps.filter((app) => app.status === 'under_review' && approvedIds.has(app.id));
+};
+
 export default function JobOfferPage() {
+  const { jobId } = useParams();
   const [applications, setApplications] = useState([]);
   const [offers, setOffers] = useState([]);
   const [applicationId, setApplicationId] = useState('');
@@ -47,8 +68,13 @@ export default function JobOfferPage() {
   const load = async () => {
     setIsLoading(true);
     try {
-      const [apps, jobOffers] = await Promise.all([getApplications(), getJobOffers()]);
-      const approvedApps = apps.filter((app) => app.status === 'under_review');
+      const params = jobId ? { job_id: jobId } : {};
+      const [apps, jobOffers, decisions] = await Promise.all([
+        getApplications(params),
+        getJobOffers(jobId ? { job_posting: jobId } : {}),
+        getJobHiringDecisions(jobId ? { job_posting: jobId } : {}),
+      ]);
+      const approvedApps = approvedOfferApplications(apps, decisions);
       setApplications(approvedApps);
       setOffers(jobOffers);
       if (!applicationId && approvedApps[0]) setApplicationId(String(approvedApps[0].id));
@@ -61,10 +87,15 @@ export default function JobOfferPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([getApplications(), getJobOffers()])
-      .then(([apps, jobOffers]) => {
+    const params = jobId ? { job_id: jobId } : {};
+    Promise.all([
+      getApplications(params),
+      getJobOffers(jobId ? { job_posting: jobId } : {}),
+      getJobHiringDecisions(jobId ? { job_posting: jobId } : {}),
+    ])
+      .then(([apps, jobOffers, decisions]) => {
         if (!active) return;
-        const approvedApps = apps.filter((app) => app.status === 'under_review');
+        const approvedApps = approvedOfferApplications(apps, decisions);
         setApplications(approvedApps);
         setOffers(jobOffers);
         if (approvedApps[0]) setApplicationId(String(approvedApps[0].id));
@@ -76,10 +107,11 @@ export default function JobOfferPage() {
         if (active) setIsLoading(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [jobId]);
 
   const offerTemplates = getCommunicationTemplates('offer');
   const selectedApplication = applications.find((app) => String(app.id) === String(applicationId));
+  const jobTitle = selectedApplication?.job_title || offers[0]?.application?.job_title;
 
   const applyTemplate = (selectedTemplateId = templateId) => {
     const renderedDeadline = deadline ? formatDateTime(new Date(deadline).toISOString()) : 'the response deadline';
@@ -157,7 +189,10 @@ export default function JobOfferPage() {
     <Box>
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Job offers</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>{jobId ? 'Create job offer' : 'Job offers'}</Typography>
+        {jobId ? <Typography color="text.secondary" sx={{ mb: 2 }}>
+          {jobTitle ? `${jobTitle} — ` : ''}Draft an offer and track every offer related to this job.
+        </Typography> : null}
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         {isLoading ? <CircularProgress /> : (
@@ -210,7 +245,7 @@ export default function JobOfferPage() {
                   <TableCell>Start / work</TableCell>
                   <TableCell>Deadline</TableCell>
                   <TableCell>Submitted / sent</TableCell>
-                  <TableCell>Action</TableCell>
+                  <TableCell>Next step</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -225,12 +260,14 @@ export default function JobOfferPage() {
                     <TableCell>{formatDateTime(offer.respond_deadline)}</TableCell>
                     <TableCell>{formatDateTime(offer.sent_at)}</TableCell>
                     <TableCell>
+                      <Typography variant="body2" sx={{ mb: 0.5 }}>{offerNextStep(offer)}</Typography>
                       {offer.offer_status === 'approved_by_hr' ? <Button onClick={() => sendToApplicant(offer.id)} size="small">Send to applicant</Button> : null}
                       {offer.offer_status === 'disapproved_by_hr' ? <Button onClick={() => editOffer(offer)} size="small">Edit and resubmit</Button> : null}
                       {offer.offer_status === 'pending_applicant_response' ? <Button color="warning" onClick={() => withdrawOffer(offer.id)} size="small">Withdraw</Button> : null}
                     </TableCell>
                   </TableRow>
                 ))}
+                {!offers.length ? <TableRow><TableCell colSpan={9}>{jobId ? 'No job offers have been created for this job yet.' : 'No job offers have been created yet.'}</TableCell></TableRow> : null}
               </TableBody>
             </Table>
           </Stack>

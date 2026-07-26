@@ -191,6 +191,10 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(created.status_code, status.HTTP_201_CREATED)
         self.assertEqual(created.data['offer_status'], JobOffer.OfferStatus.PENDING_APPROVAL)
         offer_id = created.data['id']
+        scoped_offers = self.client.get(reverse('job-offer-list'), {'job_posting': self.job.id})
+        self.assertEqual([offer['id'] for offer in scoped_offers.data], [offer_id])
+        other_job_offers = self.client.get(reverse('job-offer-list'), {'job_posting': self.job.id + 999})
+        self.assertEqual(other_job_offers.data, [])
 
         self.client.force_authenticate(self.applicant)
         self.assertEqual(self.client.get(reverse('job-offer-list')).data, [])

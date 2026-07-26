@@ -94,6 +94,7 @@ export const router = createBrowserRouter([
           { path: 'recruiter/jobs/:jobId/evaluation-form', element: <EvaluationScorecardBuilderPage /> },
           { path: 'recruiter/jobs/:jobId/ranking', element: <ApplicantRankingPage /> },
           { path: 'recruiter/jobs/:jobId/hiring-decision', element: <HiringDecisionPage /> },
+          { path: 'recruiter/jobs/:jobId/job-offers', element: <JobOfferPage /> },
           { path: 'recruiter/jobs/:jobId/applicant-comparison', element: <ApplicantComparisonPage /> },
           { path: 'recruiter/hiring-decisions', element: <HiringDecisionsPage /> },
           { path: 'recruiter/applications', element: <ApplicationsPage /> },
