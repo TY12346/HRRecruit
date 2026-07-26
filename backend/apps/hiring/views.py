@@ -211,7 +211,8 @@ class JobApplicantComparisonAPIView(APIView):
 
         readiness = refresh_job_readiness(job)
         applications = job.applications.select_related('applicant', 'assigned_interviewer').prefetch_related(
-            'interviews__evaluations',
+            'interviews__evaluations__interviewer',
+            'interviews__evaluations__answers__criterion',
             'interviews__recordings__transcripts__ai_summaries',
         ).order_by('-final_score', 'applied_at')
         applicants = []
@@ -247,6 +248,29 @@ class JobApplicantComparisonAPIView(APIView):
                 'evaluation_score': evaluations[-1].total_score if evaluations else None,
                 'evaluation_summary': evaluations[-1].overall_comment if evaluations else '',
                 'interviewer_remarks': [evaluation.overall_comment for evaluation in evaluations],
+                'interviewer_remarks_detail': [
+                    {
+                        'interviewer_name': evaluation.interviewer.full_name or evaluation.interviewer.email,
+                        'remark': evaluation.overall_comment,
+                    }
+                    for evaluation in evaluations
+                ],
+                'interviewer_evaluations': [
+                    {
+                        'interviewer_name': evaluation.interviewer.full_name or evaluation.interviewer.email,
+                        'answers': [
+                            {
+                                'criterion_id': answer.criterion_id,
+                                'criterion_name': answer.criterion.criterion_name,
+                                'max_score': answer.criterion.max_score,
+                                'score': answer.score,
+                                'comment': answer.comment,
+                            }
+                            for answer in evaluation.answers.all()
+                        ],
+                    }
+                    for evaluation in evaluations
+                ],
                 'interviews': [{'id': interview.id} for interview in interviews],
                 'transcript_status': 'available' if transcripts else 'not_available',
                 'ai_summary_status': 'available' if summaries else 'not_available',

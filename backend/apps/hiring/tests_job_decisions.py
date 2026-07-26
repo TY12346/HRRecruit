@@ -3,10 +3,10 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import JobApplication
-from apps.evaluations.models import InterviewEvaluation
+from apps.evaluations.models import EvaluationAnswer, InterviewEvaluation
 from apps.hiring.models import JobHiringDecision
 from apps.interviews.models import Interview
-from apps.jobs.models import JobPosting
+from apps.jobs.models import EvaluationCriterion, InterviewEvaluationForm, JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.users.models import User
 
@@ -73,6 +73,39 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         response = self.submit()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['items'][0]['application']['id'], self.application.id)
+
+    def test_comparison_includes_named_remarks_and_scorecard_answers(self):
+        form = InterviewEvaluationForm.objects.create(job=self.job, title='Interview scorecard')
+        criterion = EvaluationCriterion.objects.create(
+            form=form, criterion_name='Communication', max_score='10.00', weight_score='1.00',
+        )
+        interview = Interview.objects.create(
+            application=self.application, organization=self.organization, recruiter=self.recruiter,
+            interviewer=self.interviewer, status=Interview.Status.EVALUATION_SUBMITTED,
+        )
+        evaluation = InterviewEvaluation.objects.create(
+            interview=interview, interviewer=self.interviewer, total_score='8.00',
+            overall_comment='Explained decisions clearly.',
+        )
+        EvaluationAnswer.objects.create(
+            evaluation=evaluation, criterion=criterion, score='8.00', comment='Clear examples.',
+        )
+        self.client.force_authenticate(self.recruiter)
+
+        response = self.client.get(reverse('job-applicant-comparison', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        applicant = response.data['applicants'][0]
+        self.assertEqual(applicant['interviewer_remarks_detail'], [{
+            'interviewer_name': 'Interviewer', 'remark': 'Explained decisions clearly.',
+        }])
+        self.assertEqual(applicant['interviewer_evaluations'][0]['interviewer_name'], 'Interviewer')
+        answer = applicant['interviewer_evaluations'][0]['answers'][0]
+        self.assertEqual(answer['criterion_id'], criterion.id)
+        self.assertEqual(answer['criterion_name'], 'Communication')
+        self.assertEqual(str(answer['max_score']), '10.00')
+        self.assertEqual(str(answer['score']), '8.00')
+        self.assertEqual(answer['comment'], 'Clear examples.')
 
     def test_pending_decision_returns_its_specific_error_instead_of_readiness_error(self):
         self.close_intake()
