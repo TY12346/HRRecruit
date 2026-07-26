@@ -116,6 +116,27 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(duplicate.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('already has a decision pending', str(duplicate.data))
 
+    def test_recruiter_can_filter_submitted_decisions_by_job(self):
+        other_job = JobPosting.objects.create(
+            organization=self.organization, recruiter=self.recruiter, title='Designer', description='Design',
+            employment_type='Full time', location='Remote', status=JobPosting.Status.CLOSED, vacancies=1,
+        )
+        JobHiringDecision.objects.create(
+            job_posting=other_job, recruiter=self.recruiter,
+            decision_type=JobHiringDecision.DecisionType.RECOMMEND_NO_HIRE,
+            justification='No suitable designer.', status=JobHiringDecision.Status.APPROVED,
+        )
+        self.close_intake()
+        submitted = self.submit()
+        self.assertEqual(submitted.status_code, status.HTTP_201_CREATED)
+
+        response = self.client.get(
+            reverse('job-hiring-decision-list-create'), {'job_posting': self.job.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([decision['id'] for decision in response.data], [submitted.data['id']])
+
     def test_comparison_requires_all_panel_scorecards_before_application_is_eligible(self):
         panel_interviewer = User.objects.create_user(
             email='comparison-panel@example.com', password='pass', full_name='Panel', role=User.Role.INTERVIEWER,
