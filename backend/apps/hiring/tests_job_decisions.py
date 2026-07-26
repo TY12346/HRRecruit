@@ -18,7 +18,10 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.recruiter = User.objects.create_user(email='recruiter-flow@example.com', password='pass', full_name='Recruiter', role=User.Role.RECRUITER)
         self.applicant = User.objects.create_user(email='applicant-flow@example.com', password='pass', full_name='Applicant', role=User.Role.APPLICANT)
         self.interviewer = User.objects.create_user(email='interviewer-flow@example.com', password='pass', full_name='Interviewer', role=User.Role.INTERVIEWER)
-        self.organization = Organization.objects.create(name='Flow Org', registration_no='FLOW-1', email='flow@example.com', contact_number='1', address='Address', created_by=self.hr)
+        self.organization = Organization.objects.create(
+            name='Flow Org', registration_no='FLOW-1', email='flow@example.com', contact_number='1',
+            address='Address', created_by=self.hr, status=Organization.Status.ACTIVE,
+        )
         for user, role in ((self.hr, OrganizationMembership.Role.HR_HEAD), (self.recruiter, OrganizationMembership.Role.RECRUITER), (self.interviewer, OrganizationMembership.Role.INTERVIEWER)):
             OrganizationMembership.objects.create(organization=self.organization, user=user, role=role)
         self.job = JobPosting.objects.create(organization=self.organization, recruiter=self.recruiter, title='Engineer', description='Build', employment_type='Full time', location='Remote', status=JobPosting.Status.OPEN, vacancies=1)
