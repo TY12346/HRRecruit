@@ -263,7 +263,7 @@ def base_application_metrics(jobs, applications):
     offers = JobOffer.objects.filter(application__in=applications)
     total_offers = offers.count()
     accepted_offers = offers.filter(offer_status=JobOffer.OfferStatus.ACCEPTED).count()
-    declined_offers = offers.filter(offer_status=JobOffer.OfferStatus.DECLINED).count()
+    declined_offers = offers.filter(offer_status=JobOffer.OfferStatus.REJECTED).count()
     decisions = JobHiringDecision.objects.filter(job_posting__in=jobs)
 
     return {

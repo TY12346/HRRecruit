@@ -21,7 +21,7 @@ class JobOffer {
   final DateTime? sentAt;
   final DateTime? respondedAt;
 
-  bool get canRespond => offerStatus == 'offer_sent';
+  bool get canRespond => offerStatus == 'pending_applicant_response';
 
   factory JobOffer.fromJson(Map<String, dynamic> json) {
     return JobOffer(

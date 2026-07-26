@@ -17,7 +17,7 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { getApplications, getJobOffers, sendJobOffer, withdrawJobOffer } from '../../api/client.js';
+import { getApplications, getJobOffers, resubmitJobOffer, sendApprovedJobOffer, sendJobOffer, withdrawJobOffer } from '../../api/client.js';
 import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
 import { applicationName, formatDate, formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
@@ -42,6 +42,7 @@ export default function JobOfferPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [editingOfferId, setEditingOfferId] = useState(null);
 
   const load = async () => {
     setIsLoading(true);
@@ -91,7 +92,7 @@ export default function JobOfferPage() {
     setError('');
     setSuccess('');
     try {
-      await sendJobOffer(applicationId, {
+      const payload = {
         offer_message: message,
         respond_deadline: new Date(deadline).toISOString(),
         salary_amount: salaryAmount || undefined,
@@ -103,12 +104,40 @@ export default function JobOfferPage() {
         benefits_summary: benefitsSummary,
         internal_notes: internalNotes,
         offer_letter_file: file,
-      });
-      setSuccess('Job offer sent with compensation and start-date details.');
+      };
+      if (editingOfferId) await resubmitJobOffer(editingOfferId, payload);
+      else await sendJobOffer(applicationId, payload);
+      setSuccess(editingOfferId ? 'Revised job offer resubmitted for hiring manager approval.' : 'Job offer submitted for hiring manager approval.');
+      setEditingOfferId(null);
       load();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to send job offer.'));
     }
+  };
+
+  const editOffer = (offer) => {
+    setEditingOfferId(offer.id);
+    setApplicationId(String(offer.application.id));
+    setMessage(offer.offer_message);
+    setDeadline(formatDate(new Date(offer.respond_deadline)));
+    setSalaryAmount(offer.salary_amount || '');
+    setSalaryCurrency(offer.salary_currency || 'MYR');
+    setStartDate(offer.start_date || '');
+    setEmploymentType(offer.employment_type || '');
+    setWorkArrangement(offer.work_arrangement || '');
+    setProbationMonths(offer.probation_months ?? '');
+    setBenefitsSummary(offer.benefits_summary || '');
+    setInternalNotes(offer.internal_notes || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const sendToApplicant = async (offerId) => {
+    setError('');
+    try {
+      await sendApprovedJobOffer(offerId);
+      setSuccess('Approved offer sent to the applicant.');
+      load();
+    } catch (err) { setError(getApiErrorMessage(err, 'Unable to send offer to applicant.')); }
   };
 
 
@@ -135,7 +164,7 @@ export default function JobOfferPage() {
           <Stack spacing={3}>
             <Box component="form" onSubmit={submit}>
               <Stack spacing={2}>
-                <TextField label="HR-approved applicant" select required value={applicationId} onChange={(e) => setApplicationId(e.target.value)}>
+                <TextField label="HR-approved applicant" select required disabled={Boolean(editingOfferId)} value={applicationId} onChange={(e) => setApplicationId(e.target.value)}>
                   {applications.map((app) => <MenuItem key={app.id} value={app.id}><ApplicantJobSummary applicantName={applicationName(app)} jobTitle={app.job_title} variant="body2" /></MenuItem>)}
                 </TextField>
                 <TextField
@@ -165,21 +194,22 @@ export default function JobOfferPage() {
                 <TextField label="Internal offer notes" multiline minRows={2} value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} helperText="Visible to recruiter/HR users only; use this for negotiation context or approval notes." />
                 <TextField label="Response deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
                 <input accept=".pdf,.doc,.docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} type="file" />
-                <Button disabled={!applicationId} type="submit" variant="contained">Send job offer</Button>
+                <Button disabled={!applicationId} type="submit" variant="contained">{editingOfferId ? 'Save changes and resubmit for approval' : 'Submit job offer for approval'}</Button>
               </Stack>
             </Box>
 
-            <Typography variant="h6">Sent offers</Typography>
+            <Typography variant="h6">Job offers</Typography>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Applicant</TableCell>
                   <TableCell>Job</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Hiring manager feedback</TableCell>
                   <TableCell>Compensation</TableCell>
                   <TableCell>Start / work</TableCell>
                   <TableCell>Deadline</TableCell>
-                  <TableCell>Sent</TableCell>
+                  <TableCell>Submitted / sent</TableCell>
                   <TableCell>Action</TableCell>
                 </TableRow>
               </TableHead>
@@ -188,12 +218,17 @@ export default function JobOfferPage() {
                   <TableRow key={offer.id}>
                     <TableCell>{applicationName(offer.application)}</TableCell>
                     <TableCell>{offer.application?.job_title}</TableCell>
-                    <TableCell><Chip label={titleize(offer.offer_status)} size="small" /></TableCell>
+                    <TableCell><Chip label={offer.offer_status_label || titleize(offer.offer_status)} size="small" /></TableCell>
+                    <TableCell>{offer.hiring_manager_remarks || '—'}</TableCell>
                     <TableCell>{offer.salary_amount ? `${offer.salary_currency} ${offer.salary_amount}` : 'Not specified'}</TableCell>
                     <TableCell>{offer.start_date || 'TBD'} / {offer.work_arrangement || 'TBD'}</TableCell>
                     <TableCell>{formatDateTime(offer.respond_deadline)}</TableCell>
                     <TableCell>{formatDateTime(offer.sent_at)}</TableCell>
-                    <TableCell>{offer.offer_status === 'offer_sent' ? <Button color="warning" onClick={() => withdrawOffer(offer.id)} size="small">Withdraw</Button> : null}</TableCell>
+                    <TableCell>
+                      {offer.offer_status === 'approved_by_hr' ? <Button onClick={() => sendToApplicant(offer.id)} size="small">Send to applicant</Button> : null}
+                      {offer.offer_status === 'disapproved_by_hr' ? <Button onClick={() => editOffer(offer)} size="small">Edit and resubmit</Button> : null}
+                      {offer.offer_status === 'pending_applicant_response' ? <Button color="warning" onClick={() => withdrawOffer(offer.id)} size="small">Withdraw</Button> : null}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
