@@ -1,10 +1,11 @@
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import JobApplication
 from apps.evaluations.models import EvaluationAnswer, InterviewEvaluation
-from apps.hiring.models import JobHiringDecision
+from apps.hiring.models import JobHiringDecision, JobOffer
 from apps.interviews.models import Interview
 from apps.jobs.models import EvaluationCriterion, InterviewEvaluationForm, JobPosting
 from apps.organizations.models import Organization, OrganizationMembership
@@ -173,6 +174,84 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         self.assertEqual(review.status_code, status.HTTP_200_OK)
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, JobPosting.Status.CLOSED)
+
+    def test_approved_offer_is_manually_sent_and_acceptance_fills_vacancy(self):
+        self.close_intake()
+        decision_response = self.submit()
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-hiring-decision-approve', args=[decision_response.data['id']]), {}, format='json')
+        self.client.force_authenticate(self.recruiter)
+        created = self.client.post(reverse('application-job-offer', args=[self.application.id]), {
+            'offer_message': 'Please join us.',
+            'respond_deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+        }, format='json')
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(created.data['offer_status'], JobOffer.OfferStatus.PENDING_APPROVAL)
+        offer_id = created.data['id']
+
+        self.client.force_authenticate(self.applicant)
+        self.assertEqual(self.client.get(reverse('job-offer-list')).data, [])
+        self.client.force_authenticate(self.hr)
+        approved = self.client.post(reverse('job-offer-approve', args=[offer_id]), {'remarks': 'Terms approved.'})
+        self.assertEqual(approved.data['offer_status'], JobOffer.OfferStatus.APPROVED)
+        self.client.force_authenticate(self.applicant)
+        self.assertEqual(self.client.get(reverse('job-offer-list')).data, [])
+
+        self.client.force_authenticate(self.recruiter)
+        sent = self.client.post(reverse('job-offer-send', args=[offer_id]))
+        self.assertEqual(sent.data['offer_status'], JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE)
+        self.client.force_authenticate(self.applicant)
+        accepted = self.client.post(reverse('job-offer-accept', args=[offer_id]), {})
+        self.assertEqual(accepted.data['offer_status'], JobOffer.OfferStatus.ACCEPTED)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.vacancies, 0)
+        self.assertEqual(self.job.status, JobPosting.Status.CLOSED)
+        self.client.force_authenticate(self.recruiter)
+        comparison = self.client.get(reverse('job-applicant-comparison', args=[self.job.id]))
+        self.assertFalse(comparison.data['readiness']['ready'])
+
+    def test_disapproved_offer_can_be_edited_and_resubmitted(self):
+        self.close_intake()
+        decision_response = self.submit()
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-hiring-decision-approve', args=[decision_response.data['id']]), {})
+        self.client.force_authenticate(self.recruiter)
+        created = self.client.post(reverse('application-job-offer', args=[self.application.id]), {
+            'offer_message': 'Initial terms.',
+            'respond_deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+        }, format='json')
+        self.client.force_authenticate(self.hr)
+        rejected = self.client.post(reverse('job-offer-disapprove', args=[created.data['id']]), {'remarks': 'Revise the terms.'})
+        self.assertEqual(rejected.data['offer_status'], JobOffer.OfferStatus.DISAPPROVED)
+        self.client.force_authenticate(self.recruiter)
+        revised = self.client.patch(reverse('job-offer-resubmit', args=[created.data['id']]), {'offer_message': 'Revised terms.'}, format='json')
+        self.assertEqual(revised.data['offer_status'], JobOffer.OfferStatus.PENDING_APPROVAL)
+        self.assertEqual(revised.data['offer_message'], 'Revised terms.')
+
+    def test_applicant_rejected_offer_keeps_vacancy_and_reopens_job(self):
+        self.close_intake()
+        decision_response = self.submit()
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-hiring-decision-approve', args=[decision_response.data['id']]), {})
+        self.client.force_authenticate(self.recruiter)
+        created = self.client.post(reverse('application-job-offer', args=[self.application.id]), {
+            'offer_message': 'Please join us.',
+            'respond_deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+        }, format='json')
+        self.client.force_authenticate(self.hr)
+        self.client.post(reverse('job-offer-approve', args=[created.data['id']]), {})
+        self.client.force_authenticate(self.recruiter)
+        self.client.post(reverse('job-offer-send', args=[created.data['id']]))
+
+        self.client.force_authenticate(self.applicant)
+        declined = self.client.post(reverse('job-offer-decline', args=[created.data['id']]), {
+            'reason': 'Accepted another role.',
+        })
+
+        self.assertEqual(declined.data['offer_status'], JobOffer.OfferStatus.REJECTED)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.vacancies, 1)
+        self.assertEqual(self.job.status, JobPosting.Status.OPEN)
 
     def test_hr_rejects_whole_decision_and_applicant_cannot_access_it(self):
         self.close_intake()

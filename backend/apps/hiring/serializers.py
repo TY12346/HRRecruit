@@ -33,6 +33,10 @@ class JobDecisionReviewSerializer(serializers.Serializer):
     hr_remarks = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True, default='')
 
 
+class JobOfferReviewSerializer(serializers.Serializer):
+    remarks = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True, default='')
+
+
 class JobHiringDecisionItemSerializer(serializers.ModelSerializer):
     application = JobApplicationSerializer(read_only=True)
 
@@ -153,6 +157,7 @@ class JobOfferDeclineSerializer(serializers.Serializer):
 class JobOfferSerializer(serializers.ModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     offer_letter_url = serializers.SerializerMethodField()
+    offer_status_label = serializers.CharField(source='get_offer_status_display', read_only=True)
 
     class Meta:
         model = JobOffer
@@ -163,6 +168,7 @@ class JobOfferSerializer(serializers.ModelSerializer):
             'offer_letter_url',
             'offer_message',
             'offer_status',
+            'offer_status_label',
             'salary_amount',
             'salary_currency',
             'start_date',
@@ -171,6 +177,9 @@ class JobOfferSerializer(serializers.ModelSerializer):
             'probation_months',
             'benefits_summary',
             'internal_notes',
+            'reviewed_by',
+            'reviewed_at',
+            'hiring_manager_remarks',
             'applicant_response_note',
             'respond_deadline',
             'sent_at',
@@ -184,6 +193,8 @@ class JobOfferSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated and request.user.role == User.Role.APPLICANT:
             data.pop('internal_notes', None)
+            data.pop('hiring_manager_remarks', None)
+            data.pop('reviewed_by', None)
         return data
 
     def get_offer_letter_url(self, offer):
