@@ -3,6 +3,7 @@
 from apps.applications.models import JobApplication
 from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting
+from .models import JobOffer
 
 
 ELIGIBLE_DECISION_STATUSES = {JobApplication.Status.UNDER_REVIEW}
@@ -51,9 +52,23 @@ def decision_readiness(job):
         application_scorecard_progress(application)['complete']
         for application in applications
     )
-    reasons = [] if eligible_count else ['At least one applicant must be available for hiring.']
+    reasons = []
+    active_offer_exists = JobOffer.objects.filter(
+        application__job=job,
+        offer_status__in=[
+            JobOffer.OfferStatus.PENDING_APPROVAL,
+            JobOffer.OfferStatus.APPROVED,
+            JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE,
+        ],
+    ).exists()
+    if job.vacancies == 0:
+        reasons.append('This job has no remaining vacancies.')
+    elif active_offer_exists:
+        reasons.append('Resolve the active job offer before making another hiring decision.')
+    elif not eligible_count:
+        reasons.append('At least one applicant must be available for hiring.')
     return {
-        'ready': eligible_count > 0,
+        'ready': job.vacancies > 0 and eligible_count > 0 and not active_offer_exists,
         'reasons': reasons,
         'eligible_applicant_count': eligible_count,
     }

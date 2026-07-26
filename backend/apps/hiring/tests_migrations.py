@@ -17,3 +17,10 @@ class HiringMigrationHistoryTests(SimpleTestCase):
         migration = import_module('apps.hiring.migrations.0005_rename_job_hiring_models_to_decisions').Migration
 
         self.assertEqual(migration.dependencies, [('hiring', '0004_ensure_joboffer_applicant_response_note')])
+
+    def test_legacy_candidate_response_note_repair_preserves_data_before_removal(self):
+        migration_module = import_module('apps.hiring.migrations.0008_remove_legacy_candidate_response_note')
+
+        self.assertEqual(migration_module.Migration.dependencies, [('hiring', '0007_job_offer_approval_workflow')])
+        self.assertIn('SET applicant_response_note = candidate_response_note', migration_module.REPAIR_LEGACY_RESPONSE_NOTE_SQL)
+        self.assertIn('DROP COLUMN candidate_response_note', migration_module.REPAIR_LEGACY_RESPONSE_NOTE_SQL)
