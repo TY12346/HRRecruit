@@ -71,7 +71,11 @@ export default function HiringDecisionPage() {
           Compare selected applicants ({comparisonSelected.length})
         </Button>
       </Stack>
-      <Table><TableHead><TableRow><TableCell>Hire</TableCell><TableCell>Compare</TableCell><TableCell>Applicant</TableCell><TableCell>AI Match Score</TableCell><TableCell>Matched Skills</TableCell><TableCell>Missing Skills</TableCell><TableCell>AI Interview Summary</TableCell><TableCell>Interviewer remarks</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
+      <TableContainer
+        aria-label="Applicants available for hiring decision"
+        sx={{ maxHeight: 520, overflowY: 'auto', border: 1, borderColor: 'divider' }}
+      >
+      <Table stickyHeader><TableHead><TableRow><TableCell>Hire</TableCell><TableCell>Compare</TableCell><TableCell>Applicant</TableCell><TableCell>AI Match Score</TableCell><TableCell>Matched Skills</TableCell><TableCell>Missing Skills</TableCell><TableCell>AI Interview Summary</TableCell><TableCell>Interviewer remarks</TableCell><TableCell>Evidence</TableCell></TableRow></TableHead><TableBody>
         {data.applicants.map((applicant) => <TableRow key={applicant.application_id}>
           <TableCell><Checkbox checked={selected.includes(applicant.application_id)} disabled={noHire || !applicant.eligible_for_decision || (!selected.includes(applicant.application_id) && selected.length >= data.job.vacancies)} onChange={() => toggle(applicant.application_id)} /></TableCell>
           <TableCell><Checkbox inputProps={{ 'aria-label': `Compare ${applicant.applicant_name}` }} checked={comparisonSelected.includes(applicant.application_id)} disabled={!comparisonSelected.includes(applicant.application_id) && comparisonSelected.length >= 3} onChange={() => toggleComparison(applicant.application_id)} /></TableCell>
@@ -84,6 +88,7 @@ export default function HiringDecisionPage() {
           <TableCell><Stack alignItems="flex-start">{applicant.resume_url ? <Button size="small" component="a" href={applicant.resume_url} target="_blank" rel="noreferrer">View resume</Button> : null}{(applicant.interviews || []).map((interview) => <Button key={interview.id} size="small" component={RouterLink} to={`/recruiter/interviews/${interview.id}/evaluations?job_id=${jobId}`}>View interview evaluation</Button>)}</Stack></TableCell>
         </TableRow>)}
       </TableBody></Table>
+      </TableContainer>
       <Typography>{selected.length} of {data.job.vacancies} vacancy slots selected.</Typography>
       <FormControlLabel control={<Checkbox checked={noHire} onChange={(event) => { setNoHire(event.target.checked); if (event.target.checked) setSelected([]); }} />} label="Recommend No Hire (select no applicants)" />
       <TextField required multiline minRows={4} label="Recruiter justification" value={justification} onChange={(event) => setJustification(event.target.value)} />
