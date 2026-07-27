@@ -105,6 +105,72 @@ def applicant_funnel(applications):
     return Chart.single_dataset(labels, data, 'Applicants')
 
 
+def applicant_pipeline_sankey(applications):
+    """Build mutually exclusive applicant flows for a Sankey pipeline chart."""
+    total = applications.count()
+    rejected = applications.filter(status=JobApplication.Status.REJECTED).count()
+    under_review = applications.filter(status=JobApplication.Status.UNDER_REVIEW)
+    under_review_count = under_review.count()
+    # A later-stage record implies the applicant passed earlier stages, even if
+    # legacy/imported data does not include every intermediate interview row.
+    interviewed = under_review.filter(
+        Q(interviews__isnull=False) | Q(job_offers__isnull=False),
+    ).distinct()
+    interviewed_count = interviewed.count()
+    evaluated = interviewed.filter(
+        Q(interviews__evaluations__isnull=False) | Q(job_offers__isnull=False),
+    ).distinct()
+    evaluated_count = evaluated.count()
+    offered = evaluated.filter(job_offers__isnull=False).distinct()
+    offered_count = offered.count()
+    hired_count = offered.filter(
+        job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED,
+    ).distinct().count()
+    declined_count = offered.exclude(
+        job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED,
+    ).filter(job_offers__offer_status=JobOffer.OfferStatus.REJECTED).distinct().count()
+    pending_offer_count = max(offered_count - hired_count - declined_count, 0)
+
+    nodes = [
+        {'id': 'applications', 'label': 'Applications', 'column': 0, 'color': '#2563eb'},
+        {'id': 'under_review', 'label': 'Under review', 'column': 1, 'color': '#3b82f6'},
+        {'id': 'rejected', 'label': 'Rejected', 'column': 1, 'color': '#dc2626'},
+        {'id': 'interviewed', 'label': 'Interviewed', 'column': 2, 'color': '#0ea5e9'},
+        {'id': 'awaiting_interview', 'label': 'Awaiting interview', 'column': 2, 'color': '#94a3b8'},
+        {'id': 'evaluated', 'label': 'Evaluated', 'column': 3, 'color': '#8b5cf6'},
+        {'id': 'awaiting_evaluation', 'label': 'Awaiting evaluation', 'column': 3, 'color': '#94a3b8'},
+        {'id': 'offer_sent', 'label': 'Offer sent', 'column': 4, 'color': '#f59e0b'},
+        {'id': 'no_offer', 'label': 'No offer yet', 'column': 4, 'color': '#94a3b8'},
+        {'id': 'hired', 'label': 'Hired', 'column': 5, 'color': '#16a34a'},
+        {'id': 'offer_declined', 'label': 'Offer declined', 'column': 5, 'color': '#f97316'},
+        {'id': 'offer_pending', 'label': 'Offer pending', 'column': 5, 'color': '#64748b'},
+    ]
+    candidate_links = [
+        ('applications', 'under_review', under_review_count),
+        ('applications', 'rejected', rejected),
+        ('under_review', 'interviewed', interviewed_count),
+        ('under_review', 'awaiting_interview', under_review_count - interviewed_count),
+        ('interviewed', 'evaluated', evaluated_count),
+        ('interviewed', 'awaiting_evaluation', interviewed_count - evaluated_count),
+        ('evaluated', 'offer_sent', offered_count),
+        ('evaluated', 'no_offer', evaluated_count - offered_count),
+        ('offer_sent', 'hired', hired_count),
+        ('offer_sent', 'offer_declined', declined_count),
+        ('offer_sent', 'offer_pending', pending_offer_count),
+    ]
+    links = [
+        {'source': source, 'target': target, 'value': value}
+        for source, target, value in candidate_links
+        if value > 0
+    ]
+    active_node_ids = {link[key] for link in links for key in ('source', 'target')}
+    return {
+        'nodes': [node for node in nodes if node['id'] in active_node_ids],
+        'links': links,
+        'total': total,
+    }
+
+
 def average_time_to_hire_days(applications):
     accepted_offers = JobOffer.objects.filter(
         application__in=applications,
@@ -163,6 +229,14 @@ def applications_over_time(applications):
     return OrderedDict((row['month'].strftime('%b %Y') if row['month'] else 'Unknown', row['total']) for row in rows)
 
 
+def application_status_label(value):
+    """Return a display label while tolerating statuses retained in legacy history rows."""
+    try:
+        return JobApplication.Status(value).label
+    except (TypeError, ValueError):
+        return str(value or 'unknown').replace('_', ' ').strip().title()
+
+
 def stage_transition_counts(applications):
     rows = (
         ApplicationStageHistory.objects.filter(application__in=applications)
@@ -174,7 +248,7 @@ def stage_transition_counts(applications):
         {
             'from_stage': row['from_stage'],
             'to_stage': row['to_stage'],
-            'label': f"{JobApplication.Status(row['from_stage']).label} → {JobApplication.Status(row['to_stage']).label}",
+            'label': f"{application_status_label(row['from_stage'])} → {application_status_label(row['to_stage'])}",
             'count': row['total'],
         }
         for row in rows
@@ -295,6 +369,7 @@ def application_charts(applications):
     return {
         'applications_by_status': status_chart(applications),
         'applicant_funnel': applicant_funnel(applications),
+        'applicant_pipeline_sankey': applicant_pipeline_sankey(applications),
         'conversion_rates': conversion_rates_chart(applications),
         'score_distribution': score_distribution_chart(applications),
         'applications_over_time': applications_over_time_chart(applications),
