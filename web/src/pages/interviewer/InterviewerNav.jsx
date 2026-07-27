@@ -1,7 +1,6 @@
 import RoleNav from '../../components/RoleNav.jsx';
 
 const links = [
-  { icon: 'dashboard', label: 'Dashboard', to: '/interviewer', end: true },
   { icon: 'applicants', label: 'Applicants', to: '/interviewer/applicants' },
   { icon: 'search', label: 'Applicant Search', to: '/interviewer/applicant-search' },
   { icon: 'interviews', label: 'Interviews', to: '/interviewer/interviews' },
