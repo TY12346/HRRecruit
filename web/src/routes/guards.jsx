@@ -7,9 +7,9 @@ import { useAuthStore } from '../store/authStore.js';
 
 export const roleDashboardPaths = {
   applicant: '/profile',
-  recruiter: '/recruiter',
-  interviewer: '/interviewer',
-  hr_head: '/hiring-manager',
+  recruiter: '/recruiter/jobs',
+  interviewer: '/interviewer/applicants',
+  hr_head: '/hiring-manager/hiring-decisions',
 };
 
 export function getDashboardPathForRole(role) {
