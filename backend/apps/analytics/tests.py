@@ -131,7 +131,18 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.data['metrics']['interviewer_evaluation_count'], 1)
         self.assertEqual(response.data['metrics']['offer_acceptance_rate'], 100.0)
         self.assertIn('applicant_funnel', response.data['charts'])
+        self.assertIn('applicant_pipeline_sankey', response.data['charts'])
         self.assertIn('conversion_rates', response.data['charts'])
+        sankey = response.data['charts']['applicant_pipeline_sankey']
+        self.assertEqual(sankey['total'], 3)
+        self.assertIn(
+            {'source': 'applications', 'target': 'under_review', 'value': 3},
+            sankey['links'],
+        )
+        self.assertIn(
+            {'source': 'offer_sent', 'target': 'hired', 'value': 1},
+            sankey['links'],
+        )
         self.assertEqual(response.data['metrics']['conversion_rates']['shortlist_rate'], 66.67)
         self.assertEqual(response.data['metrics']['score_distribution']['strong_fit'], 1)
         self.assertEqual(response.data['top_jobs_by_applications'][0]['job_title'], 'Backend Engineer')
