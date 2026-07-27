@@ -78,6 +78,19 @@ class InterviewManagementAPITests(APITestCase):
             format='json',
         )
 
+    def test_recruiter_interview_queue_filters_and_validates_values(self):
+        Interview.objects.create(
+            application=self.application, organization=self.organization, recruiter=self.recruiter,
+            interviewer=self.interviewer, mode=Interview.Mode.ONLINE, status=Interview.Status.SCHEDULED,
+            scheduled_datetime=timezone.now() + timedelta(days=1),
+        )
+        self.authenticate(self.recruiter)
+        response = self.client.get(reverse('interview-list'), {'search': 'Backend', 'mode': 'online', 'status': 'scheduled'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(self.client.get(reverse('interview-list'), {'status': 'invented'}).status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.client.get(reverse('interview-list'), {'date_from': 'not-a-date'}).status_code, status.HTTP_400_BAD_REQUEST)
+
 
     def test_google_calendar_status_reports_not_ready_when_not_configured(self):
         self.authenticate(self.recruiter)

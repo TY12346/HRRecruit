@@ -98,6 +98,20 @@ class HiringWorkflowAPITests(APITestCase):
             format='json',
         )
 
+    def test_global_offer_queue_filters_and_validates_values(self):
+        offer = JobOffer.objects.create(
+            application=self.application, offer_message='Offer',
+            offer_status=JobOffer.OfferStatus.APPROVED,
+            respond_deadline=timezone.now() + timezone.timedelta(days=7),
+        )
+        self.authenticate(self.recruiter)
+        response = self.client.get(reverse('job-offer-list'), {
+            'job_posting': self.job.id, 'offer_status': 'approved_by_hr', 'search': 'Backend',
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [offer.id])
+        self.assertEqual(self.client.get(reverse('job-offer-list'), {'deadline': 'later'}).status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_recruiter_to_hr_head_to_applicant_hire_offer_flow(self):
         submit_response = self.submit_hire_decision()
         self.assertEqual(submit_response.status_code, status.HTTP_201_CREATED)

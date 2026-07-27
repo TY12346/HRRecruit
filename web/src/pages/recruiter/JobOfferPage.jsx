@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
 
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   CircularProgress,
+  Grid,
   MenuItem,
   Paper,
   Stack,
@@ -17,8 +20,8 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { useParams } from 'react-router-dom';
-import { getApplications, getJobHiringDecisions, getJobOffers, resubmitJobOffer, sendApprovedJobOffer, sendJobOffer, withdrawJobOffer } from '../../api/client.js';
+import { Link as RouterLink, useParams, useSearchParams } from 'react-router-dom';
+import { getApplications, getJob, getJobHiringDecisions, getJobOffers, getJobs, resubmitJobOffer, sendApprovedJobOffer, sendJobOffer, withdrawJobOffer } from '../../api/client.js';
 import ApplicantJobSummary from '../../components/ApplicantJobSummary.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
 import { applicationName, formatDate, formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
@@ -43,8 +46,7 @@ const approvedOfferApplications = (apps, decisions) => {
   return apps.filter((app) => app.status === 'under_review' && approvedIds.has(app.id));
 };
 
-export default function JobOfferPage() {
-  const { jobId } = useParams();
+function JobSpecificOffers({ jobId }) {
   const [applications, setApplications] = useState([]);
   const [offers, setOffers] = useState([]);
   const [applicationId, setApplicationId] = useState('');
@@ -111,7 +113,9 @@ export default function JobOfferPage() {
 
   const offerTemplates = getCommunicationTemplates('offer');
   const selectedApplication = applications.find((app) => String(app.id) === String(applicationId));
-  const jobTitle = selectedApplication?.job_title || offers[0]?.application?.job_title;
+  const [job, setJob] = useState(null);
+  useEffect(() => { getJob(jobId).then(setJob).catch(() => {}); }, [jobId]);
+  const jobTitle = job?.title || selectedApplication?.job_title || offers[0]?.application?.job_title;
 
   const applyTemplate = (selectedTemplateId = templateId) => {
     const renderedDeadline = deadline ? formatDateTime(new Date(deadline).toISOString()) : 'the response deadline';
@@ -193,6 +197,7 @@ export default function JobOfferPage() {
         {jobId ? <Typography color="text.secondary" sx={{ mb: 2 }}>
           {jobTitle ? `${jobTitle} — ` : ''}Draft an offer and track every offer related to this job.
         </Typography> : null}
+        <Stack direction="row" spacing={1} sx={{ mb: 2 }}><Button component={RouterLink} to={`/recruiter/jobs/${jobId}`}>Back to job</Button><Button component={RouterLink} to="/recruiter/job-offers">View offers across all jobs</Button></Stack>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
         {isLoading ? <CircularProgress /> : (
@@ -276,3 +281,22 @@ export default function JobOfferPage() {
     </Box>
   );
 }
+
+const offerStatuses = ['drafting', 'pending_hr_approval', 'approved_by_hr', 'disapproved_by_hr', 'pending_applicant_response', 'accepted_by_applicant', 'rejected_by_applicant'];
+function GlobalOffers() {
+  const [params, setParams] = useSearchParams(); const keys = ['search','job_id','offer_status','deadline','date_from','date_to']; const filters = Object.fromEntries(keys.map(k => [k, params.get(k) || '']));
+  const [offers,setOffers]=useState([]); const [jobs,setJobs]=useState([]); const [error,setError]=useState(''); const [success,setSuccess]=useState(''); const [loading,setLoading]=useState(true);
+  const load=useCallback(async()=>{setLoading(true);setError('');try{const query=Object.fromEntries(Object.entries(filters).filter(([,v])=>v));if(query.job_id){query.job_posting=query.job_id;delete query.job_id;}const [records,owned]=await Promise.all([getJobOffers(query),getJobs()]);setOffers(records);setJobs(owned);}catch(e){setError(getApiErrorMessage(e,'Unable to load job offers.'));}finally{setLoading(false);}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[params.toString()]); useEffect(()=>{load();},[load]);
+  const update=(key,value)=>{const next=new URLSearchParams(params);value?next.set(key,value):next.delete(key);setParams(next);};
+  const act=async(action,id,message)=>{setError('');if(action==='withdraw'&&!window.confirm('Withdraw this offer from applicant consideration?'))return;try{if(action==='send')await sendApprovedJobOffer(id);else await withdrawJobOffer(id,{internal_notes:'Withdrawn from recruiter cross-job offer queue.'});setSuccess(message);load();}catch(e){setError(getApiErrorMessage(e,'Unable to update the offer.'));}};
+  const cards={'Pending Hiring Manager approval':'pending_hr_approval','Approved and ready to send':'approved_by_hr','Disapproved and requiring revision':'disapproved_by_hr','Awaiting applicant response':'pending_applicant_response','Accepted':'accepted_by_applicant','Declined':'rejected_by_applicant'};
+  return <Box><RecruiterNav/><Paper sx={{p:{xs:2,md:3}}}><Typography component="h1" variant="h5" fontWeight={700}>Offers across all jobs</Typography><Typography color="text.secondary">Manage the offer lifecycle across all jobs you manage.</Typography>{error?<Alert severity="error" action={<Button color="inherit" onClick={load}>Retry</Button>}>{error}</Alert>:null}{success?<Alert severity="success">{success}</Alert>:null}
+    <Grid container spacing={2} sx={{my:2}}>{Object.entries(cards).map(([label,status])=><Grid item xs={12} sm={6} md={4} key={status}><Card variant="outlined"><CardContent><Typography color="text.secondary">{label}</Typography><Typography variant="h4">{offers.filter(o=>o.offer_status===status).length}</Typography></CardContent></Card></Grid>)}</Grid>
+    <Stack direction={{xs:'column',md:'row'}} spacing={1} useFlexGap flexWrap="wrap"><TextField size="small" label="Search" value={filters.search} onChange={e=>update('search',e.target.value)}/><TextField select size="small" label="Job" value={filters.job_id} onChange={e=>update('job_id',e.target.value)} sx={{minWidth:180}}><MenuItem value="">All jobs</MenuItem>{jobs.map(j=><MenuItem key={j.id} value={j.id}>{j.title}</MenuItem>)}</TextField><TextField select size="small" label="Offer status" value={filters.offer_status} onChange={e=>update('offer_status',e.target.value)} sx={{minWidth:200}}><MenuItem value="">All statuses</MenuItem>{offerStatuses.map(v=><MenuItem key={v} value={v}>{titleize(v)}</MenuItem>)}</TextField><TextField select size="small" label="Response deadline" value={filters.deadline} onChange={e=>update('deadline',e.target.value)} sx={{minWidth:180}}><MenuItem value="">All</MenuItem><MenuItem value="due_soon">Due soon</MenuItem><MenuItem value="overdue">Overdue</MenuItem></TextField>{['date_from','date_to'].map(k=><TextField key={k} size="small" type="date" label={k==='date_from'?'Date from':'Date to'} InputLabelProps={{shrink:true}} value={filters[k]} onChange={e=>update(k,e.target.value)}/>)}{params.toString()?<Button onClick={()=>setParams({})}>Reset filters</Button>:null}</Stack>
+    {loading?<CircularProgress aria-label="Loading job offers" sx={{mt:3}}/>:<Box sx={{overflowX:'auto'}}><Table sx={{mt:2,minWidth:1350}}><TableHead><TableRow>{['Applicant','Job','Compensation','Start date','Work arrangement','Status','Hiring Manager feedback','Response deadline','Last relevant timestamp','Next step','Actions'].map(h=><TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead><TableBody>{offers.map(o=><TableRow key={o.id}><TableCell>{applicationName(o.application)}</TableCell><TableCell>{o.application?.job_title}</TableCell><TableCell>{o.salary_amount?`${o.salary_currency} ${o.salary_amount}`:'Not specified'}</TableCell><TableCell>{o.start_date||'TBD'}</TableCell><TableCell>{o.work_arrangement||'TBD'}</TableCell><TableCell><Chip size="small" label={o.offer_status_label||titleize(o.offer_status)}/></TableCell><TableCell>{o.hiring_manager_remarks||'—'}</TableCell><TableCell>{formatDateTime(o.respond_deadline)}</TableCell><TableCell>{formatDateTime(o.responded_at||o.reviewed_at||o.sent_at)}</TableCell><TableCell>{offerNextStep(o)}</TableCell><TableCell><Stack>{o.offer_status==='approved_by_hr'?<Button onClick={()=>act('send',o.id,'Approved offer sent to the applicant.')}>Send approved offer</Button>:null}{o.offer_status==='disapproved_by_hr'?<Button component={RouterLink} to={`/recruiter/jobs/${o.application?.job}/job-offers`}>Edit and resubmit</Button>:null}{o.offer_status==='pending_applicant_response'?<Button color="warning" onClick={()=>act('withdraw',o.id,'Offer withdrawn.')}>Withdraw offer</Button>:null}{o.offer_status==='rejected_by_applicant'?<Button component={RouterLink} to={`/recruiter/jobs/${o.application?.job}/hiring-decision`}>Review hiring decision</Button>:null}<Button component={RouterLink} to={`/recruiter/jobs/${o.application?.job}`}>View job</Button></Stack></TableCell></TableRow>)}{!offers.length?<TableRow><TableCell colSpan={11}>No offers match the current filters.</TableCell></TableRow>:null}</TableBody></Table></Box>}
+  </Paper></Box>;
+}
+
+export default function JobOfferPage() { const { jobId } = useParams(); return jobId ? <JobSpecificOffers jobId={jobId}/> : <GlobalOffers/>; }
