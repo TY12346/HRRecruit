@@ -57,6 +57,7 @@ class Command(BaseCommand):
         application = self._seed_application(jobs['software_engineer'], users, resumes['software_engineer'])
         interview = self._seed_interview(application, organization, users)
         self._seed_hiring(application, users)
+        self._seed_recruiter_analytics(jobs, organization, users)
         self._seed_notifications(application, interview, users)
         self._seed_billing(organization)
 
@@ -68,6 +69,7 @@ class Command(BaseCommand):
         self.stdout.write('')
         self.stdout.write('Seeded demo organization: TechNova Solutions Sdn Bhd')
         self.stdout.write('Seeded demo jobs: Software Engineer, Data Analyst')
+        self.stdout.write('Seeded recruiter analytics: 8 additional applications across multiple months and outcomes')
         self.stdout.write('Seeded applicant resumes: Software Engineer Resume, Data Analyst Resume')
         self.stdout.write('Seed command is idempotent and does not delete existing data.')
 
@@ -344,6 +346,113 @@ class Command(BaseCommand):
             to_stage=to_stage,
             defaults={'changed_by': changed_by, 'note': note},
         )
+
+    def _seed_recruiter_analytics(self, jobs, organization, users):
+        """Create a compact, repeatable pipeline dataset for dashboard demonstrations."""
+        now = timezone.now()
+        specs = [
+            ('aisha.rahman', 'Aisha Rahman', 'software_engineer', JobApplication.Status.UNDER_REVIEW, '91.00', 165, 'accepted'),
+            ('daniel.lee', 'Daniel Lee', 'software_engineer', JobApplication.Status.REJECTED, '43.00', 142, None),
+            ('nur.izzah', 'Nur Izzah', 'data_analyst', JobApplication.Status.UNDER_REVIEW, '78.00', 118, 'accepted'),
+            ('marcus.tan', 'Marcus Tan', 'data_analyst', JobApplication.Status.REJECTED, '56.00', 93, None),
+            ('priya.nair', 'Priya Nair', 'software_engineer', JobApplication.Status.UNDER_REVIEW, '72.00', 67, 'rejected'),
+            ('farid.hakim', 'Farid Hakim', 'data_analyst', JobApplication.Status.UNDER_REVIEW, '64.00', 44, None),
+            ('siti.amirah', 'Siti Amirah', 'software_engineer', JobApplication.Status.REJECTED, '38.00', 23, None),
+            ('jason.wong', 'Jason Wong', 'data_analyst', JobApplication.Status.UNDER_REVIEW, '83.00', 8, None),
+        ]
+
+        for index, (email_key, full_name, job_key, status, score, age_days, offer_result) in enumerate(specs):
+            email = f'analytics.{email_key}@example.com'
+            applicant, _ = User.objects.update_or_create(
+                email=email,
+                defaults={
+                    'full_name': full_name,
+                    'phone_number': f'+60190000{index:03d}',
+                    'role': User.Role.APPLICANT,
+                    'is_active': True,
+                },
+            )
+            if applicant.has_usable_password():
+                applicant.set_unusable_password()
+                applicant.save(update_fields=['password'])
+            create_profile_for_user(applicant)
+
+            application, _ = JobApplication.objects.update_or_create(
+                applicant=applicant,
+                job=jobs[job_key],
+                defaults={
+                    'status': status,
+                    'assigned_interviewer': users[User.Role.INTERVIEWER] if index < 5 else None,
+                    'recruiter_remark': 'Synthetic analytics fixture for the recruiter dashboard.',
+                    'extracted_resume_text': 'Synthetic demo resume used only to populate dashboard analytics.',
+                    'extracted_skills': ['Python', 'SQL', 'Communication'],
+                    'extracted_experience': {'years': 2 + (index % 4)},
+                    'extracted_education': {'highest_level': 'Bachelor'},
+                    'semantic_score': Decimal(score),
+                    'skill_score': Decimal(score),
+                    'experience_score': Decimal(score),
+                    'education_score': Decimal(score),
+                    'final_score': Decimal(score),
+                    'score_explanation': {
+                        'summary': 'Synthetic score for analytics demonstration only.',
+                        'decision_support_note': 'This fixture does not make a hiring decision.',
+                    },
+                },
+            )
+            applied_at = now - timedelta(days=age_days)
+            JobApplication.objects.filter(pk=application.pk).update(applied_at=applied_at)
+
+            if status == JobApplication.Status.REJECTED:
+                self._ensure_application_history(
+                    application,
+                    JobApplication.Status.UNDER_REVIEW,
+                    JobApplication.Status.REJECTED,
+                    users[User.Role.RECRUITER],
+                    'Synthetic recruiter rejection for analytics demonstration.',
+                )
+
+            if index < 5:
+                interview, _ = Interview.objects.update_or_create(
+                    application=application,
+                    organization=organization,
+                    defaults={
+                        'recruiter': users[User.Role.RECRUITER],
+                        'interviewer': users[User.Role.INTERVIEWER],
+                        'scheduled_datetime': applied_at + timedelta(days=7),
+                        'mode': Interview.Mode.ONLINE,
+                        'meeting_link': f'https://meet.example.com/analytics-{email_key}',
+                        'status': Interview.Status.EVALUATION_SUBMITTED if index < 4 else Interview.Status.COMPLETED,
+                    },
+                )
+                if index < 4:
+                    InterviewEvaluation.objects.update_or_create(
+                        interview=interview,
+                        interviewer=users[User.Role.INTERVIEWER],
+                        defaults={
+                            'total_score': Decimal(score),
+                            'overall_comment': 'Synthetic evaluation for recruiter analytics demonstration.',
+                        },
+                    )
+
+            if offer_result:
+                offer_status = {
+                    'accepted': JobOffer.OfferStatus.ACCEPTED,
+                    'rejected': JobOffer.OfferStatus.REJECTED,
+                }[offer_result]
+                response_at = applied_at + timedelta(days=18 + index)
+                offer, _ = JobOffer.objects.update_or_create(
+                    application=application,
+                    defaults={
+                        'offer_message': 'Synthetic job offer for analytics demonstration only.',
+                        'salary_amount': jobs[job_key].approximate_salary,
+                        'salary_currency': 'MYR',
+                        'offer_status': offer_status,
+                        'respond_deadline': response_at + timedelta(days=7),
+                        'responded_at': response_at,
+                        'applicant_response_note': f'Synthetic {offer_result} response for analytics.',
+                    },
+                )
+                JobOffer.objects.filter(pk=offer.pk).update(sent_at=response_at - timedelta(days=3))
 
     def _seed_interview(self, application, organization, users):
         scheduled_datetime = timezone.now() + timedelta(days=2)

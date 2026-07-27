@@ -4,7 +4,6 @@ import LoginPage from '../pages/auth/LoginPage.jsx';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage.jsx';
 import RegisterHiringManagerPage from '../pages/auth/RegisterHiringManagerPage.jsx';
-import RecruiterDashboardPage from '../pages/recruiter/RecruiterDashboardPage.jsx';
 import ApplicationsPage from '../pages/recruiter/ApplicationsPage.jsx';
 import RoleBasedApplicantSearchPage from '../pages/applications/RoleBasedApplicantSearchPage.jsx';
 import HeadhuntInvitesPage from '../pages/recruiter/HeadhuntInvitesPage.jsx';
@@ -26,7 +25,6 @@ import JobOfferPage from '../pages/recruiter/JobOfferPage.jsx';
 import JobRequirementsPage from '../pages/recruiter/JobRequirementsPage.jsx';
 import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.jsx';
 import RecruiterNotificationsPage from '../pages/recruiter/NotificationsPage.jsx';
-import InterviewerDashboardPage from '../pages/interviewer/InterviewerDashboardPage.jsx';
 import AvailabilityPage from '../pages/interviewer/AvailabilityPage.jsx';
 import AssignedApplicantsPage from '../pages/interviewer/AssignedApplicantsPage.jsx';
 import ApplicantDetailPage from '../pages/interviewer/ApplicantDetailPage.jsx';
@@ -36,7 +34,6 @@ import InterviewerAnalyticsPage from '../pages/interviewer/InterviewerAnalyticsP
 import InterviewerNotificationsPage from '../pages/interviewer/NotificationsPage.jsx';
 import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx';
 import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
-import HiringManagerDashboardPage from '../pages/hiring_manager/HiringManagerDashboardPage.jsx';
 import JobOffersApprovalPage from '../pages/hiring_manager/JobOffersApprovalPage.jsx';
 import OrganizationProfilePage from '../pages/hiring_manager/OrganizationProfilePage.jsx';
 import OrganizationOnboardingPage from '../pages/hiring_manager/OrganizationOnboardingPage.jsx';
@@ -83,7 +80,7 @@ export const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={['recruiter']} />,
         children: [
-          { path: 'recruiter', element: <RecruiterDashboardPage /> },
+          { path: 'recruiter', element: <Navigate to="/recruiter/jobs" replace /> },
           { path: 'recruiter/jobs', element: <JobListPage /> },
           { path: 'recruiter/job-requisitions', element: <RecruiterJobRequisitionsPage /> },
           { path: 'recruiter/jobs/create', element: <JobCreateEditPage /> },
@@ -115,7 +112,7 @@ export const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={['interviewer']} />,
         children: [
-          { path: 'interviewer', element: <InterviewerDashboardPage /> },
+          { path: 'interviewer', element: <Navigate to="/interviewer/applicants" replace /> },
           { path: 'interviewer/applicants', element: <AssignedApplicantsPage /> },
           { path: 'interviewer/applicant-search', element: <RoleBasedApplicantSearchPage role="interviewer" /> },
           { path: 'interviewer/applicants/:applicationId', element: <ApplicantDetailPage /> },
@@ -136,7 +133,7 @@ export const router = createBrowserRouter([
             children: [
               { path: 'hiring-manager/onboarding/organization', element: <OrganizationOnboardingPage /> },
               { path: 'hiring-manager/onboarding/subscription', element: <SubscriptionOnboardingPage /> },
-              { path: 'hiring-manager', element: <HiringManagerDashboardPage /> },
+              { path: 'hiring-manager', element: <Navigate to="/hiring-manager/hiring-decisions" replace /> },
               { path: 'hiring-manager/organization', element: <OrganizationProfilePage /> },
               { path: 'hiring-manager/team', element: <TeamMembersPage /> },
               { path: 'hiring-manager/team/create', element: <CreateTeamMemberPage /> },
