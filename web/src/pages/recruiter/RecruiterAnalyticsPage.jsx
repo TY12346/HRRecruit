@@ -10,13 +10,11 @@ import {
   Tooltip,
 } from 'chart.js';
 import {
-
   Box,
   Button,
   Card,
   CardContent,
   CircularProgress,
-  Grid,
   Paper,
   Stack,
   Table,
@@ -45,15 +43,40 @@ ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Le
 
 function Stat({ label, value }) {
   return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
+    <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+      <Box sx={{ position: 'absolute', inset: '0 auto 0 0', width: 4, bgcolor: 'primary.main' }} />
+      <CardContent sx={{ pl: 2 }}>
         <Typography color="text.secondary" variant="body2">{label}</Typography>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>{value ?? 0}</Typography>
+        <Typography component="p" variant="h4" sx={{ fontWeight: 700, mt: 0.5 }}>{value ?? 0}</Typography>
       </CardContent>
     </Card>
   );
 }
 
+function EmptyChart({ children }) {
+  return (
+    <Stack alignItems="center" justifyContent="center" sx={{ height: '100%', minHeight: 180, textAlign: 'center', px: 2 }}>
+      <Box
+        aria-hidden="true"
+        sx={{ width: 44, height: 32, mb: 1.5, borderBottom: '2px solid', borderLeft: '2px solid', borderColor: 'primary.light', opacity: 0.8 }}
+      />
+      <Typography color="text.secondary" variant="body2">{children}</Typography>
+    </Stack>
+  );
+}
+
+function hasChartData(chart) {
+  return Boolean(
+    chart?.labels?.length
+    && chart.datasets?.some((dataset) => dataset.data?.some((value) => Number(value) > 0)),
+  );
+}
+
+const dashboardGrid = (minWidth) => ({
+  display: 'grid',
+  gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${minWidth}px), 1fr))`,
+  gap: 2,
+});
 
 function InsightsCard({ pipelineHealth }) {
   const insights = pipelineHealth?.insights ?? [];
@@ -79,39 +102,41 @@ function TopJobsTable({ rows }) {
     <Card>
       <CardContent>
         <Typography component="h3" variant="h6" sx={{ mb: 2 }}>Top jobs by application volume</Typography>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Job</TableCell>
-              <TableCell>Applications</TableCell>
-              <TableCell>Hires</TableCell>
-              <TableCell>Avg. AI score</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(rows ?? []).map((row) => (
-              <TableRow key={row.job_id}>
-                <TableCell>{row.job_title}</TableCell>
-                <TableCell>{row.applications}</TableCell>
-                <TableCell>{row.hires}</TableCell>
-                <TableCell>{row.average_score}</TableCell>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 560 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Job</TableCell>
+                <TableCell>Applications</TableCell>
+                <TableCell>Hires</TableCell>
+                <TableCell>Avg. AI score</TableCell>
               </TableRow>
-            ))}
-            {!(rows ?? []).length ? <TableRow><TableCell colSpan={4}>No job-level analytics yet.</TableCell></TableRow> : null}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {(rows ?? []).map((row) => (
+                <TableRow key={row.job_id}>
+                  <TableCell>{row.job_title}</TableCell>
+                  <TableCell>{row.applications}</TableCell>
+                  <TableCell>{row.hires}</TableCell>
+                  <TableCell>{row.average_score ?? '—'}</TableCell>
+                </TableRow>
+              ))}
+              {!(rows ?? []).length ? <TableRow><TableCell colSpan={4}>No job-level analytics yet.</TableCell></TableRow> : null}
+            </TableBody>
+          </Table>
+        </Box>
       </CardContent>
     </Card>
   );
 }
 
-function ChartCard({ title, description, children }) {
+function ChartCard({ title, description, children, height = 280 }) {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Typography component="h3" variant="h6">{title}</Typography>
         {description ? <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>{description}</Typography> : null}
-        <Box sx={chartHeight}>{children}</Box>
+        <Box sx={{ ...chartHeight, height }}>{children}</Box>
       </CardContent>
     </Card>
   );
@@ -176,15 +201,19 @@ export default function RecruiterAnalyticsPage() {
       },
     ],
   };
+  const hasAnalytics = Number(metrics.total_job_postings) > 0 || Number(metrics.total_applications) > 0;
 
   return (
     <Box>
       <RecruiterNav />
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: { xs: 2, md: 3 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2} sx={{ mb: 2 }}>
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>Recruiter analytics</Typography>
-
+            <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>Recruiter analytics</Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+              Track your jobs, applicant pipeline, and hiring outcomes
+              {analytics?.organization?.name ? ` for ${analytics.organization.name}` : ''}.
+            </Typography>
           </Box>
           <Button variant="outlined" onClick={handleExportPdf} disabled={isExporting || isLoading}>
             {isExporting ? 'Exporting…' : 'Export PDF'}
@@ -192,69 +221,65 @@ export default function RecruiterAnalyticsPage() {
         </Stack>
 
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        {isLoading ? <CircularProgress /> : (
+        {isLoading ? (
+          <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 320 }}>
+            <CircularProgress aria-label="Loading recruiter analytics" />
+          </Stack>
+        ) : (
           <Stack spacing={3}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Job postings" value={metrics.total_job_postings} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Applications" value={metrics.total_applications} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Under review" value={metrics.shortlisted_count} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Hired" value={metrics.hired_count} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Rejected" value={metrics.rejected_count} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Avg. time-to-hire" value={`${metrics.average_time_to_hire_days ?? 0} days`} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Offer acceptance" value={`${metrics.offer_acceptance_rate ?? 0}%`} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><Stat label="Evaluations submitted" value={metrics.interviewer_evaluation_count} /></Grid>
-            </Grid>
+            {!hasAnalytics ? (
+              <Alert severity="info">
+                Analytics will populate as soon as you publish a job and applicants enter your pipeline.
+              </Alert>
+            ) : null}
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
+            <Box sx={dashboardGrid(190)}>
+              <Stat label="Job postings" value={metrics.total_job_postings} />
+              <Stat label="Applications" value={metrics.total_applications} />
+              <Stat label="Under review" value={metrics.shortlisted_count} />
+              <Stat label="Hired" value={metrics.hired_count} />
+              <Stat label="Rejected" value={metrics.rejected_count} />
+              <Stat label="Avg. time-to-hire" value={`${metrics.average_time_to_hire_days ?? 0} days`} />
+              <Stat label="Offer acceptance" value={`${metrics.offer_acceptance_rate ?? 0}%`} />
+              <Stat label="Evaluations submitted" value={metrics.interviewer_evaluation_count} />
+            </Box>
+
+            <Box sx={dashboardGrid(420)}>
                 <ChartCard title="Applications by status" description="Current application counts grouped by backend status.">
-                  {applicationsByStatusChart.labels?.length ? <Bar data={applicationsByStatusChart} options={barChartOptions} /> : <Typography color="text.secondary">No status data yet.</Typography>}
+                  {hasChartData(applicationsByStatusChart) ? <Bar data={applicationsByStatusChart} options={barChartOptions} /> : <EmptyChart>No application status data yet.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={6}>
                 <ChartCard title="Applicant funnel" description="Applicants moving through key recruitment stages.">
-                  {applicantFunnelChart ? <Bar data={applicantFunnelChart} options={barChartOptions} /> : <Typography color="text.secondary">No funnel data yet.</Typography>}
+                  {hasChartData(applicantFunnelChart) ? <Bar data={applicantFunnelChart} options={barChartOptions} /> : <EmptyChart>No funnel data yet.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={4}>
+            </Box>
+
+            <Box sx={dashboardGrid(300)}>
                 <ChartCard title="Time-to-hire" description="Average number of days from application to hired.">
-                  <Bar data={timeToHireChart} options={barChartOptions} />
+                  {Number(metrics.average_time_to_hire_days) > 0 ? <Bar data={timeToHireChart} options={barChartOptions} /> : <EmptyChart>No completed hires to calculate this metric.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={4}>
                 <ChartCard title="Offer acceptance rate" description="Accepted offers compared with total sent offers.">
-                  <Doughnut data={offerAcceptanceChart} options={compactChartOptions} />
+                  {Number(metrics.total_offers) > 0 ? <Doughnut data={offerAcceptanceChart} options={compactChartOptions} /> : <EmptyChart>No offers have been sent yet.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={4}>
                 <ChartCard title="Recruiter performance" description="Simple summary of hires and completed evaluation inputs.">
-                  <Bar data={performanceChart} options={barChartOptions} />
+                  {hasChartData(performanceChart) ? <Bar data={performanceChart} options={barChartOptions} /> : <EmptyChart>Performance data will appear after hires or evaluations.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={6}>
+            </Box>
+
+            <Box sx={dashboardGrid(420)}>
                 <ChartCard title="Conversion rates" description="Percentage of applicants reaching each recruitment milestone.">
-                  {conversionRatesChart ? <Bar data={conversionRatesChart} options={barChartOptions} /> : <Typography color="text.secondary">No conversion data yet.</Typography>}
+                  {hasChartData(conversionRatesChart) ? <Bar data={conversionRatesChart} options={barChartOptions} /> : <EmptyChart>No conversion data yet.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={6}>
                 <ChartCard title="AI score distribution" description="Distribution of applicants by final AI screening score band.">
-                  {scoreDistributionChart ? <Doughnut data={scoreDistributionChart} options={compactChartOptions} /> : <Typography color="text.secondary">No screening score data yet.</Typography>}
+                  {hasChartData(scoreDistributionChart) ? <Doughnut data={scoreDistributionChart} options={compactChartOptions} /> : <EmptyChart>No screening score data yet.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={6}>
                 <ChartCard title="Applications over time" description="Monthly application volume for the recruiter pipeline.">
-                  {applicationsOverTimeChart ? <Bar data={applicationsOverTimeChart} options={barChartOptions} /> : <Typography color="text.secondary">No timeline data yet.</Typography>}
+                  {hasChartData(applicationsOverTimeChart) ? <Bar data={applicationsOverTimeChart} options={barChartOptions} /> : <EmptyChart>No timeline data yet.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={6}>
                 <ChartCard title="Top jobs by volume" description="Jobs receiving the most applications.">
-                  {topJobsChart ? <Bar data={topJobsChart} options={horizontalBarChartOptions} /> : <Typography color="text.secondary">No job analytics yet.</Typography>}
+                  {hasChartData(topJobsChart) ? <Bar data={topJobsChart} options={horizontalBarChartOptions} /> : <EmptyChart>No job analytics yet.</EmptyChart>}
                 </ChartCard>
-              </Grid>
-              <Grid item xs={12} md={6}>
                 <InsightsCard pipelineHealth={metrics.pipeline_health} />
-              </Grid>
-            </Grid>
+            </Box>
 
             <TopJobsTable rows={analytics?.top_jobs_by_applications ?? []} />
           </Stack>
