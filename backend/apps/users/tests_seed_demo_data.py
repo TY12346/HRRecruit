@@ -2,6 +2,7 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from apps.applications.models import JobApplication
+from apps.analytics.services import recruiter_dashboard
 from apps.billing.models import Payment, Subscription
 from apps.evaluations.models import InterviewAISummary
 from apps.hiring.models import JobOffer
@@ -37,6 +38,17 @@ class SeedDemoDataCommandTests(TestCase):
         self.assertTrue(InterviewAISummary.objects.filter(summary_json__transparency__provider='seeded_record').exists())
         self.assertTrue(Payment.objects.filter(transaction_reference='DEMO-SEED-PAYMENT', due_at__isnull=False).exists())
 
+        recruiter = User.objects.get(email='demo.recruiter@example.com')
+        dashboard = recruiter_dashboard(recruiter)
+        self.assertEqual(dashboard['metrics']['total_job_postings'], 2)
+        self.assertEqual(dashboard['metrics']['total_applications'], 9)
+        self.assertEqual(dashboard['metrics']['hired_count'], 3)
+        self.assertEqual(dashboard['metrics']['rejected_count'], 3)
+        self.assertEqual(dashboard['metrics']['total_offers'], 4)
+        self.assertEqual(dashboard['metrics']['interviewer_evaluation_count'], 5)
+        self.assertGreater(dashboard['metrics']['average_time_to_hire_days'], 0)
+        self.assertGreater(len(dashboard['charts']['applications_over_time']['labels']), 1)
+
     def test_seed_command_is_idempotent_for_core_records(self):
         self.run_seed_command()
         counts_after_first_run = {
@@ -46,6 +58,7 @@ class SeedDemoDataCommandTests(TestCase):
             'jobs': JobPosting.objects.filter(organization__registration_no='DEMO-TN-001').count(),
             'applications': JobApplication.objects.filter(applicant__email='demo.applicant@example.com').count(),
             'resumes': ApplicantResume.objects.filter(applicant__email='demo.applicant@example.com').count(),
+            'analytics_applicants': User.objects.filter(email__startswith='analytics.').count(),
         }
 
         self.run_seed_command()
@@ -56,3 +69,4 @@ class SeedDemoDataCommandTests(TestCase):
         self.assertEqual(JobPosting.objects.filter(organization__registration_no='DEMO-TN-001').count(), counts_after_first_run['jobs'])
         self.assertEqual(JobApplication.objects.filter(applicant__email='demo.applicant@example.com').count(), counts_after_first_run['applications'])
         self.assertEqual(ApplicantResume.objects.filter(applicant__email='demo.applicant@example.com').count(), counts_after_first_run['resumes'])
+        self.assertEqual(User.objects.filter(email__startswith='analytics.').count(), counts_after_first_run['analytics_applicants'])
