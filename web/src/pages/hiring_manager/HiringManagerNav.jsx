@@ -1,7 +1,6 @@
 import RoleNav from '../../components/RoleNav.jsx';
 
 const navItems = [
-  { icon: 'dashboard', label: 'Dashboard', to: '/hiring-manager', end: true },
   { icon: 'decisions', label: 'Hiring Decisions', to: '/hiring-manager/hiring-decisions' },
   { icon: 'decisions', label: 'Job Offer Approvals', to: '/hiring-manager/job-offers' },
   { icon: 'search', label: 'Applicant Search', to: '/hiring-manager/applicant-search' },

@@ -25,7 +25,9 @@ python manage.py migrate
 python manage.py seed_demo_data
 ```
 
-The seed command is safe to run multiple times. It creates/updates fake demo accounts, organization data, job postings, application data, AI screening scores, interview transcript/summary data, evaluation data, hiring approval data, notifications, and billing demo records.
+The seed command is safe to run multiple times. It creates/updates fake demo accounts, organization data, job postings, application data, AI screening scores, interview transcript/summary data, evaluation data, hiring approval data, notifications, and billing demo records. It also creates eight synthetic applicants with applications spread across multiple months, review/rejection outcomes, interview evaluations, and accepted/declined offers so the recruiter analytics charts are populated when using the seeded recruiter account.
+
+After seeding, sign in as `demo.recruiter@example.com` and open `/recruiter/analytics`. Analytics are scoped to the signed-in recruiter's own jobs, so another recruiter account will not see this synthetic dataset.
 
 If only the first hiring manager account is needed, this command is also available:
 
