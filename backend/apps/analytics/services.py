@@ -229,6 +229,14 @@ def applications_over_time(applications):
     return OrderedDict((row['month'].strftime('%b %Y') if row['month'] else 'Unknown', row['total']) for row in rows)
 
 
+def application_status_label(value):
+    """Return a display label while tolerating statuses retained in legacy history rows."""
+    try:
+        return JobApplication.Status(value).label
+    except (TypeError, ValueError):
+        return str(value or 'unknown').replace('_', ' ').strip().title()
+
+
 def stage_transition_counts(applications):
     rows = (
         ApplicationStageHistory.objects.filter(application__in=applications)
@@ -240,7 +248,7 @@ def stage_transition_counts(applications):
         {
             'from_stage': row['from_stage'],
             'to_stage': row['to_stage'],
-            'label': f"{JobApplication.Status(row['from_stage']).label} → {JobApplication.Status(row['to_stage']).label}",
+            'label': f"{application_status_label(row['from_stage'])} → {application_status_label(row['to_stage'])}",
             'count': row['total'],
         }
         for row in rows

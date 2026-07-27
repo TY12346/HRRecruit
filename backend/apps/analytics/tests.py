@@ -148,6 +148,26 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.data['top_jobs_by_applications'][0]['job_title'], 'Backend Engineer')
         self.assertNotEqual(response.data['metrics']['total_applications'], 4)
 
+    def test_recruiter_dashboard_tolerates_legacy_stage_history_values(self):
+        ApplicationStageHistory.objects.create(
+            application=self.submitted_application,
+            from_stage='applied',
+            to_stage='screened_qualified',
+            changed_by=self.recruiter,
+            note='Legacy transition retained after status choices changed.',
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('analytics-recruiter-dashboard'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        legacy_transition = next(
+            transition
+            for transition in response.data['metrics']['stage_transition_counts']
+            if transition['from_stage'] == 'applied'
+        )
+        self.assertEqual(legacy_transition['label'], 'Applied → Screened Qualified')
+
     def test_interviewer_dashboard_returns_assigned_interview_metrics(self):
         self.authenticate(self.interviewer)
 
