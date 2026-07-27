@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -316,10 +320,36 @@ class JobHiringDecisionListCreateAPIView(APIView):
             decisions = decisions.filter(job_posting__organization=membership.organization) if membership else decisions.none()
         else:
             raise PermissionDenied('Your role cannot access job-level hiring decisions.')
-        if request.query_params.get('job_posting'):
-            decisions = decisions.filter(job_posting_id=request.query_params['job_posting'])
-        if request.query_params.get('status'):
-            decisions = decisions.filter(status=request.query_params['status'])
+        job_posting = request.query_params.get('job_posting')
+        if job_posting:
+            if not job_posting.isdigit():
+                raise ValidationError({'job_posting': 'A valid job posting id is required.'})
+            decisions = decisions.filter(job_posting_id=job_posting)
+        decision_status = request.query_params.get('status')
+        if decision_status:
+            if decision_status not in JobHiringDecision.Status.values:
+                raise ValidationError({'status': 'Select a valid decision status.'})
+            decisions = decisions.filter(status=decision_status)
+        decision_type = request.query_params.get('decision_type')
+        if decision_type:
+            if decision_type not in JobHiringDecision.DecisionType.values:
+                raise ValidationError({'decision_type': 'Select a valid decision type.'})
+            decisions = decisions.filter(decision_type=decision_type)
+        search = request.query_params.get('search', '').strip()
+        if search:
+            decisions = decisions.filter(
+                Q(job_posting__title__icontains=search)
+                | Q(items__application__applicant__full_name__icontains=search)
+                | Q(justification__icontains=search)
+                | Q(hr_remarks__icontains=search)
+            ).distinct()
+        for parameter, lookup in (('date_from', 'submitted_at__date__gte'), ('date_to', 'submitted_at__date__lte')):
+            value = request.query_params.get(parameter)
+            if value:
+                parsed = parse_date(value)
+                if not parsed:
+                    raise ValidationError({parameter: 'Enter a valid date in YYYY-MM-DD format.'})
+                decisions = decisions.filter(**{lookup: parsed})
         return Response(JobHiringDecisionSerializer(decisions, many=True, context={'request': request}).data)
 
     @transaction.atomic
@@ -575,6 +605,37 @@ class JobOfferListAPIView(APIView):
             if not job_posting.isdigit():
                 raise ValidationError({'job_posting': 'A valid job posting id is required.'})
             offers = offers.filter(application__job_id=job_posting)
+        offer_status = request.query_params.get('offer_status')
+        if offer_status:
+            if offer_status not in JobOffer.OfferStatus.values:
+                raise ValidationError({'offer_status': 'Select a valid offer status.'})
+            offers = offers.filter(offer_status=offer_status)
+        search = request.query_params.get('search', '').strip()
+        if search:
+            offers = offers.filter(
+                Q(application__applicant__full_name__icontains=search)
+                | Q(application__job__title__icontains=search)
+                | Q(offer_status__icontains=search)
+                | Q(internal_notes__icontains=search)
+                | Q(hiring_manager_remarks__icontains=search)
+            )
+        for parameter, lookup in (('date_from', 'sent_at__date__gte'), ('date_to', 'sent_at__date__lte')):
+            value = request.query_params.get(parameter)
+            if value:
+                parsed = parse_date(value)
+                if not parsed:
+                    raise ValidationError({parameter: 'Enter a valid date in YYYY-MM-DD format.'})
+                offers = offers.filter(**{lookup: parsed})
+        deadline = request.query_params.get('deadline')
+        if deadline:
+            if deadline not in ('due_soon', 'overdue'):
+                raise ValidationError({'deadline': 'Select either due_soon or overdue.'})
+            now = timezone.now()
+            offers = offers.filter(offer_status=JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE)
+            if deadline == 'overdue':
+                offers = offers.filter(respond_deadline__lt=now)
+            else:
+                offers = offers.filter(respond_deadline__gte=now, respond_deadline__lte=now + timedelta(days=3))
         return Response(JobOfferSerializer(offers, many=True, context={'request': request}).data)
 
 

@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -146,7 +147,12 @@ def visible_interviews_for(user):
     if user.role == User.Role.RECRUITER:
         membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
         if membership:
-            return interviews.filter(organization=membership.organization, recruiter=user)
+            return interviews.filter(
+                organization=membership.organization,
+                application__job__organization=membership.organization,
+                application__job__recruiter=user,
+                recruiter=user,
+            )
     elif user.role == User.Role.INTERVIEWER:
         membership = get_active_membership(user, OrganizationMembership.Role.INTERVIEWER)
         if membership:
@@ -888,6 +894,33 @@ class InterviewListAPIView(APIView):
             if not job_id.isdigit():
                 raise ValidationError({'job_id': 'Job ID must be a positive integer.'})
             interviews = interviews.filter(application__job_id=job_id)
+        interview_status = request.query_params.get('status')
+        if interview_status:
+            if interview_status not in Interview.Status.values:
+                raise ValidationError({'status': 'Select a valid interview status.'})
+            interviews = interviews.filter(status=interview_status)
+        mode = request.query_params.get('mode')
+        if mode:
+            if mode not in Interview.Mode.values:
+                raise ValidationError({'mode': 'Select a valid interview mode.'})
+            interviews = interviews.filter(mode=mode)
+        for parameter, lookup in (('date_from', 'scheduled_datetime__date__gte'), ('date_to', 'scheduled_datetime__date__lte')):
+            value = request.query_params.get(parameter)
+            if value:
+                parsed = parse_date(value)
+                if not parsed:
+                    raise ValidationError({parameter: 'Enter a valid date in YYYY-MM-DD format.'})
+                interviews = interviews.filter(**{lookup: parsed})
+        search = request.query_params.get('search', '').strip()
+        if search:
+            interviews = interviews.filter(
+                Q(application__applicant__full_name__icontains=search)
+                | Q(application__job__title__icontains=search)
+                | Q(interviewer__full_name__icontains=search)
+                | Q(panel_interviewers__full_name__icontains=search)
+                | Q(meeting_link__icontains=search)
+                | Q(location__icontains=search)
+            ).distinct()
         return Response(InterviewSerializer(interviews, many=True, context={'request': request}).data)
 
 

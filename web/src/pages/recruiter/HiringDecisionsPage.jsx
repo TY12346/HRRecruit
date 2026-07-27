@@ -1,72 +1,24 @@
-import { useEffect, useState } from 'react';
-import { Box, Chip, CircularProgress, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { useCallback, useEffect, useState } from 'react';
+import { Box, Button, Card, CardContent, Chip, CircularProgress, Grid, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { getJobHiringDecisions } from '../../api/client.js';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { getJobHiringDecisions, getJobs } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
-import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
+import { applicationName, formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
 
+const nextStep = (d) => d.status === 'draft' ? 'Complete and submit the recommendation' : d.status === 'pending_hr_approval' ? 'Waiting for Hiring Manager review' : d.status === 'rejected' ? 'Review feedback and submit a revised recommendation' : d.decision_type === 'recommend_hire' ? 'Prepare offers for approved selected applicants' : 'Decision completed; no applicant selected';
+const statusLabel = (status) => status === 'rejected' ? 'Returned for review' : titleize(status);
 export default function HiringDecisionsPage() {
-  const [decisions, setDecisions] = useState([]);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    getJobHiringDecisions()
-      .then(setDecisions)
-      .catch((loadError) => setError(getApiErrorMessage(loadError, 'Unable to load hiring decisions.')))
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  return (
-    <Box>
-      <RecruiterNav />
-      <Paper sx={{ p: 3 }}>
-        <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
-          Hiring Decisions
-        </Typography>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Track the job-level hiring decisions you submitted for hiring manager review.
-        </Typography>
-
-        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        {isLoading ? <CircularProgress aria-label="Loading hiring decisions" /> : null}
-
-        <Table sx={{ mt: 2 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>Job</TableCell>
-              <TableCell>Decision</TableCell>
-              <TableCell>Selected applicants</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Submitted</TableCell>
-              <TableCell>Hiring manager remarks</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {decisions.map((decision) => (
-              <TableRow key={decision.id}>
-                <TableCell>{decision.job_title}</TableCell>
-                <TableCell>{titleize(decision.decision_type)}</TableCell>
-                <TableCell>{decision.items.length}</TableCell>
-                <TableCell>
-                  <Chip
-                    color={decision.status === 'approved' ? 'success' : decision.status === 'rejected' ? 'error' : 'warning'}
-                    label={titleize(decision.status)}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>{formatDateTime(decision.submitted_at)}</TableCell>
-                <TableCell>{decision.hr_remarks || '—'}</TableCell>
-              </TableRow>
-            ))}
-            {!isLoading && decisions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6}>No hiring decisions yet.</TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </Paper>
-    </Box>
-  );
+  const [params, setParams] = useSearchParams(); const [decisions, setDecisions] = useState([]); const [jobs, setJobs] = useState([]); const [error, setError] = useState(''); const [loading, setLoading] = useState(true);
+  const keys = ['job_id', 'search', 'decision_type', 'status', 'date_from', 'date_to']; const filters = Object.fromEntries(keys.map((k) => [k, params.get(k) || '']));
+  const load = useCallback(async () => { setLoading(true); setError(''); try { const query = Object.fromEntries(Object.entries(filters).filter(([, v]) => v)); if (query.job_id) { query.job_posting = query.job_id; delete query.job_id; } const [records, owned] = await Promise.all([getJobHiringDecisions(query), getJobs()]); setDecisions(records); setJobs(owned); } catch (e) { setError(getApiErrorMessage(e, 'Unable to load hiring decisions.')); } finally { setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.toString()]); useEffect(() => { load(); }, [load]);
+  const update = (key, value) => { const next = new URLSearchParams(params); value ? next.set(key, value) : next.delete(key); setParams(next); }; const selectedJob = jobs.find((j) => String(j.id) === filters.job_id);
+  const cards = {'Total submitted decisions': decisions.filter((d) => d.status !== 'draft').length, 'Pending Hiring Manager approval': decisions.filter((d) => d.status === 'pending_hr_approval').length, Approved: decisions.filter((d) => d.status === 'approved').length, 'Returned for review': decisions.filter((d) => d.status === 'rejected').length};
+  return <Box><RecruiterNav /><Paper sx={{ p: { xs: 2, md: 3 } }}><Typography component="h1" variant="h5" fontWeight={700}>{selectedJob ? `Decisions for ${selectedJob.title}` : 'Hiring decisions across all jobs'}</Typography><Typography color="text.secondary">{selectedJob ? `Showing records for ${selectedJob.title}.` : 'Track hiring recommendations across all jobs you manage.'}</Typography>{selectedJob ? <Stack direction="row"><Button component={RouterLink} to={`/recruiter/jobs/${selectedJob.id}`}>Back to job</Button><Button onClick={() => update('job_id', '')}>View decisions for all jobs</Button></Stack> : null}
+    {error ? <Alert severity="error" action={<Button color="inherit" onClick={load}>Retry</Button>}>{error}</Alert> : null}<Grid container spacing={2} sx={{ my: 2 }}>{Object.entries(cards).map(([k,v]) => <Grid item xs={12} sm={6} md={3} key={k}><Card variant="outlined"><CardContent><Typography color="text.secondary">{k}</Typography><Typography variant="h4">{v}</Typography></CardContent></Card></Grid>)}</Grid>
+    <Stack direction={{ xs:'column', md:'row' }} spacing={1} useFlexGap flexWrap="wrap"><TextField size="small" label="Search" value={filters.search} onChange={(e)=>update('search',e.target.value)}/><TextField select size="small" label="Job" value={filters.job_id} onChange={(e)=>update('job_id',e.target.value)} sx={{minWidth:180}}><MenuItem value="">All jobs</MenuItem>{jobs.map(j=><MenuItem key={j.id} value={j.id}>{j.title}</MenuItem>)}</TextField>{[['decision_type','Decision type',['recommend_hire','recommend_no_hire']],['status','Status',['draft','pending_hr_approval','approved','rejected']]].map(([key,label,values])=><TextField key={key} select size="small" label={label} value={filters[key]} onChange={(e)=>update(key,e.target.value)} sx={{minWidth:170}}><MenuItem value="">All</MenuItem>{values.map(v=><MenuItem key={v} value={v}>{statusLabel(v)}</MenuItem>)}</TextField>)}{['date_from','date_to'].map(k=><TextField key={k} size="small" type="date" label={k==='date_from'?'Submitted from':'Submitted to'} InputLabelProps={{shrink:true}} value={filters[k]} onChange={(e)=>update(k,e.target.value)}/>)}{params.toString()?<Button onClick={()=>setParams({})}>Reset filters</Button>:null}</Stack>
+    {loading?<CircularProgress aria-label="Loading hiring decisions" sx={{mt:3}}/>:<Box sx={{overflowX:'auto'}}><Table sx={{mt:2,minWidth:1100}}><TableHead><TableRow>{['Job','Decision type','Selected applicants','Vacancies','Status','Submitted','Hiring Manager remarks','Next step','Actions'].map(h=><TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead><TableBody>{decisions.map(d=><TableRow key={d.id}><TableCell>{d.job_title}</TableCell><TableCell>{titleize(d.decision_type)}</TableCell><TableCell>{d.items?.length?d.items.map((item,index)=><Typography variant="body2" key={item.id}>{index+1}. {applicationName(item.application)}</Typography>):'None'}</TableCell><TableCell>{d.vacancies}</TableCell><TableCell><Chip size="small" color={d.status==='approved'?'success':d.status==='rejected'?'error':'warning'} label={statusLabel(d.status)}/></TableCell><TableCell>{formatDateTime(d.submitted_at)}</TableCell><TableCell>{d.hr_remarks||'—'}</TableCell><TableCell>{nextStep(d)}</TableCell><TableCell><Stack><Button component={RouterLink} to={`/recruiter/jobs/${d.job_posting}`}>View job</Button><Button component={RouterLink} to={`/recruiter/jobs/${d.job_posting}/hiring-decision`}>Open decision</Button><Button component={RouterLink} to={`/recruiter/jobs/${d.job_posting}/applicant-comparison`}>Compare applicants</Button>{d.status==='approved'&&d.decision_type==='recommend_hire'?<Button component={RouterLink} to={`/recruiter/jobs/${d.job_posting}/job-offers`}>Manage offers</Button>:null}</Stack></TableCell></TableRow>)}{!decisions.length?<TableRow><TableCell colSpan={9}>No hiring decisions match the current filters.</TableCell></TableRow>:null}</TableBody></Table></Box>}
+  </Paper></Box>;
 }

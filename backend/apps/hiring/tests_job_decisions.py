@@ -45,6 +45,23 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
             'justification': 'Evidence supports this job-level decision.',
         }, format='json')
 
+    def test_global_decision_queue_filters_and_validates_values(self):
+        decision = JobHiringDecision.objects.create(
+            job_posting=self.job, recruiter=self.recruiter,
+            decision_type=JobHiringDecision.DecisionType.RECOMMEND_HIRE,
+            justification='Strong evidence', status=JobHiringDecision.Status.PENDING_HR_APPROVAL,
+            submitted_at=timezone.now(),
+        )
+        decision.items.create(application=self.application, selection_order=1)
+        self.client.force_authenticate(self.recruiter)
+        response = self.client.get(reverse('job-hiring-decision-list-create'), {
+            'job_posting': self.job.id, 'status': 'pending_hr_approval',
+            'decision_type': 'recommend_hire', 'search': 'Applicant',
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data], [decision.id])
+        self.assertEqual(self.client.get(reverse('job-hiring-decision-list-create'), {'decision_type': 'legacy'}).status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_close_intake_blocks_new_applications_and_marks_ready(self):
         response = self.close_intake()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
