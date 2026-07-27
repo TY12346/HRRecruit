@@ -72,6 +72,101 @@ function hasChartData(chart) {
   );
 }
 
+function SankeyChart({ data }) {
+  const width = 1040;
+  const height = 320;
+  const nodeWidth = 132;
+  const nodeHeight = 42;
+  const columnGap = (width - 36 - nodeWidth) / 5;
+  const nodesByColumn = new Map();
+
+  data.nodes.forEach((node) => {
+    const columnNodes = nodesByColumn.get(node.column) ?? [];
+    columnNodes.push(node);
+    nodesByColumn.set(node.column, columnNodes);
+  });
+
+  const positions = new Map();
+  nodesByColumn.forEach((nodes, column) => {
+    const gap = 24;
+    const groupHeight = (nodes.length * nodeHeight) + ((nodes.length - 1) * gap);
+    nodes.forEach((node, index) => {
+      positions.set(node.id, {
+        x: 18 + (column * columnGap),
+        y: ((height - groupHeight) / 2) + (index * (nodeHeight + gap)),
+      });
+    });
+  });
+
+  const outgoing = new Map();
+  const incoming = new Map();
+  data.links.forEach((link) => {
+    outgoing.set(link.source, [...(outgoing.get(link.source) ?? []), link]);
+    incoming.set(link.target, [...(incoming.get(link.target) ?? []), link]);
+  });
+  const nodeValues = new Map(data.nodes.map((node) => {
+    const incomingTotal = (incoming.get(node.id) ?? []).reduce((total, link) => total + link.value, 0);
+    const outgoingTotal = (outgoing.get(node.id) ?? []).reduce((total, link) => total + link.value, 0);
+    return [node.id, Math.max(incomingTotal, outgoingTotal)];
+  }));
+  const nodeMap = new Map(data.nodes.map((node) => [node.id, node]));
+  const anchorOffset = (links, link) => (links.indexOf(link) - ((links.length - 1) / 2)) * 10;
+
+  return (
+    <Box sx={{ width: '100%', height: '100%', overflowX: 'auto' }}>
+      <svg
+        aria-label={`Applicant pipeline flow for ${data.total} applications`}
+        role="img"
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ display: 'block', minWidth: 680, width: '100%', height: '100%' }}
+      >
+        <title>Applicant pipeline Sankey chart</title>
+        {data.links.map((link) => {
+          const source = positions.get(link.source);
+          const target = positions.get(link.target);
+          const sourceY = source.y + (nodeHeight / 2) + anchorOffset(outgoing.get(link.source), link);
+          const targetY = target.y + (nodeHeight / 2) + anchorOffset(incoming.get(link.target), link);
+          const sourceX = source.x + nodeWidth;
+          const targetX = target.x;
+          const curve = (targetX - sourceX) * 0.48;
+          const path = `M ${sourceX} ${sourceY} C ${sourceX + curve} ${sourceY}, ${targetX - curve} ${targetY}, ${targetX} ${targetY}`;
+          return (
+            <path
+              d={path}
+              fill="none"
+              key={`${link.source}-${link.target}`}
+              opacity="0.42"
+              stroke={nodeMap.get(link.source)?.color ?? '#3b82f6'}
+              strokeLinecap="round"
+              strokeWidth={Math.max(4, (link.value / data.total) * 30)}
+            >
+              <title>{`${nodeMap.get(link.source)?.label} → ${nodeMap.get(link.target)?.label}: ${link.value}`}</title>
+            </path>
+          );
+        })}
+        {data.nodes.map((node) => {
+          const position = positions.get(node.id);
+          return (
+            <g key={node.id} transform={`translate(${position.x} ${position.y})`}>
+              <rect fill={node.color} height={nodeHeight} rx="8" width={nodeWidth} />
+              <text fill="#fff" fontSize="12" fontWeight="600" textAnchor="middle" x={nodeWidth / 2} y="17">
+                {node.label}
+              </text>
+              <text fill="#fff" fontSize="12" opacity="0.9" textAnchor="middle" x={nodeWidth / 2} y="33">
+                {`${nodeValues.get(node.id) ?? 0} applicant${nodeValues.get(node.id) === 1 ? '' : 's'}`}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </Box>
+  );
+}
+
+function hasSankeyData(data) {
+  return Boolean(data?.total > 0 && data.nodes?.length && data.links?.length);
+}
+
 const dashboardGrid = (minWidth) => ({
   display: 'grid',
   gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${minWidth}px), 1fr))`,
@@ -184,7 +279,7 @@ export default function RecruiterAnalyticsPage() {
   const charts = analytics?.charts ?? {};
   const statusBreakdown = metrics.applications_by_status ?? analytics?.application_status_breakdown ?? {};
   const applicationsByStatusChart = charts.applications_by_status ?? chartFromMap(statusBreakdown, 'Applications', titleize);
-  const applicantFunnelChart = charts.applicant_funnel;
+  const applicantPipelineSankey = charts.applicant_pipeline_sankey;
   const timeToHireChart = singleValueBar('Average time-to-hire', metrics.average_time_to_hire_days, 'Days', '#7c3aed');
   const offerAcceptanceChart = percentageDoughnut('Accepted offers', metrics.offer_acceptance_rate, '#16a34a');
   const conversionRatesChart = charts.conversion_rates;
@@ -244,13 +339,13 @@ export default function RecruiterAnalyticsPage() {
               <Stat label="Evaluations submitted" value={metrics.interviewer_evaluation_count} />
             </Box>
 
-            <Box sx={dashboardGrid(420)}>
-                <ChartCard title="Applications by status" description="Current application counts grouped by backend status.">
-                  {hasChartData(applicationsByStatusChart) ? <Bar data={applicationsByStatusChart} options={barChartOptions} /> : <EmptyChart>No application status data yet.</EmptyChart>}
-                </ChartCard>
-                <ChartCard title="Applicant funnel" description="Applicants moving through key recruitment stages.">
-                  {hasChartData(applicantFunnelChart) ? <Bar data={applicantFunnelChart} options={barChartOptions} /> : <EmptyChart>No funnel data yet.</EmptyChart>}
-                </ChartCard>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(320px, 1fr) minmax(680px, 2fr)' }, gap: 2 }}>
+              <ChartCard title="Applications by status" description="Current application counts grouped by backend status.">
+                {hasChartData(applicationsByStatusChart) ? <Bar data={applicationsByStatusChart} options={barChartOptions} /> : <EmptyChart>No application status data yet.</EmptyChart>}
+              </ChartCard>
+              <ChartCard title="Applicant pipeline flow" description="Follow applicants from review through interviews, evaluations, offers, and hiring outcomes.">
+                {hasSankeyData(applicantPipelineSankey) ? <SankeyChart data={applicantPipelineSankey} /> : <EmptyChart>No pipeline flow data yet.</EmptyChart>}
+              </ChartCard>
             </Box>
 
             <Box sx={dashboardGrid(300)}>

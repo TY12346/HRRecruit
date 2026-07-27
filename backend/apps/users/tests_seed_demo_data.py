@@ -48,6 +48,7 @@ class SeedDemoDataCommandTests(TestCase):
         self.assertEqual(dashboard['metrics']['interviewer_evaluation_count'], 5)
         self.assertGreater(dashboard['metrics']['average_time_to_hire_days'], 0)
         self.assertGreater(len(dashboard['charts']['applications_over_time']['labels']), 1)
+        self.assertGreater(len(dashboard['charts']['applicant_pipeline_sankey']['links']), 5)
 
     def test_seed_command_is_idempotent_for_core_records(self):
         self.run_seed_command()
