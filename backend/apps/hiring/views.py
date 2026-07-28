@@ -401,7 +401,7 @@ class JobHiringDecisionListCreateAPIView(APIView):
         job.status = JobPosting.Status.CLOSED
         job.save(update_fields=['status', 'updated_at'])
         create_bulk_notifications(list(organization_hr_heads(job.organization)), 'hiring_decision_submitted',
-                                  'Job-level hiring decision pending approval',
+                                  f'{request.user.full_name} submitted a hiring decision for {job.title}',
                                   f'{request.user.full_name} submitted a hiring decision for {job.title}.', related_entity=decision)
         return Response(JobHiringDecisionSerializer(decision, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -427,7 +427,7 @@ class JobHiringDecisionApproveAPIView(APIView):
             for item in decision.items.select_related('application'):
                 change_application_status(item.application, JobApplication.Status.UNDER_REVIEW, request.user, 'Selected in approved job-level hiring decision.')
         job.save(update_fields=['status', 'updated_at'])
-        create_notification(decision.recruiter, 'hiring_decision_reviewed', 'Hiring decision approved',
+        create_notification(decision.recruiter, 'hiring_decision_reviewed', f'Hiring decision approved for {job.title}',
                             f'Hiring manager approved the hiring decision for {job.title}.', related_entity=decision)
         return Response(JobHiringDecisionSerializer(decision, context={'request': request}).data)
 
@@ -448,7 +448,7 @@ class JobHiringDecisionRejectAPIView(APIView):
         job = decision.job_posting
         job.status = JobPosting.Status.CLOSED
         job.save(update_fields=['status', 'updated_at'])
-        create_notification(decision.recruiter, 'hiring_decision_reviewed', 'Hiring decision returned for review',
+        create_notification(decision.recruiter, 'hiring_decision_reviewed', f'Hiring decision returned for review for {job.title}',
                             f'Hiring manager rejected the hiring decision for {job.title}.', related_entity=decision)
         return Response(JobHiringDecisionSerializer(decision, context={'request': request}).data)
 
@@ -511,7 +511,7 @@ class HiringDecisionApproveAPIView(APIView):
         create_notification(
             decision.recruiter,
             'hiring_decision_reviewed',
-            'Hiring decision approved',
+            f'Hiring decision approved for {application.applicant.full_name} — {application.job.title}',
             f'Hiring manager approved your {decision.decision} decision for {application.applicant.full_name}.',
             related_entity=decision,
         )
@@ -519,7 +519,7 @@ class HiringDecisionApproveAPIView(APIView):
             create_notification(
                 application.applicant,
                 'application_status_update',
-                'Application status updated',
+                f'Your application for {application.job.title} was not selected',
                 f'Your application for {application.job.title} was not selected.',
                 related_entity=application,
             )
@@ -553,7 +553,7 @@ class HiringDecisionRejectAPIView(APIView):
         create_notification(
             decision.recruiter,
             'hiring_decision_reviewed',
-            'Hiring decision rejected by HR',
+            f'Hiring decision rejected for {application.applicant.full_name} — {application.job.title}',
             f'Hiring manager rejected your {decision.decision} decision for {application.applicant.full_name}.',
             related_entity=decision,
         )
@@ -588,7 +588,7 @@ class JobOfferCreateAPIView(APIView):
         create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
             'job_offer_approval_requested',
-            'Job offer pending approval',
+            f'Job offer for {application.applicant.full_name} — {application.job.title} is pending approval',
             f'{request.user.full_name} submitted a job offer for {application.applicant.full_name}.',
             related_entity=offer,
         )
@@ -654,7 +654,7 @@ class JobOfferApproveAPIView(APIView):
         offer.reviewed_at = timezone.now()
         offer.hiring_manager_remarks = serializer.validated_data['remarks']
         offer.save(update_fields=['offer_status', 'reviewed_by', 'reviewed_at', 'hiring_manager_remarks'])
-        create_notification(offer.application.job.recruiter, 'job_offer_reviewed', 'Job offer approved',
+        create_notification(offer.application.job.recruiter, 'job_offer_reviewed', f'Job offer approved for {offer.application.applicant.full_name} — {offer.application.job.title}',
                             f'The job offer for {offer.application.applicant.full_name} was approved. Send it to the applicant when ready.', related_entity=offer)
         return Response(JobOfferSerializer(offer, context={'request': request}).data)
 
@@ -676,7 +676,7 @@ class JobOfferDisapproveAPIView(APIView):
         offer.reviewed_at = timezone.now()
         offer.hiring_manager_remarks = serializer.validated_data['remarks']
         offer.save(update_fields=['offer_status', 'reviewed_by', 'reviewed_at', 'hiring_manager_remarks'])
-        create_notification(offer.application.job.recruiter, 'job_offer_reviewed', 'Job offer changes requested',
+        create_notification(offer.application.job.recruiter, 'job_offer_reviewed', f'Changes requested for {offer.application.applicant.full_name}\'s {offer.application.job.title} offer',
                             serializer.validated_data['remarks'], related_entity=offer)
         return Response(JobOfferSerializer(offer, context={'request': request}).data)
 
@@ -699,7 +699,7 @@ class JobOfferResubmitAPIView(APIView):
         offer.reviewed_at = None
         offer.save()
         create_bulk_notifications(list(organization_hr_heads(offer.application.job.organization)),
-                                  'job_offer_approval_requested', 'Revised job offer pending approval',
+                                  'job_offer_approval_requested', f'Revised offer for {offer.application.applicant.full_name} — {offer.application.job.title} is pending approval',
                                   f'{request.user.full_name} resubmitted the offer for {offer.application.applicant.full_name}.', related_entity=offer)
         return Response(JobOfferSerializer(offer, context={'request': request}).data)
 
@@ -715,7 +715,7 @@ class JobOfferSendAPIView(APIView):
         offer.offer_status = JobOffer.OfferStatus.PENDING_APPLICANT_RESPONSE
         offer.sent_at = timezone.now()
         offer.save(update_fields=['offer_status', 'sent_at'])
-        create_notification(offer.application.applicant, 'job_offer_sent', 'Job offer received', offer.offer_message, related_entity=offer)
+        create_notification(offer.application.applicant, 'job_offer_sent', f'Job offer received for {offer.application.job.title}', offer.offer_message, related_entity=offer)
         send_job_offer_email(offer)
         return Response(JobOfferSerializer(offer, context={'request': request}).data)
 
@@ -758,14 +758,14 @@ class JobOfferAcceptAPIView(APIView):
         create_notification(
             application.job.recruiter,
             'offer_response',
-            'Job offer accepted',
+            f'{request.user.full_name} accepted the job offer for {application.job.title}',
             f'{request.user.full_name} accepted the job offer for {application.job.title}.',
             related_entity=offer,
         )
         create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
             'offer_response',
-            'Job offer accepted',
+            f'{request.user.full_name} accepted the job offer for {application.job.title}',
             f'{request.user.full_name} accepted the job offer for {application.job.title}.',
             related_entity=offer,
         )
@@ -797,14 +797,14 @@ class JobOfferDeclineAPIView(APIView):
         create_notification(
             application.job.recruiter,
             'offer_response',
-            'Job offer declined',
+            f'{request.user.full_name} declined the job offer for {application.job.title}',
             f'{request.user.full_name} declined the job offer for {application.job.title}.',
             related_entity=offer,
         )
         create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
             'offer_response',
-            'Job offer declined',
+            f'{request.user.full_name} declined the job offer for {application.job.title}',
             f'{request.user.full_name} declined the job offer for {application.job.title}.',
             related_entity=offer,
         )
@@ -833,14 +833,14 @@ class JobOfferWithdrawAPIView(APIView):
         create_notification(
             application.applicant,
             'job_offer_withdrawn',
-            'Job offer withdrawn',
+            f'Your job offer for {application.job.title} was withdrawn',
             f'The job offer for {application.job.title} was withdrawn. The recruiter may contact you with an update.',
             related_entity=offer,
         )
         create_bulk_notifications(
             list(organization_hr_heads(application.job.organization)),
             'job_offer_withdrawn',
-            'Job offer withdrawn',
+            f'{request.user.full_name} withdrew {application.applicant.full_name}\'s offer for {application.job.title}',
             f'{request.user.full_name} withdrew the job offer for {application.applicant.full_name}.',
             related_entity=offer,
         )

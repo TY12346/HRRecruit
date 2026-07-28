@@ -68,11 +68,16 @@ class NotificationAPITests(APITestCase):
         self.authenticate(self.user)
 
         list_response = self.client.get(reverse('notification-list'))
+        detail_response = self.client.get(reverse('notification-detail', args=[own_notification.id]))
+        forbidden_detail_response = self.client.get(reverse('notification-detail', args=[other_notification.id]))
         read_response = self.client.patch(reverse('notification-read', args=[own_notification.id]), {}, format='json')
         forbidden_read_response = self.client.patch(reverse('notification-read', args=[other_notification.id]), {}, format='json')
 
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in list_response.data], [own_notification.id])
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.data['id'], own_notification.id)
+        self.assertEqual(forbidden_detail_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(read_response.status_code, status.HTTP_200_OK)
         self.assertTrue(read_response.data['is_read'])
         self.assertEqual(forbidden_read_response.status_code, status.HTTP_404_NOT_FOUND)
