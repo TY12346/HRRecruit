@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.notifications.email_service import email_delivery_mode
 from apps.users.models import User
 from apps.users.permissions import IsHiringManager, IsRecruiterOrHiringManager
 
@@ -105,8 +106,22 @@ class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
         serializer = OrganizationMemberSerializer(data=request.data, context={'organization': organization})
         serializer.is_valid(raise_exception=True)
         membership = serializer.save()
+        delivery_mode = email_delivery_mode()
+        if delivery_mode == 'console':
+            message = (
+                'Team member created successfully. The temporary credentials were printed in the backend console '
+                'because SMTP email delivery is not configured.'
+            )
+        elif delivery_mode == 'development':
+            message = 'Team member created successfully. The configured development email backend captured the temporary credentials.'
+        else:
+            message = 'Team member created successfully. Temporary credentials were sent by email.'
         return Response(
-            {'message': 'Team member created successfully.', 'member': OrganizationMemberSerializer(membership).data},
+            {
+                'message': message,
+                'email_delivery': delivery_mode,
+                'member': OrganizationMemberSerializer(membership).data,
+            },
             status=status.HTTP_201_CREATED,
         )
 

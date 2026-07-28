@@ -6,6 +6,20 @@ from django.conf import settings
 from django.core.mail import send_mail
 
 
+def email_delivery_mode():
+    """Describe whether the configured backend delivers to a real mail server."""
+    backend = getattr(settings, 'EMAIL_BACKEND', '')
+    if backend == 'django.core.mail.backends.console.EmailBackend':
+        return 'console'
+    if backend in {
+        'django.core.mail.backends.locmem.EmailBackend',
+        'django.core.mail.backends.filebased.EmailBackend',
+        'django.core.mail.backends.dummy.EmailBackend',
+    }:
+        return 'development'
+    return 'email'
+
+
 def send_email(subject, message, recipient_list):
     """Send a plain-text email through the configured Django email backend."""
     recipients = [email for email in recipient_list if email]

@@ -8,6 +8,7 @@ from rest_framework.test import APITestCase
 
 from apps.notifications.email_service import (
     build_password_reset_link,
+    email_delivery_mode,
     send_email,
     send_job_offer_email,
     send_password_reset_otp_email,
@@ -252,6 +253,14 @@ class NotificationAPITests(APITestCase):
 
 
 class EmailServiceTests(SimpleTestCase):
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend')
+    def test_email_delivery_mode_identifies_console_backend(self):
+        self.assertEqual(email_delivery_mode(), 'console')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend')
+    def test_email_delivery_mode_identifies_smtp_backend(self):
+        self.assertEqual(email_delivery_mode(), 'email')
+
     @override_settings(
         EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
         DEFAULT_FROM_EMAIL='sender@example.com',

@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from apps.jobs.models import JobPosting
 from apps.users.models import User
@@ -134,6 +134,27 @@ class OrganizationAPITests(APITestCase):
         membership = OrganizationMembership.objects.get(id=membership_id)
         self.assertEqual(membership.status, OrganizationMembership.Status.INACTIVE)
         self.assertFalse(membership.user.is_active)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend')
+    def test_create_member_reports_that_console_backend_does_not_deliver_to_inbox(self):
+        self.create_organization()
+
+        with self.captureOnCommitCallbacks(execute=True), patch(
+            'apps.organizations.services.send_temporary_password_email'
+        ):
+            response = self.client.post(
+                reverse('organization-member-list-create'),
+                {
+                    'email': 'console-recruiter@example.com',
+                    'full_name': 'Console Recruiter',
+                    'role': User.Role.RECRUITER,
+                },
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['email_delivery'], 'console')
+        self.assertIn('printed in the backend console', response.data['message'])
 
     def test_recruiter_can_list_organization_interviewers_but_cannot_create_members(self):
         self.create_organization()

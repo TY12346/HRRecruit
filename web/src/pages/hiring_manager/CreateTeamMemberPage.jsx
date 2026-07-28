@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { createOrganizationMember } from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';
 import { getApiErrorMessage } from './hiringManagerUtils.js';
@@ -14,10 +14,10 @@ const emptyForm = {
 };
 
 export default function CreateTeamMemberPage() {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState(emptyForm);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState('email');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (event) => {
@@ -33,8 +33,8 @@ export default function CreateTeamMemberPage() {
     try {
       const response = await createOrganizationMember(formData);
       setSuccessMessage(response.message ?? 'Team member created successfully. Temporary credentials were sent by email.');
+      setDeliveryMode(response.email_delivery ?? 'email');
       setFormData(emptyForm);
-      setTimeout(() => navigate('/hiring-manager/team'), 800);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError, 'Unable to create team member.'));
     } finally {
@@ -54,7 +54,7 @@ export default function CreateTeamMemberPage() {
         </Typography>
 
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        {successMessage ? <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert> : null}
+        {successMessage ? <Alert severity={deliveryMode === 'email' ? 'success' : 'warning'} sx={{ mb: 2 }}>{successMessage}</Alert> : null}
 
         <Box component="form" onSubmit={handleSubmit}>
           <Stack spacing={2}>
