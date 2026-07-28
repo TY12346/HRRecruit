@@ -14,8 +14,10 @@ from .models import Organization, OrganizationMembership
 
 logger = logging.getLogger(__name__)
 
+TEMPORARY_PASSWORD_LENGTH = 8
 
-def generate_temporary_password(length=14):
+
+def generate_temporary_password():
     """Generate a temporary password containing each common character group."""
     alphabet = string.ascii_letters + string.digits + '!@#$%'
     required = [
@@ -24,7 +26,9 @@ def generate_temporary_password(length=14):
         secrets.choice(string.digits),
         secrets.choice('!@#$%'),
     ]
-    password_characters = required + [secrets.choice(alphabet) for _ in range(length - len(required))]
+    password_characters = required + [
+        secrets.choice(alphabet) for _ in range(TEMPORARY_PASSWORD_LENGTH - len(required))
+    ]
     secrets.SystemRandom().shuffle(password_characters)
     return ''.join(password_characters)
 
