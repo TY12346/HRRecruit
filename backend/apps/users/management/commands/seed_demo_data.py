@@ -623,10 +623,10 @@ class Command(BaseCommand):
 
     def _seed_billing(self, organization):
         plan, _ = SubscriptionPlan.objects.update_or_create(
-            name=SubscriptionPlan.Name.PRO,
+            name=SubscriptionPlan.Name.PROFESSIONAL,
             billing_cycle=SubscriptionPlan.BillingCycle.MONTHLY,
             defaults={
-                'max_job_postings': 10,
+                'max_active_job_postings': 10, 'max_hiring_managers': 2, 'max_recruiters': 3, 'max_interviewers': 10,
                 'price': Decimal('299.00'),
                 'features_description': 'Demo Pro plan for FYP workflow with multiple active job postings.',
                 'is_active': True,

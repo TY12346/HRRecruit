@@ -48,9 +48,16 @@ def send_temporary_password_email_safely(user, temporary_password):
 
 @transaction.atomic
 def create_team_member(*, organization, email, full_name, phone_number='', role):
-    """Create a recruiter or interviewer, attach them to an organization, and email credentials."""
-    if role not in (User.Role.RECRUITER, User.Role.INTERVIEWER):
-        raise serializers.ValidationError({'role': 'Only recruiter and interviewer accounts can be created.'})
+    """Create a capacity-checked organization account atomically."""
+    from apps.billing.services import SubscriptionLimitError, enforce_member_limit
+    if role not in (User.Role.HR_HEAD, User.Role.RECRUITER, User.Role.INTERVIEWER):
+        raise serializers.ValidationError({'role': 'Unsupported organization role.'})
+
+    Organization.objects.select_for_update().get(pk=organization.pk)
+    try:
+        enforce_member_limit(organization, role)
+    except SubscriptionLimitError as exc:
+        raise serializers.ValidationError(exc.as_dict()) from exc
 
     normalized_email = User.objects.normalize_email(email)
     if User.objects.filter(email__iexact=normalized_email).exists():

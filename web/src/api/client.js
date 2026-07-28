@@ -159,6 +159,11 @@ export const getBillingPlans = async () => {
   return response.data;
 };
 
+export const getSubscriptionUsage = async () => {
+  const response = await apiClient.get('/billing/usage/');
+  return response.data;
+};
+
 export const getCurrentSubscription = async () => {
   const response = await apiClient.get('/billing/subscription/');
   return response.data;

@@ -44,15 +44,18 @@ export default function SubscriptionOnboardingPage() {
         {isLoading ? <CircularProgress aria-label="Loading subscription plans" /> : null}
         <Grid container spacing={2}>
           {plans.map((plan) => (
-            <Grid item xs={12} md={4} key={plan.id}>
+            <Grid item xs={12} sm={6} lg={3} key={plan.id}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
                   <Stack spacing={1.5}>
                     <Typography component="h2" variant="h6">{plan.name}</Typography>
                     <Typography component="p" variant="h4" sx={{ fontWeight: 700 }}>{formatCurrency(plan.price)}</Typography>
                     <Typography color="text.secondary">{titleize(plan.billing_cycle)} billing</Typography>
-                    <Typography>Maximum open job postings: {plan.max_job_postings}</Typography>
-                    <Typography color="text.secondary">{plan.features_description}</Typography>
+                    <Typography>{plan.max_hiring_managers} Hiring Manager{plan.max_hiring_managers === 1 ? '' : 's'}</Typography>
+                    <Typography>{plan.max_recruiters} Recruiter{plan.max_recruiters === 1 ? '' : 's'}</Typography>
+                    <Typography>{plan.max_interviewers} Interviewer{plan.max_interviewers === 1 ? '' : 's'}</Typography>
+                    <Typography>{plan.max_active_job_postings} active job postings</Typography>
+                    <Typography color="text.secondary">All HRRecruit features included. Plans differ only by organization capacity.</Typography>
                     <Box><Button disabled={selectedPlanId !== null} onClick={() => handleSelectPlan(plan.id)} variant="contained">{selectedPlanId === plan.id ? 'Processing payment…' : 'Select plan and pay'}</Button></Box>
                   </Stack>
                 </CardContent>
