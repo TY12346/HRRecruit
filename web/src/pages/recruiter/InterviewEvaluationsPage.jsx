@@ -18,6 +18,65 @@ import Alert from '../../components/TimedAlert.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 
+function mergeConsecutiveSpeakerSegments(segments) {
+  return segments.reduce((groups, segment) => {
+    const text = String(segment.text || '').trim();
+    if (!text) return groups;
+
+    const speaker = segment.role || segment.speaker_id || 'Unknown speaker';
+    const previous = groups[groups.length - 1];
+    if (previous?.speaker === speaker) {
+      previous.text = `${previous.text} ${text}`;
+      return groups;
+    }
+
+    groups.push({
+      speaker,
+      speakerId: segment.speaker_id || 'unknown',
+      text,
+    });
+    return groups;
+  }, []);
+}
+
+function TranscriptContent({ transcript }) {
+  const segments = Array.isArray(transcript?.speaker_segments) ? transcript.speaker_segments : [];
+  const dialogue = mergeConsecutiveSpeakerSegments(segments);
+  const transcriptText = transcript?.speaker_labelled_transcript || transcript?.transcript_text;
+
+  if (dialogue.length) {
+    return (
+      <Stack spacing={1.5} aria-label="Speaker-separated transcript">
+        {dialogue.map((turn, index) => (
+          <Paper
+            key={`${turn.speakerId}-${index}`}
+            variant="outlined"
+            sx={{
+              p: 2,
+              bgcolor: index % 2 === 0 ? 'grey.50' : 'background.paper',
+              borderLeft: 4,
+              borderLeftColor: index % 2 === 0 ? 'primary.main' : 'secondary.main',
+            }}
+          >
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 700 }}>
+              {turn.speaker}
+            </Typography>
+            <Typography sx={{ lineHeight: 1.7 }}>{turn.text}</Typography>
+          </Paper>
+        ))}
+      </Stack>
+    );
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
+      <Typography whiteSpace="pre-line" sx={{ lineHeight: 1.8, maxWidth: '80ch' }}>
+        {transcriptText || 'No transcript generated yet.'}
+      </Typography>
+    </Paper>
+  );
+}
+
 function EvaluationCard({ evaluation }) {
   return (
     <Card variant="outlined">
@@ -115,9 +174,7 @@ export default function InterviewEvaluationsPage() {
 
             <Box>
               <Typography variant="h6" sx={{ mb: 1 }}>Transcript</Typography>
-              <Typography whiteSpace="pre-line">
-                {detail.transcript?.speaker_labelled_transcript || detail.transcript?.transcript_text || 'No transcript generated yet.'}
-              </Typography>
+              <TranscriptContent transcript={detail.transcript} />
             </Box>
           </Stack>
         ) : null}
