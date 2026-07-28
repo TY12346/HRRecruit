@@ -48,21 +48,18 @@ function TranscriptContent({ transcript }) {
     return (
       <Stack spacing={1.5} aria-label="Speaker-separated transcript">
         {dialogue.map((turn, index) => (
-          <Paper
+          <Box
             key={`${turn.speakerId}-${index}`}
-            variant="outlined"
             sx={{
-              p: 2,
-              bgcolor: index % 2 === 0 ? 'grey.50' : 'background.paper',
-              borderLeft: 4,
-              borderLeftColor: index % 2 === 0 ? 'primary.main' : 'secondary.main',
+              px: 1,
+              py: 0.5,
             }}
           >
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 700 }}>
               {turn.speaker}
             </Typography>
             <Typography sx={{ lineHeight: 1.7 }}>{turn.text}</Typography>
-          </Paper>
+          </Box>
         ))}
       </Stack>
     );
