@@ -271,6 +271,15 @@ class JobPostingAPITests(APITestCase):
             title__contains='approved the job requisition for Product Designer',
             notification_type='job_requisition_reviewed',
         ).exists())
+        notification = Notification.objects.get(
+            recipient=self.recruiter,
+            notification_type='job_requisition_reviewed',
+        )
+        self.authenticate(self.recruiter)
+        notification_response = self.client.get(reverse('notification-detail', args=[notification.id]))
+        self.assertEqual(notification_response.data['actions'], [
+            {'label': 'View requisition', 'url': '/recruiter/job-requisitions'},
+        ])
 
     def test_recruiter_cannot_open_approved_job_before_requirements_and_scorecard(self):
         job = self.create_job(status=JobPosting.Status.DRAFTING)

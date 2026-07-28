@@ -99,6 +99,21 @@ class NotificationAPITests(APITestCase):
         self.assertEqual(count_after_response.data['unread_count'], 0)
         self.assertEqual(Notification.objects.filter(recipient=self.other_user, is_read=False).count(), 1)
 
+    def test_notification_without_supported_related_entity_has_no_actions(self):
+        notification = create_notification(
+            self.user,
+            'account_update',
+            'Account updated',
+            'Your account was updated.',
+            related_entity=self.user,
+        )
+        self.authenticate(self.user)
+
+        response = self.client.get(reverse('notification-detail', args=[notification.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['actions'], [])
+
     def test_user_can_register_list_and_deactivate_push_device(self):
         self.authenticate(self.user)
         payload = {

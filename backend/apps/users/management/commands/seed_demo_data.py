@@ -606,11 +606,11 @@ class Command(BaseCommand):
 
     def _seed_notifications(self, application, interview, users):
         notifications = [
-            (users[User.Role.APPLICANT], 'application_status', 'Application shortlisted', 'Your demo Software Engineer application was shortlisted.', 'JobApplication', application.id),
-            (users[User.Role.APPLICANT], 'interview_scheduled', 'Interview scheduled', 'Your demo interview has been scheduled.', 'Interview', interview.id),
-            (users[User.Role.APPLICANT], 'job_offer', 'Demo job offer accepted', 'Your fake demo job offer has been accepted.', 'JobOffer', application.job_offers.first().id),
-            (users[User.Role.RECRUITER], 'hiring_decision_update', 'Hiring manager approved decision', 'The hiring manager approved the demo hiring decision.', 'HiringDecision', application.hiring_decisions.first().id),
-            (users[User.Role.HR_HEAD], 'hiring_decision_update', 'Offer accepted', 'The applicant accepted the fake demo offer.', 'JobApplication', application.id),
+            (users[User.Role.APPLICANT], 'application_status', f'Your application for {application.job.title} was shortlisted', 'Your demo application was shortlisted.', 'JobApplication', application.id),
+            (users[User.Role.APPLICANT], 'interview_scheduled', f'Interview scheduled for {application.job.title}', 'Your demo interview has been scheduled.', 'Interview', interview.id),
+            (users[User.Role.APPLICANT], 'job_offer', f'Job offer accepted for {application.job.title}', 'Your fake demo job offer has been accepted.', 'JobOffer', application.job_offers.first().id),
+            (users[User.Role.RECRUITER], 'hiring_decision_update', f'Hiring manager approved the decision for {application.applicant.full_name} — {application.job.title}', 'The hiring manager approved the demo hiring decision.', 'HiringDecision', application.hiring_decisions.first().id),
+            (users[User.Role.HR_HEAD], 'offer_response', f'{application.applicant.full_name} accepted the job offer for {application.job.title}', 'The applicant accepted the fake demo offer.', 'JobOffer', application.job_offers.first().id),
         ]
         for recipient, notification_type, title, message, entity_type, entity_id in notifications:
             Notification.objects.update_or_create(

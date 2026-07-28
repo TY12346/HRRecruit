@@ -45,6 +45,15 @@ export default function NotificationDetailPage({ Nav, basePath, formatDateTime }
               <Typography color="text.secondary" variant="body2">{formatDateTime(notification.created_at)}</Typography>
             </Stack>
             <Typography sx={{ whiteSpace: 'pre-wrap' }}>{notification.message}</Typography>
+            {notification.actions?.length ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                {notification.actions.map((action) => (
+                  <Button component={RouterLink} key={`${action.label}-${action.url}`} to={action.url} variant="contained">
+                    {action.label}
+                  </Button>
+                ))}
+              </Stack>
+            ) : null}
           </Stack>
         ) : null}
       </Paper>
