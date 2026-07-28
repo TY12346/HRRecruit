@@ -7,6 +7,18 @@ from apps.jobs.models import JobPosting
 from apps.users.models import User
 
 from .models import Organization, OrganizationMembership
+from .services import generate_temporary_password
+
+
+class TemporaryPasswordTests(SimpleTestCase):
+    def test_generated_temporary_password_is_eight_characters_with_required_character_groups(self):
+        temporary_password = generate_temporary_password()
+
+        self.assertEqual(len(temporary_password), 8)
+        self.assertTrue(any(character.isupper() for character in temporary_password))
+        self.assertTrue(any(character.islower() for character in temporary_password))
+        self.assertTrue(any(character.isdigit() for character in temporary_password))
+        self.assertTrue(any(character in '!@#$%' for character in temporary_password))
 
 
 class OrganizationModelTests(SimpleTestCase):
