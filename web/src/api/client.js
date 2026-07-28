@@ -159,6 +159,11 @@ export const getBillingPlans = async () => {
   return response.data;
 };
 
+export const getSubscriptionUsage = async () => {
+  const response = await apiClient.get('/billing/usage/');
+  return response.data;
+};
+
 export const getCurrentSubscription = async () => {
   const response = await apiClient.get('/billing/subscription/');
   return response.data;
@@ -194,6 +199,14 @@ export const completeDemoPayment = async ({ subscriptionId, transactionReference
   const response = await apiClient.post('/billing/demo-payment-success/', {
     subscription_id: subscriptionId,
     transaction_reference: transactionReference,
+  });
+  return response.data;
+};
+
+export const createBillingCheckoutSession = async ({ subscriptionId, gateway = 'stripe' }) => {
+  const response = await apiClient.post('/billing/checkout-sessions/', {
+    subscription_id: subscriptionId,
+    gateway,
   });
   return response.data;
 };

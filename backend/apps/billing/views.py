@@ -27,7 +27,9 @@ from .services import (
     create_pending_subscription,
     get_active_hr_head_membership,
     get_active_subscription,
+    get_subscription_capacity,
     reactivate_subscription,
+    SubscriptionLimitError,
 )
 
 
@@ -82,6 +84,16 @@ class CurrentSubscriptionAPIView(BillingHiringManagerMixin, APIView):
         if not subscription:
             return Response({'detail': 'No active subscription found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(SubscriptionSerializer(subscription).data)
+
+
+class SubscriptionUsageAPIView(BillingHiringManagerMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        capacity = get_subscription_capacity(self.get_organization(request))
+        if capacity is None:
+            return Response({'detail': 'No active subscription found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(capacity)
 
 
 class HiringManagerOnboardingStatusAPIView(APIView):

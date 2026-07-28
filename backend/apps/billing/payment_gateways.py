@@ -90,8 +90,12 @@ class StripeSandboxGateway(BasePaymentGateway):
         stripe = self._load_stripe()
         stripe.api_key = self._get_secret_key()
         currency = settings.STRIPE_CURRENCY.lower()
+        unit_amount = self._amount_in_minor_units(subscription.plan.price)
+        if unit_amount <= 0:
+            raise PaymentGatewayError('Stripe checkout requires a plan price greater than zero.')
         session = stripe.checkout.Session.create(
             mode='payment',
+            client_reference_id=str(subscription.id),
             payment_method_types=['card'],
             line_items=[
                 {
@@ -101,7 +105,7 @@ class StripeSandboxGateway(BasePaymentGateway):
                             'name': f'HRRecruit {subscription.plan.name} subscription',
                             'description': subscription.plan.features_description,
                         },
-                        'unit_amount': self._amount_in_minor_units(subscription.plan.price),
+                        'unit_amount': unit_amount,
                     },
                     'quantity': 1,
                 }
@@ -159,9 +163,16 @@ class StripeSandboxGateway(BasePaymentGateway):
                 return {'processed': True, 'payment': existing_payment, 'idempotent': True}
             raise PaymentGatewayError('Pending subscription not found for verified Stripe payment.') from exc
 
+        metadata = session.get('metadata', {})
+        if metadata.get('organization_id') != str(subscription.organization_id) or metadata.get('plan_id') != str(subscription.plan_id):
+            raise PaymentGatewayError('Stripe checkout metadata does not match the pending subscription.')
+
         amount_total = session.get('amount_total')
-        amount = Decimal(amount_total) / Decimal('100') if amount_total is not None else subscription.plan.price
         currency = session.get('currency', settings.STRIPE_CURRENCY).upper()
+        expected_amount = self._amount_in_minor_units(subscription.plan.price)
+        if amount_total != expected_amount or currency != settings.STRIPE_CURRENCY.upper():
+            raise PaymentGatewayError('Stripe payment amount or currency does not match the selected plan.')
+        amount = Decimal(amount_total) / Decimal('100')
         payment = activate_paid_subscription(
             subscription=subscription,
             gateway=Payment.PaymentGateway.STRIPE,

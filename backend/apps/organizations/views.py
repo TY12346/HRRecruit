@@ -31,7 +31,7 @@ def get_active_membership_organization(user, role):
 
 def get_managed_organization(hr_head):
     """Return the hiring manager's non-deleted organization, if one exists."""
-    return Organization.objects.filter(created_by=hr_head).exclude(status=Organization.Status.DELETED).first()
+    return get_active_membership_organization(hr_head, OrganizationMembership.Role.HR_HEAD)
 
 
 class ManagedOrganizationMixin:
@@ -129,7 +129,7 @@ class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
         organization = self.get_organization(request)
         if not organization:
             return self.organization_not_found_response()
-        memberships = organization.memberships.exclude(role=OrganizationMembership.Role.HR_HEAD).select_related('user')
+        memberships = organization.memberships.select_related('user', 'organization')
         search = request.query_params.get('search', '').strip()
         if search:
             memberships = memberships.filter(
@@ -146,9 +146,22 @@ class OrganizationMemberDeactivateAPIView(ManagedOrganizationMixin, APIView):
         organization = self.get_organization(request)
         if not organization:
             return self.organization_not_found_response()
-        membership = organization.memberships.exclude(role=OrganizationMembership.Role.HR_HEAD).filter(id=member_id).select_related('user').first()
+        membership = organization.memberships.filter(id=member_id).select_related('user').first()
         if not membership:
             return Response({'detail': 'Team member not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if membership.user_id == request.user.id:
+            return Response({'detail': 'You cannot deactivate your own account.'}, status=status.HTTP_400_BAD_REQUEST)
+        if membership.user_id == organization.created_by_id:
+            return Response({'detail': 'The original organization owner cannot be deactivated.'}, status=status.HTTP_400_BAD_REQUEST)
+        if membership.role == OrganizationMembership.Role.HR_HEAD and organization.memberships.filter(
+            role=OrganizationMembership.Role.HR_HEAD,
+            status=OrganizationMembership.Status.ACTIVE,
+            user__is_active=True,
+        ).count() <= 1:
+            return Response(
+                {'detail': 'The organization must retain at least one active Hiring Manager.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         membership.status = OrganizationMembership.Status.INACTIVE
         membership.save(update_fields=['status'])

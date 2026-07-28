@@ -65,7 +65,7 @@ def enforce_job_opening_allowed(organization, requested_status, current_job=None
     try:
         enforce_open_job_limit(organization, open_jobs.count())
     except SubscriptionLimitError as exc:
-        raise ValidationError({'status': [str(exc)]}) from exc
+        raise ValidationError({'status': [str(exc.detail)], **exc.as_dict()}) from exc
 
 
 def enforce_job_ready_for_open(job, requested_status):
@@ -306,10 +306,12 @@ class JobDetailAPIView(APIView):
         job = get_object_or_404(visible_jobs_for(request.user), id=job_id)
         return Response(JobPostingSerializer(job, context={'request': request}).data)
 
+    @transaction.atomic
     def patch(self, request, job_id):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can update job postings.')
         job = recruiter_job_or_404(request.user, job_id)
+        Organization.objects.select_for_update().get(pk=job.organization_id)
         serializer = JobPostingSerializer(job, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         requested_status = serializer.validated_data.get('status', job.status)

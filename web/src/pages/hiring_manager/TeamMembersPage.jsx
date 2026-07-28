@@ -106,7 +106,7 @@ export default function TeamMembersPage() {
               Team Members
             </Typography>
             <Typography color="text.secondary">
-              Search recruiter and interviewer accounts and deactivate access when required.
+              Search hiring manager, recruiter, and interviewer accounts and deactivate access when required.
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
@@ -148,7 +148,7 @@ export default function TeamMembersPage() {
           <TableBody>
             {members.map((member) => (
               <TableRow key={member.id}>
-                <TableCell>{member.full_name}</TableCell>
+                <TableCell>{member.full_name} {member.is_owner ? <Chip label="Original owner" size="small" /> : null}</TableCell>
                 <TableCell>{member.email}</TableCell>
                 <TableCell>{member.phone_number || '—'}</TableCell>
                 <TableCell>{titleize(member.role)}</TableCell>
@@ -159,7 +159,7 @@ export default function TeamMembersPage() {
                 <TableCell align="right">
                   <Button
                     color="error"
-                    disabled={member.status !== 'active' || !member.is_active || deactivatingId === member.id}
+                    disabled={member.is_owner || member.status !== 'active' || !member.is_active || deactivatingId === member.id}
                     onClick={() => handleDeactivate(member)}
                     size="small"
                     variant="outlined"

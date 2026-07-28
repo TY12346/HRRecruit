@@ -23,8 +23,10 @@ import Alert from '../../components/TimedAlert.jsx';
 import {
   cancelSubscription,
   completeDemoPayment,
+  createBillingCheckoutSession,
   getBillingInvoices,
   getBillingPlans,
+  getSubscriptionUsage,
   getCurrentSubscription,
   reactivateSubscription,
   subscribeToPlan,
@@ -37,6 +39,7 @@ export default function BillingPage() {
   const [plans, setPlans] = useState([]);
   const [subscription, setSubscription] = useState(null);
   const [invoices, setInvoices] = useState([]);
+  const [capacity, setCapacity] = useState(null);
   const [isAutoRenew, setIsAutoRenew] = useState(false);
   const [pendingSubscription, setPendingSubscription] = useState(null);
   const [error, setError] = useState('');
@@ -50,7 +53,7 @@ export default function BillingPage() {
     setIsLoading(true);
     setError('');
     try {
-      const [plansData, subscriptionResult, invoiceData] = await Promise.all([
+      const [plansData, subscriptionResult, invoiceData, usageData] = await Promise.all([
         getBillingPlans(),
         getCurrentSubscription().catch((subscriptionError) => {
           if (subscriptionError.response?.status === 404) {
@@ -59,10 +62,12 @@ export default function BillingPage() {
           throw subscriptionError;
         }),
         getBillingInvoices(),
+        getSubscriptionUsage().catch(() => null),
       ]);
       setPlans(plansData);
       setSubscription(subscriptionResult);
       setInvoices(invoiceData);
+      setCapacity(usageData);
     } catch (loadError) {
       setError(getApiErrorMessage(loadError, 'Unable to load billing details.'));
     } finally {
@@ -77,7 +82,7 @@ export default function BillingPage() {
       setIsLoading(true);
       setError('');
       try {
-        const [plansData, subscriptionResult, invoiceData] = await Promise.all([
+        const [plansData, subscriptionResult, invoiceData, usageData] = await Promise.all([
           getBillingPlans(),
           getCurrentSubscription().catch((subscriptionError) => {
             if (subscriptionError.response?.status === 404) {
@@ -86,11 +91,13 @@ export default function BillingPage() {
             throw subscriptionError;
           }),
           getBillingInvoices(),
+          getSubscriptionUsage().catch(() => null),
         ]);
         if (isMounted) {
           setPlans(plansData);
           setSubscription(subscriptionResult);
           setInvoices(invoiceData);
+          setCapacity(usageData);
         }
       } catch (loadError) {
         if (isMounted) {
@@ -174,6 +181,17 @@ export default function BillingPage() {
       await loadBilling();
     } catch (paymentError) {
       setError(getApiErrorMessage(paymentError, 'Unable to complete demo payment.'));
+    }
+  };
+
+  const handleStripeCheckout = async () => {
+    if (!pendingSubscription) return;
+    setError('');
+    try {
+      const checkout = await createBillingCheckoutSession({ subscriptionId: pendingSubscription.id });
+      window.location.assign(checkout.checkout_url);
+    } catch (checkoutError) {
+      setError(getApiErrorMessage(checkoutError, 'Unable to start Stripe sandbox checkout.'));
     }
   };
 
@@ -270,10 +288,10 @@ export default function BillingPage() {
 
         {pendingSubscription ? (
           <Alert
-            action={<Button color="inherit" onClick={handleCompletePayment}>Complete demo payment</Button>}
+            action={<Stack direction="row" spacing={1}><Button color="inherit" onClick={handleStripeCheckout}>Pay with Stripe sandbox</Button><Button color="inherit" onClick={handleCompletePayment}>Demo payment</Button></Stack>}
             severity="info"
           >
-            Pending payment for {pendingSubscription.plan?.name}. Use the demo payment button to activate it.
+            Pending payment for {pendingSubscription.plan?.name}. Continue to Stripe Checkout in test mode, or use the local demo fallback.
           </Alert>
         ) : null}
 
@@ -282,9 +300,24 @@ export default function BillingPage() {
           label="Enable auto-renew for selected plan"
         />
 
+        {capacity ? (
+          <Card><CardContent><Typography variant="h6" sx={{ mb: 2 }}>Current capacity usage</Typography>
+            <Grid container spacing={2}>{Object.entries(capacity.usage).map(([key, item]) => {
+              const percent = item.limit ? (item.used / item.limit) * 100 : 0;
+              return <Grid item xs={12} sm={6} lg={3} key={key}><Stack spacing={0.5}>
+                <Typography sx={{ fontWeight: 600 }}>{titleize(key)}</Typography>
+                <Typography>{item.used} / {item.limit} used</Typography>
+                <Typography color={percent >= 100 ? 'error' : percent >= 80 ? 'warning.main' : 'text.secondary'}>
+                  {item.remaining} remaining{percent >= 100 ? '. Limit reached; deactivate an account or close an open job before adding another.' : ''}
+                </Typography>
+              </Stack></Grid>;
+            })}</Grid>
+          </CardContent></Card>
+        ) : null}
+
         <Grid container spacing={2}>
           {plans.map((plan) => (
-            <Grid item xs={12} md={4} key={plan.id}>
+            <Grid item xs={12} sm={6} lg={3} key={plan.id}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
                   <Stack spacing={1.5}>
@@ -293,8 +326,11 @@ export default function BillingPage() {
                       {formatCurrency(plan.price)}
                     </Typography>
                     <Typography color="text.secondary">{titleize(plan.billing_cycle)} billing</Typography>
-                    <Typography>Maximum open job postings: {plan.max_job_postings}</Typography>
-                    <Typography color="text.secondary">{plan.features_description}</Typography>
+                    <Typography>{plan.max_hiring_managers} Hiring Manager{plan.max_hiring_managers === 1 ? '' : 's'}</Typography>
+                    <Typography>{plan.max_recruiters} Recruiter{plan.max_recruiters === 1 ? '' : 's'}</Typography>
+                    <Typography>{plan.max_interviewers} Interviewer{plan.max_interviewers === 1 ? '' : 's'}</Typography>
+                    <Typography>{plan.max_active_job_postings} active job postings</Typography>
+                    <Typography color="text.secondary">All HRRecruit features included. Plans differ only by organization capacity.</Typography>
                     <Button disabled={selectedPlanId === plan.id} onClick={() => handleSelectPlan(plan)} variant="contained">
                       {selectedPlanId === plan.id ? 'Selecting…' : subscription ? 'Change plan' : 'Select plan'}
                     </Button>

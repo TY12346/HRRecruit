@@ -38,6 +38,7 @@ import JobOffersApprovalPage from '../pages/hiring_manager/JobOffersApprovalPage
 import OrganizationProfilePage from '../pages/hiring_manager/OrganizationProfilePage.jsx';
 import OrganizationOnboardingPage from '../pages/hiring_manager/OrganizationOnboardingPage.jsx';
 import SubscriptionOnboardingPage from '../pages/hiring_manager/SubscriptionOnboardingPage.jsx';
+import SubscriptionPaymentReturnPage from '../pages/hiring_manager/SubscriptionPaymentReturnPage.jsx';
 import TeamMembersPage from '../pages/hiring_manager/TeamMembersPage.jsx';
 import CreateTeamMemberPage from '../pages/hiring_manager/CreateTeamMemberPage.jsx';
 import BulkImportMembersPage from '../pages/hiring_manager/BulkImportMembersPage.jsx';
@@ -136,6 +137,7 @@ export const router = createBrowserRouter([
             children: [
               { path: 'hiring-manager/onboarding/organization', element: <OrganizationOnboardingPage /> },
               { path: 'hiring-manager/onboarding/subscription', element: <SubscriptionOnboardingPage /> },
+              { path: 'hiring-manager/onboarding/payment-return', element: <SubscriptionPaymentReturnPage /> },
               { path: 'hiring-manager', element: <Navigate to="/hiring-manager/hiring-decisions" replace /> },
               { path: 'hiring-manager/organization', element: <OrganizationProfilePage /> },
               { path: 'hiring-manager/team', element: <TeamMembersPage /> },
