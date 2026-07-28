@@ -111,7 +111,7 @@ export function HiringManagerOnboardingRoute() {
     return <Navigate to="/hiring-manager/onboarding/organization" replace />;
   }
 
-  if (status.organization_created && !status.subscription_selected && location.pathname !== '/hiring-manager/onboarding/subscription') {
+  if (status.organization_created && !status.subscription_selected && !['/hiring-manager/onboarding/subscription', '/hiring-manager/onboarding/payment-return'].includes(location.pathname)) {
     return <Navigate to="/hiring-manager/onboarding/subscription" replace />;
   }
 

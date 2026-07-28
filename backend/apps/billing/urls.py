@@ -11,6 +11,7 @@ from .views import (
     SubscribeAPIView,
     StripeWebhookAPIView,
     SubscriptionPlanListAPIView,
+    SubscriptionUsageAPIView,
     UpgradeSubscriptionAPIView,
 )
 
@@ -18,6 +19,7 @@ urlpatterns = [
     path('plans/', SubscriptionPlanListAPIView.as_view(), name='billing-plan-list'),
     path('subscribe/', SubscribeAPIView.as_view(), name='billing-subscribe'),
     path('subscription/', CurrentSubscriptionAPIView.as_view(), name='billing-current-subscription'),
+    path('usage/', SubscriptionUsageAPIView.as_view(), name='billing-usage'),
     path('onboarding-status/', HiringManagerOnboardingStatusAPIView.as_view(), name='billing-onboarding-status'),
     path('subscription/cancel/', CancelSubscriptionAPIView.as_view(), name='billing-subscription-cancel'),
     path('subscription/reactivate/', ReactivateSubscriptionAPIView.as_view(), name='billing-subscription-reactivate'),

@@ -42,10 +42,11 @@ class JobPostingAPITests(APITestCase):
         self.create_membership(self.hr_head, self.organization, OrganizationMembership.Role.HR_HEAD)
         self.create_membership(self.recruiter, self.organization, OrganizationMembership.Role.RECRUITER)
         self.plan, _ = SubscriptionPlan.objects.get_or_create(
-            name=SubscriptionPlan.Name.PRO,
+            name=SubscriptionPlan.Name.PROFESSIONAL,
             billing_cycle=SubscriptionPlan.BillingCycle.MONTHLY,
             defaults={
-                'max_job_postings': 10,
+                'max_active_job_postings': 10,
+                'max_hiring_managers': 10, 'max_recruiters': 25, 'max_interviewers': 100,
                 'price': '149.00',
                 'features_description': 'Test plan',
             },
