@@ -206,8 +206,15 @@ def get_subscription_capacity(organization):
 
 def validate_target_plan_capacity(organization, plan):
     usage = get_subscription_usage(organization)
-    exceeded = [{'limit_type': key, 'current_usage': used, 'limit': getattr(plan, field)}
-                for key, field in LIMIT_FIELDS.items() if used > getattr(plan, field)]
+    exceeded = [
+        {
+            'limit_type': key,
+            'current_usage': usage[key],
+            'limit': getattr(plan, field),
+        }
+        for key, field in LIMIT_FIELDS.items()
+        if usage[key] > getattr(plan, field)
+    ]
     if exceeded:
         error = SubscriptionLimitError('Current organization usage exceeds the selected plan.')
         error.exceeded_limits = exceeded

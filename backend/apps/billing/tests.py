@@ -176,6 +176,66 @@ class BillingAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_plan_change_returns_every_capacity_exceeded_without_server_error(self):
+        self.authenticate(self.hr_head)
+        starter_plan, _ = SubscriptionPlan.objects.update_or_create(
+            name=SubscriptionPlan.Name.STARTER,
+            billing_cycle=SubscriptionPlan.BillingCycle.MONTHLY,
+            defaults={
+                'max_hiring_managers': 1,
+                'max_recruiters': 1,
+                'max_interviewers': 1,
+                'max_active_job_postings': 1,
+                'price': '29.00',
+                'features_description': 'Capacity validation test plan.',
+            },
+        )
+        second_recruiter = User.objects.create_user(
+            email='second-recruiter@example.com', password='StrongPass123!',
+            full_name='Second Recruiter', role=User.Role.RECRUITER,
+        )
+        interviewer_one = User.objects.create_user(
+            email='interviewer-one@example.com', password='StrongPass123!',
+            full_name='Interviewer One', role=User.Role.INTERVIEWER,
+        )
+        interviewer_two = User.objects.create_user(
+            email='interviewer-two@example.com', password='StrongPass123!',
+            full_name='Interviewer Two', role=User.Role.INTERVIEWER,
+        )
+        for user, role in (
+            (second_recruiter, OrganizationMembership.Role.RECRUITER),
+            (interviewer_one, OrganizationMembership.Role.INTERVIEWER),
+            (interviewer_two, OrganizationMembership.Role.INTERVIEWER),
+        ):
+            OrganizationMembership.objects.create(organization=self.organization, user=user, role=role)
+        for index in range(2):
+            JobPosting.objects.create(
+                organization=self.organization,
+                recruiter=self.recruiter,
+                title=f'Open job {index}',
+                description='Capacity test',
+                employment_type='full_time',
+                approximate_salary='5000.00',
+                location='Kuala Lumpur',
+                status=JobPosting.Status.OPEN,
+            )
+
+        response = self.client.post(
+            reverse('billing-upgrade'), {'plan_id': starter_plan.id}, format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'], 'Current organization usage exceeds the selected plan.')
+        self.assertEqual(
+            response.data['exceeded_limits'],
+            [
+                {'limit_type': 'recruiters', 'current_usage': 2, 'limit': 1},
+                {'limit_type': 'interviewers', 'current_usage': 2, 'limit': 1},
+                {'limit_type': 'active_job_postings', 'current_usage': 2, 'limit': 1},
+            ],
+        )
+        self.assertFalse(Subscription.objects.filter(status=Subscription.Status.PENDING).exists())
+
     def test_active_subscription_limit_blocks_extra_open_job_creation(self):
         Subscription.objects.create(
             organization=self.organization,
