@@ -255,6 +255,7 @@ class InterviewManagementAPITests(APITestCase):
             start_time='09:00:00',
             end_time='10:00:00',
             mode=Interview.Mode.ONLINE,
+            meeting_link='https://meet.example.com/hrrecruit-interview',
             status=Interview.Status.SCHEDULED,
         )
 
@@ -268,10 +269,34 @@ class InterviewManagementAPITests(APITestCase):
         self.assertIn(self.applicant.email, attendee_emails)
         self.assertIn(self.interviewer.email, attendee_emails)
         self.assertIn('conferenceData', insert_kwargs['body'])
+        self.assertNotIn('meet.example.com', str(insert_kwargs['body']))
         self.assertEqual(event.provider, 'google_calendar')
         self.assertEqual(event.external_event_id, 'google-event-1')
         interview.refresh_from_db()
         self.assertEqual(interview.meeting_link, 'https://meet.google.com/demo-link')
+
+    def test_non_online_calendar_events_do_not_request_google_meet(self):
+        from apps.interviews.calendar_service import _google_event_body
+
+        for mode in (Interview.Mode.PHYSICAL, Interview.Mode.PHONE):
+            with self.subTest(mode=mode):
+                interview = Interview.objects.create(
+                    application=self.application,
+                    organization=self.organization,
+                    recruiter=self.recruiter,
+                    interviewer=self.interviewer,
+                    scheduled_datetime=timezone.make_aware(__import__('datetime').datetime(2026, 7, 9, 9, 0)),
+                    interview_date='2026-07-09',
+                    start_time='09:00:00',
+                    end_time='10:00:00',
+                    mode=mode,
+                    location='Recruitment office' if mode == Interview.Mode.PHYSICAL else '',
+                    status=Interview.Status.SCHEDULED,
+                )
+
+                event_body = _google_event_body(interview)
+
+                self.assertNotIn('conferenceData', event_body)
 
     def test_interviewer_creates_availability_slot(self):
         self.authenticate(self.interviewer)
@@ -431,7 +456,7 @@ class InterviewManagementAPITests(APITestCase):
         self.assertEqual(interview.status, Interview.Status.SCHEDULED)
         self.assertEqual(interview.availability_slot, slot)
         self.assertEqual(interview.scheduling_method, Interview.SchedulingMethod.SELF_SCHEDULED)
-        self.assertEqual(interview.meeting_link, 'https://meet.example.com/self-scheduled')
+        self.assertEqual(interview.meeting_link, '')
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
 
