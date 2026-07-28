@@ -27,7 +27,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         hr_head = self.context['request'].user
-        if Organization.objects.filter(created_by=hr_head).exclude(status=Organization.Status.DELETED).exists():
+        if OrganizationMembership.objects.filter(user=hr_head, role=OrganizationMembership.Role.HR_HEAD,
+                                                  status=OrganizationMembership.Status.ACTIVE,
+                                                  organization__status__in=[Organization.Status.PENDING, Organization.Status.ACTIVE]).exists():
             raise serializers.ValidationError({'detail': 'You already manage an organization.'})
 
         with transaction.atomic():
@@ -50,16 +52,20 @@ class OrganizationMemberSerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(source='user.phone_number', required=False, allow_blank=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     is_active = serializers.BooleanField(source='user.is_active', read_only=True)
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = OrganizationMembership
-        fields = ['id', 'user_id', 'email', 'full_name', 'phone_number', 'role', 'status', 'is_active', 'joined_at']
+        fields = ['id', 'user_id', 'email', 'full_name', 'phone_number', 'role', 'status', 'is_active', 'is_owner', 'joined_at']
         read_only_fields = ['id', 'status', 'is_active', 'joined_at']
 
     def validate_role(self, value):
-        if value not in (User.Role.RECRUITER, User.Role.INTERVIEWER):
-            raise serializers.ValidationError('Only recruiter and interviewer accounts can be created.')
+        if value not in (User.Role.HR_HEAD, User.Role.RECRUITER, User.Role.INTERVIEWER):
+            raise serializers.ValidationError('Only hiring manager, recruiter, and interviewer accounts can be created.')
         return value
+
+    def get_is_owner(self, obj):
+        return obj.organization.created_by_id == obj.user_id
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -93,12 +99,16 @@ class OrganizationMemberBulkImportSerializer(serializers.Serializer):
         errors = []
         organization = self.context['organization']
         for row_number, row in enumerate(self.validated_data['members'], start=2):
+            role = str(row.get('role', '') or '').strip().lower()
+            if role not in (User.Role.RECRUITER, User.Role.INTERVIEWER):
+                errors.append({'row': row_number, 'errors': {'role': ['Bulk import supports recruiter and interviewer accounts only.']}})
+                continue
             member_serializer = OrganizationMemberSerializer(
                 data={
                     'email': str(row.get('email', '') or '').strip(),
                     'full_name': str(row.get('full_name', '') or '').strip(),
                     'phone_number': str(row.get('phone_number', '') or '').strip(),
-                    'role': str(row.get('role', '') or '').strip().lower(),
+                    'role': role,
                 },
                 context={'organization': organization},
             )

@@ -5,7 +5,7 @@ from .models import Payment, Subscription, SubscriptionPlan
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'billing_cycle', 'max_job_postings', 'price', 'is_active')
+    list_display = ('id', 'name', 'billing_cycle', 'max_hiring_managers', 'max_recruiters', 'max_interviewers', 'max_active_job_postings', 'price', 'is_active')
     list_filter = ('name', 'billing_cycle', 'is_active')
     search_fields = ('name', 'features_description')
 

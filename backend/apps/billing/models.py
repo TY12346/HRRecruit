@@ -6,8 +6,9 @@ from apps.organizations.models import Organization
 
 class SubscriptionPlan(models.Model):
     class Name(models.TextChoices):
+        STARTER = 'Starter', 'Starter'
         BASIC = 'Basic', 'Basic'
-        PRO = 'Pro', 'Pro'
+        PROFESSIONAL = 'Professional', 'Professional'
         ENTERPRISE = 'Enterprise', 'Enterprise'
 
     class BillingCycle(models.TextChoices):
@@ -15,7 +16,10 @@ class SubscriptionPlan(models.Model):
         YEARLY = 'yearly', 'Yearly'
 
     name = models.CharField(max_length=50, choices=Name.choices)
-    max_job_postings = models.PositiveIntegerField()
+    max_hiring_managers = models.PositiveIntegerField()
+    max_recruiters = models.PositiveIntegerField()
+    max_interviewers = models.PositiveIntegerField()
+    max_active_job_postings = models.PositiveIntegerField()
     billing_cycle = models.CharField(max_length=20, choices=BillingCycle.choices)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     features_description = models.TextField()
