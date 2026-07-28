@@ -83,6 +83,7 @@ export const router = createBrowserRouter([
           { path: 'recruiter', element: <Navigate to="/recruiter/jobs" replace /> },
           { path: 'recruiter/jobs', element: <JobListPage /> },
           { path: 'recruiter/job-requisitions', element: <RecruiterJobRequisitionsPage /> },
+          { path: 'recruiter/job-requisitions/:requisitionId/edit', element: <JobCreateEditPage /> },
           { path: 'recruiter/jobs/create', element: <JobCreateEditPage /> },
           { path: 'recruiter/jobs/:jobId', element: <JobDetailPage /> },
           { path: 'recruiter/jobs/:jobId/edit', element: <JobCreateEditPage /> },

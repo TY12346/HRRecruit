@@ -124,6 +124,12 @@ def hr_requisition_or_404(user, requisition_id):
     return get_object_or_404(visible_requisitions_for(user), id=requisition_id)
 
 
+def recruiter_requisition_or_404(user, requisition_id):
+    if user.role != User.Role.RECRUITER:
+        raise PermissionDenied('Only recruiters can manage their job requisitions.')
+    return get_object_or_404(visible_requisitions_for(user), id=requisition_id)
+
+
 class JobRequisitionListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -155,6 +161,53 @@ class JobRequisitionListCreateAPIView(APIView):
             related_entity=requisition,
         )
         return Response(JobRequisitionSerializer(requisition, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class JobRequisitionDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, requisition_id):
+        requisition = recruiter_requisition_or_404(request.user, requisition_id)
+        return Response(JobRequisitionSerializer(requisition, context={'request': request}).data)
+
+    def patch(self, request, requisition_id):
+        requisition = recruiter_requisition_or_404(request.user, requisition_id)
+        if requisition.status != JobRequisition.Status.REJECTED:
+            raise ValidationError({'status': 'Only rejected requisitions can be edited and resubmitted.'})
+        serializer = JobRequisitionSerializer(requisition, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        requisition = serializer.save(
+            status=JobRequisition.Status.PENDING,
+            rejection_reason='',
+            reviewed_by=None,
+            reviewed_at=None,
+        )
+        hr_heads = User.objects.filter(
+            organization_memberships__organization=requisition.organization,
+            organization_memberships__role=OrganizationMembership.Role.HR_HEAD,
+            organization_memberships__status=OrganizationMembership.Status.ACTIVE,
+            is_active=True,
+        ).distinct()
+        create_bulk_notifications(
+            list(hr_heads),
+            'job_requisition_submitted',
+            f'{request.user.full_name} resubmitted a job requisition for {requisition.title}',
+            f'Review the revised {requisition.title} job requisition.',
+            related_entity=requisition,
+        )
+        return Response(JobRequisitionSerializer(requisition, context={'request': request}).data)
+
+
+class JobRequisitionCancelAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, requisition_id):
+        requisition = recruiter_requisition_or_404(request.user, requisition_id)
+        if requisition.status not in (JobRequisition.Status.PENDING, JobRequisition.Status.REJECTED):
+            raise ValidationError({'status': 'Only requisitions that have not been approved can be cancelled.'})
+        requisition.status = JobRequisition.Status.CANCELLED
+        requisition.save(update_fields=['status', 'updated_at'])
+        return Response(JobRequisitionSerializer(requisition, context={'request': request}).data)
 
 
 class JobRequisitionApproveAPIView(APIView):
@@ -273,6 +326,15 @@ class JobDetailAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can delete job postings.')
         job = recruiter_job_or_404(request.user, job_id)
+        interview_stage_statuses = ['scheduled', 'completed', 'evaluation_submitted']
+        has_applicant_at_or_beyond_scheduled_interview = job.applications.filter(
+            Q(interviews__status__in=interview_stage_statuses)
+            | Q(interviews__status_history__to_status__in=interview_stage_statuses)
+        ).exists()
+        if has_applicant_at_or_beyond_scheduled_interview:
+            raise ValidationError({
+                'job': 'This job opening cannot be deleted because an applicant has reached the interview-scheduled stage or beyond.'
+            })
         job.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

@@ -60,6 +60,7 @@ class JobRequisition(models.Model):
         PENDING = 'pending', 'Pending'
         APPROVED = 'approved', 'Approved'
         REJECTED = 'rejected', 'Rejected'
+        CANCELLED = 'cancelled', 'Cancelled'
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='job_requisitions')
     recruiter = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_job_requisitions', limit_choices_to={'role': User.Role.RECRUITER})

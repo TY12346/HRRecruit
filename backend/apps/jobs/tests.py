@@ -15,7 +15,7 @@ from apps.organizations.models import Organization, OrganizationMembership
 from apps.notifications.models import Notification
 from apps.users.models import User
 
-from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, SavedJobPosting
+from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, JobRequisition, SavedJobPosting
 
 
 class RecruitmentStatusVocabularyTests(SimpleTestCase):
@@ -103,6 +103,58 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(patch_response.data['location'], 'Remote')
         self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(JobPosting.objects.filter(id=job.id).exists())
+
+    def test_recruiter_can_delete_job_before_any_interview_is_scheduled(self):
+        job = self.create_job(status=JobPosting.Status.OPEN)
+        application = JobApplication.objects.create(job=job, applicant=self.applicant)
+        Interview.objects.create(
+            application=application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            status=Interview.Status.INVITED,
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.delete(reverse('job-detail', args=[job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(JobPosting.objects.filter(id=job.id).exists())
+
+    def test_recruiter_cannot_delete_job_after_an_interview_is_scheduled(self):
+        job = self.create_job(status=JobPosting.Status.OPEN)
+        application = JobApplication.objects.create(job=job, applicant=self.applicant)
+        Interview.objects.create(
+            application=application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            status=Interview.Status.SCHEDULED,
+            scheduled_datetime=timezone.now() + timedelta(days=1),
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.delete(reverse('job-detail', args=[job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('interview-scheduled stage or beyond', response.data['job'][0])
+        self.assertTrue(JobPosting.objects.filter(id=job.id).exists())
+
+    def test_recruiter_cannot_delete_job_if_a_scheduled_interview_was_later_cancelled(self):
+        job = self.create_job(status=JobPosting.Status.OPEN)
+        application = JobApplication.objects.create(job=job, applicant=self.applicant)
+        interview = Interview.objects.create(
+            application=application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            status=Interview.Status.INVITED,
+        )
+        interview.change_status(Interview.Status.SCHEDULED, changed_by=self.recruiter)
+        interview.change_status(Interview.Status.CANCELLED, changed_by=self.recruiter)
+        self.authenticate(self.recruiter)
+
+        response = self.client.delete(reverse('job-detail', args=[job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(JobPosting.objects.filter(id=job.id).exists())
 
     def test_recruiter_cannot_manage_another_organizations_job(self):
         other_head = self.create_user('other-head@example.com', User.Role.HR_HEAD)
@@ -280,6 +332,63 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(notification_response.data['actions'], [
             {'label': 'View requisition', 'url': '/recruiter/job-requisitions'},
         ])
+
+    def test_recruiter_can_edit_and_resubmit_a_rejected_requisition(self):
+        requisition = JobRequisition.objects.create(
+            organization=self.organization, recruiter=self.recruiter, title='Old title',
+            description='Description', employment_type='full_time', location='Remote',
+            status=JobRequisition.Status.REJECTED, rejection_reason='Add more detail',
+            reviewed_by=self.hr_head, reviewed_at=timezone.now(),
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.patch(
+            reverse('job-requisition-detail', args=[requisition.id]),
+            {'title': 'Revised title', 'reason_for_hire': 'Growth'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        requisition.refresh_from_db()
+        self.assertEqual(requisition.title, 'Revised title')
+        self.assertEqual(requisition.status, JobRequisition.Status.PENDING)
+        self.assertEqual(requisition.rejection_reason, '')
+        self.assertIsNone(requisition.reviewed_by)
+        self.assertIsNone(requisition.reviewed_at)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.hr_head,
+            notification_type='job_requisition_submitted',
+            title__contains='resubmitted',
+        ).exists())
+
+    def test_recruiter_can_cancel_an_unapproved_requisition(self):
+        requisition = JobRequisition.objects.create(
+            organization=self.organization, recruiter=self.recruiter, title='Data Analyst',
+            description='Description', employment_type='full_time', location='Remote',
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(reverse('job-requisition-cancel', args=[requisition.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        requisition.refresh_from_db()
+        self.assertEqual(requisition.status, JobRequisition.Status.CANCELLED)
+
+    def test_recruiter_cannot_edit_or_cancel_an_approved_requisition(self):
+        requisition = JobRequisition.objects.create(
+            organization=self.organization, recruiter=self.recruiter, title='Data Analyst',
+            description='Description', employment_type='full_time', location='Remote',
+            status=JobRequisition.Status.APPROVED,
+        )
+        self.authenticate(self.recruiter)
+
+        edit_response = self.client.patch(
+            reverse('job-requisition-detail', args=[requisition.id]), {'title': 'Changed'}, format='json'
+        )
+        cancel_response = self.client.post(reverse('job-requisition-cancel', args=[requisition.id]))
+
+        self.assertEqual(edit_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(cancel_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_recruiter_cannot_open_approved_job_before_requirements_and_scorecard(self):
         job = self.create_job(status=JobPosting.Status.DRAFTING)

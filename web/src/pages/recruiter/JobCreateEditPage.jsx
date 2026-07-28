@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { createJobRequisition, getJob, updateJob } from '../../api/client.js';
+import { createJobRequisition, getJob, getJobRequisition, resubmitJobRequisition, updateJob } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApiErrorMessage } from './recruiterUtils.js';
 
@@ -67,23 +67,24 @@ const blankJob = {
 };
 
 export default function JobCreateEditPage() {
-  const { jobId } = useParams();
+  const { jobId, requisitionId } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(jobId);
+  const isRequisitionEdit = Boolean(requisitionId);
   const [form, setForm] = useState(blankJob);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(isEdit);
+  const [isLoading, setIsLoading] = useState(isEdit || isRequisitionEdit);
   const [isSaving, setIsSaving] = useState(false);
   const [showPostConfirmation, setShowPostConfirmation] = useState(false);
   const [initialStatus, setInitialStatus] = useState('drafting');
 
   useEffect(() => {
-    if (!isEdit) {
+    if (!isEdit && !isRequisitionEdit) {
       return undefined;
     }
 
     let active = true;
-    getJob(jobId)
+    (isRequisitionEdit ? getJobRequisition(requisitionId) : getJob(jobId))
       .then((job) => {
         if (!active) {
           return;
@@ -106,17 +107,17 @@ export default function JobCreateEditPage() {
           impact_of_not_hiring: job.impact_of_not_hiring ?? '',
           vacancies: job.vacancies ?? 1,
           application_deadline: job.application_deadline ?? '',
-          status: job.status ?? 'drafting',
+          status: isRequisitionEdit ? 'drafting' : (job.status ?? 'drafting'),
         });
-        setInitialStatus(job.status ?? 'drafting');
+        setInitialStatus(isRequisitionEdit ? 'rejected' : (job.status ?? 'drafting'));
       })
-      .catch((err) => active && setError(getApiErrorMessage(err, 'Unable to load job.')))
+      .catch((err) => active && setError(getApiErrorMessage(err, isRequisitionEdit ? 'Unable to load job requisition.' : 'Unable to load job.')))
       .finally(() => active && setIsLoading(false));
 
     return () => {
       active = false;
     };
-  }, [isEdit, jobId]);
+  }, [isEdit, isRequisitionEdit, jobId, requisitionId]);
 
   const setField = (field) => (event) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -132,7 +133,10 @@ export default function JobCreateEditPage() {
     setError('');
 
     try {
-      if (isEdit) {
+      if (isRequisitionEdit) {
+        await resubmitJobRequisition(requisitionId, getPayload());
+        navigate('/recruiter/job-requisitions');
+      } else if (isEdit) {
         const saved = await updateJob(jobId, getPayload());
         navigate(`/recruiter/jobs/${saved.id}`);
       } else {
@@ -265,11 +269,11 @@ export default function JobCreateEditPage() {
     <Box>
       <RecruiterNav />
       <Paper component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>{isEdit ? 'Edit job' : 'Create job requisition'}</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>{isEdit ? 'Edit job' : isRequisitionEdit ? 'Revise job requisition' : 'Create job requisition'}</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           {isEdit
             ? 'Update job posting details.'
-            : ''}
+            : isRequisitionEdit ? 'Update the rejected requisition and resubmit it for hiring manager approval.' : ''}
         </Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? (
@@ -289,7 +293,7 @@ export default function JobCreateEditPage() {
             {renderDetails()}
             <Stack direction="row" spacing={1}>
               <Button disabled={isSaving} type="submit" variant="contained">
-                {isSaving ? (isEdit ? 'Saving…' : 'Submitting…') : (isEdit ? 'Save job' : 'Submit requisition')}
+                {isSaving ? (isEdit ? 'Saving…' : 'Submitting…') : (isEdit ? 'Save job' : isRequisitionEdit ? 'Save and resubmit' : 'Submit requisition')}
               </Button>
               <Button disabled={isSaving} onClick={() => navigate(-1)} variant="text">Cancel</Button>
             </Stack>

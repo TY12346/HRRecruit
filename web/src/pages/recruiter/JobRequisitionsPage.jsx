@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink } from 'react-router-dom';
-import { getJobRequisitions } from '../../api/client.js';
+import { cancelJobRequisition, getJobRequisitions } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.js';
 
@@ -29,6 +29,21 @@ export default function JobRequisitionsPage() {
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+
+  const cancelRequisition = async (item) => {
+    if (!window.confirm(`Cancel the job requisition for ${item.title}?`)) return;
+    setBusyId(item.id);
+    setError('');
+    try {
+      const updated = await cancelJobRequisition(item.id);
+      setRequisitions((current) => current.map((requisition) => requisition.id === updated.id ? updated : requisition));
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to cancel job requisition.'));
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   useEffect(() => {
     getJobRequisitions()
@@ -99,6 +114,7 @@ export default function JobRequisitionsPage() {
               <TableCell>Position status</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Submitted</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -115,11 +131,21 @@ export default function JobRequisitionsPage() {
                   <Chip label={titleize(item.status)} size="small" color={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'error' : 'warning'} />
                 </TableCell>
                 <TableCell>{formatDateTime(item.created_at)}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    {item.status === 'rejected' ? (
+                      <Button component={RouterLink} to={`/recruiter/job-requisitions/${item.id}/edit`} size="small">Edit and resubmit</Button>
+                    ) : null}
+                    {['pending', 'rejected'].includes(item.status) ? (
+                      <Button color="error" disabled={busyId === item.id} onClick={() => cancelRequisition(item)} size="small">Cancel</Button>
+                    ) : null}
+                  </Stack>
+                </TableCell>
               </TableRow>
             ))}
             {!isLoading && visibleRequisitions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>{submittedSearch ? 'No job requisitions match your search.' : 'No job requisitions yet.'}</TableCell>
+                <TableCell colSpan={8}>{submittedSearch ? 'No job requisitions match your search.' : 'No job requisitions yet.'}</TableCell>
               </TableRow>
             ) : null}
           </TableBody>
