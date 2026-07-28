@@ -203,6 +203,14 @@ export const completeDemoPayment = async ({ subscriptionId, transactionReference
   return response.data;
 };
 
+export const createBillingCheckoutSession = async ({ subscriptionId, gateway = 'stripe' }) => {
+  const response = await apiClient.post('/billing/checkout-sessions/', {
+    subscription_id: subscriptionId,
+    gateway,
+  });
+  return response.data;
+};
+
 export const cancelSubscription = async ({ reason = '' } = {}) => {
   const response = await apiClient.post('/billing/subscription/cancel/', { reason });
   return response.data;

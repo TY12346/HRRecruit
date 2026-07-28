@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Card, CardContent, CircularProgress, Grid, Paper, Stack, Typography } from '@mui/material';
+import { Button, Card, CardContent, CircularProgress, Grid, Paper, Stack, Typography } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { useNavigate } from 'react-router-dom';
-import { completeDemoPayment, getBillingPlans, subscribeToPlan } from '../../api/client.js';
+import { completeDemoPayment, createBillingCheckoutSession, getBillingPlans, subscribeToPlan } from '../../api/client.js';
 import { formatCurrency, getApiErrorMessage, titleize } from './hiringManagerUtils.js';
 
 export default function SubscriptionOnboardingPage() {
@@ -19,16 +19,21 @@ export default function SubscriptionOnboardingPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const handleSelectPlan = async (planId) => {
+  const handleSelectPlan = async (planId, gateway) => {
     setSelectedPlanId(planId);
     setError('');
     try {
       const response = await subscribeToPlan({ planId });
-      await completeDemoPayment({
-        subscriptionId: response.subscription.id,
-        transactionReference: `DEMO-ONBOARDING-${Date.now()}`,
-      });
-      navigate('/hiring-manager', { replace: true });
+      if (gateway === 'stripe') {
+        const checkout = await createBillingCheckoutSession({ subscriptionId: response.subscription.id });
+        window.location.assign(checkout.checkout_url);
+      } else {
+        await completeDemoPayment({
+          subscriptionId: response.subscription.id,
+          transactionReference: `DEMO-ONBOARDING-${Date.now()}`,
+        });
+        navigate('/hiring-manager', { replace: true });
+      }
     } catch (selectError) {
       setError(getApiErrorMessage(selectError, 'Unable to select subscription plan.'));
     } finally {
@@ -56,7 +61,10 @@ export default function SubscriptionOnboardingPage() {
                     <Typography>{plan.max_interviewers} Interviewer{plan.max_interviewers === 1 ? '' : 's'}</Typography>
                     <Typography>{plan.max_active_job_postings} active job postings</Typography>
                     <Typography color="text.secondary">All HRRecruit features included. Plans differ only by organization capacity.</Typography>
-                    <Box><Button disabled={selectedPlanId !== null} onClick={() => handleSelectPlan(plan.id)} variant="contained">{selectedPlanId === plan.id ? 'Processing payment…' : 'Select plan and pay'}</Button></Box>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <Button disabled={selectedPlanId !== null} onClick={() => handleSelectPlan(plan.id, 'stripe')} variant="contained">{selectedPlanId === plan.id ? 'Starting checkout…' : 'Pay with Stripe sandbox'}</Button>
+                      <Button disabled={selectedPlanId !== null} onClick={() => handleSelectPlan(plan.id, 'demo')} variant="outlined">Demo payment</Button>
+                    </Stack>
                   </Stack>
                 </CardContent>
               </Card>

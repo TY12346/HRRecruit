@@ -23,6 +23,7 @@ import Alert from '../../components/TimedAlert.jsx';
 import {
   cancelSubscription,
   completeDemoPayment,
+  createBillingCheckoutSession,
   getBillingInvoices,
   getBillingPlans,
   getSubscriptionUsage,
@@ -183,6 +184,17 @@ export default function BillingPage() {
     }
   };
 
+  const handleStripeCheckout = async () => {
+    if (!pendingSubscription) return;
+    setError('');
+    try {
+      const checkout = await createBillingCheckoutSession({ subscriptionId: pendingSubscription.id });
+      window.location.assign(checkout.checkout_url);
+    } catch (checkoutError) {
+      setError(getApiErrorMessage(checkoutError, 'Unable to start Stripe sandbox checkout.'));
+    }
+  };
+
   return (
     <Box>
       <HiringManagerNav />
@@ -276,10 +288,10 @@ export default function BillingPage() {
 
         {pendingSubscription ? (
           <Alert
-            action={<Button color="inherit" onClick={handleCompletePayment}>Complete demo payment</Button>}
+            action={<Stack direction="row" spacing={1}><Button color="inherit" onClick={handleStripeCheckout}>Pay with Stripe sandbox</Button><Button color="inherit" onClick={handleCompletePayment}>Demo payment</Button></Stack>}
             severity="info"
           >
-            Pending payment for {pendingSubscription.plan?.name}. Use the demo payment button to activate it.
+            Pending payment for {pendingSubscription.plan?.name}. Continue to Stripe Checkout in test mode, or use the local demo fallback.
           </Alert>
         ) : null}
 

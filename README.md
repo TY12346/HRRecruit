@@ -59,6 +59,7 @@ HRRecruit addresses this by providing one role-based platform where:
 - Interview AI summaries support Google Gemini by setting `USE_REAL_SUMMARY=True`, `SUMMARY_PROVIDER=gemini`, `GEMINI_API_KEY`, and a Gemini `SUMMARY_MODEL` such as `gemini-3.5-flash`; mock/demo summary remains available when real summary is disabled.
 - Email currently uses the Django console email backend for local/demo workflows.
 - Payment uses a demo flow unless valid Stripe credentials are configured.
+- Stripe sandbox checkout requires a test-mode secret key (`sk_test_...`) and webhook signing secret (`whsec_...`). Configure the success/cancel URLs in `backend/.env`, then forward local test events with `stripe listen --forward-to localhost:8000/api/billing/webhooks/stripe/`. The hosted Checkout integration does not require a publishable key in the web application.
 - Calendar integration is not enabled by default and should be treated as optional/future integration unless credentials and code support are explicitly configured.
 
 ## Technology Stack

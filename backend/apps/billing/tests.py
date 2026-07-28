@@ -301,6 +301,7 @@ class PaymentGatewayTests(BillingAPITests):
         self.assertEqual(len(FakeStripeCheckoutSession.create_calls), 1)
         create_call = FakeStripeCheckoutSession.create_calls[0]
         self.assertEqual(create_call['mode'], 'payment')
+        self.assertEqual(create_call['client_reference_id'], str(subscription.id))
         self.assertEqual(create_call['metadata']['subscription_id'], str(subscription.id))
         self.assertEqual(create_call['line_items'][0]['price_data']['unit_amount'], 14900)
         mock_load_stripe.assert_called_once()
@@ -317,7 +318,11 @@ class PaymentGatewayTests(BillingAPITests):
                     'payment_status': 'paid',
                     'amount_total': 14900,
                     'currency': 'myr',
-                    'metadata': {'subscription_id': str(subscription.id)},
+                    'metadata': {
+                        'subscription_id': str(subscription.id),
+                        'organization_id': str(subscription.organization_id),
+                        'plan_id': str(subscription.plan_id),
+                    },
                 }
             },
         }
@@ -340,6 +345,34 @@ class PaymentGatewayTests(BillingAPITests):
         self.assertEqual(payment.amount, self.pro_plan.price)
         self.assertEqual(payment.currency, 'MYR')
         self.assertEqual(payment.status, Payment.Status.PAID)
+        mock_load_stripe.assert_called_once()
+
+    @patch('apps.billing.payment_gateways.StripeSandboxGateway._load_stripe', return_value=FakeStripeModule)
+    def test_stripe_webhook_rejects_tampered_amount(self, mock_load_stripe):
+        subscription = self.create_pending_subscription()
+        FakeStripeWebhook.event = {
+            'type': 'checkout.session.completed',
+            'data': {'object': {
+                'id': 'cs_test_tampered', 'payment_status': 'paid',
+                'amount_total': 1, 'currency': 'myr',
+                'metadata': {
+                    'subscription_id': str(subscription.id),
+                    'organization_id': str(subscription.organization_id),
+                    'plan_id': str(subscription.plan_id),
+                },
+            }},
+        }
+
+        with self.settings(STRIPE_WEBHOOK_SECRET='whsec_mocked', STRIPE_CURRENCY='MYR'):
+            response = self.client.post(
+                reverse('billing-stripe-webhook'), data=b'{"id":"evt_tampered"}',
+                content_type='application/json', HTTP_STRIPE_SIGNATURE='t=123,v1=mocked',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Payment.objects.exists())
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, Subscription.Status.PENDING)
         mock_load_stripe.assert_called_once()
 
     @patch('apps.billing.payment_gateways.StripeSandboxGateway._load_stripe', return_value=FakeStripeModule)
