@@ -303,9 +303,6 @@ class BookSchedulingRequestSerializer(serializers.Serializer):
     def validate(self, attrs):
         if not attrs.get('slot_id') and not all(attrs.get(field) for field in ['pattern_id', 'interview_date', 'start_time', 'end_time']):
             raise serializers.ValidationError({'slot_id': 'Provide either a legacy slot_id or generated slot pattern/date/time fields.'})
-        mode = attrs.get('mode', Interview.Mode.ONLINE)
-        if mode == Interview.Mode.ONLINE and not attrs.get('meeting_link', ''):
-            raise serializers.ValidationError({'meeting_link': 'Online interviews require a meeting link placeholder.'})
         return attrs
 
 

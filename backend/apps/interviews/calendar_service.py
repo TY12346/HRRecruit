@@ -9,6 +9,7 @@ import logging
 import secrets
 from datetime import datetime, timedelta
 from importlib import import_module, util
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from django.conf import settings
@@ -312,6 +313,28 @@ def _conference_data_for(interview):
     }
 
 
+def _is_google_meet_link(link):
+    try:
+        return urlparse(link).hostname == 'meet.google.com'
+    except (TypeError, ValueError):
+        return False
+
+
+def _generated_google_meet_link(google_event):
+    hangout_link = google_event.get('hangoutLink') or ''
+    if _is_google_meet_link(hangout_link):
+        return hangout_link
+    entry_points = (google_event.get('conferenceData') or {}).get('entryPoints') or []
+    return next(
+        (
+            entry.get('uri', '')
+            for entry in entry_points
+            if entry.get('entryPointType') == 'video' and _is_google_meet_link(entry.get('uri', ''))
+        ),
+        '',
+    )
+
+
 def _google_event_body(interview):
     if not interview.scheduled_datetime:
         raise ValueError('Interview must be scheduled before creating a calendar event.')
@@ -339,6 +362,12 @@ def _google_event_body(interview):
 def _sync_real_google_calendar_event(interview, credential):
     credentials = _credentials_from_model(credential)
     service = _google_calendar_service(credentials)
+    if interview.mode != Interview.Mode.ONLINE or not _is_google_meet_link(interview.meeting_link):
+        # Discard stale/demo links before building the event. Online events then
+        # request a real Meet conference; other modes remain conference-free.
+        if interview.meeting_link:
+            interview.meeting_link = ''
+            interview.save(update_fields=['meeting_link', 'updated_at'])
     event_body = _google_event_body(interview)
     existing_event = CalendarEvent.objects.filter(interview=interview, provider='google_calendar').first()
     if existing_event and existing_event.external_event_id:
@@ -357,8 +386,8 @@ def _sync_real_google_calendar_event(interview, credential):
             conferenceDataVersion=1,
         ).execute()
 
-    generated_meet_link = google_event.get('hangoutLink') or ''
-    if generated_meet_link and not interview.meeting_link:
+    generated_meet_link = _generated_google_meet_link(google_event) if interview.mode == Interview.Mode.ONLINE else ''
+    if generated_meet_link and generated_meet_link != interview.meeting_link:
         interview.meeting_link = generated_meet_link
         interview.save(update_fields=['meeting_link', 'updated_at'])
 
