@@ -67,8 +67,9 @@ export default function JobListPage() {
   };
 
   const handleDelete = async (job) => {
-    if (!window.confirm(`Delete ${job.title}?`)) return;
+    if (!window.confirm(`Delete ${job.title}? This is only allowed if no applicant has reached a scheduled interview or beyond.`)) return;
 
+    setError('');
     try {
       await deleteJob(job.id);
       setSuccess('Job deleted.');
@@ -127,6 +128,7 @@ export default function JobListPage() {
                 <TableCell align="center">
                   <Stack direction="row" spacing={1} justifyContent="center">
                     <Button component={RouterLink} to={`/recruiter/jobs/${job.id}`} size="small">View</Button>
+                    <Button color="error" onClick={() => handleDelete(job)} size="small">Delete</Button>
                   </Stack>
                 </TableCell>
               </TableRow>

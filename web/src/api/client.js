@@ -288,6 +288,21 @@ export const createJobRequisition = async (requisition) => {
   return response.data;
 };
 
+export const getJobRequisition = async (requisitionId) => {
+  const response = await apiClient.get(`/jobs/requisitions/${requisitionId}/`);
+  return response.data;
+};
+
+export const resubmitJobRequisition = async (requisitionId, requisition) => {
+  const response = await apiClient.patch(`/jobs/requisitions/${requisitionId}/`, requisition);
+  return response.data;
+};
+
+export const cancelJobRequisition = async (requisitionId) => {
+  const response = await apiClient.post(`/jobs/requisitions/${requisitionId}/cancel/`);
+  return response.data;
+};
+
 export const approveJobRequisition = async (requisitionId) => {
   const response = await apiClient.post(`/jobs/requisitions/${requisitionId}/approve/`);
   return response.data;
