@@ -20,14 +20,30 @@ def forwards(apps, schema_editor):
             plan.name = 'Professional'
             plan.save(update_fields=['name'])
     for name, (hm, rec, interviewer, jobs, price, cycle) in MATRIX.items():
-        plan, _ = Plan.objects.get_or_create(name=name, billing_cycle=cycle, defaults={'price': price})
-        plan.max_hiring_managers = hm
-        plan.max_recruiters = rec
-        plan.max_interviewers = interviewer
-        plan.max_active_job_postings = jobs
-        plan.features_description = FEATURES
-        plan.is_active = True
-        plan.save()
+        # All capacity columns are non-null. Supplying every required value to
+        # get_or_create is essential because database defaults were deliberately
+        # not retained by the preceding AddField operations.
+        plan, created = Plan.objects.get_or_create(
+            name=name,
+            billing_cycle=cycle,
+            defaults={
+                'max_hiring_managers': hm,
+                'max_recruiters': rec,
+                'max_interviewers': interviewer,
+                'max_active_job_postings': jobs,
+                'price': price,
+                'features_description': FEATURES,
+                'is_active': True,
+            },
+        )
+        if not created:
+            plan.max_hiring_managers = hm
+            plan.max_recruiters = rec
+            plan.max_interviewers = interviewer
+            plan.max_active_job_postings = jobs
+            plan.features_description = FEATURES
+            plan.is_active = True
+            plan.save()
     valid_keys = {(name, values[-1]) for name, values in MATRIX.items()}
     for plan in Plan.objects.filter(is_active=True):
         if (plan.name, plan.billing_cycle) not in valid_keys:
