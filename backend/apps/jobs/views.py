@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from apps.billing.services import SubscriptionLimitError, enforce_open_job_limit
 from apps.organizations.models import Organization, OrganizationMembership
+from apps.notifications.services import create_bulk_notifications, create_notification
 from apps.users.models import User
 from django.utils import timezone
 
@@ -140,6 +141,19 @@ class JobRequisitionListCreateAPIView(APIView):
         serializer = JobRequisitionSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         requisition = serializer.save(organization=membership.organization, recruiter=request.user)
+        hr_heads = User.objects.filter(
+            organization_memberships__organization=membership.organization,
+            organization_memberships__role=OrganizationMembership.Role.HR_HEAD,
+            organization_memberships__status=OrganizationMembership.Status.ACTIVE,
+            is_active=True,
+        ).distinct()
+        create_bulk_notifications(
+            list(hr_heads),
+            'job_requisition_submitted',
+            f'{request.user.full_name} submitted a job requisition for {requisition.title}',
+            f'Review the new {requisition.title} job requisition.',
+            related_entity=requisition,
+        )
         return Response(JobRequisitionSerializer(requisition, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -177,6 +191,13 @@ class JobRequisitionApproveAPIView(APIView):
         requisition.job_posting = job
         requisition.rejection_reason = ''
         requisition.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'job_posting', 'rejection_reason', 'updated_at'])
+        create_notification(
+            requisition.recruiter,
+            'job_requisition_reviewed',
+            f'{request.user.full_name} approved the job requisition for {requisition.title}',
+            f'The approved requisition is now available as a draft job posting.',
+            related_entity=requisition,
+        )
         return Response(JobRequisitionSerializer(requisition, context={'request': request}).data)
 
 
@@ -194,6 +215,13 @@ class JobRequisitionRejectAPIView(APIView):
         requisition.reviewed_by = request.user
         requisition.reviewed_at = timezone.now()
         requisition.save(update_fields=['status', 'rejection_reason', 'reviewed_by', 'reviewed_at', 'updated_at'])
+        create_notification(
+            requisition.recruiter,
+            'job_requisition_reviewed',
+            f'{request.user.full_name} rejected the job requisition for {requisition.title}',
+            requisition.rejection_reason,
+            related_entity=requisition,
+        )
         return Response(JobRequisitionSerializer(requisition, context={'request': request}).data)
 
 

@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     FirebasePushStatusAPIView,
     NotificationListAPIView,
+    NotificationDetailAPIView,
     NotificationMarkReadAPIView,
     NotificationReadAllAPIView,
     NotificationUnreadCountAPIView,
@@ -18,4 +19,5 @@ urlpatterns = [
     path('push-devices/', PushDeviceListCreateAPIView.as_view(), name='notification-push-device-list'),
     path('push-devices/<int:device_id>/', PushDeviceDetailAPIView.as_view(), name='notification-push-device-detail'),
     path('<int:notification_id>/read/', NotificationMarkReadAPIView.as_view(), name='notification-read'),
+    path('<int:notification_id>/', NotificationDetailAPIView.as_view(), name='notification-detail'),
 ]

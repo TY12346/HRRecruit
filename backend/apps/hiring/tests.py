@@ -132,7 +132,10 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertEqual(decision.status, HiringDecision.Status.APPROVED)
         self.assertEqual(decision.hr_head, self.hr_head)
         self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
-        self.assertTrue(Notification.objects.filter(recipient=self.recruiter, title='Hiring decision approved').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.recruiter,
+            title__contains='Hiring decision approved for',
+        ).exists())
 
         offer_response = self.send_offer()
         self.assertEqual(offer_response.status_code, status.HTTP_201_CREATED)
@@ -145,7 +148,7 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertEqual(offer.probation_months, 6)
         self.assertTrue(Notification.objects.filter(
             recipient=self.applicant,
-            title='Job offer received',
+            title='Job offer received for Backend Engineer',
             message='We are pleased to offer you the Backend Engineer role.',
         ).exists())
 
@@ -160,7 +163,10 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.ACCEPTED)
         self.assertEqual(offer.applicant_response_note, 'I am excited to join.')
         self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
-        self.assertTrue(Notification.objects.filter(recipient=self.recruiter, title='Job offer accepted').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.recruiter,
+            title__contains='accepted the job offer for Backend Engineer',
+        ).exists())
 
     def test_hr_head_rejects_hiring_decision_and_records_status_history(self):
         self.submit_hire_decision()
@@ -196,7 +202,10 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, JobApplication.Status.REJECTED)
-        self.assertTrue(Notification.objects.filter(recipient=self.applicant, title='Application status updated').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            title__contains='application for Backend Engineer was not selected',
+        ).exists())
 
     def test_organization_isolation_for_pending_decisions_and_offers(self):
         self.submit_hire_decision()
@@ -245,7 +254,10 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertEqual(offer.offer_status, JobOffer.OfferStatus.DECLINED)
         self.assertEqual(offer.applicant_response_note, 'Accepted another opportunity.')
         self.assertEqual(self.application.status, JobApplication.Status.REJECTED)
-        self.assertTrue(Notification.objects.filter(recipient=self.recruiter, title='Job offer declined').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.recruiter,
+            title__contains='declined the job offer for Backend Engineer',
+        ).exists())
 
     def test_recruiter_can_withdraw_sent_offer_for_revised_terms(self):
         self.submit_hire_decision()
@@ -268,4 +280,7 @@ class HiringWorkflowAPITests(APITestCase):
         self.assertIsNotNone(offer.withdrawn_at)
         self.assertEqual(offer.internal_notes, 'Applicant requested a revised start date.')
         self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
-        self.assertTrue(Notification.objects.filter(recipient=self.applicant, title='Job offer withdrawn').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.applicant,
+            title='Your job offer for Backend Engineer was withdrawn',
+        ).exists())

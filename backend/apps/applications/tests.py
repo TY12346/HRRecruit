@@ -654,7 +654,7 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(history.note, 'Does not meet minimum Django experience.')
         self.assertTrue(Notification.objects.filter(
             recipient=self.applicant,
-            title='Application status updated',
+            title__contains='application for Backend Engineer was not selected',
             message='Does not meet minimum Django experience.',
         ).exists())
 

@@ -24,14 +24,14 @@ import RecruiterJobRequisitionsPage from '../pages/recruiter/JobRequisitionsPage
 import JobOfferPage from '../pages/recruiter/JobOfferPage.jsx';
 import JobRequirementsPage from '../pages/recruiter/JobRequirementsPage.jsx';
 import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.jsx';
-import RecruiterNotificationsPage from '../pages/recruiter/NotificationsPage.jsx';
+import RecruiterNotificationsPage, { RecruiterNotificationDetailPage } from '../pages/recruiter/NotificationsPage.jsx';
 import AvailabilityPage from '../pages/interviewer/AvailabilityPage.jsx';
 import AssignedApplicantsPage from '../pages/interviewer/AssignedApplicantsPage.jsx';
 import ApplicantDetailPage from '../pages/interviewer/ApplicantDetailPage.jsx';
 import InterviewerInterviewDetailPage from '../pages/interviewer/InterviewDetailPage.jsx';
 import InterviewListPage from '../pages/interviewer/InterviewListPage.jsx';
 import InterviewerAnalyticsPage from '../pages/interviewer/InterviewerAnalyticsPage.jsx';
-import InterviewerNotificationsPage from '../pages/interviewer/NotificationsPage.jsx';
+import InterviewerNotificationsPage, { InterviewerNotificationDetailPage } from '../pages/interviewer/NotificationsPage.jsx';
 import SubmitEvaluationPage from '../pages/interviewer/SubmitEvaluationPage.jsx';
 import TranscriptSummaryPage from '../pages/interviewer/TranscriptSummaryPage.jsx';
 import JobOffersApprovalPage from '../pages/hiring_manager/JobOffersApprovalPage.jsx';
@@ -45,7 +45,7 @@ import PendingHiringDecisionsPage from '../pages/hiring_manager/PendingHiringDec
 import HiringManagerJobRequisitionsPage from '../pages/hiring_manager/HiringManagerJobRequisitionsPage.jsx';
 import BillingPage from '../pages/hiring_manager/BillingPage.jsx';
 import HiringManagerAnalyticsPage from '../pages/hiring_manager/HiringManagerAnalyticsPage.jsx';
-import NotificationsPage from '../pages/hiring_manager/NotificationsPage.jsx';
+import NotificationsPage, { HiringManagerNotificationDetailPage } from '../pages/hiring_manager/NotificationsPage.jsx';
 import ProfilePage from '../pages/profile/ProfilePage.jsx';
 import { DashboardRedirect, GuestOnlyRoute, HiringManagerOnboardingRoute, ProtectedRoute, RoleRoute } from './guards.jsx';
 
@@ -107,6 +107,7 @@ export const router = createBrowserRouter([
           { path: 'recruiter/job-offers', element: <JobOfferPage /> },
           { path: 'recruiter/analytics', element: <RecruiterAnalyticsPage /> },
           { path: 'recruiter/notifications', element: <RecruiterNotificationsPage /> },
+          { path: 'recruiter/notifications/:notificationId', element: <RecruiterNotificationDetailPage /> },
         ],
       },
       {
@@ -123,6 +124,7 @@ export const router = createBrowserRouter([
           { path: 'interviewer/availability', element: <AvailabilityPage /> },
           { path: 'interviewer/analytics', element: <InterviewerAnalyticsPage /> },
           { path: 'interviewer/notifications', element: <InterviewerNotificationsPage /> },
+          { path: 'interviewer/notifications/:notificationId', element: <InterviewerNotificationDetailPage /> },
         ],
       },
       {
@@ -145,6 +147,7 @@ export const router = createBrowserRouter([
               { path: 'hiring-manager/billing', element: <BillingPage /> },
               { path: 'hiring-manager/analytics', element: <HiringManagerAnalyticsPage /> },
               { path: 'hiring-manager/notifications', element: <NotificationsPage /> },
+              { path: 'hiring-manager/notifications/:notificationId', element: <HiringManagerNotificationDetailPage /> },
             ],
           },
         ],

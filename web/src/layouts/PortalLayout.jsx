@@ -2,6 +2,36 @@ import { Box, Container, IconButton, Stack, Tooltip, Typography } from '@mui/mat
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout as logoutRequest } from '../api/client.js';
 import { useAuthStore } from '../store/authStore.js';
+import { NotificationProvider } from '../notifications/NotificationContext.jsx';
+
+const iconProps = {
+  fill: 'none',
+  height: 22,
+  stroke: 'currentColor',
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  strokeWidth: 2,
+  viewBox: '0 0 24 24',
+  width: 22,
+};
+
+function ProfileIcon() {
+  return (
+    <svg aria-hidden="true" {...iconProps}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg aria-hidden="true" {...iconProps}>
+      <path d="M10 17l5-5-5-5M15 12H3" />
+      <path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4" />
+    </svg>
+  );
+}
 
 const iconProps = {
   fill: 'none',
@@ -57,6 +87,7 @@ export default function PortalLayout() {
   }
 
   return (
+    <NotificationProvider>
     <Box
       component="main"
       sx={{
@@ -121,5 +152,6 @@ export default function PortalLayout() {
         <Outlet />
       </Container>
     </Box>
+    </NotificationProvider>
   );
 }

@@ -223,6 +223,11 @@ export const getNotifications = async () => {
   return response.data;
 };
 
+export const getNotification = async (notificationId) => {
+  const response = await apiClient.get(`/notifications/${notificationId}/`);
+  return response.data;
+};
+
 export const markNotificationRead = async (notificationId) => {
   const response = await apiClient.patch(`/notifications/${notificationId}/read/`);
   return response.data;
