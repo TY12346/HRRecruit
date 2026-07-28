@@ -25,6 +25,14 @@ class NotificationListAPIView(APIView):
         return Response(NotificationSerializer(notifications, many=True).data)
 
 
+class NotificationDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, notification_id):
+        notification = get_object_or_404(notifications_for(request.user), id=notification_id)
+        return Response(NotificationSerializer(notification).data)
+
+
 class NotificationMarkReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 

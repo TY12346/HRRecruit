@@ -68,11 +68,16 @@ class NotificationAPITests(APITestCase):
         self.authenticate(self.user)
 
         list_response = self.client.get(reverse('notification-list'))
+        detail_response = self.client.get(reverse('notification-detail', args=[own_notification.id]))
+        forbidden_detail_response = self.client.get(reverse('notification-detail', args=[other_notification.id]))
         read_response = self.client.patch(reverse('notification-read', args=[own_notification.id]), {}, format='json')
         forbidden_read_response = self.client.patch(reverse('notification-read', args=[other_notification.id]), {}, format='json')
 
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in list_response.data], [own_notification.id])
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.data['id'], own_notification.id)
+        self.assertEqual(forbidden_detail_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(read_response.status_code, status.HTTP_200_OK)
         self.assertTrue(read_response.data['is_read'])
         self.assertEqual(forbidden_read_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -93,6 +98,21 @@ class NotificationAPITests(APITestCase):
         self.assertEqual(read_all_response.data['updated_count'], 2)
         self.assertEqual(count_after_response.data['unread_count'], 0)
         self.assertEqual(Notification.objects.filter(recipient=self.other_user, is_read=False).count(), 1)
+
+    def test_notification_without_supported_related_entity_has_no_actions(self):
+        notification = create_notification(
+            self.user,
+            'account_update',
+            'Account updated',
+            'Your account was updated.',
+            related_entity=self.user,
+        )
+        self.authenticate(self.user)
+
+        response = self.client.get(reverse('notification-detail', args=[notification.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['actions'], [])
 
     def test_user_can_register_list_and_deactivate_push_device(self):
         self.authenticate(self.user)

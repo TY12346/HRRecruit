@@ -177,7 +177,7 @@ class InterviewEvaluationSubmitAPIView(APIView):
         create_notification(
             interview.recruiter,
             'evaluation_submitted',
-            'Interview evaluation submitted',
+            f'{request.user.full_name} submitted an evaluation for {interview.application.applicant.full_name}',
             f'{request.user.full_name} submitted an evaluation for {interview.application.applicant.full_name}.',
             related_entity=evaluation,
         )

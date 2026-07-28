@@ -1,5 +1,6 @@
-import { Box, Button, Stack } from '@mui/material';
+import { Badge, Box, Button, Stack } from '@mui/material';
 import { NavLink } from 'react-router-dom';
+import { useNotifications } from '../notifications/NotificationContext.jsx';
 
 const iconProps = {
   fill: 'none',
@@ -76,13 +77,22 @@ function SettingsIcon() {
   );
 }
 
+function NotificationIcon() {
+  return (
+    <svg aria-hidden="true" {...iconProps}>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10 21h4" />
+    </svg>
+  );
+}
+
 const icons = {
   availability: <CalendarIcon />,
   billing: <BriefcaseIcon />,
   applicants: <ApplicantsIcon />,
   dashboard: <DashboardIcon />,
   interviews: <CalendarIcon />,
-  notifications: <SettingsIcon />,
+  notifications: <NotificationIcon />,
   offers: <BriefcaseIcon />,
   organization: <SettingsIcon />,
   decisions: <ApplicantsIcon />,
@@ -95,6 +105,7 @@ const icons = {
 };
 
 export default function RoleNav({ items }) {
+  const { unreadCount } = useNotifications();
   return (
     <Box
       component="nav"
@@ -151,7 +162,14 @@ export default function RoleNav({ items }) {
               },
             }}
           >
-            <Box className="role-nav-icon" component="span">{icons[item.icon] ?? item.icon}</Box>
+            <Badge
+              color="error"
+              invisible={item.icon !== 'notifications' || unreadCount === 0}
+              overlap="circular"
+              variant="dot"
+            >
+              <Box className="role-nav-icon" component="span">{icons[item.icon] ?? item.icon}</Box>
+            </Badge>
             {item.label}
           </Button>
         ))}

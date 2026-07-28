@@ -12,6 +12,7 @@ from apps.billing.models import Subscription, SubscriptionPlan
 from apps.hiring.models import JobOffer
 from apps.interviews.models import Interview
 from apps.organizations.models import Organization, OrganizationMembership
+from apps.notifications.models import Notification
 from apps.users.models import User
 
 from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, SavedJobPosting
@@ -251,6 +252,11 @@ class JobPostingAPITests(APITestCase):
         }
         create_response = self.client.post(reverse('job-requisition-list-create'), requisition_payload, format='json')
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.hr_head,
+            title__contains='Product Designer',
+            notification_type='job_requisition_submitted',
+        ).exists())
 
         self.authenticate(self.hr_head)
         approve_response = self.client.post(reverse('job-requisition-approve', args=[create_response.data['id']]))
@@ -260,6 +266,20 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(job.status, JobPosting.Status.DRAFTING)
         self.assertEqual(job.salary_range, requisition_payload['salary_range'])
         self.assertEqual(job.core_responsibilities, requisition_payload['core_responsibilities'])
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.recruiter,
+            title__contains='approved the job requisition for Product Designer',
+            notification_type='job_requisition_reviewed',
+        ).exists())
+        notification = Notification.objects.get(
+            recipient=self.recruiter,
+            notification_type='job_requisition_reviewed',
+        )
+        self.authenticate(self.recruiter)
+        notification_response = self.client.get(reverse('notification-detail', args=[notification.id]))
+        self.assertEqual(notification_response.data['actions'], [
+            {'label': 'View requisition', 'url': '/recruiter/job-requisitions'},
+        ])
 
     def test_recruiter_cannot_open_approved_job_before_requirements_and_scorecard(self):
         job = self.create_job(status=JobPosting.Status.DRAFTING)

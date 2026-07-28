@@ -1,9 +1,15 @@
 from rest_framework import serializers
 
+from apps.hiring.models import JobOffer
+from apps.interviews.models import InterviewSchedulingRequest
+from apps.users.models import User
 from .models import Notification, PushDevice
 
 
 class NotificationSerializer(serializers.ModelSerializer):
+    title = serializers.SerializerMethodField()
+    actions = serializers.SerializerMethodField()
+
     class Meta:
         model = Notification
         fields = [
@@ -15,8 +21,86 @@ class NotificationSerializer(serializers.ModelSerializer):
             'related_entity_id',
             'is_read',
             'created_at',
+            'actions',
         ]
         read_only_fields = fields
+
+    def get_title(self, notification):
+        """Enrich legacy generic offer-response titles without rewriting history."""
+        if notification.notification_type == 'offer_response' and notification.title in {
+            'Job offer accepted', 'Job offer declined', 'Offer accepted', 'Offer declined',
+        }:
+            offer = self._related_object(notification, JobOffer)
+            if offer:
+                response = 'accepted' if 'accept' in notification.title.lower() else 'declined'
+                return f'{offer.application.applicant.full_name} {response} the job offer for {offer.application.job.title}'
+        return notification.title
+
+    def get_actions(self, notification):
+        related_type = notification.related_entity_type.lower()
+        related_id = notification.related_entity_id
+        role = notification.recipient.role
+
+        if related_type == 'joboffer':
+            offer = self._related_object(notification, JobOffer)
+            if not offer:
+                return []
+            actions = []
+            if role == User.Role.RECRUITER:
+                actions.append({'label': 'View offer', 'url': '/recruiter/job-offers'})
+                actions.append({'label': 'View job', 'url': f'/recruiter/jobs/{offer.application.job_id}'})
+            elif role == User.Role.HR_HEAD:
+                actions.append({'label': 'View offer', 'url': '/hiring-manager/job-offers'})
+            return actions
+
+        if related_type == 'jobposting' and related_id:
+            if role == User.Role.RECRUITER:
+                return [{'label': 'View job', 'url': f'/recruiter/jobs/{related_id}'}]
+            return []
+
+        if related_type == 'jobapplication' and related_id:
+            paths = {
+                User.Role.RECRUITER: f'/recruiter/applications/{related_id}',
+                User.Role.INTERVIEWER: f'/interviewer/applicants/{related_id}',
+                User.Role.HR_HEAD: '/hiring-manager/applicant-search',
+            }
+            return [{'label': 'View applicant', 'url': paths[role]}] if role in paths else []
+
+        if related_type == 'interview' and related_id:
+            paths = {
+                User.Role.RECRUITER: '/recruiter/interviews',
+                User.Role.INTERVIEWER: f'/interviewer/interviews/{related_id}',
+            }
+            return [{'label': 'View interview', 'url': paths[role]}] if role in paths else []
+
+        if related_type == 'interviewschedulingrequest':
+            scheduling_request = self._related_object(notification, InterviewSchedulingRequest)
+            if scheduling_request and role == User.Role.INTERVIEWER:
+                return [{'label': 'View interview', 'url': '/interviewer/interviews'}]
+
+        if related_type == 'jobrequisition':
+            paths = {
+                User.Role.RECRUITER: '/recruiter/job-requisitions',
+                User.Role.HR_HEAD: '/hiring-manager/job-requisitions',
+            }
+            return [{'label': 'View requisition', 'url': paths[role]}] if role in paths else []
+
+        if related_type in {'hiringdecision', 'jobhiringdecision'}:
+            paths = {
+                User.Role.RECRUITER: '/recruiter/hiring-decisions',
+                User.Role.HR_HEAD: '/hiring-manager/hiring-decisions',
+            }
+            return [{'label': 'View decision', 'url': paths[role]}] if role in paths else []
+        return []
+
+    @staticmethod
+    def _related_object(notification, model):
+        if not notification.related_entity_id:
+            return None
+        queryset = model.objects
+        if model is JobOffer:
+            queryset = queryset.select_related('application__applicant', 'application__job')
+        return queryset.filter(id=notification.related_entity_id).first()
 
 
 class PushDeviceSerializer(serializers.ModelSerializer):

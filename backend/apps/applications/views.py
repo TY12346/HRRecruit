@@ -539,7 +539,7 @@ class ApplicationScreenAPIView(APIView):
             create_notification(
                 application.applicant,
                 'application_status_update',
-                'Application status updated',
+                f'{application.applicant.full_name}\'s application for {application.job.title} is now {application.get_status_display()}',
                 f'Your application for {application.job.title} is now {application.get_status_display()}.',
                 related_entity=application,
             )
@@ -616,14 +616,14 @@ class ApplicationShortlistAPIView(APIView):
         create_notification(
             application.applicant,
             'application_status_update',
-            'Application status updated',
+            f'Your application for {application.job.title} was shortlisted',
             f'Your application for {application.job.title} has been shortlisted.',
             related_entity=application,
         )
         create_notification(
             interviewer,
             'interview_assignment',
-            'Applicant assigned',
+            f'{application.applicant.full_name} was assigned to you for {application.job.title}',
             f'{application.applicant.full_name} was shortlisted and assigned to you for {application.job.title}.',
             related_entity=application,
         )
@@ -655,7 +655,7 @@ class ApplicationRejectAPIView(APIView):
         create_notification(
             application.applicant,
             'application_status_update',
-            'Application status updated',
+            f'Your application for {application.job.title} was not selected',
             applicant_message,
             related_entity=application,
         )
@@ -711,7 +711,7 @@ class EmployerInviteListCreateAPIView(APIView):
             raise ValidationError({
                 'detail': f'You have already invited this applicant to apply for this job on {invited_on}.',
             })
-        create_notification(applicant, 'employer_invite', 'Employer invite', f'{request.user.full_name} invited you to apply for {job.title}.', related_entity=invite)
+        create_notification(applicant, 'employer_invite', f'{request.user.full_name} invited you to apply for {job.title}', f'{request.user.full_name} invited you to apply for {job.title}.', related_entity=invite)
         return Response(EmployerInviteSerializer(invite, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 

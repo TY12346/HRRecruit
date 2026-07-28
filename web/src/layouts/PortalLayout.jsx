@@ -1,7 +1,37 @@
-import { Badge, Box, Container, IconButton, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Container, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout as logoutRequest } from '../api/client.js';
 import { useAuthStore } from '../store/authStore.js';
+import { NotificationProvider } from '../notifications/NotificationContext.jsx';
+
+const iconProps = {
+  fill: 'none',
+  height: 22,
+  stroke: 'currentColor',
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  strokeWidth: 2,
+  viewBox: '0 0 24 24',
+  width: 22,
+};
+
+function ProfileIcon() {
+  return (
+    <svg aria-hidden="true" {...iconProps}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg aria-hidden="true" {...iconProps}>
+      <path d="M10 17l5-5-5-5M15 12H3" />
+      <path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4" />
+    </svg>
+  );
+}
 
 export default function PortalLayout() {
   const navigate = useNavigate();
@@ -28,6 +58,7 @@ export default function PortalLayout() {
   }
 
   return (
+    <NotificationProvider>
     <Box
       component="main"
       sx={{
@@ -74,21 +105,14 @@ export default function PortalLayout() {
 
         {isAuthenticated ? (
           <Stack alignItems="center" direction="row" justifyContent="flex-end" spacing={3}>
-            <Tooltip title="Notifications">
-              <IconButton aria-label="Notifications" size="small" sx={{ color: '#1d4ed8' }}>
-                <Badge color="primary" overlap="circular" variant="dot">
-                  <Box component="span" sx={{ fontSize: 18, lineHeight: 1 }}>♧</Box>
-                </Badge>
-              </IconButton>
-            </Tooltip>
             <Tooltip title={`Profile: ${user?.full_name ?? user?.email}`}>
               <IconButton aria-label="Profile" component={RouterLink} size="small" sx={{ color: '#1d4ed8' }} to="/profile">
-                <Box component="span" sx={{ fontSize: 20, lineHeight: 1 }}>●</Box>
+                <ProfileIcon />
               </IconButton>
             </Tooltip>
             <Tooltip title="Logout">
               <IconButton aria-label="Logout" onClick={handleLogout} size="small" sx={{ color: '#1d4ed8' }}>
-                <Box component="span" sx={{ fontSize: 16, lineHeight: 1 }}>↪</Box>
+                <LogoutIcon />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -99,5 +123,6 @@ export default function PortalLayout() {
         <Outlet />
       </Container>
     </Box>
+    </NotificationProvider>
   );
 }

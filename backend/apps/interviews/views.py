@@ -292,7 +292,7 @@ def send_newly_available_scheduling_invitations(interviewer, organization):
             create_notification(
                 scheduling_request.application.applicant,
                 'interview_self_scheduling',
-                'Interview scheduling request',
+                f'Choose an interview time for {scheduling_request.application.job.title}',
                 f'Please choose an interview slot for {scheduling_request.application.job.title}.',
                 related_entity=scheduling_request,
             )
@@ -421,19 +421,19 @@ def create_interview_booking_side_effects(scheduling_request, interview, applica
     notification_payloads = [
         (
             scheduling_request.recruiter,
-            'Interview slot selected',
+            f'{applicant.full_name} selected an interview slot for {interview.application.job.title}',
             f'{applicant.full_name} selected an interview slot for {scheduling_request.application.job.title}.',
         ),
         (
             scheduling_request.interviewer,
-            'Interview slot selected',
+            f'{applicant.full_name} selected an interview slot for {interview.application.job.title}',
             f'{applicant.full_name} selected your available interview slot.',
         ),
     ]
     for panel_interviewer in scheduling_request.panel_interviewers.exclude(id=scheduling_request.interviewer_id):
         notification_payloads.append((
             panel_interviewer,
-            'Interview slot selected',
+            f'{applicant.full_name} selected an interview slot for {interview.application.job.title}',
             f'{applicant.full_name} selected a panel interview slot.',
         ))
     for recipient, title, message in notification_payloads:
@@ -667,7 +667,7 @@ class CreateSchedulingRequestAPIView(APIView):
             create_notification(
                 application.applicant,
                 'interview_self_scheduling',
-                'Interview scheduling request',
+                f'Choose an interview time for {application.job.title}',
                 f'Please choose an interview slot for {application.job.title}.',
                 related_entity=scheduling_request,
             )
@@ -1039,7 +1039,7 @@ class AssignInterviewerAPIView(APIView):
             create_notification(
                 application.applicant,
                 'interview_self_scheduling',
-                'Interview scheduling request',
+                f'Choose an interview time for {application.job.title}',
                 f'Please choose an interview slot for {application.job.title}.',
                 related_entity=scheduling_request,
             )
@@ -1048,7 +1048,7 @@ class AssignInterviewerAPIView(APIView):
             create_notification(
                 panel_interviewer,
                 'interview_assignment',
-                'New interview assignment',
+                f'Interview assignment: {application.applicant.full_name} for {application.job.title}',
                 f'You were assigned to interview {application.applicant.full_name} for {application.job.title}.',
                 related_entity=interview,
             )
