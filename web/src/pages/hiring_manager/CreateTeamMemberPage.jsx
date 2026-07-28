@@ -50,7 +50,7 @@ export default function CreateTeamMemberPage() {
           Create Team Member
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Create recruiter or interviewer accounts for your organization.
+          Create hiring manager, recruiter, or interviewer accounts for your organization.
         </Typography>
 
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
@@ -64,6 +64,7 @@ export default function CreateTeamMemberPage() {
             <FormControl fullWidth>
               <InputLabel id="member-role-label">Role</InputLabel>
               <Select label="Role" labelId="member-role-label" name="role" onChange={handleChange} value={formData.role}>
+                <MenuItem value="hr_head">Hiring Manager</MenuItem>
                 <MenuItem value="recruiter">Recruiter</MenuItem>
                 <MenuItem value="interviewer">Interviewer</MenuItem>
               </Select>

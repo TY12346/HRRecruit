@@ -34,7 +34,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
             name=SubscriptionPlan.Name.BASIC,
             billing_cycle=SubscriptionPlan.BillingCycle.MONTHLY,
             defaults={
-                'max_job_postings': 1,
+                'max_active_job_postings': 1, 'max_hiring_managers': 1, 'max_recruiters': 1, 'max_interviewers': 3,
                 'price': Decimal('99.00'),
                 'features_description': 'Basic test plan with one open job.',
                 'is_active': True,

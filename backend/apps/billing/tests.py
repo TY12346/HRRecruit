@@ -46,17 +46,19 @@ class BillingAPITests(APITestCase):
             name=SubscriptionPlan.Name.BASIC,
             billing_cycle=SubscriptionPlan.BillingCycle.MONTHLY,
             defaults={
-                'max_job_postings': 1,
+                'max_active_job_postings': 1,
+                'max_hiring_managers': 10, 'max_recruiters': 25, 'max_interviewers': 100,
                 'price': '49.00',
                 'features_description': 'Test Basic plan',
                 'is_active': True,
             },
         )
         self.pro_plan, _ = SubscriptionPlan.objects.update_or_create(
-            name=SubscriptionPlan.Name.PRO,
+            name=SubscriptionPlan.Name.PROFESSIONAL,
             billing_cycle=SubscriptionPlan.BillingCycle.MONTHLY,
             defaults={
-                'max_job_postings': 2,
+                'max_active_job_postings': 2,
+                'max_hiring_managers': 10, 'max_recruiters': 25, 'max_interviewers': 100,
                 'price': '149.00',
                 'features_description': 'Test Pro plan',
                 'is_active': True,

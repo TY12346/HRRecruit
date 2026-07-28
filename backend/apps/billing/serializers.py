@@ -11,7 +11,10 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'name',
-            'max_job_postings',
+            'max_hiring_managers',
+            'max_recruiters',
+            'max_interviewers',
+            'max_active_job_postings',
             'billing_cycle',
             'price',
             'features_description',
