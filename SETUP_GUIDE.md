@@ -77,9 +77,22 @@ POSTGRES_PASSWORD=your_postgres_password
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
 
-# External integrations. AI integrations are strict: missing credentials cause clear API errors.
-SENDGRID_API_KEY=
+# Local development prints messages in the Django server terminal and does not
+# deliver them to an inbox.
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 DEFAULT_FROM_EMAIL=no-reply@hrrecruit.local
+
+# To deliver account credentials and password resets to real inboxes, replace
+# the two values above and configure an SMTP account (Gmail example below).
+# Use an app password rather than the normal account password.
+# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# EMAIL_HOST=smtp.gmail.com
+# EMAIL_PORT=587
+# EMAIL_HOST_USER=your-account@gmail.com
+# EMAIL_HOST_PASSWORD=your-app-password
+# EMAIL_USE_TLS=True
+# EMAIL_USE_SSL=False
+# DEFAULT_FROM_EMAIL=your-account@gmail.com
 
 FIREBASE_PUSH_ENABLED=False
 FIREBASE_PROJECT_ID=
