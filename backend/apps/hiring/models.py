@@ -1,12 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from apps.common.models import ReadableIdModel
 
 from apps.applications.models import JobApplication
 from apps.jobs.models import JobPosting
 from apps.users.models import User
 
 
-class HiringDecision(models.Model):
+class HiringDecision(ReadableIdModel):
     class Decision(models.TextChoices):
         HIRE = 'hire', 'Hire'
         REJECT = 'reject', 'Reject'
@@ -60,7 +61,7 @@ class HiringDecision(models.Model):
         return f'{self.application} - {self.get_decision_display()}'
 
 
-class JobHiringDecision(models.Model):
+class JobHiringDecision(ReadableIdModel):
     class DecisionType(models.TextChoices):
         RECOMMEND_HIRE = 'recommend_hire', 'Recommend Hire'
         RECOMMEND_NO_HIRE = 'recommend_no_hire', 'Recommend No Hire'
@@ -87,7 +88,7 @@ class JobHiringDecision(models.Model):
         ordering = ['-created_at']
 
 
-class JobHiringDecisionItem(models.Model):
+class JobHiringDecisionItem(ReadableIdModel):
     decision = models.ForeignKey(JobHiringDecision, on_delete=models.CASCADE, related_name='items')
     application = models.ForeignKey(JobApplication, on_delete=models.CASCADE, related_name='job_hiring_decision_items')
     selection_order = models.PositiveIntegerField(default=1)
@@ -99,7 +100,7 @@ class JobHiringDecisionItem(models.Model):
         constraints = [models.UniqueConstraint(fields=['decision', 'application'], name='unique_job_decision_application')]
 
 
-class JobOffer(models.Model):
+class JobOffer(ReadableIdModel):
     class OfferStatus(models.TextChoices):
         DRAFTING = 'drafting', 'Drafting'
         PENDING_APPROVAL = 'pending_hr_approval', 'Pending Approval by Hiring Manager'

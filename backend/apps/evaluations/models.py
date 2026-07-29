@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from apps.common.models import ReadableIdModel
 
 from apps.interviews.models import Interview
 from apps.jobs.models import EvaluationCriterion
@@ -17,7 +18,7 @@ def validate_interview_audio_size(audio_file):
         raise ValidationError(f'Interview audio file size must not exceed {MAX_INTERVIEW_AUDIO_SIZE_MB} MB.')
 
 
-class InterviewRecording(models.Model):
+class InterviewRecording(ReadableIdModel):
     interview = models.ForeignKey(
         Interview,
         on_delete=models.CASCADE,
@@ -54,7 +55,7 @@ class ProcessingStatus(models.TextChoices):
     LOW_QUALITY = 'LOW_QUALITY', 'Low quality'
 
 
-class InterviewTranscript(models.Model):
+class InterviewTranscript(ReadableIdModel):
     recording = models.ForeignKey(
         InterviewRecording,
         on_delete=models.CASCADE,
@@ -73,7 +74,7 @@ class InterviewTranscript(models.Model):
         return f'Transcript for {self.recording}'
 
 
-class InterviewAISummary(models.Model):
+class InterviewAISummary(ReadableIdModel):
     transcript = models.ForeignKey(
         InterviewTranscript,
         on_delete=models.CASCADE,
@@ -104,7 +105,7 @@ class InterviewAISummary(models.Model):
         return f'AI summary for {self.transcript}'
 
 
-class InterviewEvaluation(models.Model):
+class InterviewEvaluation(ReadableIdModel):
     interview = models.ForeignKey(
         Interview,
         on_delete=models.CASCADE,
@@ -138,7 +139,7 @@ class InterviewEvaluation(models.Model):
         return f'Evaluation for {self.interview} by {self.interviewer.email}'
 
 
-class EvaluationAnswer(models.Model):
+class EvaluationAnswer(ReadableIdModel):
     evaluation = models.ForeignKey(
         InterviewEvaluation,
         on_delete=models.CASCADE,

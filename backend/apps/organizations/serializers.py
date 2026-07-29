@@ -7,9 +7,10 @@ from apps.users.models import User
 
 from .models import Organization, OrganizationMembership
 from .services import create_team_member
+from apps.common.serializers import ReadableIdModelSerializer
 
 
-class OrganizationSerializer(serializers.ModelSerializer):
+class OrganizationSerializer(ReadableIdModelSerializer):
     class Meta:
         model = Organization
         fields = [
@@ -46,7 +47,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return organization
 
 
-class OrganizationMemberSerializer(serializers.ModelSerializer):
+class OrganizationMemberSerializer(ReadableIdModelSerializer):
     email = serializers.EmailField(source='user.email')
     full_name = serializers.CharField(source='user.full_name')
     phone_number = serializers.CharField(source='user.phone_number', required=False, allow_blank=True)

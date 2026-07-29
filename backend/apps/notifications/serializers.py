@@ -4,9 +4,10 @@ from apps.hiring.models import JobOffer
 from apps.interviews.models import InterviewSchedulingRequest
 from apps.users.models import User
 from .models import Notification, PushDevice
+from apps.common.serializers import ReadableIdModelSerializer
 
 
-class NotificationSerializer(serializers.ModelSerializer):
+class NotificationSerializer(ReadableIdModelSerializer):
     title = serializers.SerializerMethodField()
     actions = serializers.SerializerMethodField()
 
@@ -103,7 +104,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         return queryset.filter(id=notification.related_entity_id).first()
 
 
-class PushDeviceSerializer(serializers.ModelSerializer):
+class PushDeviceSerializer(ReadableIdModelSerializer):
     class Meta:
         model = PushDevice
         fields = [

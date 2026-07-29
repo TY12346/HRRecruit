@@ -1,12 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Q
+from apps.common.models import ReadableIdModel
 
 from apps.jobs.models import JobPosting
 from apps.users.models import ApplicantResume, User
 
 
-class JobApplication(models.Model):
+class JobApplication(ReadableIdModel):
     class Status(models.TextChoices):
         UNDER_REVIEW = 'under_review', 'Under review'
         REJECTED = 'rejected', 'Rejected'
@@ -91,7 +92,7 @@ class JobApplication(models.Model):
         )
 
 
-class ApplicationStageHistory(models.Model):
+class ApplicationStageHistory(ReadableIdModel):
     application = models.ForeignKey(
         JobApplication,
         on_delete=models.CASCADE,
@@ -117,7 +118,7 @@ class ApplicationStageHistory(models.Model):
     def __str__(self):
         return f'{self.application} - {self.from_stage} to {self.to_stage}'
 
-class EmployerInvite(models.Model):
+class EmployerInvite(ReadableIdModel):
     class Response(models.TextChoices):
         NO_RESPONSE = 'no_response', 'No response'
         APPLIED = 'applied', 'Applied for job'
