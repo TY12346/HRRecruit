@@ -140,7 +140,7 @@ class JobRequisitionSerializer(ReadableIdModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     recruiter_name = serializers.CharField(source='recruiter.full_name', read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.full_name', read_only=True)
-    job_posting_id = serializers.IntegerField(source='job_posting.id', read_only=True)
+    job_posting_id = serializers.CharField(source='job_posting.public_id', read_only=True)
 
     class Meta:
         model = JobRequisition

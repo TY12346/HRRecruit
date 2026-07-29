@@ -72,9 +72,9 @@ def deliverable_status_for(interview, at_time=None):
         'is_complete': is_complete,
         'is_almost_late': is_almost_late,
         'is_late': is_late,
-        'transcript_id': transcript.id if transcript else None,
-        'ai_summary_id': summary.id if summary else None,
-        'evaluation_id': evaluation.id if evaluation else None,
+        'transcript_id': transcript.public_id if transcript else None,
+        'ai_summary_id': summary.public_id if summary else None,
+        'evaluation_id': evaluation.public_id if evaluation else None,
         'submitted_evaluation_count': len(expected_interviewer_ids & submitted_interviewer_ids),
         'required_evaluation_count': len(expected_interviewer_ids),
     }
@@ -87,7 +87,7 @@ def create_interviewer_deadline_notification(interview, notification_type, title
         recipient=interview.interviewer,
         notification_type=notification_type,
         related_entity_type='interview',
-        related_entity_id=interview.id,
+        related_entity_id=interview.public_id,
     ).exists()
     if exists:
         return None

@@ -296,7 +296,7 @@ def top_jobs_by_applications(jobs, applications, limit=5):
         total = job_applications.count()
         rows.append(
             {
-                'job_id': job.id,
+                'job_id': job.public_id,
                 'job_title': job.title,
                 'applications': total,
                 'hires': job_applications.filter(job_offers__offer_status=JobOffer.OfferStatus.ACCEPTED).distinct().count(),
@@ -460,7 +460,7 @@ def recruiter_performance(organization):
         applications = JobApplication.objects.filter(job__in=jobs)
         rows.append(
             {
-                'recruiter_id': recruiter.id,
+                'recruiter_id': recruiter.public_id,
                 'recruiter_name': recruiter.full_name,
                 'job_postings': jobs.count(),
                 'applications': applications.count(),
@@ -494,7 +494,7 @@ def interviewer_performance(organization):
         evaluations = InterviewEvaluation.objects.filter(interview__in=interviews, interviewer=interviewer)
         rows.append(
             {
-                'interviewer_id': interviewer.id,
+                'interviewer_id': interviewer.public_id,
                 'interviewer_name': interviewer.full_name,
                 'assigned_interviews': interviews.count(),
                 'completed_interviews': interviews.filter(
@@ -521,7 +521,7 @@ def interviewer_performance_chart(organization):
 
 def job_funnel(user, job_id):
     membership = require_analytics_membership(user)
-    job_filter = {'id': job_id, 'organization': membership.organization}
+    job_filter = {'public_id': job_id, 'organization': membership.organization}
     if user.role == User.Role.RECRUITER:
         job_filter['recruiter'] = user
     if user.role == User.Role.INTERVIEWER:
@@ -533,9 +533,9 @@ def job_funnel(user, job_id):
     if user.role == User.Role.INTERVIEWER:
         applications = applications.filter(interviews__interviewer=user).distinct()
     return {
-        'job': {'id': job.id, 'title': job.title},
-        'organization': {'id': membership.organization_id, 'name': membership.organization.name},
-        'metrics': base_application_metrics(JobPosting.objects.filter(id=job.id), applications),
+        'job': {'id': job.public_id, 'title': job.title},
+        'organization': {'id': membership.organization.public_id, 'name': membership.organization.name},
+        'metrics': base_application_metrics(JobPosting.objects.filter(public_id=job.public_id), applications),
         'charts': application_charts(applications),
     }
 

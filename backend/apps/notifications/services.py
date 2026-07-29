@@ -11,7 +11,7 @@ from .push_service import (
 def _related_entity_values(related_entity):
     if related_entity is None:
         return '', None
-    return related_entity._meta.model_name, related_entity.pk
+    return related_entity._meta.model_name, related_entity.public_id
 
 
 def create_notification(recipient, notification_type, title, message, related_entity=None):

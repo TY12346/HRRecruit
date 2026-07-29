@@ -10,7 +10,7 @@ class Notification(ReadableIdModel):
     title = models.CharField(max_length=255)
     message = models.TextField()
     related_entity_type = models.CharField(max_length=100, blank=True)
-    related_entity_id = models.PositiveBigIntegerField(blank=True, null=True)
+    related_entity_id = models.CharField(max_length=30, blank=True, null=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

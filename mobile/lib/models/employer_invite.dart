@@ -6,15 +6,15 @@ class EmployerInvite {
       required this.organizationName,
       required this.response,
       required this.createdAt});
-  final int id;
-  final int jobId;
+  final String id;
+  final String jobId;
   final String jobTitle;
   final String organizationName;
   final String response;
   final DateTime createdAt;
   factory EmployerInvite.fromJson(Map<String, dynamic> json) => EmployerInvite(
-      id: json['id'] as int,
-      jobId: json['job'] as int,
+      id: json['id']?.toString() ?? '',
+      jobId: json['job']?.toString() ?? '',
       jobTitle: json['job_title'] as String? ?? 'Job',
       organizationName: json['organization_name'] as String? ?? '',
       response: json['response'] as String? ?? 'no_response',

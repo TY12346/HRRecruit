@@ -101,7 +101,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ApplicantExperienceSerializer(ReadableIdModelSerializer):
-    experience_id = serializers.IntegerField(source='id', read_only=True)
+    experience_id = serializers.CharField(source='public_id', read_only=True)
 
     class Meta:
         model = ApplicantExperience
@@ -109,7 +109,7 @@ class ApplicantExperienceSerializer(ReadableIdModelSerializer):
 
 
 class ApplicantEducationSerializer(ReadableIdModelSerializer):
-    education_id = serializers.IntegerField(source='id', read_only=True)
+    education_id = serializers.CharField(source='public_id', read_only=True)
 
     class Meta:
         model = ApplicantEducation
@@ -117,7 +117,7 @@ class ApplicantEducationSerializer(ReadableIdModelSerializer):
 
 
 class ApplicantSkillSerializer(ReadableIdModelSerializer):
-    skill_id = serializers.IntegerField(source='id', read_only=True)
+    skill_id = serializers.CharField(source='public_id', read_only=True)
 
     class Meta:
         model = ApplicantSkill

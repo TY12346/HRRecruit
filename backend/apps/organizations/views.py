@@ -146,7 +146,7 @@ class OrganizationMemberDeactivateAPIView(ManagedOrganizationMixin, APIView):
         organization = self.get_organization(request)
         if not organization:
             return self.organization_not_found_response()
-        membership = organization.memberships.filter(id=member_id).select_related('user').first()
+        membership = organization.memberships.filter(public_id=member_id).select_related('user').first()
         if not membership:
             return Response({'detail': 'Team member not found.'}, status=status.HTTP_404_NOT_FOUND)
         if membership.user_id == request.user.id:

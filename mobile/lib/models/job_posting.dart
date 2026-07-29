@@ -7,7 +7,7 @@ class JobRequirement {
     required this.minimumThreshold,
   });
 
-  final int id;
+  final String id;
   final String requirementType;
   final String description;
   final double weightScore;
@@ -15,7 +15,7 @@ class JobRequirement {
 
   factory JobRequirement.fromJson(Map<String, dynamic> json) {
     return JobRequirement(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
       requirementType: json['requirement_type'] as String? ?? '',
       description: json['description'] as String? ?? '',
       weightScore: _asDouble(json['weight_score']),
@@ -41,7 +41,7 @@ class JobPosting {
     required this.updatedAt,
   });
 
-  final int id;
+  final String id;
   final String organizationName;
   final String recruiterName;
   final String title;
@@ -62,7 +62,7 @@ class JobPosting {
         .toList();
 
     return JobPosting(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
       organizationName: json['organization_name'] as String? ?? '',
       recruiterName: json['recruiter_name'] as String? ?? '',
       title: json['title'] as String? ?? '',

@@ -17,7 +17,7 @@ urlpatterns = [
     path('unread-count/', NotificationUnreadCountAPIView.as_view(), name='notification-unread-count'),
     path('push-status/', FirebasePushStatusAPIView.as_view(), name='notification-push-status'),
     path('push-devices/', PushDeviceListCreateAPIView.as_view(), name='notification-push-device-list'),
-    path('push-devices/<int:device_id>/', PushDeviceDetailAPIView.as_view(), name='notification-push-device-detail'),
-    path('<int:notification_id>/read/', NotificationMarkReadAPIView.as_view(), name='notification-read'),
-    path('<int:notification_id>/', NotificationDetailAPIView.as_view(), name='notification-detail'),
+    path('push-devices/<str:device_id>/', PushDeviceDetailAPIView.as_view(), name='notification-push-device-detail'),
+    path('<str:notification_id>/read/', NotificationMarkReadAPIView.as_view(), name='notification-read'),
+    path('<str:notification_id>/', NotificationDetailAPIView.as_view(), name='notification-detail'),
 ]

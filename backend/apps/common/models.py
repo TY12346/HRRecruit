@@ -1,4 +1,6 @@
-import uuid
+import secrets
+import threading
+import time
 
 from django.db import models
 
@@ -50,15 +52,48 @@ READABLE_ID_PREFIXES = {
 }
 
 
+ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+_ULID_LOCK = threading.Lock()
+_LAST_TIMESTAMP = -1
+_LAST_RANDOMNESS = 0
+
+
+def _encode_crockford(value, length):
+    characters = []
+    for _ in range(length):
+        value, remainder = divmod(value, 32)
+        characters.append(ULID_ALPHABET[remainder])
+    return ''.join(reversed(characters))
+
+
 def generate_readable_id(prefix):
-    """Return a non-sequential identifier that is safe to show to users."""
-    return f'{prefix}-{uuid.uuid4().hex[:12].upper()}'
+    """Return a typed ULID: a sortable timestamp plus 80 random bits."""
+    global _LAST_RANDOMNESS, _LAST_TIMESTAMP
+    with _ULID_LOCK:
+        timestamp_value = int(time.time_ns() // 1_000_000)
+        if timestamp_value == _LAST_TIMESTAMP:
+            _LAST_RANDOMNESS = (_LAST_RANDOMNESS + 1) % (1 << 80)
+        else:
+            _LAST_TIMESTAMP = timestamp_value
+            _LAST_RANDOMNESS = secrets.randbits(80)
+        timestamp = _encode_crockford(timestamp_value, 10)
+        randomness = _encode_crockford(_LAST_RANDOMNESS, 16)
+    return f'{prefix}-{timestamp}{randomness}'
+
+
+class ReadableIdManager(models.Manager):
+    def bulk_create(self, objs, **kwargs):
+        for obj in objs:
+            if not obj.public_id:
+                obj.public_id = generate_readable_id(obj.readable_id_prefix())
+        return super().bulk_create(objs, **kwargs)
 
 
 class ReadableIdModel(models.Model):
     """Keep numeric database PKs while giving every domain record a public ID."""
 
-    public_id = models.CharField(max_length=16, unique=True, editable=False)
+    public_id = models.CharField(max_length=30, unique=True, editable=False)
+    objects = ReadableIdManager()
 
     class Meta:
         abstract = True

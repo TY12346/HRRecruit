@@ -108,7 +108,7 @@ def _firebase_push_result(status: str, **extra) -> dict:
 
 def _notification_data(notification: Notification) -> dict:
     return {
-        'notification_id': notification.id,
+        'notification_id': notification.public_id,
         'notification_type': notification.notification_type,
         'related_entity_type': notification.related_entity_type,
         'related_entity_id': notification.related_entity_id,

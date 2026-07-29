@@ -13,7 +13,7 @@ import '../../widgets/app_navigation.dart';
 class ApplicationDetailScreen extends StatefulWidget {
   const ApplicationDetailScreen({super.key, required this.applicationId});
 
-  final int applicationId;
+  final String applicationId;
 
   @override
   State<ApplicationDetailScreen> createState() =>

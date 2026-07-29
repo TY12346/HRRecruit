@@ -29,7 +29,7 @@ class NotificationDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, notification_id):
-        notification = get_object_or_404(notifications_for(request.user), id=notification_id)
+        notification = get_object_or_404(notifications_for(request.user), public_id=notification_id)
         return Response(NotificationSerializer(notification).data)
 
 
@@ -37,7 +37,7 @@ class NotificationMarkReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, notification_id):
-        notification = get_object_or_404(notifications_for(request.user), id=notification_id)
+        notification = get_object_or_404(notifications_for(request.user), public_id=notification_id)
         if not notification.is_read:
             notification.is_read = True
             notification.save(update_fields=['is_read'])
@@ -77,7 +77,7 @@ class PushDeviceDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, device_id):
-        device = get_object_or_404(push_devices_for(request.user), id=device_id)
+        device = get_object_or_404(push_devices_for(request.user), public_id=device_id)
         device.is_active = False
         device.save(update_fields=['is_active', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)

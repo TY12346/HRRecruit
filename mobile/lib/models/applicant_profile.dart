@@ -8,7 +8,7 @@ class ApplicantExperience {
     required this.location,
   });
 
-  final int? experienceId;
+  final String? experienceId;
   final String jobTitle;
   final String employmentType;
   final String companyName;
@@ -17,7 +17,7 @@ class ApplicantExperience {
 
   factory ApplicantExperience.fromJson(Map<String, dynamic> json) {
     return ApplicantExperience(
-      experienceId: json['experience_id'] as int?,
+      experienceId: json['experience_id']?.toString(),
       jobTitle: json['job_title'] as String? ?? '',
       employmentType: json['employment_type'] as String? ?? '',
       companyName: json['company_name'] as String? ?? '',
@@ -46,7 +46,7 @@ class ApplicantEducation {
     required this.grade,
   });
 
-  final int? educationId;
+  final String? educationId;
   final String schoolName;
   final String degreeName;
   final String fieldOfStudy;
@@ -56,7 +56,7 @@ class ApplicantEducation {
 
   factory ApplicantEducation.fromJson(Map<String, dynamic> json) {
     return ApplicantEducation(
-      educationId: json['education_id'] as int?,
+      educationId: json['education_id']?.toString(),
       schoolName: json['school_name'] as String? ?? '',
       degreeName: json['degree_name'] as String? ?? '',
       fieldOfStudy: json['field_of_study'] as String? ?? '',
@@ -79,12 +79,12 @@ class ApplicantEducation {
 class ApplicantSkill {
   const ApplicantSkill({this.skillId, required this.skillName});
 
-  final int? skillId;
+  final String? skillId;
   final String skillName;
 
   factory ApplicantSkill.fromJson(Map<String, dynamic> json) {
     return ApplicantSkill(
-      skillId: json['skill_id'] as int?,
+      skillId: json['skill_id']?.toString(),
       skillName: json['skill_name'] as String? ?? '',
     );
   }
@@ -102,7 +102,7 @@ class ApplicantResume {
     this.uploadedAt,
   });
 
-  final int id;
+  final String id;
   final String title;
   final String resumeFile;
   final String? resumeUrl;
@@ -111,7 +111,7 @@ class ApplicantResume {
 
   factory ApplicantResume.fromJson(Map<String, dynamic> json) {
     return ApplicantResume(
-      id: json['id'] as int,
+      id: json['id']?.toString() ?? '',
       title: json['title'] as String? ?? '',
       resumeFile: json['resume_file'] as String? ?? '',
       resumeUrl: json['resume_url'] as String?,
@@ -137,7 +137,7 @@ class ApplicantProfile {
     this.resumeFile,
   });
 
-  final int id;
+  final String id;
   final String email;
   final String fullName;
   final String phoneNumber;
@@ -152,7 +152,7 @@ class ApplicantProfile {
 
   factory ApplicantProfile.fromJson(Map<String, dynamic> json) {
     return ApplicantProfile(
-      id: json['id'] as int,
+      id: json['id']?.toString() ?? '',
       email: json['email'] as String? ?? '',
       fullName: json['full_name'] as String? ?? '',
       phoneNumber: json['phone_number'] as String? ?? '',

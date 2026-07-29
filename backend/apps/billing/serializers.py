@@ -77,25 +77,25 @@ class PaymentSerializer(ReadableIdModelSerializer):
 
 
 class PlanSelectionSerializer(serializers.Serializer):
-    plan_id = serializers.IntegerField()
+    plan_id = serializers.CharField()
     is_auto_renew = serializers.BooleanField(default=False)
 
     def validate_plan_id(self, value):
         try:
-            return SubscriptionPlan.objects.get(id=value, is_active=True)
+            return SubscriptionPlan.objects.get(public_id=value, is_active=True)
         except SubscriptionPlan.DoesNotExist as exc:
             raise serializers.ValidationError('Active subscription plan not found.') from exc
 
 
 class DemoPaymentSuccessSerializer(serializers.Serializer):
-    subscription_id = serializers.IntegerField()
+    subscription_id = serializers.CharField()
     transaction_reference = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
     def validate_subscription_id(self, value):
         organization = self.context['organization']
         try:
             return Subscription.objects.select_related('plan', 'organization').get(
-                id=value,
+                public_id=value,
                 organization=organization,
                 status=Subscription.Status.PENDING,
             )
@@ -104,7 +104,7 @@ class DemoPaymentSuccessSerializer(serializers.Serializer):
 
 
 class CheckoutSessionSerializer(serializers.Serializer):
-    subscription_id = serializers.IntegerField()
+    subscription_id = serializers.CharField()
     gateway = serializers.ChoiceField(
         choices=[
             Payment.PaymentGateway.DEMO,
@@ -119,7 +119,7 @@ class CheckoutSessionSerializer(serializers.Serializer):
         organization = self.context['organization']
         try:
             return Subscription.objects.select_related('plan', 'organization').get(
-                id=value,
+                public_id=value,
                 organization=organization,
                 status=Subscription.Status.PENDING,
             )

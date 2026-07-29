@@ -288,7 +288,7 @@ class ApplicantResumeDetailAPIView(APIView):
     def get_resume(self, request, resume_id):
         if request.user.role != User.Role.APPLICANT:
             return None
-        return get_object_or_404(ApplicantResume, id=resume_id, applicant=request.user)
+        return get_object_or_404(ApplicantResume, public_id=resume_id, applicant=request.user)
 
     def patch(self, request, resume_id):
         if request.user.role != User.Role.APPLICANT:

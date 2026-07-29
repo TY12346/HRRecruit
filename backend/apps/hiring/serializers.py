@@ -26,7 +26,7 @@ class HRDecisionReviewSerializer(serializers.Serializer):
 class JobDecisionSubmitSerializer(serializers.Serializer):
     decision_type = serializers.ChoiceField(choices=JobHiringDecision.DecisionType.choices)
     justification = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
-    application_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
+    application_ids = serializers.ListField(child=serializers.CharField(), required=False, default=list)
     reasons = serializers.DictField(child=serializers.CharField(allow_blank=True), required=False, default=dict)
 
 

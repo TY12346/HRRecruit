@@ -180,7 +180,7 @@ class InterviewerUnavailableDateSerializer(ReadableIdModelSerializer):
 
 class GeneratedInterviewSlotSerializer(serializers.Serializer):
     id = serializers.CharField()
-    pattern_id = serializers.IntegerField()
+    pattern_id = serializers.CharField()
     date = serializers.DateField()
     start_time = serializers.TimeField()
     end_time = serializers.TimeField()
@@ -270,9 +270,9 @@ class InterviewSchedulingRequestSerializer(ReadableIdModelSerializer):
 
 
 class CreateSchedulingRequestSerializer(serializers.Serializer):
-    interviewer_id = serializers.IntegerField(required=False)
+    interviewer_id = serializers.CharField(required=False)
     interviewer_ids = serializers.ListField(
-        child=serializers.IntegerField(),
+        child=serializers.CharField(),
         required=False,
         allow_empty=False,
     )
@@ -292,8 +292,8 @@ class CreateSchedulingRequestSerializer(serializers.Serializer):
 
 
 class BookSchedulingRequestSerializer(serializers.Serializer):
-    slot_id = serializers.IntegerField(required=False)
-    pattern_id = serializers.IntegerField(required=False)
+    slot_id = serializers.CharField(required=False)
+    pattern_id = serializers.CharField(required=False)
     interview_date = serializers.DateField(required=False)
     start_time = serializers.TimeField(required=False)
     end_time = serializers.TimeField(required=False)
@@ -308,9 +308,9 @@ class BookSchedulingRequestSerializer(serializers.Serializer):
 
 
 class AssignInterviewerSerializer(serializers.Serializer):
-    interviewer_id = serializers.IntegerField(required=False)
+    interviewer_id = serializers.CharField(required=False)
     interviewer_ids = serializers.ListField(
-        child=serializers.IntegerField(),
+        child=serializers.CharField(),
         required=False,
         allow_empty=False,
         max_length=3,

@@ -10,25 +10,25 @@ class AppNotification {
     required this.createdAt,
   });
 
-  final int id;
+  final String id;
   final String notificationType;
   final String title;
   final String message;
   final String relatedEntityType;
-  final int? relatedEntityId;
+  final String? relatedEntityId;
   final bool isRead;
   final DateTime? createdAt;
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     return AppNotification(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
       notificationType: json['notification_type'] as String? ?? '',
       title: json['title'] as String? ?? '',
       message: json['message'] as String? ?? '',
       relatedEntityType: json['related_entity_type'] as String? ?? '',
       relatedEntityId: json['related_entity_id'] == null
           ? null
-          : _asInt(json['related_entity_id']),
+          : json['related_entity_id']?.toString() ?? '',
       isRead: json['is_read'] == true,
       createdAt: _asDateTime(json['created_at']),
     );

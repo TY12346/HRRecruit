@@ -12,7 +12,7 @@ class JobOffer {
     required this.respondedAt,
   });
 
-  final int id;
+  final String id;
   final JobApplication? application;
   final String offerLetterUrl;
   final String offerMessage;
@@ -25,7 +25,7 @@ class JobOffer {
 
   factory JobOffer.fromJson(Map<String, dynamic> json) {
     return JobOffer(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
       application: json['application'] is Map<String, dynamic>
           ? JobApplication.fromJson(json['application'] as Map<String, dynamic>)
           : null,

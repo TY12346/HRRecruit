@@ -1,16 +1,32 @@
 from rest_framework import serializers
 
 
+class PublicIdRelatedField(serializers.SlugRelatedField):
+    """Represent model relationships with public IDs, accepting legacy PKs temporarily."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('slug_field', 'public_id')
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except serializers.ValidationError:
+            if isinstance(data, int) or (isinstance(data, str) and data.isdecimal()):
+                try:
+                    return self.get_queryset().get(pk=data)
+                except (TypeError, ValueError, self.get_queryset().model.DoesNotExist):
+                    pass
+            self.fail('does_not_exist', slug_name=self.slug_field, value=data)
+
+
 class ReadableIdModelSerializer(serializers.ModelSerializer):
-    """Expose the stable public ID without breaking numeric FK API contracts."""
+    """Use the typed public ID as the canonical ID at the API boundary."""
 
-    def get_field_names(self, declared_fields, info):
-        field_names = list(super().get_field_names(declared_fields, info))
-        if 'public_id' not in field_names:
-            field_names.insert(field_names.index('id') + 1 if 'id' in field_names else 0, 'public_id')
-        return field_names
+    serializer_related_field = PublicIdRelatedField
 
-    def get_extra_kwargs(self):
-        extra_kwargs = super().get_extra_kwargs()
-        extra_kwargs.setdefault('public_id', {})['read_only'] = True
-        return extra_kwargs
+    def get_fields(self):
+        fields = super().get_fields()
+        if 'id' in fields:
+            fields['id'] = serializers.CharField(source='public_id', read_only=True)
+        return fields

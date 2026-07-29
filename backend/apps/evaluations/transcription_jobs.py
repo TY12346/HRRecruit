@@ -21,7 +21,7 @@ def _process(transcript_id):
         transcript.save(update_fields=['processing_status', 'processing_error'])
         cached = InterviewTranscript.objects.filter(recording__audio_sha256=transcript.recording.audio_sha256, processing_status=ProcessingStatus.COMPLETED).exclude(pk=transcript.pk).order_by('-generated_at').first()
         if cached:
-            transcript.transcript_text, transcript.transcript_json = cached.transcript_text, {**cached.transcript_json, 'cache_reused_from_transcript_id': cached.id}
+            transcript.transcript_text, transcript.transcript_json = cached.transcript_text, {**cached.transcript_json, 'cache_reused_from_transcript_id': cached.public_id}
         else:
             payload = transcribe_recording_payload(transcript.recording)
             transcript.transcript_text, transcript.transcript_json = payload['transcript_text'], payload['transcript_json']

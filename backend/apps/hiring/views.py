@@ -132,7 +132,7 @@ def recruiter_application_or_404(user, application_id):
         raise PermissionDenied('Recruiter must belong to an active organization.')
     return get_object_or_404(
         JobApplication.objects.select_related('job', 'job__organization', 'job__recruiter', 'applicant'),
-        id=application_id,
+        public_id=application_id,
         job__organization=membership.organization,
         job__recruiter=user,
     )
@@ -144,7 +144,7 @@ def pending_decision_for_hr_head_or_404(user, decision_id):
         raise PermissionDenied('An active hiring manager organization membership is required.')
     decision = get_object_or_404(
         HiringDecision.objects.select_for_update(),
-        id=decision_id,
+        public_id=decision_id,
         status=HiringDecision.Status.PENDING_HR_APPROVAL,
     )
     if decision.application.job.organization_id != membership.organization_id:
@@ -160,14 +160,14 @@ def recruiter_offer_for_update_or_404(user, offer_id):
         raise PermissionDenied('Recruiter must belong to an active organization.')
     return get_object_or_404(
         JobOffer.objects.select_for_update().select_related('application', 'application__job', 'application__applicant'),
-        id=offer_id,
+        public_id=offer_id,
         application__job__organization=membership.organization,
         application__job__recruiter=user,
     )
 
 
 def applicant_offer_for_update_or_404(user, offer_id):
-    offer = get_object_or_404(JobOffer.objects.select_for_update(), id=offer_id)
+    offer = get_object_or_404(JobOffer.objects.select_for_update(), public_id=offer_id)
     if offer.application.applicant_id != user.id:
         raise Http404('Job offer not found.')
     return offer
@@ -179,7 +179,7 @@ def hr_offer_for_update_or_404(user, offer_id):
         raise PermissionDenied('An active hiring manager organization membership is required.')
     return get_object_or_404(
         JobOffer.objects.select_for_update().select_related('application', 'application__job', 'application__applicant'),
-        id=offer_id, application__job__organization=membership.organization,
+        public_id=offer_id, application__job__organization=membership.organization,
     )
 
 
@@ -195,7 +195,7 @@ def recruiter_job_or_404(user, job_id):
         raise PermissionDenied('Recruiter must belong to an active organization.')
     return get_object_or_404(
         JobPosting.objects.select_related('organization', 'recruiter'),
-        id=job_id, organization=membership.organization, recruiter=user,
+        public_id=job_id, organization=membership.organization, recruiter=user,
     )
 
 
@@ -207,7 +207,7 @@ def decision_for_hr_or_404(user, decision_id):
         raise PermissionDenied('An active hiring manager organization membership is required.')
     return get_object_or_404(
         JobHiringDecision.objects.select_for_update().select_related('job_posting', 'recruiter'),
-        id=decision_id, job_posting__organization=membership.organization,
+        public_id=decision_id, job_posting__organization=membership.organization,
         status=JobHiringDecision.Status.PENDING_HR_APPROVAL,
     )
 
@@ -227,7 +227,7 @@ class JobApplicantComparisonAPIView(APIView):
             membership = get_active_membership(request.user, OrganizationMembership.Role.HR_HEAD)
             if not membership:
                 raise PermissionDenied('An active hiring manager organization membership is required.')
-            job = get_object_or_404(JobPosting, id=job_id, organization=membership.organization)
+            job = get_object_or_404(JobPosting, public_id=job_id, organization=membership.organization)
         else:
             raise PermissionDenied('Only recruiters and hiring managers can compare applicants.')
 
@@ -247,7 +247,7 @@ class JobApplicantComparisonAPIView(APIView):
             summaries = [summary for interview in interviews for recording in interview.recordings.all()
                          for transcript in recording.transcripts.all() for summary in transcript.ai_summaries.all()]
             applicants.append({
-                'application_id': application.id,
+                'application_id': application.public_id,
                 'applicant_name': application.applicant.full_name,
                 'applicant_email': application.applicant.email,
                 'applicant_phone': application.applicant.phone_number,
@@ -293,7 +293,7 @@ class JobApplicantComparisonAPIView(APIView):
                     }
                     for evaluation in evaluations
                 ],
-                'interviews': [{'id': interview.id} for interview in interviews],
+                'interviews': [{'id': interview.public_id} for interview in interviews],
                 'transcript_status': 'available' if transcripts else 'not_available',
                 'ai_summary_status': 'available' if summaries else 'not_available',
                 'ai_interview_summaries': [summary.editable_summary_text for summary in summaries],
@@ -303,7 +303,7 @@ class JobApplicantComparisonAPIView(APIView):
                     and scorecards['complete']
                 ),
             })
-        return Response({'job': {'id': job.id, 'title': job.title, 'status': job.status, 'vacancies': job.vacancies},
+        return Response({'job': {'id': job.public_id, 'title': job.title, 'status': job.status, 'vacancies': job.vacancies},
                          'readiness': readiness, 'applicants': applicants})
 
 
@@ -322,9 +322,7 @@ class JobHiringDecisionListCreateAPIView(APIView):
             raise PermissionDenied('Your role cannot access job-level hiring decisions.')
         job_posting = request.query_params.get('job_posting')
         if job_posting:
-            if not job_posting.isdigit():
-                raise ValidationError({'job_posting': 'A valid job posting id is required.'})
-            decisions = decisions.filter(job_posting_id=job_posting)
+            decisions = decisions.filter(job_posting__public_id=job_posting)
         decision_status = request.query_params.get('status')
         if decision_status:
             if decision_status not in JobHiringDecision.Status.values:
@@ -376,11 +374,11 @@ class JobHiringDecisionListCreateAPIView(APIView):
                 raise ValidationError({'application_ids': f'No more than {job.vacancies} applicant(s) may be selected for this job.'})
         elif application_ids:
             raise ValidationError({'application_ids': 'Recommend No Hire must not select any applicants.'})
-        applications = list(job.applications.filter(id__in=application_ids))
+        applications = list(job.applications.filter(public_id__in=application_ids))
         if len(applications) != len(application_ids):
             raise ValidationError({'application_ids': 'Every selected applicant must belong to this job posting.'})
         invalid = [
-            application.id for application in applications
+            application.public_id for application in applications
             if application.status not in HIRING_DECISION_ELIGIBLE_APPLICATION_STATUSES
             or not application_scorecard_progress(application)['complete']
         ]
@@ -395,7 +393,7 @@ class JobHiringDecisionListCreateAPIView(APIView):
         reasons = serializer.validated_data['reasons']
         JobHiringDecisionItem.objects.bulk_create([
             JobHiringDecisionItem(decision=decision, application=application,
-                                        selection_order=index, reason=reasons.get(str(application.id), ''), selected_for_offer=True)
+                                        selection_order=index, reason=reasons.get(str(application.public_id), ''), selected_for_offer=True)
             for index, application in enumerate(applications, start=1)
         ])
         job.status = JobPosting.Status.CLOSED
@@ -479,7 +477,7 @@ class HiringDecisionDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, decision_id):
-        decision = get_object_or_404(visible_decisions_for(request.user), id=decision_id)
+        decision = get_object_or_404(visible_decisions_for(request.user), public_id=decision_id)
         return Response(HiringDecisionSerializer(decision, context={'request': request}).data)
 
 
@@ -602,9 +600,7 @@ class JobOfferListAPIView(APIView):
         offers = visible_offers_for(request.user)
         job_posting = request.query_params.get('job_posting')
         if job_posting:
-            if not job_posting.isdigit():
-                raise ValidationError({'job_posting': 'A valid job posting id is required.'})
-            offers = offers.filter(application__job_id=job_posting)
+            offers = offers.filter(application__job__public_id=job_posting)
         offer_status = request.query_params.get('offer_status')
         if offer_status:
             if offer_status not in JobOffer.OfferStatus.values:

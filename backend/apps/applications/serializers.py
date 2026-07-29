@@ -13,12 +13,12 @@ def build_resume_payload(application, context=None):
     selected_resume = getattr(application, 'resume', None)
     if snapshot_resume:
         resume_file = snapshot_resume
-        resume_id = selected_resume.id if selected_resume else None
+        resume_id = selected_resume.public_id if selected_resume else None
         resume_title = application.application_resume_name or resume_file.name.split('/')[-1]
         is_default = selected_resume.is_default if selected_resume else False
     elif selected_resume and selected_resume.resume_file:
         resume_file = selected_resume.resume_file
-        resume_id = selected_resume.id
+        resume_id = selected_resume.public_id
         resume_title = selected_resume.title
         is_default = selected_resume.is_default
     else:
@@ -198,7 +198,7 @@ class ApplicationSearchResultSerializer(JobApplicationSerializer):
             return None
         interview = latest[0]
         return {
-            'id': interview.id,
+            'id': interview.public_id,
             'status': interview.status,
             'scheduled_datetime': interview.scheduled_datetime,
             'interview_date': interview.interview_date,
@@ -209,7 +209,7 @@ class ApplicationSearchResultSerializer(JobApplicationSerializer):
     def get_hiring_decisions(self, application):
         return [
             {
-                'id': decision.id,
+                'id': decision.public_id,
                 'decision': decision.decision,
                 'status': decision.status,
                 'recruiter_id': decision.recruiter_id,
@@ -224,7 +224,7 @@ class ApplicationSearchResultSerializer(JobApplicationSerializer):
 
 
 class ApplicationShortlistSerializer(serializers.Serializer):
-    interviewer_id = serializers.IntegerField(required=True)
+    interviewer_id = serializers.CharField(required=True)
     remark = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
 

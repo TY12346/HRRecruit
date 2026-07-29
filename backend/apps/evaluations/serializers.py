@@ -196,7 +196,7 @@ class InterviewAISummaryUpdateSerializer(ReadableIdModelSerializer):
 
 
 class EvaluationAnswerInputSerializer(serializers.Serializer):
-    criterion_id = serializers.IntegerField()
+    criterion_id = serializers.CharField()
     score = serializers.DecimalField(max_digits=5, decimal_places=2)
     comment = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
@@ -231,7 +231,7 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
             raise serializers.ValidationError({'answers': 'This job does not have an interview evaluation scorecard configured.'})
 
         criteria = list(form.criteria.all())
-        criteria_by_id = {criterion.id: criterion for criterion in criteria}
+        criteria_by_id = {criterion.public_id: criterion for criterion in criteria}
         expected_ids = set(criteria_by_id)
         submitted_ids = [answer['criterion_id'] for answer in attrs['answers']]
         submitted_id_set = set(submitted_ids)
@@ -295,12 +295,12 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
 
 
 class InterviewEvaluationDetailSerializer(serializers.Serializer):
-    interview_id = serializers.IntegerField(source='id')
-    application_id = serializers.IntegerField(source='application.id')
+    interview_id = serializers.CharField(source='public_id')
+    application_id = serializers.CharField(source='application.public_id')
     application_status = serializers.CharField(source='application.status')
-    job_id = serializers.IntegerField(source='application.job.id')
+    job_id = serializers.CharField(source='application.job.public_id')
     job_title = serializers.CharField(source='application.job.title')
-    applicant_id = serializers.IntegerField(source='application.applicant.id')
+    applicant_id = serializers.CharField(source='application.applicant.public_id')
     applicant_name = serializers.CharField(source='application.applicant.full_name')
     transcript = serializers.SerializerMethodField()
     ai_summary = serializers.SerializerMethodField()
