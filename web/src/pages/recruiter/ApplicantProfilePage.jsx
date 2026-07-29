@@ -12,11 +12,12 @@ import {
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { getApplicantProfile, openApplicationResume, rejectApplication } from '../../api/client.js';
+import { getApplicantProfile, openApplicationResume, rejectApplication, screenApplication } from '../../api/client.js';
 import RecruiterNav from './RecruiterNav.jsx';
 import { getApplicationStatusInfo } from '../../utils/recruitmentFlow.js';
 import { applicationName, getApiErrorMessage, titleize } from './recruiterUtils.js';
 import { renderApplicationTemplate } from './communicationTemplates.js';
+import ScreeningExplainabilityPanel from './ScreeningExplainabilityPanel.jsx';
 
 const EMPTY_EXTRACTION_VALUE = '—';
 
@@ -55,6 +56,7 @@ export default function ApplicantProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isScreening, setIsScreening] = useState(false);
 
   const load = async () => {
     setIsLoading(true);
@@ -111,6 +113,18 @@ export default function ApplicantProfilePage() {
     }
   };
 
+  const runScreening = async () => {
+    setIsScreening(true); setError(''); setSuccess('');
+    try {
+      const result = await screenApplication(applicationId);
+      if (!result?.score_explanation?.analysis_id) throw new Error('The backend did not return a genuine analysis result.');
+      await load();
+      setSuccess('Live AI screening completed. The explanation below is from the new backend analysis.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, err.message || 'AI screening could not process this resume.'));
+    } finally { setIsScreening(false); }
+  };
+
   const applicant = profile?.applicant_profile;
 
   return (
@@ -136,6 +150,9 @@ export default function ApplicantProfilePage() {
                   <Button color="error" onClick={reject} variant="outlined">Reject</Button>
                 </Stack>
               ) : null}
+              <Button variant="contained" disabled={isScreening} onClick={runScreening} startIcon={isScreening ? <CircularProgress size={16} color="inherit" /> : null}>
+                {isScreening ? 'Running Sentence-BERT…' : profile.scores?.explanation && Object.keys(profile.scores.explanation).length ? 'Refresh AI screening' : 'Run AI screening'}
+              </Button>
             </Stack>
 
             <Card>
@@ -154,6 +171,7 @@ export default function ApplicantProfilePage() {
                 </Stack>
               </CardContent>
             </Card>
+            <ScreeningExplainabilityPanel profile={profile} />
           </Stack>
         ) : null}
       </Paper>

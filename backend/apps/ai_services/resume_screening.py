@@ -2,6 +2,9 @@
 
 from decimal import Decimal
 import re
+import uuid
+
+from django.utils import timezone
 
 from apps.jobs.models import JobRequirement
 
@@ -10,7 +13,7 @@ from .experience_extractor import extract_experience
 from .resume_preprocessor import preprocess_for_matching
 from .resume_text_extractor import extract_resume_text
 from .scoring import calculate_score_breakdown
-from .semantic_matcher import semantic_similarity
+from .semantic_matcher import build_semantic_analysis
 from .skill_extractor import extract_skills, normalize_skill_key
 
 
@@ -50,7 +53,10 @@ def build_resume_screening(application):
         _requirements_text(requirements, JobRequirement.RequirementType.EDUCATION)
     )
 
-    semantic_score = semantic_similarity(matching_resume_text, matching_comparison_text)
+    semantic_analysis = build_semantic_analysis(
+        resume_text, application.job.title, application.job.description, requirements,
+    )
+    semantic_score = semantic_analysis['overall_score']
     skill_score = calculate_skill_score(extracted_skills, required_skills, skill_requirements)
     experience_score = calculate_experience_score(extracted_experience, required_experience)
     education_score = calculate_education_score(extracted_education, required_education)
@@ -77,9 +83,13 @@ def build_resume_screening(application):
     final_score = scores['final_score']
     is_qualified = final_score >= SCREENING_THRESHOLD
     explanation = {
+        'analysis_id': str(uuid.uuid4()),
+        'generated_at': timezone.now().isoformat(),
+        'analysis_provenance': 'live_screening',
+        'screening_method': 'hybrid_ai_assisted_screening',
         'formula': rule_based_formula,
-        'score_source': 'deterministic_rule_based_screening',
-        'model_version': 'deterministic-keyword-and-score-v1',
+        'score_source': 'hybrid_ai_assisted_screening',
+        'model_version': semantic_analysis['model_name'],
         'threshold': SCREENING_THRESHOLD,
         'semantic_score': scores['semantic_score'],
         'skill_score': scores['skill_score'],
@@ -113,6 +123,7 @@ def build_resume_screening(application):
             'score': scores['semantic_score'],
             'comparison_source': 'job title, description, and configured requirements',
         },
+        'semantic_analysis': semantic_analysis,
         'skills': {
             'score': scores['skill_score'],
             'required': required_skills,
@@ -138,6 +149,12 @@ def build_resume_screening(application):
             'match': education_match,
             'gap': education_gap,
         },
+        'score_calculation': {
+            'formula': rule_based_formula,
+            'components': _score_calculation_components(scores),
+            'final_score': final_score,
+            'method': 'Deterministic weighted combination',
+        },
     }
     return {
         'extracted_resume_text': resume_text,
@@ -151,6 +168,19 @@ def build_resume_screening(application):
         'final_score': final_score,
         'score_explanation': explanation,
     }
+
+
+def _score_calculation_components(scores):
+    definitions = (
+        ('semantic_score', 'Semantic similarity', 'Sentence-BERT AI', 0.4),
+        ('skill_score', 'Skills match', 'spaCy PhraseMatcher and exact required-skill matching', 0.3),
+        ('experience_score', 'Experience match', 'Structured rule-based extraction', 0.2),
+        ('education_score', 'Education match', 'Structured rule-based extraction', 0.1),
+    )
+    return [{
+        'key': key, 'label': label, 'method': method, 'score': scores[key], 'weight': weight,
+        'weighted_contribution': round(scores[key] * weight, 2),
+    } for key, label, method, weight in definitions]
 
 
 def get_application_resume_file(application):
