@@ -23,6 +23,7 @@ export default function SubmitEvaluationPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const criteria = useMemo(() => interview?.evaluation_criteria ?? [], [interview]);
+  const evaluationSubmitted = Boolean(interview?.evaluation_submitted);
   const deliverableStatus = interview?.deliverable_status;
   const deliverableDeadline = deliverableStatus?.deadline ? new Date(deliverableStatus.deadline).toLocaleString() : '';
 
@@ -76,12 +77,12 @@ export default function SubmitEvaluationPage() {
           </Box>
         ) : null}
 
-        {interview?.evaluation_submitted || deliverableDeadline ? (
+        {evaluationSubmitted || deliverableDeadline ? (
           <Alert severity="info" sx={{ mb: 2 }}>
-            {interview?.evaluation_submitted ? 'Evaluation form already submitted' : deliverableDeadline}
+            {evaluationSubmitted ? 'Evaluation form already submitted' : deliverableDeadline}
           </Alert>
         ) : null}
-        {criteria.length === 0 && interview && !interview.evaluation_submitted ? (
+        {criteria.length === 0 && interview && !evaluationSubmitted ? (
           <Alert severity="warning" sx={{ mb: 2 }}>
             This job does not have an interview evaluation scorecard configured yet. Ask the recruiter to set up the form before submitting an evaluation.
           </Alert>
@@ -89,7 +90,7 @@ export default function SubmitEvaluationPage() {
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
 
-        {!interview?.evaluation_submitted ? (
+        {!evaluationSubmitted ? (
           <Stack component="form" spacing={2} onSubmit={submit}>
             <TextField
               label="Overall comment"
