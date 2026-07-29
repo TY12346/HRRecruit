@@ -100,6 +100,6 @@ const normalizeWeights = (criteria) => {
 };
 
 export function prepareCriteriaForApi(criteria, { normalizeImportance = true } = {}) {
-  const cleaned = criteria.map(({ importance_level, ...criterion }) => criterion);
+  const cleaned = criteria.map((criterion) => ({ ...criterion }));
   return normalizeImportance ? normalizeWeights(cleaned) : cleaned;
 }

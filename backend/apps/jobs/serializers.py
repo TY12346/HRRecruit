@@ -19,7 +19,7 @@ class JobRequirementSerializer(ReadableIdModelSerializer):
 
     class Meta:
         model = JobRequirement
-        fields = ['id', 'requirement_type', 'description', 'weight_score', 'minimum_threshold', 'created_at']
+        fields = ['id', 'requirement_type', 'description', 'importance_level', 'weight_score', 'minimum_threshold', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 
@@ -36,7 +36,7 @@ class EvaluationCriterionSerializer(ReadableIdModelSerializer):
 
     class Meta:
         model = EvaluationCriterion
-        fields = ['id', 'criterion_name', 'description', 'max_score', 'weight_score', 'created_at']
+        fields = ['id', 'criterion_name', 'description', 'importance_level', 'max_score', 'weight_score', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 

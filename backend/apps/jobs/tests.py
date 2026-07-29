@@ -244,6 +244,30 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(job.requirements.count(), 2)
         self.assertEqual(sum(job.requirements.values_list('weight_score', flat=True)), Decimal('1.00'))
 
+    def test_requirement_importance_survives_weight_normalization(self):
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
+        self.authenticate(self.recruiter)
+
+        response = self.client.put(
+            reverse('job-requirements', args=[job.id]),
+            {
+                'requirements': [{
+                    'requirement_type': 'skill',
+                    'description': 'Helpful secondary skill',
+                    'importance_level': 'optional',
+                    'weight_score': '0.10',
+                    'minimum_threshold': '0.50',
+                }],
+                'normalize_weights': True,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['requirements'][0]['importance_level'], 'optional')
+        self.assertEqual(job.requirements.get().importance_level, 'optional')
+        self.assertEqual(job.requirements.get().weight_score, Decimal('1.00'))
+
     def test_recruiter_can_create_and_update_evaluation_scorecard(self):
         job = self.create_job(status=JobPosting.Status.DRAFTING)
         self.authenticate(self.recruiter)
@@ -284,6 +308,29 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(job.interview_evaluation_form.criteria.count(), 1)
         self.assertEqual(job.interview_evaluation_form.title, 'Updated Interview Scorecard')
         self.assertEqual(job.interview_evaluation_form.criteria.get().criterion_name, 'Communication')
+
+    def test_scorecard_criterion_importance_is_persisted(self):
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
+        self.authenticate(self.recruiter)
+
+        response = self.client.post(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {
+                'title': 'Interview Scorecard',
+                'criteria': [{
+                    'criterion_name': 'Additional context',
+                    'description': 'Useful but low-impact evidence',
+                    'importance_level': 'minor',
+                    'max_score': '5.00',
+                    'weight_score': '1.00',
+                }],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['criteria'][0]['importance_level'], 'minor')
+        self.assertEqual(job.interview_evaluation_form.criteria.get().importance_level, 'minor')
 
 
     def test_hr_approval_creates_draft_job_for_recruiter_configuration(self):

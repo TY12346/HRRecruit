@@ -80,5 +80,5 @@ export function cloneRequirement() {
 }
 
 export function prepareRequirementsForApi(requirements) {
-  return requirements.map(({ importance_level, ...requirement }) => requirement);
+  return requirements.map((requirement) => ({ ...requirement }));
 }

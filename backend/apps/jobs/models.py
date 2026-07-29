@@ -103,12 +103,23 @@ class JobRequirement(ReadableIdModel):
         CERTIFICATION = 'certification', 'Certification'
         OTHER = 'other', 'Other'
 
+    class ImportanceLevel(models.TextChoices):
+        MUST_HAVE = 'must_have', 'Must-have'
+        IMPORTANT = 'important', 'Important'
+        NICE_TO_HAVE = 'nice_to_have', 'Nice-to-have'
+        OPTIONAL = 'optional', 'Optional'
+
     job = models.ForeignKey(
         JobPosting,
         on_delete=models.CASCADE,
         related_name='requirements',
     )
     requirement_type = models.CharField(max_length=20, choices=RequirementType.choices)
+    importance_level = models.CharField(
+        max_length=20,
+        choices=ImportanceLevel.choices,
+        default=ImportanceLevel.IMPORTANT,
+    )
     description = models.TextField()
     weight_score = models.DecimalField(max_digits=5, decimal_places=2)
     minimum_threshold = models.DecimalField(max_digits=5, decimal_places=2)
@@ -137,6 +148,12 @@ class InterviewEvaluationForm(ReadableIdModel):
 
 
 class EvaluationCriterion(ReadableIdModel):
+    class ImportanceLevel(models.TextChoices):
+        CORE = 'core', 'Core competency'
+        STANDARD = 'standard', 'Standard competency'
+        SUPPORTING = 'supporting', 'Supporting competency'
+        MINOR = 'minor', 'Minor competency'
+
     form = models.ForeignKey(
         InterviewEvaluationForm,
         on_delete=models.CASCADE,
@@ -144,6 +161,11 @@ class EvaluationCriterion(ReadableIdModel):
     )
     criterion_name = models.CharField(max_length=255)
     description = models.TextField()
+    importance_level = models.CharField(
+        max_length=20,
+        choices=ImportanceLevel.choices,
+        default=ImportanceLevel.STANDARD,
+    )
     max_score = models.DecimalField(max_digits=5, decimal_places=2)
     weight_score = models.DecimalField(max_digits=5, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
