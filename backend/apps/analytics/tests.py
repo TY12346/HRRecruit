@@ -180,6 +180,8 @@ class AnalyticsAPITests(APITestCase):
         self.assertEqual(response.data['metrics']['interviewer_evaluation_count'], 1)
         self.assertEqual(response.data['metrics']['average_evaluation_score'], 88.5)
         self.assertEqual(response.data['metrics']['total_applications'], 1)
+        self.assertEqual(response.data['top_jobs_by_applications'][0]['job_title'], 'Backend Engineer')
+        self.assertIn('top_jobs_by_applications', response.data['charts'])
 
     def test_hiring_manager_dashboard_and_overview_include_organization_performance_only(self):
         self.authenticate(self.hr_head)
