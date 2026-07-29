@@ -83,6 +83,9 @@ def generate_readable_id(prefix):
 
 class ReadableIdManager(models.Manager):
     def bulk_create(self, objs, **kwargs):
+        # Django accepts any iterable here. Materialize it before assigning IDs so
+        # generator expressions are not exhausted before Django inserts them.
+        objs = list(objs)
         for obj in objs:
             if not obj.public_id:
                 obj.public_id = generate_readable_id(obj.readable_id_prefix())

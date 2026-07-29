@@ -19,6 +19,7 @@ export default function JobRequirementsPage() {
   const [requirements, setRequirements] = useState([cloneRequirement()]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [requirementsLocked, setRequirementsLocked] = useState(false);
 
   useEffect(() => {
@@ -49,14 +50,28 @@ export default function JobRequirementsPage() {
     setError('');
     setSuccess('');
 
+    if (requirements.some((requirement) => !requirement.description.trim())) {
+      setError('Enter a description for every requirement before saving.');
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      await configureJobRequirements(jobId, {
+      const saveResponse = await configureJobRequirements(jobId, {
         requirements: prepareRequirementsForApi(requirements),
         normalize_weights: true,
       });
+      const refreshedJob = await getJob(jobId);
+      const savedRequirements = refreshedJob.requirements ?? saveResponse.requirements ?? [];
+      if (!savedRequirements.length) {
+        throw new Error('The server did not persist the requirements. Please try again.');
+      }
+      setRequirements(savedRequirements.length ? savedRequirements.map(hydrateRequirement) : [cloneRequirement()]);
       setSuccess('Requirements saved.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to save requirements.'));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -72,7 +87,7 @@ export default function JobRequirementsPage() {
         ) : null}
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
-        <Box component="form" onSubmit={save}>
+        <Box component="form" noValidate onSubmit={save}>
           <Stack spacing={2}>
             {requirements.map((req, index) => (
               <Paper key={index} variant="outlined" sx={{ p: 2 }}>
@@ -123,10 +138,12 @@ export default function JobRequirementsPage() {
               </Paper>
             ))}
             <Stack direction="row" spacing={1}>
-              <Button disabled={requirementsLocked} onClick={() => setRequirements((items) => [...items, cloneRequirement()])} variant="outlined">
+              <Button disabled={requirementsLocked || isSaving} onClick={() => setRequirements((items) => [...items, cloneRequirement()])} variant="outlined">
                 Add requirement
               </Button>
-              <Button disabled={requirementsLocked} type="submit" variant="contained">Save requirements</Button>
+              <Button disabled={requirementsLocked || isSaving} type="submit" variant="contained">
+                {isSaving ? 'Saving…' : 'Save requirements'}
+              </Button>
               <Button onClick={() => navigate(`/recruiter/jobs/${jobId}`)}>Back to job</Button>
             </Stack>
           </Stack>

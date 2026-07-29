@@ -21,6 +21,7 @@ export default function EvaluationFormBuilderPage() {
   const [existing, setExisting] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     getJob(jobId)
@@ -29,7 +30,8 @@ export default function EvaluationFormBuilderPage() {
         if (scorecard) {
           setExisting(scorecard);
           setTitle(scorecard.title);
-          setCriteria((scorecard.criteria ?? []).map(hydrateCriterion));
+          const savedCriteria = scorecard.criteria ?? [];
+          setCriteria(savedCriteria.length ? savedCriteria.map(hydrateCriterion) : [cloneCriterion()]);
         }
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load evaluation scorecard.')));
@@ -52,14 +54,32 @@ export default function EvaluationFormBuilderPage() {
     setError('');
     setSuccess('');
 
+    if (!title.trim()) {
+      setError('Enter a scorecard title before saving.');
+      return;
+    }
+    if (criteria.some((criterion) => !criterion.criterion_name.trim() || !criterion.description.trim())) {
+      setError('Enter a name and description for every criterion before saving.');
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const payloadCriteria = prepareCriteriaForApi(criteria);
-      const saved = await createInterviewEvaluationScorecard(jobId, { title, criteria: payloadCriteria });
+      await createInterviewEvaluationScorecard(jobId, { title, criteria: payloadCriteria });
+      const refreshedJob = await getJob(jobId);
+      const saved = refreshedJob.interview_evaluation_scorecard ?? refreshedJob.interview_evaluation_form;
+      if (!saved?.criteria?.length) {
+        throw new Error('The server did not persist the evaluation criteria. Please try again.');
+      }
       setSuccess(existing ? 'Evaluation scorecard updated.' : 'Evaluation scorecard created.');
       setExisting(saved);
-      setCriteria((saved.criteria ?? payloadCriteria).map(hydrateCriterion));
+      setTitle(saved.title);
+      setCriteria(saved.criteria.map(hydrateCriterion));
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to save evaluation scorecard.'));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -70,7 +90,7 @@ export default function EvaluationFormBuilderPage() {
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Evaluation scorecard builder</Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
-        <Box component="form" onSubmit={save}>
+        <Box component="form" noValidate onSubmit={save}>
           <Stack spacing={2}>
             <TextField label="Scorecard title" value={title} onChange={(event) => setTitle(event.target.value)} />
             {criteria.map((criterion, index) => (
@@ -119,10 +139,12 @@ export default function EvaluationFormBuilderPage() {
               </Paper>
             ))}
             <Stack direction="row" spacing={1}>
-              <Button onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">
+              <Button disabled={isSaving} onClick={() => setCriteria((items) => [...items, cloneCriterion()])} variant="outlined">
                 Add criterion
               </Button>
-              <Button type="submit" variant="contained">{existing ? 'Save changes' : 'Create'}</Button>
+              <Button disabled={isSaving} type="submit" variant="contained">
+                {isSaving ? 'Saving…' : existing ? 'Save changes' : 'Create'}
+              </Button>
               <Button onClick={() => navigate(`/recruiter/jobs/${jobId}`)}>Back to job</Button>
             </Stack>
           </Stack>
