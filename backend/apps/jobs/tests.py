@@ -468,6 +468,32 @@ class JobPostingAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('criteria', response.data)
 
+    def test_recruiter_can_fill_an_existing_empty_scorecard(self):
+        job = self.create_job(status=JobPosting.Status.DRAFTING)
+        InterviewEvaluationForm.objects.create(job=job, title='Interview Evaluation Scorecard')
+        self.authenticate(self.recruiter)
+
+        response = self.client.put(
+            reverse('job-evaluation-scorecard', args=[job.id]),
+            {
+                'title': 'Interview Evaluation Scorecard',
+                'criteria': [
+                    {
+                        'criterion_name': 'Communication',
+                        'description': 'Explains decisions clearly',
+                        'max_score': '10.00',
+                        'weight_score': '1.00',
+                    },
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['criteria']), 1)
+        self.assertEqual(response.data['criteria'][0]['criterion_name'], 'Communication')
+        self.assertEqual(job.interview_evaluation_form.criteria.count(), 1)
+
     def test_recruiter_cannot_change_requirements_after_job_is_posted(self):
         job = self.create_job(status=JobPosting.Status.DRAFTING)
         self.authenticate(self.recruiter)
