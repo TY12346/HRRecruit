@@ -50,10 +50,12 @@ export default function JobRequirementsPage() {
     setSuccess('');
 
     try {
-      await configureJobRequirements(jobId, {
+      const saved = await configureJobRequirements(jobId, {
         requirements: prepareRequirementsForApi(requirements),
         normalize_weights: true,
       });
+      const savedRequirements = saved.requirements ?? [];
+      setRequirements(savedRequirements.length ? savedRequirements.map(hydrateRequirement) : [cloneRequirement()]);
       setSuccess('Requirements saved.');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to save requirements.'));

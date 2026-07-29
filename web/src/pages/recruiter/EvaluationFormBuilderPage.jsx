@@ -29,7 +29,8 @@ export default function EvaluationFormBuilderPage() {
         if (scorecard) {
           setExisting(scorecard);
           setTitle(scorecard.title);
-          setCriteria((scorecard.criteria ?? []).map(hydrateCriterion));
+          const savedCriteria = scorecard.criteria ?? [];
+          setCriteria(savedCriteria.length ? savedCriteria.map(hydrateCriterion) : [cloneCriterion()]);
         }
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load evaluation scorecard.')));
@@ -57,7 +58,8 @@ export default function EvaluationFormBuilderPage() {
       const saved = await createInterviewEvaluationScorecard(jobId, { title, criteria: payloadCriteria });
       setSuccess(existing ? 'Evaluation scorecard updated.' : 'Evaluation scorecard created.');
       setExisting(saved);
-      setCriteria((saved.criteria ?? payloadCriteria).map(hydrateCriterion));
+      const savedCriteria = saved.criteria?.length ? saved.criteria : payloadCriteria;
+      setCriteria(savedCriteria.length ? savedCriteria.map(hydrateCriterion) : [cloneCriterion()]);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Unable to save evaluation scorecard.'));
     }
