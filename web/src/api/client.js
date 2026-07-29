@@ -2,6 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
+export const SESSION_EXPIRED_MESSAGE = 'Login session expired, please login again.';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -19,6 +20,24 @@ apiClient.interceptors.request.use((config) => {
 
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const authState = useAuthStore.getState();
+    const isLoginRequest = error.config?.url?.includes('/auth/login/');
+
+    if (error.response?.status === 401 && authState.accessToken && !isLoginRequest) {
+      const responseData = error.response.data;
+      error.response.data = responseData && typeof responseData === 'object' && !Array.isArray(responseData)
+        ? { ...responseData, detail: SESSION_EXPIRED_MESSAGE }
+        : { detail: SESSION_EXPIRED_MESSAGE };
+      authState.expireSession(SESSION_EXPIRED_MESSAGE);
+    }
+
+    return Promise.reject(error);
+  },
+);
 
 export const login = async ({ email, password }) => {
   const response = await apiClient.post('/auth/login/', { email, password });
