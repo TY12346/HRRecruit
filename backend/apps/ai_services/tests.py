@@ -29,7 +29,7 @@ from .resume_screening import (
 )
 from .scoring import calculate_final_score, calculate_score_breakdown
 from .exceptions import AIServiceUnavailable
-from .semantic_matcher import semantic_similarity
+from .semantic_matcher import build_semantic_analysis, semantic_similarity, split_passages
 from .skill_extractor import (
     _load_spacy_model,
     extract_skill_labels,
@@ -283,6 +283,66 @@ class SemanticMatcherTests(SimpleTestCase):
     def test_semantic_similarity_returns_zero_for_blank_input(self):
         self.assertEqual(semantic_similarity('', 'Backend engineer'), 0.0)
         self.assertEqual(semantic_similarity('Python developer', '   '), 0.0)
+
+    def test_education_evidence_cannot_come_from_volunteering_or_contact(self):
+        analysis = build_semantic_analysis(
+            'Jane Doe\njane@example.com\nVolunteering\nMentored university students in weekly workshops.',
+            '', '', [{'requirement_type': 'education', 'description': 'Bachelor degree in Computer Science'}],
+        )
+        pair = analysis['evidence_pairs'][0]
+        self.assertFalse(pair['reliable_evidence'])
+        self.assertEqual(pair['resume_evidence'], 'No reliable resume evidence found')
+
+    def test_certification_requirement_prefers_certification_section(self):
+        analysis = build_semantic_analysis(
+            'Experience\nUsed AWS services in production.\nCertifications\nAWS Solutions Architect certification',
+            '', '', [{'requirement_type': 'certification', 'description': 'AWS Solutions Architect certification'}],
+        )
+        pair = analysis['evidence_pairs'][0]
+        self.assertEqual(pair['evidence_section'], 'certification')
+        self.assertEqual(pair['match_type'], 'direct_phrase_match')
+
+    def test_contact_and_template_text_are_never_passages(self):
+        passages = split_passages(
+            'Jane Doe\njane@example.com\n+60 12-345 6789\nPowered by ResumeBuilder\nExperience\nBuilt payment services for customers.'
+        )
+        rendered = ' '.join(item['text'] for item in passages)
+        self.assertNotIn('jane@example.com', rendered)
+        self.assertNotIn('Powered by', rendered)
+        self.assertIn('Built payment services', rendered)
+
+    @patch('apps.ai_services.semantic_matcher._pair_scores', return_value=[[39.0]])
+    def test_low_scoring_unrelated_passage_is_suppressed(self, _scores):
+        analysis = build_semantic_analysis(
+            'Projects\nDesigned a gardening calendar for local nurseries.', '', '',
+            [{'requirement_type': 'skill', 'description': 'Distributed database administration'}],
+        )
+        self.assertEqual(analysis['evidence_pairs'][0]['match_type'], 'insufficient_evidence')
+        self.assertFalse(analysis['evidence_pairs'][0]['reliable_evidence'])
+
+    def test_exact_match_is_not_presented_as_semantic_proof(self):
+        analysis = build_semantic_analysis(
+            'Skills\nPython and Django development', '', '',
+            [{'requirement_type': 'skill', 'description': 'Python and Django development'}],
+        )
+        pair = analysis['evidence_pairs'][0]
+        self.assertEqual(pair['match_type'], 'direct_phrase_match')
+        self.assertIsNone(pair['semantic_similarity_score'])
+
+    @patch('apps.ai_services.semantic_matcher._pair_scores', return_value=[[82.0]])
+    def test_genuine_low_overlap_paraphrase_is_semantic(self, _scores):
+        analysis = build_semantic_analysis(
+            'Experience\nGuided a cross-functional group and delivered releases on schedule.', '', '',
+            [{'requirement_type': 'experience', 'description': 'Led diverse teams to meet delivery deadlines'}],
+        )
+        pair = analysis['evidence_pairs'][0]
+        self.assertEqual(pair['match_type'], 'semantic_paraphrase')
+        self.assertTrue(pair['reliable_evidence'])
+
+    def test_duplicate_requirements_are_grouped_into_one_card(self):
+        requirement = {'requirement_type': 'skill', 'description': 'Python and Django development'}
+        analysis = build_semantic_analysis('Skills\nPython and Django development', '', '', [requirement, requirement.copy()])
+        self.assertEqual(len(analysis['evidence_pairs']), 1)
 
 
 class _Vector:

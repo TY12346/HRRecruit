@@ -84,6 +84,7 @@ export function buildScreeningExplainability(profile = {}) {
     scoreComponents,
     semanticAnalysis,
     evidencePairs,
+    reliableEvidenceCount: evidencePairs.filter((pair) => pair.reliable_evidence).length,
     differentWordingCount: Number(semanticAnalysis.different_wording_match_count ?? evidencePairs.filter((pair) => pair.different_wording).length),
     analysisId: explanation.analysis_id,
     generatedAt: explanation.generated_at,
