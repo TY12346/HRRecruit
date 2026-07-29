@@ -296,6 +296,8 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual([item['id'] for item in response.data], [own_application.id])
 
     def test_recruiter_directory_includes_applicant_profile_sections(self):
+        self.applicant.applicant_profile.personal_summary = 'Backend API specialist'
+        self.applicant.applicant_profile.save(update_fields=['personal_summary'])
         ApplicantSkill.objects.create(applicant=self.applicant, skill_name='Django')
         ApplicantExperience.objects.create(
             applicant=self.applicant,
@@ -313,9 +315,17 @@ class JobApplicationAPITests(APITestCase):
         self.authenticate(self.recruiter)
 
         response = self.client.get(reverse('application-search'), {'search': self.applicant.email})
+        filtered_response = self.client.get(reverse('application-search'), {
+            'skills': 'Djan',
+            'experience': 'Example Company',
+            'education': 'Software Engineering',
+            'profile_summary': 'API specialist',
+        })
         detail_response = self.client.get(reverse('applicant-directory-detail', args=[self.applicant.public_id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(filtered_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in filtered_response.data], [self.applicant.public_id])
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['skills'], ['Django'])

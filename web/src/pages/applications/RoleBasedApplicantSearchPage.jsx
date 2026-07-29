@@ -47,6 +47,10 @@ const ROLE_CONFIG = {
 
 const defaultFilters = {
   search: '',
+  skills: '',
+  experience: '',
+  education: '',
+  profile_summary: '',
 };
 
 const applicantName = (application) => application?.applicant?.full_name ?? application?.full_name ?? 'Applicant';
@@ -98,17 +102,29 @@ function getApiErrorMessage(error, fallback) {
 }
 
 function buildParams(filters) {
-  return filters.search ? { search: filters.search } : {};
+  return Object.fromEntries(
+    Object.entries(filters)
+      .map(([key, value]) => [key, value.trim()])
+      .filter(([, value]) => value),
+  );
 }
 
 function SearchFilters({ filters, onChange, onApply, onReset }) {
   const update = (key, value) => onChange({ ...filters, [key]: value });
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-        <TextField fullWidth label="Search applicant, email, job, remark, resume" value={filters.search} onChange={(event) => update('search', event.target.value)} />
-        <Button variant="contained" onClick={onApply}>Search</Button>
-        <Button variant="outlined" onClick={onReset}>Reset</Button>
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <TextField fullWidth label="Search applicant name, email or phone" value={filters.search} onChange={(event) => update('search', event.target.value)} />
+          <Button variant="contained" onClick={onApply}>Search</Button>
+          <Button variant="outlined" onClick={onReset}>Reset</Button>
+        </Stack>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+          <TextField fullWidth label="Skills" value={filters.skills} onChange={(event) => update('skills', event.target.value)} />
+          <TextField fullWidth label="Experience" value={filters.experience} onChange={(event) => update('experience', event.target.value)} />
+          <TextField fullWidth label="Education" value={filters.education} onChange={(event) => update('education', event.target.value)} />
+          <TextField fullWidth label="Profile summary" value={filters.profile_summary} onChange={(event) => update('profile_summary', event.target.value)} />
+        </Stack>
       </Stack>
     </Paper>
   );
