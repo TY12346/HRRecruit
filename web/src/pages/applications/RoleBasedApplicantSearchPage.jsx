@@ -9,7 +9,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  MenuItem,
   Paper,
   Stack,
   Table,
@@ -47,46 +46,8 @@ const ROLE_CONFIG = {
   },
 };
 
-const STATUS_OPTIONS = [
-  ['all', 'All application statuses'],
-  ['under_review', 'Under review'],
-  ['rejected', 'Rejected'],
-];
-
-const INTERVIEW_OPTIONS = [
-  ['all', 'All interview statuses'],
-  ['upcoming', 'Upcoming interviews'],
-  ['completed', 'Completed interviews'],
-  ['pending_evaluation', 'Pending evaluation'],
-  ['invited', 'Invited'],
-  ['scheduled', 'Scheduled'],
-  ['cancelled', 'Cancelled'],
-];
-
-const SORT_OPTIONS = [
-  ['newest', 'Newest first'],
-  ['oldest', 'Oldest first'],
-  ['score_desc', 'Highest AI score'],
-  ['score_asc', 'Lowest AI score'],
-  ['applicant_az', 'Applicant A-Z'],
-];
-
 const defaultFilters = {
   search: '',
-  status: 'all',
-  skills: '',
-  education: '',
-  experience: '',
-  min_score: '',
-  max_score: '',
-  date_from: '',
-  date_to: '',
-  interviewer_status: 'all',
-  department: '',
-  recruiter_id: '',
-  pending_approval: 'all',
-  final_decision: '',
-  sort: 'newest',
 };
 
 const titleize = (value) => String(value ?? '—').replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -105,61 +66,18 @@ function getApiErrorMessage(error, fallback) {
   return String(firstValue ?? fallback);
 }
 
-function buildParams(filters, role) {
-  const params = {};
-  for (const [key, value] of Object.entries(filters)) {
-    if (value === '' || value === 'all') continue;
-    if (role === 'interviewer' && ['skills', 'education', 'experience', 'min_score', 'max_score', 'department', 'recruiter_id', 'pending_approval', 'final_decision'].includes(key)) continue;
-    if (role === 'recruiter' && ['department', 'recruiter_id', 'pending_approval', 'final_decision'].includes(key)) continue;
-    params[key] = value;
-  }
-  return params;
+function buildParams(filters) {
+  return filters.search ? { search: filters.search } : {};
 }
 
-function SearchFilters({ role, filters, onChange, onApply, onReset }) {
+function SearchFilters({ filters, onChange, onApply, onReset }) {
   const update = (key, value) => onChange({ ...filters, [key]: value });
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-      <Stack spacing={2}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-          <TextField fullWidth label="Search applicant, email, job, remark, resume" value={filters.search} onChange={(event) => update('search', event.target.value)} />
-          <TextField select label="Application status" value={filters.status} onChange={(event) => update('status', event.target.value)} sx={{ minWidth: 210 }}>
-            {STATUS_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-          </TextField>
-          <TextField select label="Sort" value={filters.sort} onChange={(event) => update('sort', event.target.value)} sx={{ minWidth: 180 }}>
-            {SORT_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-          </TextField>
-        </Stack>
-        {role !== 'interviewer' ? (
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-            <TextField label="Skills" value={filters.skills} onChange={(event) => update('skills', event.target.value)} />
-            <TextField label="Education" value={filters.education} onChange={(event) => update('education', event.target.value)} />
-            <TextField label="Experience" value={filters.experience} onChange={(event) => update('experience', event.target.value)} />
-            <TextField label="Min AI score" type="number" value={filters.min_score} onChange={(event) => update('min_score', event.target.value)} />
-            <TextField label="Max AI score" type="number" value={filters.max_score} onChange={(event) => update('max_score', event.target.value)} />
-          </Stack>
-        ) : null}
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-          <TextField select label="Interview" value={filters.interviewer_status} onChange={(event) => update('interviewer_status', event.target.value)} sx={{ minWidth: 210 }}>
-            {INTERVIEW_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-          </TextField>
-          <TextField label="Date from" type="date" value={filters.date_from} onChange={(event) => update('date_from', event.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField label="Date to" type="date" value={filters.date_to} onChange={(event) => update('date_to', event.target.value)} InputLabelProps={{ shrink: true }} />
-          {role === 'hr_head' ? <TextField label="Department" value={filters.department} onChange={(event) => update('department', event.target.value)} /> : null}
-          {role === 'hr_head' ? <TextField label="Recruiter ID" value={filters.recruiter_id} onChange={(event) => update('recruiter_id', event.target.value)} /> : null}
-          {role === 'hr_head' ? (
-            <TextField select label="Pending approval" value={filters.pending_approval} onChange={(event) => update('pending_approval', event.target.value)} sx={{ minWidth: 180 }}>
-              <MenuItem value="all">Any</MenuItem>
-              <MenuItem value="true">Pending approval</MenuItem>
-              <MenuItem value="false">Not pending</MenuItem>
-            </TextField>
-          ) : null}
-        </Stack>
-        {role === 'hr_head' ? <TextField label="Final decision/status" value={filters.final_decision} onChange={(event) => update('final_decision', event.target.value)} helperText="Examples: hire, reject, approved, rejected, pending_hr_approval" /> : null}
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={onApply}>Search</Button>
-          <Button variant="outlined" onClick={onReset}>Reset</Button>
-        </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+        <TextField fullWidth label="Search applicant, email, job, remark, resume" value={filters.search} onChange={(event) => update('search', event.target.value)} />
+        <Button variant="contained" onClick={onApply}>Search</Button>
+        <Button variant="outlined" onClick={onReset}>Reset</Button>
       </Stack>
     </Paper>
   );
@@ -177,7 +95,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const params = useMemo(() => buildParams(appliedFilters, role), [appliedFilters, role]);
+  const params = useMemo(() => buildParams(appliedFilters), [appliedFilters]);
 
   useEffect(() => {
     let active = true;
@@ -212,7 +130,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
         <Typography variant="h5" sx={{ fontWeight: 700 }}>{config.title}</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>{config.description}</Typography>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        <SearchFilters role={role} filters={filters} onChange={setFilters} onApply={() => setAppliedFilters(filters)} onReset={reset} />
+        <SearchFilters filters={filters} onChange={setFilters} onApply={() => setAppliedFilters(filters)} onReset={reset} />
         {isLoading ? <CircularProgress /> : null}
         <Table>
           <TableHead>

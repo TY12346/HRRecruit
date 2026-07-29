@@ -65,7 +65,7 @@ class ApplicantWorkflowService {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'interviews/scheduling-requests/$requestId/book/',
       data: {
-        if (slot.patternId > 0) ...{
+        if (slot.patternId.isNotEmpty) ...{
           'pattern_id': slot.patternId,
           'interview_date': slot.interviewDate,
           'start_time': slot.startTime,

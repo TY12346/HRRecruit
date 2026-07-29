@@ -78,7 +78,7 @@ GoRouter createAppRouter(AuthController authController) {
       GoRoute(
         path: '/jobs/:jobId',
         builder: (context, state) => JobDetailScreen(
-          jobId: int.parse(state.pathParameters['jobId']!),
+          jobId: state.pathParameters['jobId']!,
         ),
       ),
       GoRoute(
@@ -92,7 +92,7 @@ GoRouter createAppRouter(AuthController authController) {
       GoRoute(
         path: '/applications/:applicationId',
         builder: (context, state) => ApplicationDetailScreen(
-          applicationId: int.parse(state.pathParameters['applicationId']!),
+          applicationId: state.pathParameters['applicationId']!,
         ),
       ),
       GoRoute(
