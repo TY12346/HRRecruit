@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getApplicantDirectoryProfile } from '../../api/client.js';
 import Alert from '../../components/TimedAlert.jsx';
 import RecruiterNav from './RecruiterNav.jsx';
@@ -22,6 +22,7 @@ const displayDate = (value) => value || 'Not specified';
 
 export default function ApplicantDirectoryProfilePage() {
   const { applicantId } = useParams();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +42,7 @@ export default function ApplicantDirectoryProfilePage() {
     <Box>
       <RecruiterNav />
       <Paper sx={{ p: 3 }}>
-        <Button component={RouterLink} to="/recruiter/applicant-search" sx={{ mb: 2 }}>Back to applicant search</Button>
+        <Button onClick={() => navigate('/recruiter/applicant-search')} sx={{ mb: 2 }}>Back to applicant search</Button>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? <CircularProgress /> : null}
         {profile ? (

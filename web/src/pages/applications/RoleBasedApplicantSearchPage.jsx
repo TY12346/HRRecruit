@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
+import { useNavigate } from 'react-router-dom';
 import { getApplicantSearch, getJobs, sendEmployerInvite } from '../../api/client.js';
 import HiringManagerNav from '../hiring_manager/HiringManagerNav.jsx';
 import InterviewerNav from '../interviewer/InterviewerNav.jsx';
@@ -114,6 +115,7 @@ function SearchFilters({ filters, onChange, onApply, onReset }) {
 }
 
 export default function RoleBasedApplicantSearchPage({ role }) {
+  const navigate = useNavigate();
   const config = ROLE_CONFIG[role];
   const Nav = config.nav;
   const [filters, setFilters] = useState(defaultFilters);
@@ -194,10 +196,9 @@ export default function RoleBasedApplicantSearchPage({ role }) {
                     <TableCell align="right">
                       <Stack spacing={1} sx={{ alignItems: 'flex-end' }}>
                         <Button
-                          component={RouterLink}
-                          to={role === 'recruiter'
+                          onClick={() => navigate(role === 'recruiter'
                             ? `/recruiter/applicant-search/${application.id}`
-                            : (config.detailBase ? `${config.detailBase}/${application.id}` : '/hiring-manager/hiring-decisions')}
+                            : (config.detailBase ? `${config.detailBase}/${application.id}` : '/hiring-manager/hiring-decisions'))}
                           size="small"
                           variant="outlined"
                         >
