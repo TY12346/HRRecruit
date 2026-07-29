@@ -148,12 +148,17 @@ export default function RoleNav({ items }) {
               fontSize: 22,
               fontWeight: 500,
               gap: 2.25,
-              justifyContent: { xs: 'center', md: 'flex-start' },
               lineHeight: 1.2,
               minHeight: 56,
               px: 2.25,
               textTransform: 'none',
               width: { xs: 'auto', md: '100%' },
+              // Navigation items are always left-aligned; page-level button styles must not
+              // change their alignment at any viewport width.
+              '&&': {
+                justifyContent: 'flex-start',
+                textAlign: 'left',
+              },
               '& .role-nav-icon': {
                 alignItems: 'center',
                 color: '#2563eb',
