@@ -96,12 +96,20 @@ class NotificationSerializer(ReadableIdModelSerializer):
 
     @staticmethod
     def _related_object(notification, model):
-        if not notification.related_entity_id:
+        related_entity_id = notification.related_entity_id
+        if not related_entity_id:
             return None
         queryset = model.objects
         if model is JobOffer:
             queryset = queryset.select_related('application__applicant', 'application__job')
-        return queryset.filter(id=notification.related_entity_id).first()
+
+        # Notification references use the domain object's public ID.  Keep a
+        # numeric-PK fallback for notifications created before public IDs were
+        # introduced, but never pass a typed ID to an integer database field.
+        related_object = queryset.filter(public_id=related_entity_id).first()
+        if related_object is None and str(related_entity_id).isdigit():
+            return queryset.filter(pk=related_entity_id).first()
+        return related_object
 
 
 class PushDeviceSerializer(ReadableIdModelSerializer):
