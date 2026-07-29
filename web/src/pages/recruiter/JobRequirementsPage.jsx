@@ -57,12 +57,12 @@ export default function JobRequirementsPage() {
 
     setIsSaving(true);
     try {
-      const saved = await configureJobRequirements(jobId, {
+      const saveResponse = await configureJobRequirements(jobId, {
         requirements: prepareRequirementsForApi(requirements),
         normalize_weights: true,
       });
-      const saved = await getJob(jobId);
-      const savedRequirements = saved.requirements ?? [];
+      const refreshedJob = await getJob(jobId);
+      const savedRequirements = refreshedJob.requirements ?? saveResponse.requirements ?? [];
       if (!savedRequirements.length) {
         throw new Error('The server did not persist the requirements. Please try again.');
       }
