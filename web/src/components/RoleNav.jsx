@@ -56,6 +56,16 @@ function CalendarIcon() {
   );
 }
 
+function HeadhuntInviteIcon() {
+  return (
+    <svg aria-hidden="true" {...iconProps}>
+      <rect x="3" y="6" width="14" height="12" rx="2" />
+      <path d="m4 8 6 5 6-5" />
+      <path d="M20 9v6M17 12h6" />
+    </svg>
+  );
+}
+
 function ReportsIcon() {
   return (
     <svg aria-hidden="true" {...iconProps}>
@@ -92,6 +102,7 @@ const icons = {
   applicants: <ApplicantsIcon />,
   dashboard: <DashboardIcon />,
   interviews: <CalendarIcon />,
+  mail: <HeadhuntInviteIcon />,
   notifications: <NotificationIcon />,
   offers: <BriefcaseIcon />,
   organization: <SettingsIcon />,
