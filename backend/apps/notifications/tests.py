@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
@@ -15,7 +15,9 @@ from apps.notifications.email_service import (
     send_subscription_reminder_email,
     send_team_account_created_email,
 )
+from apps.hiring.models import JobOffer
 from apps.notifications.models import Notification, PushDevice
+from apps.notifications.serializers import NotificationSerializer
 from apps.notifications.services import create_notification
 from apps.users.models import User
 
@@ -114,6 +116,34 @@ class NotificationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['actions'], [])
+
+    def test_related_offer_is_resolved_by_typed_public_id(self):
+        notification = SimpleNamespace(related_entity_id='OFR-01KYPWSWEECYG10HPWH9PFZ7HD')
+        offer = Mock()
+
+        with patch.object(JobOffer, 'objects') as manager:
+            queryset = manager.select_related.return_value
+            queryset.filter.return_value.first.return_value = offer
+
+            result = NotificationSerializer._related_object(notification, JobOffer)
+
+        self.assertIs(result, offer)
+        queryset.filter.assert_called_once_with(public_id=notification.related_entity_id)
+
+    def test_related_object_supports_legacy_numeric_id(self):
+        notification = SimpleNamespace(related_entity_id='42')
+
+        with patch.object(JobOffer, 'objects') as manager:
+            queryset = manager.select_related.return_value
+            queryset.filter.side_effect = [Mock(first=Mock(return_value=None)), Mock(first=Mock(return_value='offer'))]
+
+            result = NotificationSerializer._related_object(notification, JobOffer)
+
+        self.assertEqual(result, 'offer')
+        self.assertEqual(
+            [call.kwargs for call in queryset.filter.call_args_list],
+            [{'public_id': '42'}, {'pk': '42'}],
+        )
 
     def test_user_can_register_list_and_deactivate_push_device(self):
         self.authenticate(self.user)
