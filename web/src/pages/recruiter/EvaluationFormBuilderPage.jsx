@@ -109,12 +109,7 @@ export default function EvaluationFormBuilderPage() {
                     onChange={(event) => update(index, 'description', event.target.value)}
                   />
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <TextField
-                      label="Max score"
-                      type="number"
-                      value={criterion.max_score}
-                      onChange={(event) => update(index, 'max_score', event.target.value)}
-                    />
+                    <TextField label="Scoring scale" value="1–5" disabled helperText="All criteria use the same five-point scale." />
                     <TextField
                       label="Interview scoring importance"
                       select

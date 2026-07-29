@@ -261,7 +261,7 @@ class JobPostingAPITests(APITestCase):
             {
                 'title': 'Technical Interview Scorecard',
                 'criteria': [
-                    {'criterion_name': 'API design', 'description': 'Design quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                    {'criterion_name': 'API design', 'description': 'Design quality', 'max_score': '5.00', 'weight_score': '1.00'},
                 ],
             },
             format='json',
@@ -272,7 +272,7 @@ class JobPostingAPITests(APITestCase):
             {
                 'title': 'Updated Interview Scorecard',
                 'criteria': [
-                    {'criterion_name': 'Communication', 'description': 'Communication quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                    {'criterion_name': 'Communication', 'description': 'Communication quality', 'max_score': '5.00', 'weight_score': '1.00'},
                 ],
             },
             format='json',
@@ -411,7 +411,7 @@ class JobPostingAPITests(APITestCase):
             {
                 'title': 'Interview Evaluation Scorecard',
                 'criteria': [
-                    {'criterion_name': 'Technical fit', 'description': 'Technical quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                    {'criterion_name': 'Technical fit', 'description': 'Technical quality', 'max_score': '5.00', 'weight_score': '1.00'},
                 ],
             },
             format='json',
@@ -444,7 +444,7 @@ class JobPostingAPITests(APITestCase):
             form=form,
             criterion_name='Technical fit',
             description='Technical quality',
-            max_score='10.00',
+            max_score='5.00',
             weight_score='1.00',
         )
         open_response = self.client.patch(
@@ -481,7 +481,7 @@ class JobPostingAPITests(APITestCase):
                     {
                         'criterion_name': 'Communication',
                         'description': 'Explains decisions clearly',
-                        'max_score': '10.00',
+                        'max_score': '5.00',
                         'weight_score': '1.00',
                     },
                 ],
@@ -509,7 +509,7 @@ class JobPostingAPITests(APITestCase):
             {
                 'title': 'Interview Evaluation Scorecard',
                 'criteria': [
-                    {'criterion_name': 'Technical fit', 'description': 'Technical quality', 'max_score': '10.00', 'weight_score': '1.00'},
+                    {'criterion_name': 'Technical fit', 'description': 'Technical quality', 'max_score': '5.00', 'weight_score': '1.00'},
                 ],
             },
             format='json',

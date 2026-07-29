@@ -98,18 +98,18 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
     def test_comparison_includes_named_remarks_and_scorecard_answers(self):
         form = InterviewEvaluationForm.objects.create(job=self.job, title='Interview scorecard')
         criterion = EvaluationCriterion.objects.create(
-            form=form, criterion_name='Communication', max_score='10.00', weight_score='1.00',
+            form=form, criterion_name='Communication', max_score='5.00', weight_score='1.00',
         )
         interview = Interview.objects.create(
             application=self.application, organization=self.organization, recruiter=self.recruiter,
             interviewer=self.interviewer, status=Interview.Status.EVALUATION_SUBMITTED,
         )
         evaluation = InterviewEvaluation.objects.create(
-            interview=interview, interviewer=self.interviewer, total_score='8.00',
+            interview=interview, interviewer=self.interviewer, total_score='4.00',
             overall_comment='Explained decisions clearly.',
         )
         EvaluationAnswer.objects.create(
-            evaluation=evaluation, criterion=criterion, score='8.00', comment='Clear examples.',
+            evaluation=evaluation, criterion=criterion, score='4.00', comment='Clear examples.',
         )
         self.client.force_authenticate(self.recruiter)
 
@@ -124,7 +124,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         answer = applicant['interviewer_evaluations'][0]['answers'][0]
         self.assertEqual(answer['criterion_id'], criterion.id)
         self.assertEqual(answer['criterion_name'], 'Communication')
-        self.assertEqual(str(answer['max_score']), '10.00')
+        self.assertEqual(str(answer['max_score']), '5.00')
         self.assertEqual(str(answer['score']), '8.00')
         self.assertEqual(answer['comment'], 'Clear examples.')
 
@@ -171,7 +171,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         )
         interview.panel_interviewers.add(panel_interviewer)
         InterviewEvaluation.objects.create(
-            interview=interview, interviewer=self.interviewer, total_score='8.00', overall_comment='Submitted.',
+            interview=interview, interviewer=self.interviewer, total_score='4.00', overall_comment='Submitted.',
         )
         self.close_intake()
         self.client.force_authenticate(self.recruiter)
@@ -323,7 +323,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         InterviewEvaluation.objects.create(
             interview=interview,
             interviewer=self.interviewer,
-            total_score='8.00',
+            total_score='4.00',
             overall_comment='Primary interviewer scorecard.',
         )
         blocked_response = self.submit()
@@ -333,7 +333,7 @@ class JobLevelHiringDecisionFlowTests(APITestCase):
         InterviewEvaluation.objects.create(
             interview=interview,
             interviewer=panel_interviewer,
-            total_score='8.50',
+            total_score='4.50',
             overall_comment='Panel interviewer scorecard.',
         )
         allowed_response = self.submit()
