@@ -402,6 +402,7 @@ def interviewer_dashboard(user):
     jobs = JobPosting.objects.filter(organization=membership.organization, applications__in=applications).distinct()
     evaluations = InterviewEvaluation.objects.filter(interview__in=interviews, interviewer=user)
     metrics = base_application_metrics(jobs, applications)
+    top_jobs = top_jobs_by_applications(jobs, applications)
     metrics.update(
         {
             'assigned_interviews': interviews.count(),
@@ -416,7 +417,8 @@ def interviewer_dashboard(user):
         'dashboard': 'interviewer',
         'organization': {'id': membership.organization_id, 'name': membership.organization.name},
         'metrics': metrics,
-        'charts': application_charts(applications),
+        'charts': {**application_charts(applications), 'top_jobs_by_applications': top_jobs_chart(top_jobs)},
+        'top_jobs_by_applications': top_jobs,
     }
 
 
