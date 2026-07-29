@@ -378,12 +378,12 @@ export const duplicateJob = async (jobId) => {
 };
 
 export const configureJobRequirements = async (jobId, payload) => {
-  const response = await apiClient.post(`/jobs/${jobId}/requirements/`, payload);
+  const response = await apiClient.put(`/jobs/${jobId}/requirements/`, payload);
   return response.data;
 };
 
 export const createInterviewEvaluationScorecard = async (jobId, payload) => {
-  const response = await apiClient.post(`/jobs/${jobId}/scorecard/`, payload);
+  const response = await apiClient.put(`/jobs/${jobId}/scorecard/`, payload);
   return response.data;
 };
 
