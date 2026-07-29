@@ -1,4 +1,5 @@
 from django.db import models
+from apps.common.models import ReadableIdModel
 
 from apps.organizations.models import Organization
 from apps.users.models import User
@@ -9,7 +10,7 @@ class PositionStatus(models.TextChoices):
     BACKFILL = 'backfill', 'Backfill'
 
 
-class JobPosting(models.Model):
+class JobPosting(ReadableIdModel):
     class Status(models.TextChoices):
         DRAFTING = 'drafting', 'Drafting'
         OPEN = 'open', 'Open'
@@ -55,7 +56,7 @@ class JobPosting(models.Model):
         return self.title
 
 
-class JobRequisition(models.Model):
+class JobRequisition(ReadableIdModel):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
         APPROVED = 'approved', 'Approved'
@@ -94,7 +95,7 @@ class JobRequisition(models.Model):
         return f'{self.title} ({self.get_status_display()})'
 
 
-class JobRequirement(models.Model):
+class JobRequirement(ReadableIdModel):
     class RequirementType(models.TextChoices):
         SKILL = 'skill', 'Skill'
         EXPERIENCE = 'experience', 'Experience'
@@ -117,7 +118,7 @@ class JobRequirement(models.Model):
         return f'{self.job.title} - {self.get_requirement_type_display()}'
 
 
-class InterviewEvaluationForm(models.Model):
+class InterviewEvaluationForm(ReadableIdModel):
     job = models.OneToOneField(
         JobPosting,
         on_delete=models.CASCADE,
@@ -135,7 +136,7 @@ class InterviewEvaluationForm(models.Model):
         return self.title
 
 
-class EvaluationCriterion(models.Model):
+class EvaluationCriterion(ReadableIdModel):
     form = models.ForeignKey(
         InterviewEvaluationForm,
         on_delete=models.CASCADE,
@@ -151,7 +152,7 @@ class EvaluationCriterion(models.Model):
         return self.criterion_name
 
 
-class SavedJobPosting(models.Model):
+class SavedJobPosting(ReadableIdModel):
     applicant = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

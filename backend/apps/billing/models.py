@@ -1,10 +1,11 @@
 from django.db import models
 from django.utils import timezone
+from apps.common.models import ReadableIdModel
 
 from apps.organizations.models import Organization
 
 
-class SubscriptionPlan(models.Model):
+class SubscriptionPlan(ReadableIdModel):
     class Name(models.TextChoices):
         STARTER = 'Starter', 'Starter'
         BASIC = 'Basic', 'Basic'
@@ -38,7 +39,7 @@ class SubscriptionPlan(models.Model):
         return f'{self.name} ({self.get_billing_cycle_display()})'
 
 
-class Subscription(models.Model):
+class Subscription(ReadableIdModel):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
         ACTIVE = 'active', 'Active'
@@ -76,7 +77,7 @@ class Subscription(models.Model):
         return f'{self.organization.name} - {self.plan.name} ({self.status})'
 
 
-class Payment(models.Model):
+class Payment(ReadableIdModel):
     class PaymentGateway(models.TextChoices):
         DEMO = 'demo', 'Demo'
         STRIPE = 'stripe', 'Stripe'

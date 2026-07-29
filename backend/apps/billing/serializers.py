@@ -3,9 +3,10 @@
 from rest_framework import serializers
 
 from .models import Payment, Subscription, SubscriptionPlan
+from apps.common.serializers import ReadableIdModelSerializer
 
 
-class SubscriptionPlanSerializer(serializers.ModelSerializer):
+class SubscriptionPlanSerializer(ReadableIdModelSerializer):
     class Meta:
         model = SubscriptionPlan
         fields = [
@@ -23,7 +24,7 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class SubscriptionSerializer(serializers.ModelSerializer):
+class SubscriptionSerializer(ReadableIdModelSerializer):
     plan = SubscriptionPlanSerializer(read_only=True)
     organization_name = serializers.CharField(source='organization.name', read_only=True)
 
@@ -47,7 +48,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class PaymentSerializer(serializers.ModelSerializer):
+class PaymentSerializer(ReadableIdModelSerializer):
     subscription = SubscriptionSerializer(read_only=True)
     plan_name = serializers.CharField(source='subscription.plan.name', read_only=True)
     billing_cycle = serializers.CharField(source='subscription.plan.billing_cycle', read_only=True)

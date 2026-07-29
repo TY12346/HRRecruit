@@ -8,6 +8,7 @@ from apps.jobs.serializers import EvaluationCriterionSerializer
 from apps.users.models import User
 from .models import CalendarEvent, Interview, InterviewSchedulingRequest, InterviewStatusHistory, InterviewerAvailabilityPattern, InterviewerUnavailableDate, InterviewerAvailabilitySlot
 from .slot_generation import generate_common_available_slots
+from apps.common.serializers import ReadableIdModelSerializer
 
 
 class GoogleCalendarOAuthCallbackSerializer(serializers.Serializer):
@@ -19,7 +20,7 @@ class GoogleCalendarConnectSerializer(serializers.Serializer):
     next = serializers.URLField(required=False, allow_blank=True)
 
 
-class InterviewStatusHistorySerializer(serializers.ModelSerializer):
+class InterviewStatusHistorySerializer(ReadableIdModelSerializer):
     changed_by_name = serializers.CharField(source='changed_by.full_name', read_only=True)
 
     class Meta:
@@ -28,14 +29,14 @@ class InterviewStatusHistorySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class CalendarEventSerializer(serializers.ModelSerializer):
+class CalendarEventSerializer(ReadableIdModelSerializer):
     class Meta:
         model = CalendarEvent
         fields = ['id', 'provider', 'external_event_id', 'calendar_link', 'last_synced_at', 'sync_status']
         read_only_fields = fields
 
 
-class InterviewSerializer(serializers.ModelSerializer):
+class InterviewSerializer(ReadableIdModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     interviewer = AssignedInterviewerSerializer(read_only=True)
     panel_interviewers = AssignedInterviewerSerializer(many=True, read_only=True)
@@ -151,7 +152,7 @@ class InterviewSerializer(serializers.ModelSerializer):
         return 'No common availability timeslot exists for all assigned interviewers. The applicant has not been invited.'
 
 
-class InterviewerAvailabilityPatternSerializer(serializers.ModelSerializer):
+class InterviewerAvailabilityPatternSerializer(ReadableIdModelSerializer):
     interviewer_name = serializers.CharField(source='interviewer.full_name', read_only=True)
     day_name = serializers.CharField(source='get_day_of_week_display', read_only=True)
 
@@ -170,7 +171,7 @@ class InterviewerAvailabilityPatternSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class InterviewerUnavailableDateSerializer(serializers.ModelSerializer):
+class InterviewerUnavailableDateSerializer(ReadableIdModelSerializer):
     class Meta:
         model = InterviewerUnavailableDate
         fields = ['id', 'organization', 'interviewer', 'date', 'reason', 'created_at']
@@ -191,7 +192,7 @@ class GeneratedInterviewSlotSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
-class InterviewerAvailabilitySlotSerializer(serializers.ModelSerializer):
+class InterviewerAvailabilitySlotSerializer(ReadableIdModelSerializer):
     interviewer_name = serializers.CharField(source='interviewer.full_name', read_only=True)
 
     class Meta:
@@ -214,7 +215,7 @@ class InterviewerAvailabilitySlotSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class InterviewSchedulingRequestSerializer(serializers.ModelSerializer):
+class InterviewSchedulingRequestSerializer(ReadableIdModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     interviewer = AssignedInterviewerSerializer(read_only=True)
     panel_interviewers = AssignedInterviewerSerializer(many=True, read_only=True)

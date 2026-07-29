@@ -11,6 +11,8 @@ from apps.notifications.email_service import (
     send_password_reset_otp_email,
 )
 
+from apps.common.serializers import ReadableIdModelSerializer
+
 from .models import (
     ApplicantEducation,
     ApplicantExperience,
@@ -23,7 +25,7 @@ from .models import (
 )
 
 
-class RegisterSerializer(serializers.ModelSerializer):
+class RegisterSerializer(ReadableIdModelSerializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
 
@@ -98,7 +100,7 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class ApplicantExperienceSerializer(serializers.ModelSerializer):
+class ApplicantExperienceSerializer(ReadableIdModelSerializer):
     experience_id = serializers.IntegerField(source='id', read_only=True)
 
     class Meta:
@@ -106,7 +108,7 @@ class ApplicantExperienceSerializer(serializers.ModelSerializer):
         fields = ['experience_id', 'job_title', 'employment_type', 'company_name', 'start_date', 'location']
 
 
-class ApplicantEducationSerializer(serializers.ModelSerializer):
+class ApplicantEducationSerializer(ReadableIdModelSerializer):
     education_id = serializers.IntegerField(source='id', read_only=True)
 
     class Meta:
@@ -114,7 +116,7 @@ class ApplicantEducationSerializer(serializers.ModelSerializer):
         fields = ['education_id', 'school_name', 'degree_name', 'field_of_study', 'start_date', 'end_date', 'grade']
 
 
-class ApplicantSkillSerializer(serializers.ModelSerializer):
+class ApplicantSkillSerializer(ReadableIdModelSerializer):
     skill_id = serializers.IntegerField(source='id', read_only=True)
 
     class Meta:
@@ -122,7 +124,7 @@ class ApplicantSkillSerializer(serializers.ModelSerializer):
         fields = ['skill_id', 'skill_name']
 
 
-class ApplicantResumeSerializer(serializers.ModelSerializer):
+class ApplicantResumeSerializer(ReadableIdModelSerializer):
     resume_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -139,7 +141,7 @@ class ApplicantResumeSerializer(serializers.ModelSerializer):
         return resume.resume_file.url
 
 
-class UserProfileSerializer(serializers.ModelSerializer):
+class UserProfileSerializer(ReadableIdModelSerializer):
     linkedin_url = serializers.URLField(source='applicant_profile.linkedin_url', required=False, allow_blank=True)
     personal_summary = serializers.CharField(source='applicant_profile.personal_summary', required=False, allow_blank=True)
     resume_file = serializers.FileField(source='applicant_profile.resume_file', read_only=True)

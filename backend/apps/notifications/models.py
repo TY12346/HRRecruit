@@ -1,9 +1,10 @@
 from django.db import models
+from apps.common.models import ReadableIdModel
 
 from apps.users.models import User
 
 
-class Notification(models.Model):
+class Notification(ReadableIdModel):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     notification_type = models.CharField(max_length=100)
     title = models.CharField(max_length=255)
@@ -24,7 +25,7 @@ class Notification(models.Model):
         return f'{self.recipient.email} - {self.title}'
 
 
-class PushDevice(models.Model):
+class PushDevice(ReadableIdModel):
     class Platform(models.TextChoices):
         ANDROID = 'android', 'Android'
         IOS = 'ios', 'iOS'

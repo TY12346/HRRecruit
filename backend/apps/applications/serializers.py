@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.users.models import User
 
 from .models import ApplicationStageHistory, EmployerInvite, JobApplication
+from apps.common.serializers import ReadableIdModelSerializer
 
 
 def build_resume_payload(application, context=None):
@@ -60,7 +61,7 @@ class AssignedInterviewerSerializer(serializers.Serializer):
     phone_number = serializers.CharField(read_only=True)
 
 
-class JobApplicationSerializer(serializers.ModelSerializer):
+class JobApplicationSerializer(ReadableIdModelSerializer):
     job_title = serializers.CharField(source='job.title', read_only=True)
     organization_name = serializers.CharField(source='job.organization.name', read_only=True)
     applicant = ApplicationApplicantSerializer(read_only=True)
@@ -128,7 +129,7 @@ class ApplicantScoreSerializer(serializers.Serializer):
     explanation = serializers.JSONField(source='score_explanation', read_only=True)
 
 
-class ApplicantProfileSerializer(serializers.ModelSerializer):
+class ApplicantProfileSerializer(ReadableIdModelSerializer):
     job_title = serializers.CharField(source='job.title', read_only=True)
     organization_name = serializers.CharField(source='job.organization.name', read_only=True)
     applicant_profile = ApplicationApplicantSerializer(source='applicant', read_only=True)
@@ -247,7 +248,7 @@ class ApplicationRemarkSerializer(serializers.Serializer):
     remark = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
 
 
-class ApplicationStageHistorySerializer(serializers.ModelSerializer):
+class ApplicationStageHistorySerializer(ReadableIdModelSerializer):
     changed_by_name = serializers.CharField(source='changed_by.full_name', read_only=True)
 
     class Meta:
@@ -255,7 +256,7 @@ class ApplicationStageHistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'from_stage', 'to_stage', 'changed_by', 'changed_by_name', 'note', 'changed_at']
         read_only_fields = fields
 
-class EmployerInviteSerializer(serializers.ModelSerializer):
+class EmployerInviteSerializer(ReadableIdModelSerializer):
     applicant_name = serializers.CharField(source='applicant.full_name', read_only=True)
     applicant_email = serializers.EmailField(source='applicant.email', read_only=True)
     job_title = serializers.CharField(source='job.title', read_only=True)
@@ -267,7 +268,7 @@ class EmployerInviteSerializer(serializers.ModelSerializer):
         fields = ['id', 'job', 'job_title', 'organization_name', 'applicant', 'applicant_name', 'applicant_email', 'recruiter_name', 'response', 'responded_at', 'created_at', 'updated_at']
         read_only_fields = fields
 
-class ApplicantDirectorySerializer(serializers.ModelSerializer):
+class ApplicantDirectorySerializer(ReadableIdModelSerializer):
     linkedin_url = serializers.CharField(source='applicant_profile.linkedin_url', read_only=True)
     personal_summary = serializers.CharField(source='applicant_profile.personal_summary', read_only=True)
     skills = serializers.SerializerMethodField()
