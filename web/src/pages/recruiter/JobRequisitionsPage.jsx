@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-
   Box,
   Button,
   Chip,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material';
@@ -23,10 +27,27 @@ import { formatDateTime, getApiErrorMessage, titleize } from './recruiterUtils.j
 
 const departmentName = (item) => (item.department === 'Other' ? item.custom_department : item.department) || '—';
 
+const sortValues = {
+  title: (item) => item.title ?? '',
+  department: departmentName,
+  location: (item) => item.location ?? '',
+  employment_type: (item) => item.employment_type ?? '',
+  position_status: (item) => item.position_status ?? '',
+  status: (item) => item.status ?? '',
+  created_at: (item) => new Date(item.created_at).getTime(),
+};
+
 export default function JobRequisitionsPage() {
   const [requisitions, setRequisitions] = useState([]);
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('');
+  const [positionStatusFilter, setPositionStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState('desc');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -52,26 +73,95 @@ export default function JobRequisitionsPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const filterOptions = useMemo(() => ({
+    departments: [...new Set(requisitions.map(departmentName).filter((value) => value !== '—'))].sort(),
+    locations: [...new Set(requisitions.map((item) => item.location).filter(Boolean))].sort(),
+    employmentTypes: [...new Set(requisitions.map((item) => item.employment_type).filter(Boolean))].sort(),
+    positionStatuses: [...new Set(requisitions.map((item) => item.position_status).filter(Boolean))].sort(),
+    statuses: [...new Set(requisitions.map((item) => item.status).filter(Boolean))].sort(),
+  }), [requisitions]);
+
   const visibleRequisitions = useMemo(() => {
     const searchTerm = submittedSearch.trim().toLowerCase();
-    if (!searchTerm) {
-      return requisitions;
-    }
+    const filteredRequisitions = requisitions.filter((item) => (
+      (!searchTerm || [
+        item.title,
+        departmentName(item),
+        item.location,
+        item.employment_type,
+        item.position_status,
+        item.status,
+      ].some((value) => String(value ?? '').toLowerCase().includes(searchTerm)))
+      && (!departmentFilter || departmentName(item) === departmentFilter)
+      && (!locationFilter || item.location === locationFilter)
+      && (!employmentTypeFilter || item.employment_type === employmentTypeFilter)
+      && (!positionStatusFilter || item.position_status === positionStatusFilter)
+      && (!statusFilter || item.status === statusFilter)
+    ));
 
-    return requisitions.filter((item) => [
-      item.title,
-      departmentName(item),
-      item.location,
-      item.employment_type,
-      item.position_status,
-      item.status,
-    ].some((value) => String(value ?? '').toLowerCase().includes(searchTerm)));
-  }, [requisitions, submittedSearch]);
+    const valueFor = sortValues[sortBy];
+    return [...filteredRequisitions].sort((firstItem, secondItem) => {
+      const firstValue = valueFor(firstItem);
+      const secondValue = valueFor(secondItem);
+      const comparison = typeof firstValue === 'string'
+        ? firstValue.localeCompare(secondValue, undefined, { numeric: true, sensitivity: 'base' })
+        : firstValue - secondValue;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [
+    requisitions,
+    submittedSearch,
+    departmentFilter,
+    locationFilter,
+    employmentTypeFilter,
+    positionStatusFilter,
+    statusFilter,
+    sortBy,
+    sortDirection,
+  ]);
+
+  const hasActiveFilters = Boolean(
+    submittedSearch
+    || departmentFilter
+    || locationFilter
+    || employmentTypeFilter
+    || positionStatusFilter
+    || statusFilter,
+  );
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
     setSubmittedSearch(search);
   };
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setSubmittedSearch('');
+    setDepartmentFilter('');
+    setLocationFilter('');
+    setEmploymentTypeFilter('');
+    setPositionStatusFilter('');
+    setStatusFilter('');
+  };
+
+  const sortableHeading = (field, label) => (
+    <TableSortLabel
+      active={sortBy === field}
+      direction={sortBy === field ? sortDirection : 'asc'}
+      onClick={() => handleSort(field)}
+    >
+      {label}
+    </TableSortLabel>
+  );
 
   return (
     <Box>
@@ -90,7 +180,7 @@ export default function JobRequisitionsPage() {
 
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-        <Box component="form" onSubmit={handleSearchSubmit} sx={{ mb: 2 }}>
+        <Box component="form" onSubmit={handleSearchSubmit} sx={{ mb: 1.5 }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <TextField
               fullWidth
@@ -102,18 +192,57 @@ export default function JobRequisitionsPage() {
           </Stack>
         </Box>
 
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel id="requisition-department-filter-label">Department</InputLabel>
+            <Select labelId="requisition-department-filter-label" label="Department" value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+              <MenuItem value="">All departments</MenuItem>
+              {filterOptions.departments.map((department) => <MenuItem key={department} value={department}>{department}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel id="requisition-location-filter-label">Location</InputLabel>
+            <Select labelId="requisition-location-filter-label" label="Location" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}>
+              <MenuItem value="">All locations</MenuItem>
+              {filterOptions.locations.map((location) => <MenuItem key={location} value={location}>{location}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 175 }}>
+            <InputLabel id="requisition-employment-type-filter-label">Employment type</InputLabel>
+            <Select labelId="requisition-employment-type-filter-label" label="Employment type" value={employmentTypeFilter} onChange={(event) => setEmploymentTypeFilter(event.target.value)}>
+              <MenuItem value="">All employment types</MenuItem>
+              {filterOptions.employmentTypes.map((type) => <MenuItem key={type} value={type}>{titleize(type)}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 165 }}>
+            <InputLabel id="requisition-position-status-filter-label">Position status</InputLabel>
+            <Select labelId="requisition-position-status-filter-label" label="Position status" value={positionStatusFilter} onChange={(event) => setPositionStatusFilter(event.target.value)}>
+              <MenuItem value="">All position statuses</MenuItem>
+              {filterOptions.positionStatuses.map((status) => <MenuItem key={status} value={status}>{titleize(status)}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 145 }}>
+            <InputLabel id="requisition-status-filter-label">Status</InputLabel>
+            <Select labelId="requisition-status-filter-label" label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <MenuItem value="">All statuses</MenuItem>
+              {filterOptions.statuses.map((status) => <MenuItem key={status} value={status}>{titleize(status)}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Button disabled={!hasActiveFilters} onClick={clearFilters}>Clear filters</Button>
+        </Stack>
+
         {isLoading ? <CircularProgress aria-label="Loading job requisitions" /> : null}
 
-        <Table sx={{ mt: 2 }}>
+        <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Title</TableCell>
-              <TableCell>Department</TableCell>
-              <TableCell>Location</TableCell>
-              <TableCell>Employment type</TableCell>
-              <TableCell>Position status</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Submitted</TableCell>
+              <TableCell>{sortableHeading('title', 'Title')}</TableCell>
+              <TableCell>{sortableHeading('department', 'Department')}</TableCell>
+              <TableCell>{sortableHeading('location', 'Location')}</TableCell>
+              <TableCell>{sortableHeading('employment_type', 'Employment type')}</TableCell>
+              <TableCell>{sortableHeading('position_status', 'Position status')}</TableCell>
+              <TableCell>{sortableHeading('status', 'Status')}</TableCell>
+              <TableCell>{sortableHeading('created_at', 'Submitted')}</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -145,7 +274,7 @@ export default function JobRequisitionsPage() {
             ))}
             {!isLoading && visibleRequisitions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8}>{submittedSearch ? 'No job requisitions match your search.' : 'No job requisitions yet.'}</TableCell>
+                <TableCell colSpan={8}>{hasActiveFilters ? 'No job requisitions match your search and filters.' : 'No job requisitions yet.'}</TableCell>
               </TableRow>
             ) : null}
           </TableBody>
