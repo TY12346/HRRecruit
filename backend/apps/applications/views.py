@@ -482,10 +482,44 @@ class ApplicationSearchAPIView(APIView):
             raise PermissionDenied('Your role cannot search applicants.')
         if request.user.role == User.Role.RECRUITER:
             # Recruiters headhunt from the active, platform-wide applicant directory; this is not limited to past applications.
-            applicants = User.objects.filter(role=User.Role.APPLICANT, is_active=True).select_related('applicant_profile').prefetch_related('skills')
+            applicants = User.objects.filter(
+                role=User.Role.APPLICANT,
+                is_active=True,
+            ).select_related('applicant_profile').prefetch_related(
+                'skills',
+                'experiences',
+                'educations',
+            )
             search = request.query_params.get('search', '').strip()
             if search:
-                applicants = applicants.filter(Q(full_name__icontains=search) | Q(email__icontains=search) | Q(phone_number__icontains=search) | Q(applicant_profile__personal_summary__icontains=search) | Q(skills__skill_name__icontains=search)).distinct()
+                applicants = applicants.filter(
+                    Q(full_name__icontains=search)
+                    | Q(email__icontains=search)
+                    | Q(phone_number__icontains=search)
+                )
+            skills = request.query_params.get('skills', '').strip()
+            if skills:
+                applicants = applicants.filter(skills__skill_name__icontains=skills)
+            experience = request.query_params.get('experience', '').strip()
+            if experience:
+                applicants = applicants.filter(
+                    Q(experiences__job_title__icontains=experience)
+                    | Q(experiences__company_name__icontains=experience)
+                    | Q(experiences__employment_type__icontains=experience)
+                    | Q(experiences__location__icontains=experience)
+                )
+            education = request.query_params.get('education', '').strip()
+            if education:
+                applicants = applicants.filter(
+                    Q(educations__school_name__icontains=education)
+                    | Q(educations__degree_name__icontains=education)
+                    | Q(educations__field_of_study__icontains=education)
+                    | Q(educations__grade__icontains=education)
+                )
+            profile_summary = request.query_params.get('profile_summary', '').strip()
+            if profile_summary:
+                applicants = applicants.filter(applicant_profile__personal_summary__icontains=profile_summary)
+            applicants = applicants.distinct()
             return Response(ApplicantDirectorySerializer(applicants.order_by('full_name', 'id'), many=True, context={'request': request}).data)
         applications = apply_applicant_search_filters(
             visible_search_applications_for(request.user),
@@ -493,6 +527,26 @@ class ApplicationSearchAPIView(APIView):
             request.user,
         )
         return Response(ApplicationSearchResultSerializer(applications, many=True, context={'request': request}).data)
+
+
+class ApplicantDirectoryDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, applicant_id):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can view applicant directory profiles.')
+        applicant = get_object_or_404(
+            User.objects.filter(
+                role=User.Role.APPLICANT,
+                is_active=True,
+            ).select_related('applicant_profile').prefetch_related(
+                'skills',
+                'experiences',
+                'educations',
+            ),
+            public_id=applicant_id,
+        )
+        return Response(ApplicantDirectorySerializer(applicant, context={'request': request}).data)
 
 
 class ApplicationDetailAPIView(APIView):

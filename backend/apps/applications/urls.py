@@ -20,6 +20,7 @@ from .views import (
     ApplicationShortlistAPIView,
     ApplicationStatusHistoryAPIView,
     ApplicantProfileAPIView,
+    ApplicantDirectoryDetailAPIView,
     EmployerInviteListCreateAPIView,
     EmployerInviteDeclineAPIView,
 )
@@ -27,6 +28,7 @@ from .views import (
 urlpatterns = [
     path('', ApplicationListAPIView.as_view(), name='application-list'),
     path('search/', ApplicationSearchAPIView.as_view(), name='application-search'),
+    path('directory/<str:applicant_id>/', ApplicantDirectoryDetailAPIView.as_view(), name='applicant-directory-detail'),
     path('employer-invites/', EmployerInviteListCreateAPIView.as_view(), name='employer-invite-list-create'),
     path('employer-invites/<str:invite_id>/decline/', EmployerInviteDeclineAPIView.as_view(), name='employer-invite-decline'),
     path('<str:application_id>/', ApplicationDetailAPIView.as_view(), name='application-detail'),

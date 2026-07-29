@@ -189,7 +189,7 @@ class _InterviewSlotSelectionScreenState
   int _step = 0;
   bool _isBooking = false;
 
-  int get _applicationId => widget.request.application?.id ?? 0;
+  String get _applicationId => widget.request.application?.id ?? '';
 
   @override
   void initState() {

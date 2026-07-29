@@ -18,7 +18,13 @@ from apps.interviews.models import Interview
 from apps.jobs.models import JobPosting, JobRequirement
 from apps.notifications.models import Notification
 from apps.organizations.models import Organization, OrganizationMembership
-from apps.users.models import ApplicantResume, User
+from apps.users.models import (
+    ApplicantEducation,
+    ApplicantExperience,
+    ApplicantResume,
+    ApplicantSkill,
+    User,
+)
 
 from .models import ApplicationStageHistory, EmployerInvite, JobApplication
 
@@ -288,6 +294,49 @@ class JobApplicationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [own_application.id])
+
+    def test_recruiter_directory_includes_applicant_profile_sections(self):
+        self.applicant.applicant_profile.personal_summary = 'Backend API specialist'
+        self.applicant.applicant_profile.save(update_fields=['personal_summary'])
+        ApplicantSkill.objects.create(applicant=self.applicant, skill_name='Django')
+        ApplicantExperience.objects.create(
+            applicant=self.applicant,
+            job_title='Software Engineer',
+            company_name='Example Company',
+            employment_type='Full time',
+            location='Kuala Lumpur',
+        )
+        ApplicantEducation.objects.create(
+            applicant=self.applicant,
+            school_name='Example University',
+            degree_name='Bachelor of Computer Science',
+            field_of_study='Software Engineering',
+        )
+        self.authenticate(self.recruiter)
+
+        response = self.client.get(reverse('application-search'), {'search': self.applicant.email})
+        filtered_response = self.client.get(reverse('application-search'), {
+            'skills': 'Djan',
+            'experience': 'Example Company',
+            'education': 'Software Engineering',
+            'profile_summary': 'API specialist',
+        })
+        detail_response = self.client.get(reverse('applicant-directory-detail', args=[self.applicant.public_id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(filtered_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in filtered_response.data], [self.applicant.public_id])
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['skills'], ['Django'])
+        self.assertEqual(response.data[0]['experiences'][0]['job_title'], 'Software Engineer')
+        self.assertEqual(response.data[0]['educations'][0]['degree_name'], 'Bachelor of Computer Science')
+        self.assertEqual(detail_response.data['email'], self.applicant.email)
+        self.assertEqual(detail_response.data['skills'], ['Django'])
+
+        self.authenticate(self.interviewer)
+        forbidden_response = self.client.get(reverse('applicant-directory-detail', args=[self.applicant.public_id]))
+        self.assertEqual(forbidden_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_hr_head_views_applications_only_within_organization(self):
         own_application = JobApplication.objects.create(job=self.job, applicant=self.applicant)

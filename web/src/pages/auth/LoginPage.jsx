@@ -30,6 +30,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const setSession = useAuthStore((state) => state.setSession);
+  const sessionMessage = useAuthStore((state) => state.sessionMessage);
+  const clearSessionMessage = useAuthStore((state) => state.clearSessionMessage);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +43,7 @@ export default function LoginPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    clearSessionMessage();
     setIsSubmitting(true);
 
     try {
@@ -66,9 +69,9 @@ export default function LoginPage() {
         Staff Login
       </Typography>
 
-      {error ? (
+      {error || sessionMessage ? (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+          {error || sessionMessage}
         </Alert>
       ) : null}
 
