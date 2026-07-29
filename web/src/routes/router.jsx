@@ -27,7 +27,6 @@ import JobRequirementsPage from '../pages/recruiter/JobRequirementsPage.jsx';
 import RecruiterAnalyticsPage from '../pages/recruiter/RecruiterAnalyticsPage.jsx';
 import RecruiterNotificationsPage, { RecruiterNotificationDetailPage } from '../pages/recruiter/NotificationsPage.jsx';
 import AvailabilityPage from '../pages/interviewer/AvailabilityPage.jsx';
-import AssignedApplicantsPage from '../pages/interviewer/AssignedApplicantsPage.jsx';
 import ApplicantDetailPage from '../pages/interviewer/ApplicantDetailPage.jsx';
 import InterviewerInterviewDetailPage from '../pages/interviewer/InterviewDetailPage.jsx';
 import InterviewListPage from '../pages/interviewer/InterviewListPage.jsx';
@@ -117,8 +116,7 @@ export const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={['interviewer']} />,
         children: [
-          { path: 'interviewer', element: <Navigate to="/interviewer/applicants" replace /> },
-          { path: 'interviewer/applicants', element: <AssignedApplicantsPage /> },
+          { path: 'interviewer', element: <Navigate to="/interviewer/applicant-search" replace /> },
           { path: 'interviewer/applicant-search', element: <RoleBasedApplicantSearchPage role="interviewer" /> },
           { path: 'interviewer/applicants/:applicationId', element: <ApplicantDetailPage /> },
           { path: 'interviewer/interviews', element: <InterviewListPage /> },
