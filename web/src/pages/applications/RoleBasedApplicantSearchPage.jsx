@@ -7,6 +7,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -242,10 +243,9 @@ export default function RoleBasedApplicantSearchPage({ role }) {
               label="Open job"
               value={selectedJob}
               onChange={(event) => setSelectedJob(event.target.value)}
-              SelectProps={{ native: true }}
             >
-              <option value="" />
-              {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
+              <MenuItem value="" disabled>Select an open job</MenuItem>
+              {jobs.map((job) => <MenuItem key={job.id} value={job.id}>{job.title}</MenuItem>)}
             </TextField>
           </DialogContent>
           <DialogActions>
