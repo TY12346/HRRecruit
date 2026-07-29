@@ -232,7 +232,7 @@ export default function TranscriptSummaryPage() {
                 <input hidden type="file" accept="audio/*,video/webm" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
               </Button>
               <Typography color={file ? 'text.primary' : recordingId ? 'text.primary' : 'text.secondary'}>
-                {file ? file.name : recordingId ? `Stored recording (ID: ${recordingId}) loaded` : 'No audio file uploaded'}
+                {file ? file.name : recordingId ? 'Stored recording loaded' : 'No audio file uploaded'}
               </Typography>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 <Button variant="contained" disabled={isBusy || (!file && !recordingId)} onClick={generateTranscript}>

@@ -94,8 +94,8 @@ export default function InterviewAssignmentPage() {
 
   const nextStepMessage = schedulingRequest
     ? schedulingRequest.has_common_availability
-      ? `Interview-scheduling request #${schedulingRequest.id} has been sent. The interview will be created after the applicant chooses a slot.`
-      : `Interview-scheduling request #${schedulingRequest.id} is waiting for a common interviewer timeslot. The applicant has not been invited.`
+      ? 'The interview-scheduling request has been sent. The interview will be created after the applicant chooses a slot.'
+      : 'The interview-scheduling request is waiting for a common interviewer timeslot. The applicant has not been invited.'
     : 'The applicant should use the mobile Schedule interviews page to choose a common available panel slot.';
 
   return (
