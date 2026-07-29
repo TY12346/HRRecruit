@@ -166,7 +166,29 @@ export default function RoleBasedApplicantSearchPage({ role }) {
             ) : null}
           </TableBody>
         </Table>
-        <Dialog open={Boolean(inviteApplicant)} onClose={() => !isSending && setInviteApplicant(null)} fullWidth><DialogTitle>Invite {inviteApplicant?.full_name} to apply</DialogTitle><DialogContent><TextField select fullWidth sx={{ mt: 1 }} label="Open job" value={selectedJob} onChange={(event) => setSelectedJob(event.target.value)}>{jobs.map((job) => <MenuItem key={job.id} value={job.id}>{job.title}</MenuItem>)}</TextField></DialogContent><DialogActions><Button onClick={() => setInviteApplicant(null)} disabled={isSending}>Cancel</Button><Button variant="contained" onClick={sendInvite} disabled={!selectedJob || isSending}>{isSending ? 'Sending…' : 'Send invite'}</Button></DialogActions></Dialog>
+        <Dialog open={Boolean(inviteApplicant)} onClose={() => !isSending && setInviteApplicant(null)} fullWidth>
+          <DialogTitle>Invite {inviteApplicant?.full_name} to apply</DialogTitle>
+          <DialogContent>
+            <TextField
+              select
+              fullWidth
+              sx={{ mt: 1 }}
+              label="Open job"
+              value={selectedJob}
+              onChange={(event) => setSelectedJob(event.target.value)}
+              SelectProps={{ native: true }}
+            >
+              <option value="" />
+              {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
+            </TextField>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setInviteApplicant(null)} disabled={isSending}>Cancel</Button>
+            <Button variant="contained" onClick={sendInvite} disabled={!selectedJob || isSending}>
+              {isSending ? 'Sending…' : 'Send invite'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Paper>
     </Box>
   );
