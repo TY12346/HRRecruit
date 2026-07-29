@@ -203,7 +203,8 @@ export default function JobCreateEditPage() {
         ) : null}
         <TextField
           label="Target start date"
-          InputLabelProps={{ shrink: true }}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 220 }}
           type="date"
           value={form.target_start_date}
           onChange={setField('target_start_date')}
@@ -246,7 +247,7 @@ export default function JobCreateEditPage() {
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
           <TextField label="Approximate salary" type="number" value={form.approximate_salary} onChange={setField('approximate_salary')} />
           <TextField label="Number of vacancies" type="number" inputProps={{ min: 1 }} value={form.vacancies} onChange={setField('vacancies')} />
-          <TextField label="Application deadline" type="date" InputLabelProps={{ shrink: true }} value={form.application_deadline} onChange={setField('application_deadline')} />
+          <TextField label="Application deadline" type="date" slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: 220 }} value={form.application_deadline} onChange={setField('application_deadline')} />
           <FormControl>
             <InputLabel>Status</InputLabel>
             <Select label="Status" value={form.status} onChange={setField('status')}>
