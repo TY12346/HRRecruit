@@ -18,7 +18,7 @@ import Alert from '../../components/TimedAlert.jsx';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { getAssignedInterviews, getApplicantProfile, openApplicationResume } from '../../api/client.js';
 import InterviewerNav from './InterviewerNav.jsx';
-import { formatDateTime, formatExtractedValue, getApiErrorMessage, titleize } from './interviewerUtils.js';
+import { formatExtractedValue, getApiErrorMessage, titleize } from './interviewerUtils.js';
 
 const SCORE_ITEMS = [
   ['semantic_score', 'Semantic match'],
@@ -245,7 +245,7 @@ export default function ApplicantDetailPage() {
   }, [applicationId]);
 
   const applicant = applicantData?.applicant_profile ?? null;
-  const resume = applicant?.resume_info ?? {};
+  const resume = applicantData?.resume_info ?? {};
   const openResume = async () => {
     try {
       await openApplicationResume(applicationId);
@@ -258,48 +258,44 @@ export default function ApplicantDetailPage() {
     <Box>
       <InterviewerNav />
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Applicant Detail
-        </Typography>
-        {error ? <Alert severity="error" sx={{ my: 2 }}>{error}</Alert> : null}
+        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {isLoading ? <CircularProgress /> : null}
         {applicant ? (
-          <Stack spacing={2} sx={{ mt: 2 }}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="h6">{applicant.full_name}</Typography>
+          <Stack spacing={3}>
+            <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>{applicant.full_name}</Typography>
                 <Typography color="text.secondary">
                   {applicant.email} • {applicant.phone_number || 'No phone'}
                 </Typography>
-                <Typography>Application status: {titleize(applicant.status)}</Typography>
-                <Typography>Applied: {formatDateTime(applicant.applied_at)}</Typography>
-                <Typography>Recruiter remark: {applicant.recruiter_remark || '—'}</Typography>
+                <Chip label={`Current stage: ${titleize(applicantData.status)}`} sx={{ mt: 1 }} />
+              </Box>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="flex-start">
                 {applicant.linkedin_url ? (
-                  <Button href={applicant.linkedin_url} target="_blank" rel="noreferrer">
+                  <Button href={applicant.linkedin_url} target="_blank" rel="noreferrer" variant="outlined">
                     LinkedIn
                   </Button>
                 ) : null}
-                {resume.resume_file ? <Button onClick={openResume}>Open resume</Button> : null}
+              </Stack>
+            </Stack>
+
+            <Card>
+              <CardContent>
+                <Typography variant="h6">Resume extraction</Typography>
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  <Typography><strong>Skills:</strong> {formatExtractedValue(applicantData.extracted_skills)}</Typography>
+                  <Typography><strong>Experience:</strong> {formatExtractedValue(resume.extracted_experience)}</Typography>
+                  <Typography><strong>Education:</strong> {formatExtractedValue(resume.extracted_education)}</Typography>
+                  {resume.resume_file ? (
+                    <Button onClick={openResume} sx={{ alignSelf: 'flex-start' }}>View resume</Button>
+                  ) : null}
+                </Stack>
               </CardContent>
             </Card>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6">Resume extraction</Typography>
-                    <Typography><strong>Skills:</strong> {formatExtractedValue(applicant.extracted_skills)}</Typography>
-                    <Typography><strong>Experience:</strong> {formatExtractedValue(resume.extracted_experience)}</Typography>
-                    <Typography><strong>Education:</strong> {formatExtractedValue(resume.extracted_education)}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <AIScoresCard scores={applicant.scores ?? {}} />
-              </Grid>
-            </Grid>
+            <AIScoresCard scores={applicantData.scores ?? {}} />
 
-            <Card variant="outlined">
+            <Card>
               <CardContent>
                 <Typography variant="h6">Personal summary</Typography>
                 <Typography whiteSpace="pre-line">{applicant.personal_summary || '—'}</Typography>

@@ -23,6 +23,7 @@ export default function SubmitEvaluationPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const criteria = useMemo(() => interview?.evaluation_criteria ?? [], [interview]);
+  const evaluationSubmitted = Boolean(interview?.evaluation_submitted);
   const deliverableStatus = interview?.deliverable_status;
   const deliverableDeadline = deliverableStatus?.deadline ? new Date(deliverableStatus.deadline).toLocaleString() : '';
 
@@ -34,6 +35,13 @@ export default function SubmitEvaluationPage() {
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load interview.')));
   }, [interviewId]);
+
+  useEffect(() => {
+    if (!success) return undefined;
+
+    const timer = window.setTimeout(() => setSuccess(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
 
   const updateAnswer = (criterionId, patch) => {
     setAnswers((current) => current.map((answer) => (
@@ -76,12 +84,12 @@ export default function SubmitEvaluationPage() {
           </Box>
         ) : null}
 
-        {deliverableDeadline ? (
+        {evaluationSubmitted || deliverableDeadline ? (
           <Alert severity="info" sx={{ mb: 2 }}>
-            {deliverableDeadline}
+            {evaluationSubmitted ? 'Evaluation form already submitted' : deliverableDeadline}
           </Alert>
         ) : null}
-        {criteria.length === 0 && interview && !interview.evaluation_submitted ? (
+        {criteria.length === 0 && interview && !evaluationSubmitted ? (
           <Alert severity="warning" sx={{ mb: 2 }}>
             This job does not have an interview evaluation scorecard configured yet. Ask the recruiter to set up the form before submitting an evaluation.
           </Alert>
@@ -89,65 +97,61 @@ export default function SubmitEvaluationPage() {
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
 
-        {interview?.evaluation_submitted ? (
-          <Alert severity="success">
-            This evaluation has already been submitted. The evaluation form is no longer available.
-          </Alert>
-        ) : (
-        <Stack component="form" spacing={2} onSubmit={submit}>
-          <TextField
-            label="Overall comment"
-            multiline
-            minRows={4}
-            required
-            value={overallComment}
-            onChange={(event) => setOverallComment(event.target.value)}
-          />
+        {!evaluationSubmitted && (
+          <Stack component="form" spacing={2} onSubmit={submit}>
+            <TextField
+              label="Overall comment"
+              multiline
+              minRows={4}
+              required
+              value={overallComment}
+              onChange={(event) => setOverallComment(event.target.value)}
+            />
 
-          {criteria.map((criterion, index) => {
-            const answer = answers.find((item) => item.criterion_id === criterion.id) ?? emptyAnswerForCriterion(criterion);
-            return (
-              <Card key={criterion.id} variant="outlined">
-                <CardContent>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {index + 1}. {criterion.criterion_name}
-                      </Typography>
-                      {criterion.description ? (
-                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                          {criterion.description}
+            {criteria.map((criterion, index) => {
+              const answer = answers.find((item) => item.criterion_id === criterion.id) ?? emptyAnswerForCriterion(criterion);
+              return (
+                <Card key={criterion.id} variant="outlined">
+                  <CardContent>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                          {index + 1}. {criterion.criterion_name}
                         </Typography>
-                      ) : null}
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Maximum score: {criterion.max_score} • Weight: {criterion.weight_score}
-                      </Typography>
-                    </Box>
-                    <TextField
-                      label={`Score out of ${criterion.max_score}`}
-                      type="number"
-                      required
-                      value={answer.score}
-                      inputProps={{ min: 0, max: Number(criterion.max_score), step: '0.01' }}
-                      onChange={(event) => updateAnswer(criterion.id, { score: event.target.value })}
-                    />
-                    <TextField
-                      label="Criterion comment"
-                      multiline
-                      minRows={2}
-                      value={answer.comment}
-                      onChange={(event) => updateAnswer(criterion.id, { comment: event.target.value })}
-                    />
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
+                        {criterion.description ? (
+                          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                            {criterion.description}
+                          </Typography>
+                        ) : null}
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          Maximum score: {criterion.max_score} • Weight: {criterion.weight_score}
+                        </Typography>
+                      </Box>
+                      <TextField
+                        label={`Score out of ${criterion.max_score}`}
+                        type="number"
+                        required
+                        value={answer.score}
+                        inputProps={{ min: 0, max: Number(criterion.max_score), step: '0.01' }}
+                        onChange={(event) => updateAnswer(criterion.id, { score: event.target.value })}
+                      />
+                      <TextField
+                        label="Criterion comment"
+                        multiline
+                        minRows={2}
+                        value={answer.comment}
+                        onChange={(event) => updateAnswer(criterion.id, { comment: event.target.value })}
+                      />
+                    </Stack>
+                  </CardContent>
+                </Card>
+              );
+            })}
 
-          <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0} sx={{ alignSelf: 'flex-start' }}>
-            {isSaving ? 'Submitting…' : 'Submit evaluation'}
-          </Button>
-        </Stack>
+            <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0} sx={{ alignSelf: 'flex-start' }}>
+              {isSaving ? 'Submitting…' : 'Submit evaluation'}
+            </Button>
+          </Stack>
         )}
       </Paper>
     </Box>
