@@ -76,9 +76,9 @@ export default function SubmitEvaluationPage() {
           </Box>
         ) : null}
 
-        {deliverableDeadline ? (
+        {interview?.evaluation_submitted || deliverableDeadline ? (
           <Alert severity="info" sx={{ mb: 2 }}>
-            {deliverableDeadline}
+            {interview?.evaluation_submitted ? 'Evaluation form already submitted' : deliverableDeadline}
           </Alert>
         ) : null}
         {criteria.length === 0 && interview && !interview.evaluation_submitted ? (
@@ -89,66 +89,62 @@ export default function SubmitEvaluationPage() {
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
 
-        {interview?.evaluation_submitted ? (
-          <Alert severity="success">
-            This evaluation has already been submitted. The evaluation form is no longer available.
-          </Alert>
-        ) : (
-        <Stack component="form" spacing={2} onSubmit={submit}>
-          <TextField
-            label="Overall comment"
-            multiline
-            minRows={4}
-            required
-            value={overallComment}
-            onChange={(event) => setOverallComment(event.target.value)}
-          />
+        {!interview?.evaluation_submitted ? (
+          <Stack component="form" spacing={2} onSubmit={submit}>
+            <TextField
+              label="Overall comment"
+              multiline
+              minRows={4}
+              required
+              value={overallComment}
+              onChange={(event) => setOverallComment(event.target.value)}
+            />
 
-          {criteria.map((criterion, index) => {
-            const answer = answers.find((item) => item.criterion_id === criterion.id) ?? emptyAnswerForCriterion(criterion);
-            return (
-              <Card key={criterion.id} variant="outlined">
-                <CardContent>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {index + 1}. {criterion.criterion_name}
-                      </Typography>
-                      {criterion.description ? (
-                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                          {criterion.description}
+            {criteria.map((criterion, index) => {
+              const answer = answers.find((item) => item.criterion_id === criterion.id) ?? emptyAnswerForCriterion(criterion);
+              return (
+                <Card key={criterion.id} variant="outlined">
+                  <CardContent>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                          {index + 1}. {criterion.criterion_name}
                         </Typography>
-                      ) : null}
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Maximum score: {criterion.max_score} • Weight: {criterion.weight_score}
-                      </Typography>
-                    </Box>
-                    <TextField
-                      label={`Score out of ${criterion.max_score}`}
-                      type="number"
-                      required
-                      value={answer.score}
-                      inputProps={{ min: 0, max: Number(criterion.max_score), step: '0.01' }}
-                      onChange={(event) => updateAnswer(criterion.id, { score: event.target.value })}
-                    />
-                    <TextField
-                      label="Criterion comment"
-                      multiline
-                      minRows={2}
-                      value={answer.comment}
-                      onChange={(event) => updateAnswer(criterion.id, { comment: event.target.value })}
-                    />
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
+                        {criterion.description ? (
+                          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                            {criterion.description}
+                          </Typography>
+                        ) : null}
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          Maximum score: {criterion.max_score} • Weight: {criterion.weight_score}
+                        </Typography>
+                      </Box>
+                      <TextField
+                        label={`Score out of ${criterion.max_score}`}
+                        type="number"
+                        required
+                        value={answer.score}
+                        inputProps={{ min: 0, max: Number(criterion.max_score), step: '0.01' }}
+                        onChange={(event) => updateAnswer(criterion.id, { score: event.target.value })}
+                      />
+                      <TextField
+                        label="Criterion comment"
+                        multiline
+                        minRows={2}
+                        value={answer.comment}
+                        onChange={(event) => updateAnswer(criterion.id, { comment: event.target.value })}
+                      />
+                    </Stack>
+                  </CardContent>
+                </Card>
+              );
+            })}
 
-          <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0} sx={{ alignSelf: 'flex-start' }}>
-            {isSaving ? 'Submitting…' : 'Submit evaluation'}
-          </Button>
-        </Stack>
-        )}
+            <Button type="submit" variant="contained" disabled={isSaving || criteria.length === 0} sx={{ alignSelf: 'flex-start' }}>
+              {isSaving ? 'Submitting…' : 'Submit evaluation'}
+            </Button>
+          </Stack>
+        ) : null}
       </Paper>
     </Box>
   );

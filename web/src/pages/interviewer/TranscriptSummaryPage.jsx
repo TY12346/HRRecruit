@@ -6,13 +6,6 @@ import { generateTranscriptSummary, getInterview, transcribeRecording, uploadInt
 import InterviewerNav from './InterviewerNav.jsx';
 import { getApiErrorMessage, getStoredRecordingId, setStoredRecordingId, setStoredSummaryId, setStoredTranscriptId } from './interviewerUtils.js';
 
-const speakerSeparationMessages = {
-  not_configured: 'Speaker separation is turned off in backend settings. The plain transcript was generated successfully.',
-  unavailable: 'Speaker separation is unavailable for this transcript. The plain transcript was generated successfully.',
-  failed: 'Speaker separation could not be completed for this transcript. The plain transcript was generated successfully.',
-};
-
-
 function getDisplayRole(role, speakerId) {
   return role || speakerId || 'Unknown speaker';
 }
@@ -48,11 +41,6 @@ function TranscriptResult({ transcript }) {
   const displayTranscript = transcript.speaker_labelled_transcript || transcript.transcript_text || transcript.transcript || '';
   const speakerSegments = Array.isArray(transcript.speaker_segments) ? transcript.speaker_segments : [];
   const mergedSpeakerSegments = mergeConsecutiveSpeakerSegments(speakerSegments);
-  const diarizationStatus = transcript.diarization_status || transcript.transcript_json?.diarization_status || 'unavailable';
-  const diarizationWarning = transcript.diarization_warning || transcript.transcript_json?.diarization_warning || '';
-  const showDiarizationWarningDetail = diarizationWarning && diarizationStatus !== 'not_configured';
-  const speakerSeparationMessage = speakerSeparationMessages[diarizationStatus] || 'Speaker separation is not available for this transcript. The plain transcript was generated successfully.';
-  const showSpeakerUnavailable = diarizationStatus !== 'completed';
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
@@ -60,18 +48,6 @@ function TranscriptResult({ transcript }) {
         {processingStatus === 'PENDING' || processingStatus === 'PROCESSING' ? <Alert severity="info">Processing real transcription… This page refreshes automatically.</Alert> : null}
         {processingStatus === 'FAILED' ? <Alert severity="error">Real transcription failed: {transcript.processing_error || transcript.transcript_json?.error || 'No error details were returned.'}</Alert> : null}
         {processingStatus === 'LOW_QUALITY' ? <Alert severity="error">Real transcription completed but failed quality checks and cannot be summarized: {transcript.processing_error || 'The returned text is likely unusable.'}</Alert> : null}
-        {processingStatus === 'COMPLETED' && showSpeakerUnavailable ? (
-          <Alert severity="info">
-            <Stack spacing={0.5}>
-              <Typography variant="body2">{speakerSeparationMessage}</Typography>
-              {showDiarizationWarningDetail ? (
-                <Typography variant="body2" color="text.secondary">
-                  Detail: {diarizationWarning}
-                </Typography>
-              ) : null}
-            </Stack>
-          </Alert>
-        ) : null}
         {mergedSpeakerSegments.length ? (
           <Stack spacing={2}>
             {mergedSpeakerSegments.map((segment, index) => (
