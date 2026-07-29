@@ -45,7 +45,7 @@ export default function HiringDecisionPage() {
   const submit = async () => {
     setError('');
     try {
-      const result = await submitJobHiringDecision({ job_posting: Number(jobId), decision_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
+      const result = await submitJobHiringDecision({ job_posting: jobId, decision_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
       setPendingDecision(result);
       setDecisions((current) => [result, ...current.filter((decision) => decision.id !== result.id)]);
       setSuccess('Hiring decision submitted.');
