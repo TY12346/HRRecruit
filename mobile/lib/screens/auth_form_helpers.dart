@@ -38,6 +38,9 @@ String readableApiError(Object error, {String? apiBaseUrl}) {
 
     final data = error.response?.data;
     if (data is Map<String, dynamic>) {
+      if (_isExpiredLoginToken(data)) {
+        return 'Login session expired. Please login again.';
+      }
       if (data['detail'] != null) {
         return data['detail'].toString();
       }
@@ -59,6 +62,12 @@ String readableApiError(Object error, {String? apiBaseUrl}) {
   }
 
   return 'Something went wrong. Please try again.';
+}
+
+bool _isExpiredLoginToken(Map<String, dynamic> data) {
+  final detail = data['detail']?.toString().toLowerCase();
+  final code = data['code']?.toString().toLowerCase();
+  return code == 'token_not_valid' || detail == 'given token not valid';
 }
 
 bool _isTimeoutProblem(DioException error) {

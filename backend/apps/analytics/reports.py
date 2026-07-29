@@ -62,6 +62,9 @@ REPORT_METRICS = {
         'average_time_to_hire_days',
         'recruiter_hire_count',
         'interviewer_evaluation_count',
+        'total_offers',
+        'accepted_offers',
+        'offer_acceptance_rate',
     ],
     'interviewer': [
         'assigned_interviews',
@@ -72,6 +75,8 @@ REPORT_METRICS = {
         'shortlisted_count',
         'rejected_count',
         'hired_count',
+        'total_offers',
+        'accepted_offers',
     ],
     'hr_head': [
         'total_job_postings',
@@ -84,6 +89,8 @@ REPORT_METRICS = {
         'dropout_rate',
         'offer_acceptance_rate',
         'average_time_to_hire_days',
+        'total_offers',
+        'accepted_offers',
     ],
 }
 
@@ -152,6 +159,63 @@ def _append_performance_table(story, styles, title, rows, columns):
     story.append(_table(table_rows))
 
 
+def _append_mapping_table(story, styles, title, values, value_label):
+    if not values:
+        return
+    _add_heading(story, styles, title)
+    rows = [['Category', value_label]]
+    rows.extend([
+        [str(label).replace('_', ' ').title(), _format_value(value)]
+        for label, value in values.items()
+    ])
+    story.append(_table(rows, [270, 180]))
+
+
+def _append_pipeline_analysis(story, styles, metrics):
+    _append_mapping_table(story, styles, 'Pipeline Conversion Rates', metrics.get('conversion_rates'), 'Rate (%)')
+    _append_mapping_table(story, styles, 'Candidate Match Score Distribution', metrics.get('score_distribution'), 'Applicants')
+    _append_mapping_table(story, styles, 'Application Volume Over Time', metrics.get('applications_over_time'), 'Applications')
+
+    transitions = metrics.get('stage_transition_counts', [])
+    if transitions:
+        _append_performance_table(
+            story,
+            styles,
+            'Most Frequent Pipeline Transitions',
+            transitions,
+            [('Transition', 'label'), ('Applications', 'count')],
+        )
+
+    health = metrics.get('pipeline_health', {})
+    _add_heading(story, styles, 'Pipeline Health and Recommended Review')
+    story.append(_table([
+        ['Indicator', 'Current Result'],
+        ['Largest pipeline stage', f"{health.get('bottleneck_stage') or '-'} ({health.get('bottleneck_count', 0)})"],
+        ['Highest applicant drop-off', f"{health.get('highest_dropout_status') or '-'} ({health.get('highest_dropout_count', 0)})"],
+    ], [190, 260]))
+    for insight in health.get('insights', ['No pipeline insight is available yet.']):
+        story.append(Spacer(1, 5))
+        story.append(Paragraph(f'• {insight}', styles['BodyText']))
+
+
+def _append_top_jobs(story, styles, dashboard):
+    rows = dashboard.get('top_jobs_by_applications', [])
+    if not rows:
+        return
+    _append_performance_table(
+        story,
+        styles,
+        'Top Jobs by Application Volume',
+        rows,
+        [
+            ('Job', 'job_title'),
+            ('Applications', 'applications'),
+            ('Hires', 'hires'),
+            ('Avg Match Score', 'average_score'),
+        ],
+    )
+
+
 def build_analytics_summary_pdf(report_type, dashboard, user):
     """Return PDF bytes for a role-specific analytics dashboard payload."""
     global colors, A4, getSampleStyleSheet, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -186,6 +250,8 @@ def build_analytics_summary_pdf(report_type, dashboard, user):
     _add_heading(story, styles, 'Key Metrics')
     _append_metrics(story, report_type, dashboard['metrics'])
     _append_status_counts(story, styles, dashboard['metrics'])
+    _append_pipeline_analysis(story, styles, dashboard['metrics'])
+    _append_top_jobs(story, styles, dashboard)
 
     if report_type == 'hr_head':
         _append_performance_table(
@@ -200,6 +266,7 @@ def build_analytics_summary_pdf(report_type, dashboard, user):
                 ('Hires', 'hire_count'),
             ],
         )
+
         _append_performance_table(
             story,
             styles,
@@ -213,6 +280,13 @@ def build_analytics_summary_pdf(report_type, dashboard, user):
                 ('Avg Score', 'average_evaluation_score'),
             ],
         )
+
+    _add_heading(story, styles, 'Report Notes')
+    story.append(Paragraph(
+        'This report summarizes the live analytics available to the signed-in user and is scoped to their role and organization. '
+        'AI-derived match scores support human review and must not be treated as final hiring decisions.',
+        styles['BodyText'],
+    ))
 
     document.build(story)
     return buffer.getvalue()
