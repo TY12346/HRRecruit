@@ -182,7 +182,7 @@ export default function JobRequisitionsPage() {
                 <DetailRow label="Reason for hire" value={selectedRequisition.reason_for_hire} />
                 <DetailRow label="Impact of not hiring" value={selectedRequisition.impact_of_not_hiring} />
                 {selectedRequisition.status === 'rejected' ? <DetailRow label="Rejection reason" value={selectedRequisition.rejection_reason} /> : null}
-                {selectedRequisition.status === 'approved' && selectedRequisition.job_posting_id ? <DetailRow label="Draft job" value={`Job #${selectedRequisition.job_posting_id}`} /> : null}
+                {selectedRequisition.status === 'approved' && selectedRequisition.job_posting_id ? <DetailRow label="Draft job" value="Created" /> : null}
               </Stack>
             </DialogContent>
             <DialogActions>

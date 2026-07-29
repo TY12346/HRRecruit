@@ -48,7 +48,7 @@ export default function HiringDecisionPage() {
       const result = await submitJobHiringDecision({ job_posting: Number(jobId), decision_type: noHire ? 'recommend_no_hire' : 'recommend_hire', application_ids: noHire ? [] : selected, justification });
       setPendingDecision(result);
       setDecisions((current) => [result, ...current.filter((decision) => decision.id !== result.id)]);
-      setSuccess(`Hiring Decision #${result.id} submitted.`);
+      setSuccess('Hiring decision submitted.');
     } catch (err) { setError(getApiErrorMessage(err, 'Unable to submit hiring decision.')); }
   };
   return <Box><RecruiterNav /><Paper sx={{ p: 3 }}><Stack spacing={2}>
@@ -56,7 +56,7 @@ export default function HiringDecisionPage() {
     {error ? <Alert severity="error">{error}</Alert> : null}{success ? <Alert severity="success">{success}</Alert> : null}
     {!data ? <CircularProgress /> : <>
       <Typography><strong>{data.job.title}</strong> • {data.job.vacancies} vacancy/vacancies • {titleize(data.job.status)}</Typography>
-      {pendingDecision ? <Alert severity="info">Hiring Decision #{pendingDecision.id} is already pending hiring manager approval.</Alert> : null}
+      {pendingDecision ? <Alert severity="info">A hiring decision is already pending hiring manager approval.</Alert> : null}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
         <Box>
           <Typography sx={{ fontWeight: 600 }}>Applicant comparison</Typography>
@@ -104,7 +104,7 @@ export default function HiringDecisionPage() {
             <TableHead><TableRow><TableCell>Decision</TableCell><TableCell>Selected applicants</TableCell><TableCell>Status</TableCell><TableCell>Submitted</TableCell><TableCell>Hiring manager feedback</TableCell><TableCell>Next step</TableCell></TableRow></TableHead>
             <TableBody>
               {decisions.map((decision) => <TableRow key={decision.id}>
-                <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>#{decision.id} · {titleize(decision.decision_type)}</Typography></TableCell>
+                <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{titleize(decision.decision_type)}</Typography></TableCell>
                 <TableCell>{decision.items.length ? decision.items.map((item) => applicationName(item.application)).join(', ') : 'No applicants selected'}</TableCell>
                 <TableCell><Chip size="small" color={decision.status === 'approved' ? 'success' : decision.status === 'rejected' ? 'error' : 'warning'} label={titleize(decision.status)} /></TableCell>
                 <TableCell>{formatDateTime(decision.submitted_at)}</TableCell>
