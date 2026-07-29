@@ -133,8 +133,13 @@ export const updateOrganization = async (organization) => {
   return response.data;
 };
 
-export const deleteOrganization = async () => {
-  const response = await apiClient.delete('/org/');
+export const requestOrganizationDeletionOtp = async () => {
+  const response = await apiClient.post('/org/deletion-otp/');
+  return response.data;
+};
+
+export const deleteOrganization = async (otp) => {
+  const response = await apiClient.delete('/org/', { data: { otp } });
   return response.data;
 };
 

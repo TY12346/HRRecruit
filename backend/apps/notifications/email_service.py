@@ -96,6 +96,19 @@ def send_team_account_created_email(user, temporary_password):
     )
 
 
+def send_organization_deletion_otp_email(user, organization, otp_code):
+    return send_email(
+        subject='Confirm deletion of your HRRecruit organization',
+        message=(
+            f'Hello {user.full_name},\n\n'
+            f'Use this OTP to continue deleting {organization.name}:\n{otp_code}\n\n'
+            'This OTP expires in 10 minutes. Organization deletion cannot be reversed. '
+            'If you did not request this, do not share the OTP and contact support.'
+        ),
+        recipient_list=[user.email],
+    )
+
+
 def send_job_offer_email(offer):
     application = offer.application
     salary_amount = getattr(offer, 'salary_amount', None)

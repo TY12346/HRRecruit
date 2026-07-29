@@ -39,6 +39,7 @@ READABLE_ID_PREFIXES = {
     'notifications.PushDevice': 'DEV',
     'organizations.Organization': 'ORG',
     'organizations.OrganizationMembership': 'MEM',
+    'organizations.OrganizationDeletionOTP': 'ODP',
     'users.ApplicantEducation': 'EDU',
     'users.ApplicantExperience': 'EXP',
     'users.ApplicantProfile': 'APF',
