@@ -199,7 +199,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> renameResume({
-    required int resumeId,
+    required String resumeId,
     required String title,
   }) async {
     await _runAuthAction(() async {
@@ -212,7 +212,7 @@ class AuthController extends ChangeNotifier {
     });
   }
 
-  Future<void> deleteResume({required int resumeId}) async {
+  Future<void> deleteResume({required String resumeId}) async {
     await _runAuthAction(() async {
       final profile = await _authService.deleteResume(resumeId: resumeId);
       _ensureApplicant(profile);

@@ -16,7 +16,7 @@ class ApplicantInterview {
     required this.updatedAt,
   });
 
-  final int id;
+  final String id;
   final JobApplication? application;
   final String interviewerName;
   final String interviewerEmail;
@@ -34,7 +34,7 @@ class ApplicantInterview {
   factory ApplicantInterview.fromJson(Map<String, dynamic> json) {
     final interviewer = json['interviewer'];
     return ApplicantInterview(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
       application: json['application'] is Map<String, dynamic>
           ? JobApplication.fromJson(json['application'] as Map<String, dynamic>)
           : null,
@@ -84,7 +84,7 @@ class InterviewerAvailabilitySlot {
   });
 
   final String id;
-  final int patternId;
+  final String patternId;
   final String interviewDate;
   final String startTime;
   final String endTime;
@@ -99,7 +99,7 @@ class InterviewerAvailabilitySlot {
   factory InterviewerAvailabilitySlot.fromJson(Map<String, dynamic> json) {
     return InterviewerAvailabilitySlot(
       id: json['id']?.toString() ?? '',
-      patternId: _asInt(json['pattern_id']),
+      patternId: json['pattern_id']?.toString() ?? '',
       interviewDate: json['date'] as String? ?? '',
       startTime: json['start_time'] as String? ?? '',
       endTime: json['end_time'] as String? ?? '',
@@ -161,7 +161,7 @@ class InterviewSchedulingRequest {
     required this.createdAt,
   });
 
-  final int id;
+  final String id;
   final JobApplication? application;
   final String interviewerName;
   final String interviewerEmail;
@@ -169,7 +169,7 @@ class InterviewSchedulingRequest {
   final String status;
   final DateTime? expiresAt;
   final InterviewerAvailabilitySlot? selectedSlot;
-  final int interviewId;
+  final String interviewId;
   final List<InterviewerAvailabilitySlot> availableSlots;
   final DateTime? createdAt;
 
@@ -180,7 +180,7 @@ class InterviewSchedulingRequest {
     final selectedSlot = json['selected_slot'];
     final availableSlots = json['available_slots'];
     return InterviewSchedulingRequest(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
       application: json['application'] is Map<String, dynamic>
           ? JobApplication.fromJson(json['application'] as Map<String, dynamic>)
           : null,
@@ -196,7 +196,7 @@ class InterviewSchedulingRequest {
       selectedSlot: selectedSlot is Map<String, dynamic>
           ? InterviewerAvailabilitySlot.fromJson(selectedSlot)
           : null,
-      interviewId: _asInt(json['interview']),
+      interviewId: json['interview']?.toString() ?? '',
       availableSlots: availableSlots is List
           ? availableSlots
               .whereType<Map<String, dynamic>>()

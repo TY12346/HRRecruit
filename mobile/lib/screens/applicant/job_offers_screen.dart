@@ -16,7 +16,7 @@ class JobOffersScreen extends StatefulWidget {
 
 class _JobOffersScreenState extends State<JobOffersScreen> {
   late Future<List<JobOffer>> _offersFuture;
-  int? _busyOfferId;
+  String? _busyOfferId;
 
   @override
   void initState() {

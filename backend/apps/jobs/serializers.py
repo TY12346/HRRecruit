@@ -8,9 +8,10 @@ from rest_framework import serializers
 from apps.users.models import User
 
 from .models import EvaluationCriterion, InterviewEvaluationForm, JobPosting, JobRequirement, JobRequisition
+from apps.common.serializers import ReadableIdModelSerializer
 
 
-class JobRequirementSerializer(serializers.ModelSerializer):
+class JobRequirementSerializer(ReadableIdModelSerializer):
     def validate_weight_score(self, value):
         if value < 0:
             raise serializers.ValidationError('Weight score cannot be negative.')
@@ -22,7 +23,7 @@ class JobRequirementSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-class EvaluationCriterionSerializer(serializers.ModelSerializer):
+class EvaluationCriterionSerializer(ReadableIdModelSerializer):
     def validate_weight_score(self, value):
         if value < 0:
             raise serializers.ValidationError('Weight score cannot be negative.')
@@ -34,7 +35,7 @@ class EvaluationCriterionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
+class InterviewEvaluationFormSerializer(ReadableIdModelSerializer):
     criteria = EvaluationCriterionSerializer(many=True, allow_empty=False)
 
     class Meta:
@@ -63,7 +64,7 @@ class InterviewEvaluationFormSerializer(serializers.ModelSerializer):
         return instance
 
 
-class JobPostingSerializer(serializers.ModelSerializer):
+class JobPostingSerializer(ReadableIdModelSerializer):
     requirements = JobRequirementSerializer(many=True, read_only=True)
     interview_evaluation_form = InterviewEvaluationFormSerializer(read_only=True)
     interview_evaluation_scorecard = InterviewEvaluationFormSerializer(source='interview_evaluation_form', read_only=True)
@@ -135,11 +136,11 @@ class JobPostingSerializer(serializers.ModelSerializer):
         return job.saved_by_applicants.filter(applicant=request.user).exists()
 
 
-class JobRequisitionSerializer(serializers.ModelSerializer):
+class JobRequisitionSerializer(ReadableIdModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     recruiter_name = serializers.CharField(source='recruiter.full_name', read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.full_name', read_only=True)
-    job_posting_id = serializers.IntegerField(source='job_posting.id', read_only=True)
+    job_posting_id = serializers.CharField(source='job_posting.public_id', read_only=True)
 
     class Meta:
         model = JobRequisition

@@ -14,7 +14,7 @@ import 'job_cards.dart';
 class JobDetailScreen extends StatefulWidget {
   const JobDetailScreen({super.key, required this.jobId});
 
-  final int jobId;
+  final String jobId;
 
   @override
   State<JobDetailScreen> createState() => _JobDetailScreenState();
@@ -169,7 +169,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   JobApplication? _latestApplicationFor(
     List<JobApplication> applications,
-    int jobId,
+    String jobId,
   ) {
     final matching =
         applications.where((application) => application.jobId == jobId);

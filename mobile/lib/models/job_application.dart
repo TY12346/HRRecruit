@@ -13,8 +13,8 @@ class JobApplication {
     required this.updatedAt,
   });
 
-  final int id;
-  final int jobId;
+  final String id;
+  final String jobId;
   final String jobTitle;
   final String organizationName;
   final String status;
@@ -29,8 +29,8 @@ class JobApplication {
 
   factory JobApplication.fromJson(Map<String, dynamic> json) {
     return JobApplication(
-      id: _asInt(json['id']),
-      jobId: _asInt(json['job']),
+      id: json['id']?.toString() ?? '',
+      jobId: json['job']?.toString() ?? '',
       jobTitle: json['job_title'] as String? ?? '',
       organizationName: json['organization_name'] as String? ?? '',
       status: json['status'] as String? ?? '',
@@ -65,7 +65,7 @@ class ApplicationStageHistory {
     required this.changedAt,
   });
 
-  final int id;
+  final String id;
   final String fromStage;
   final String toStage;
   final String changedByName;
@@ -74,7 +74,7 @@ class ApplicationStageHistory {
 
   factory ApplicationStageHistory.fromJson(Map<String, dynamic> json) {
     return ApplicationStageHistory(
-      id: _asInt(json['id']),
+      id: json['id']?.toString() ?? '',
       fromStage: json['from_stage'] as String? ?? '',
       toStage: json['to_stage'] as String? ?? '',
       changedByName: json['changed_by_name'] as String? ?? 'System',

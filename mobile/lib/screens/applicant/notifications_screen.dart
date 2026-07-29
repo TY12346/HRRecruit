@@ -17,7 +17,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late Future<List<AppNotification>> _notificationsFuture;
-  int? _busyNotificationId;
+  String? _busyNotificationId;
   bool _isMarkingAll = false;
 
   @override

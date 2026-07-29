@@ -51,7 +51,7 @@ def get_application_resume_file(application):
 def select_applicant_resume(applicant, resume_id=None):
     if resume_id:
         try:
-            return ApplicantResume.objects.get(id=resume_id, applicant=applicant)
+            return ApplicantResume.objects.get(public_id=resume_id, applicant=applicant)
         except ApplicantResume.DoesNotExist as exc:
             raise ValidationError({'resume_id': 'Select one of your uploaded resumes.'}) from exc
     return (
@@ -194,9 +194,7 @@ def apply_applicant_search_filters(applications, query_params, user):
 
     recruiter_id = (query_params.get('recruiter_id') or '').strip()
     if recruiter_id:
-        if not recruiter_id.isdigit():
-            raise ValidationError({'recruiter_id': 'Enter a valid recruiter id.'})
-        applications = applications.filter(job__recruiter_id=recruiter_id)
+        applications = applications.filter(job__recruiter__public_id=recruiter_id)
 
     interviewer_status = (query_params.get('interviewer_status') or query_params.get('interview_status') or '').strip()
     if interviewer_status:
@@ -284,9 +282,7 @@ def apply_application_search_filters(applications, query_params, allow_status=Tr
 
     job_id = (query_params.get('job') or query_params.get('job_id') or '').strip()
     if job_id:
-        if not job_id.isdigit():
-            raise ValidationError({'job': 'Enter a valid job id.'})
-        applications = applications.filter(job_id=job_id)
+                applications = applications.filter(job__public_id=job_id)
 
     min_score = parse_decimal_filter(query_params.get('min_score'), 'min_score')
     max_score = parse_decimal_filter(query_params.get('max_score'), 'max_score')
@@ -310,7 +306,7 @@ def recruiter_job_or_404(user, job_id):
         raise PermissionDenied('Recruiter must belong to an active organization.')
     return get_object_or_404(
         JobPosting.objects.select_related('organization', 'recruiter'),
-        id=job_id,
+        public_id=job_id,
         recruiter=user,
         organization=membership.organization,
     )
@@ -319,14 +315,14 @@ def recruiter_job_or_404(user, job_id):
 def recruiter_application_or_404(user, application_id):
     if user.role != User.Role.RECRUITER:
         raise PermissionDenied('Only recruiters can manage applicant ranking and shortlisting.')
-    return get_object_or_404(visible_applications_for(user), id=application_id)
+    return get_object_or_404(visible_applications_for(user), public_id=application_id)
 
 
 def resume_application_or_404(user, application_id):
     if user.role in (User.Role.RECRUITER, User.Role.INTERVIEWER):
         return applicant_profile_application_or_404(user, application_id)
     if user.role in (User.Role.APPLICANT, User.Role.HR_HEAD):
-        return get_object_or_404(visible_applications_for(user), id=application_id)
+        return get_object_or_404(visible_applications_for(user), public_id=application_id)
     raise PermissionDenied('Your role cannot view application resumes.')
 
 
@@ -346,7 +342,7 @@ def applicant_profile_application_or_404(user, application_id):
                 'assigned_interviewer',
                 'resume',
             ),
-            id=application_id,
+            public_id=application_id,
             assigned_interviewer=user,
             job__organization=membership.organization,
         )
@@ -356,7 +352,7 @@ def applicant_profile_application_or_404(user, application_id):
 def active_interviewer_for_organization_or_404(interviewer_id, organization):
     membership = get_object_or_404(
         OrganizationMembership.objects.select_related('user'),
-        user_id=interviewer_id,
+        user__public_id=interviewer_id,
         user__role=User.Role.INTERVIEWER,
         user__is_active=True,
         organization=organization,
@@ -391,7 +387,7 @@ class JobApplyAPIView(APIView):
             raise PermissionDenied('Only applicants can apply for jobs.')
         job = get_object_or_404(
             JobPosting.objects.select_related('organization'),
-            id=job_id,
+            public_id=job_id,
             status=JobPosting.Status.OPEN,
             organization__status=Organization.Status.ACTIVE,
         )
@@ -453,7 +449,7 @@ class JobApplyAPIView(APIView):
     def delete(self, request, job_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can withdraw job applications.')
-        application = get_object_or_404(JobApplication, job_id=job_id, applicant=request.user)
+        application = get_object_or_404(JobApplication, job__public_id=job_id, applicant=request.user)
         if application.status != JobApplication.Status.UNDER_REVIEW:
             raise ValidationError({'status': 'Only applications under review can be withdrawn.'})
         application.change_status(
@@ -504,7 +500,7 @@ class ApplicationDetailAPIView(APIView):
 
     def get(self, request, application_id):
         ensure_application_viewer_role(request.user)
-        application = get_object_or_404(visible_applications_for(request.user), id=application_id)
+        application = get_object_or_404(visible_applications_for(request.user), public_id=application_id)
         return Response(JobApplicationSerializer(application, context={'request': request}).data)
 
 
@@ -513,7 +509,7 @@ class ApplicationStatusHistoryAPIView(APIView):
 
     def get(self, request, application_id):
         ensure_application_viewer_role(request.user)
-        application = get_object_or_404(visible_applications_for(request.user), id=application_id)
+        application = get_object_or_404(visible_applications_for(request.user), public_id=application_id)
         history = application.stage_history.select_related('changed_by')
         return Response(ApplicationStageHistorySerializer(history, many=True).data)
 
@@ -525,7 +521,7 @@ class ApplicationScreenAPIView(APIView):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can screen job applications.')
 
-        application = get_object_or_404(visible_applications_for(request.user), id=application_id)
+        application = get_object_or_404(visible_applications_for(request.user), public_id=application_id)
         try:
             resume_file = get_application_resume_file(application)
             if not resume_file:
@@ -703,8 +699,8 @@ class EmployerInviteListCreateAPIView(APIView):
         membership = get_active_membership(request.user, OrganizationMembership.Role.RECRUITER)
         if not membership:
             raise PermissionDenied('An active recruiter organization membership is required.')
-        applicant = get_object_or_404(User, id=request.data.get('applicant_id'), role=User.Role.APPLICANT, is_active=True)
-        job = get_object_or_404(JobPosting, id=request.data.get('job_id'), recruiter=request.user, organization=membership.organization, status=JobPosting.Status.OPEN)
+        applicant = get_object_or_404(User, public_id=request.data.get('applicant_id'), role=User.Role.APPLICANT, is_active=True)
+        job = get_object_or_404(JobPosting, public_id=request.data.get('job_id'), recruiter=request.user, organization=membership.organization, status=JobPosting.Status.OPEN)
         invite, created = EmployerInvite.objects.get_or_create(job=job, applicant=applicant, defaults={'recruiter': request.user})
         if not created:
             invited_on = timezone.localtime(invite.created_at).date().isoformat()
@@ -721,7 +717,7 @@ class EmployerInviteDeclineAPIView(APIView):
     def post(self, request, invite_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can decline employer invites.')
-        invite = get_object_or_404(EmployerInvite, id=invite_id, applicant=request.user)
+        invite = get_object_or_404(EmployerInvite, public_id=invite_id, applicant=request.user)
         if invite.response != EmployerInvite.Response.NO_RESPONSE:
             raise ValidationError({'detail': 'This invitation has already been responded to.'})
         invite.response = EmployerInvite.Response.DECLINED

@@ -9,7 +9,7 @@ from .views import (
 )
 
 urlpatterns = [
-    path('recordings/<int:recording_id>/transcribe/', InterviewRecordingTranscribeAPIView.as_view(), name='recording-transcribe'),
-    path('transcripts/<int:transcript_id>/generate-summary/', InterviewTranscriptGenerateSummaryAPIView.as_view(), name='transcript-generate-summary'),
-    path('interview-summaries/<int:summary_id>/', InterviewAISummaryUpdateAPIView.as_view(), name='interview-summary-update'),
+    path('recordings/<str:recording_id>/transcribe/', InterviewRecordingTranscribeAPIView.as_view(), name='recording-transcribe'),
+    path('transcripts/<str:transcript_id>/generate-summary/', InterviewTranscriptGenerateSummaryAPIView.as_view(), name='transcript-generate-summary'),
+    path('interview-summaries/<str:summary_id>/', InterviewAISummaryUpdateAPIView.as_view(), name='interview-summary-update'),
 ]

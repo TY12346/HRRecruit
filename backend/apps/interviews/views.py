@@ -230,7 +230,7 @@ def pending_scheduling_request_for_applicant_application_or_404(applicant, appli
     scheduling_request = (
         bookable_scheduling_requests_for_applicant(applicant)
         .filter(
-            application_id=application_id,
+            application__public_id=application_id,
             status=InterviewSchedulingRequest.Status.PENDING,
         )
         .order_by('-created_at', '-id')
@@ -358,8 +358,8 @@ def serialize_generated_slot_for_selection(slot, interviewer, panel=None):
 
 def serialize_legacy_slot_for_selection(slot, interviewer, panel=None):
     return {
-        'slot_id': slot.id,
-        'id': slot.id,
+        'slot_id': slot.public_id,
+        'id': slot.public_id,
         'pattern_id': None,
         'date': timezone.localdate(slot.start_datetime),
         'interview_date': timezone.localdate(slot.start_datetime),
@@ -377,7 +377,7 @@ def serialize_legacy_slot_for_selection(slot, interviewer, panel=None):
 def active_interviewer_for_organization_or_404(interviewer_id, organization):
     membership = get_object_or_404(
         OrganizationMembership.objects.select_related('user'),
-        user_id=interviewer_id,
+        user__public_id=interviewer_id,
         user__role=User.Role.INTERVIEWER,
         user__is_active=True,
         organization=organization,
@@ -395,7 +395,7 @@ def recruiter_application_or_404(user, application_id):
         raise PermissionDenied('Recruiter must belong to an active organization.')
     return get_object_or_404(
         JobApplication.objects.select_related('job', 'job__organization', 'applicant', 'assigned_interviewer'),
-        id=application_id,
+        public_id=application_id,
         job__organization=membership.organization,
         job__recruiter=user,
     )
@@ -495,7 +495,7 @@ class InterviewerAvailabilityPatternDetailAPIView(APIView):
     def patch(self, request, pattern_id):
         if request.user.role != User.Role.INTERVIEWER:
             raise PermissionDenied('Only interviewers can manage weekly availability.')
-        pattern = get_object_or_404(availability_patterns_for_interviewer(request.user), id=pattern_id)
+        pattern = get_object_or_404(availability_patterns_for_interviewer(request.user), public_id=pattern_id)
         serializer = InterviewerAvailabilityPatternSerializer(pattern, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -504,7 +504,7 @@ class InterviewerAvailabilityPatternDetailAPIView(APIView):
     def delete(self, request, pattern_id):
         if request.user.role != User.Role.INTERVIEWER:
             raise PermissionDenied('Only interviewers can manage weekly availability.')
-        pattern = get_object_or_404(availability_patterns_for_interviewer(request.user), id=pattern_id)
+        pattern = get_object_or_404(availability_patterns_for_interviewer(request.user), public_id=pattern_id)
         pattern.is_active = False
         pattern.save(update_fields=['is_active', 'updated_at'])
         return Response(InterviewerAvailabilityPatternSerializer(pattern).data)
@@ -539,7 +539,7 @@ class InterviewerUnavailableDateDetailAPIView(APIView):
     def delete(self, request, unavailable_date_id):
         if request.user.role != User.Role.INTERVIEWER:
             raise PermissionDenied('Only interviewers can manage unavailable dates.')
-        unavailable = get_object_or_404(unavailable_dates_for_interviewer(request.user), id=unavailable_date_id)
+        unavailable = get_object_or_404(unavailable_dates_for_interviewer(request.user), public_id=unavailable_date_id)
         unavailable.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -578,7 +578,7 @@ class InterviewerAvailabilitySlotDetailAPIView(APIView):
     def delete(self, request, slot_id):
         if request.user.role != User.Role.INTERVIEWER:
             raise PermissionDenied('Only interviewers can cancel availability slots.')
-        slot = get_object_or_404(available_slots_for_interviewer(request.user), id=slot_id)
+        slot = get_object_or_404(available_slots_for_interviewer(request.user), public_id=slot_id)
         if slot.status == InterviewerAvailabilitySlot.Status.BOOKED:
             raise ValidationError({'status': 'Booked availability slots cannot be cancelled.'})
         slot.status = InterviewerAvailabilitySlot.Status.CANCELLED
@@ -713,7 +713,7 @@ def book_scheduling_request(request, scheduling_request):
             raise ValidationError({'slot_id': 'Panel interviews must use a common generated availability slot.'})
         slot = get_object_or_404(
             InterviewerAvailabilitySlot.objects.select_for_update(),
-            id=serializer.validated_data['slot_id'],
+            public_id=serializer.validated_data['slot_id'],
             organization=scheduling_request.organization,
             interviewer=scheduling_request.interviewer,
         )
@@ -818,7 +818,7 @@ class BookSchedulingRequestAPIView(APIView):
             raise PermissionDenied('Only applicants can choose interview slots.')
         scheduling_request = get_object_or_404(
             bookable_scheduling_requests_for_applicant(request.user).select_for_update(),
-            id=scheduling_request_id,
+            public_id=scheduling_request_id,
         )
         scheduling_request = book_scheduling_request(request, scheduling_request)
         return Response(InterviewSchedulingRequestSerializer(scheduling_request, context={'request': request}).data)
@@ -891,9 +891,7 @@ class InterviewListAPIView(APIView):
         interviews = visible_interviews_for(request.user)
         job_id = request.query_params.get('job_id')
         if job_id:
-            if not job_id.isdigit():
-                raise ValidationError({'job_id': 'Job ID must be a positive integer.'})
-            interviews = interviews.filter(application__job_id=job_id)
+            interviews = interviews.filter(application__job__public_id=job_id)
         interview_status = request.query_params.get('status')
         if interview_status:
             if interview_status not in Interview.Status.values:
@@ -938,7 +936,7 @@ class InterviewDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, interview_id):
-        interview = get_object_or_404(visible_interviews_for(request.user), id=interview_id)
+        interview = get_object_or_404(visible_interviews_for(request.user), public_id=interview_id)
         return Response(InterviewSerializer(interview, context={'request': request}).data)
 
 

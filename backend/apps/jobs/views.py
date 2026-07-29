@@ -104,7 +104,7 @@ def recruiter_job_or_404(user, job_id):
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
         raise PermissionDenied('An active recruiter organization membership is required.')
-    return get_object_or_404(JobPosting, id=job_id, organization=membership.organization, recruiter=user)
+    return get_object_or_404(JobPosting, public_id=job_id, organization=membership.organization, recruiter=user)
 
 
 def visible_requisitions_for(user):
@@ -121,13 +121,13 @@ def visible_requisitions_for(user):
 def hr_requisition_or_404(user, requisition_id):
     if user.role != User.Role.HR_HEAD:
         raise PermissionDenied('Only hiring managers can review job requisitions.')
-    return get_object_or_404(visible_requisitions_for(user), id=requisition_id)
+    return get_object_or_404(visible_requisitions_for(user), public_id=requisition_id)
 
 
 def recruiter_requisition_or_404(user, requisition_id):
     if user.role != User.Role.RECRUITER:
         raise PermissionDenied('Only recruiters can manage their job requisitions.')
-    return get_object_or_404(visible_requisitions_for(user), id=requisition_id)
+    return get_object_or_404(visible_requisitions_for(user), public_id=requisition_id)
 
 
 class JobRequisitionListCreateAPIView(APIView):
@@ -303,7 +303,7 @@ class JobDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, job_id):
-        job = get_object_or_404(visible_jobs_for(request.user), id=job_id)
+        job = get_object_or_404(visible_jobs_for(request.user), public_id=job_id)
         return Response(JobPostingSerializer(job, context={'request': request}).data)
 
     @transaction.atomic
@@ -413,7 +413,7 @@ class JobSaveAPIView(APIView):
     def post(self, request, job_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can save jobs.')
-        job = get_object_or_404(visible_jobs_for(request.user), id=job_id)
+        job = get_object_or_404(visible_jobs_for(request.user), public_id=job_id)
         saved_job, created = SavedJobPosting.objects.get_or_create(applicant=request.user, job=job)
         response_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response({'message': 'Job saved successfully.', 'saved_at': saved_job.saved_at}, status=response_status)
@@ -421,7 +421,7 @@ class JobSaveAPIView(APIView):
     def delete(self, request, job_id):
         if request.user.role != User.Role.APPLICANT:
             raise PermissionDenied('Only applicants can unsave jobs.')
-        deleted, _ = SavedJobPosting.objects.filter(applicant=request.user, job_id=job_id).delete()
+        deleted, _ = SavedJobPosting.objects.filter(applicant=request.user, job__public_id=job_id).delete()
         if not deleted:
             return Response({'detail': 'Saved job not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)

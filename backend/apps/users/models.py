@@ -2,6 +2,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
+from apps.common.models import ReadableIdModel
 
 
 class CustomUserManager(BaseUserManager):
@@ -29,7 +30,7 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser, PermissionsMixin, ReadableIdModel):
     class Role(models.TextChoices):
         APPLICANT = 'applicant', 'Applicant'
         RECRUITER = 'recruiter', 'Recruiter'
@@ -54,7 +55,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
 
-class ApplicantProfile(models.Model):
+class ApplicantProfile(ReadableIdModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='applicant_profile')
     linkedin_url = models.URLField(blank=True)
     personal_summary = models.TextField(blank=True)
@@ -63,7 +64,7 @@ class ApplicantProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
-class ApplicantResume(models.Model):
+class ApplicantResume(ReadableIdModel):
     id = models.BigAutoField(primary_key=True)
     applicant = models.ForeignKey(
         User,
@@ -92,7 +93,7 @@ class ApplicantResume(models.Model):
         return f'{self.applicant.email} - {self.title or self.resume_file.name}'
 
 
-class ApplicantExperience(models.Model):
+class ApplicantExperience(ReadableIdModel):
     id = models.BigAutoField(primary_key=True)
     applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='experiences')
     job_title = models.CharField(max_length=255)
@@ -105,7 +106,7 @@ class ApplicantExperience(models.Model):
         ordering = ['-start_date', '-id']
 
 
-class ApplicantEducation(models.Model):
+class ApplicantEducation(ReadableIdModel):
     id = models.BigAutoField(primary_key=True)
     applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='educations')
     school_name = models.CharField(max_length=255)
@@ -119,7 +120,7 @@ class ApplicantEducation(models.Model):
         ordering = ['-start_date', '-id']
 
 
-class ApplicantSkill(models.Model):
+class ApplicantSkill(ReadableIdModel):
     id = models.BigAutoField(primary_key=True)
     applicant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='skills')
     skill_name = models.CharField(max_length=100)
@@ -129,26 +130,26 @@ class ApplicantSkill(models.Model):
         unique_together = ('applicant', 'skill_name')
 
 
-class RecruiterProfile(models.Model):
+class RecruiterProfile(ReadableIdModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='recruiter_profile')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
-class InterviewerProfile(models.Model):
+class InterviewerProfile(ReadableIdModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='interviewer_profile')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
-class HRHeadProfile(models.Model):
+class HRHeadProfile(ReadableIdModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='hr_head_profile')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
 
-class PasswordResetOTP(models.Model):
+class PasswordResetOTP(ReadableIdModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_otps')
     otp_code = models.CharField(max_length=6)
     expires_at = models.DateTimeField()

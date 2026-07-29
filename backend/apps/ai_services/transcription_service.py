@@ -191,10 +191,10 @@ def transcribe_recording_payload(recording):
         converted_properties = probe_audio(path)
         if converted_properties['selected_audio_codec'] != 'pcm_s16le' or converted_properties['sample_rate'] != '16000' or converted_properties['channels'] != 1:
             raise TranscriptionUnavailable('Audio conversion verification failed: Whisper input is not PCM signed 16-bit little-endian, 16 kHz, mono WAV.')
-        result = run_real_transcription(path); metadata = {**result['metadata'], 'recording_id': recording.id, 'audio_sha256': recording.audio_sha256, 'audio_file_save_seconds': recording.upload_seconds, 'source_audio_properties': source_properties, 'whisper_input_properties': converted_properties, 'preprocessing': 'ffmpeg_16khz_mono_pcm_wav', 'preprocessing_seconds': round(pre_seconds, 3)}
+        result = run_real_transcription(path); metadata = {**result['metadata'], 'recording_id': recording.public_id, 'audio_sha256': recording.audio_sha256, 'audio_file_save_seconds': recording.upload_seconds, 'source_audio_properties': source_properties, 'whisper_input_properties': converted_properties, 'preprocessing': 'ffmpeg_16khz_mono_pcm_wav', 'preprocessing_seconds': round(pre_seconds, 3)}
         payload = build_speaker_aware_transcript_payload(result['text'], result['segments'], path, metadata)
         payload['transcript_json']['total_processing_seconds'] = round(perf_counter() - total, 3)
-        logger.info('Real transcription completed recording=%s timings=%s', recording.id, payload['transcript_json'])
+        logger.info('Real transcription completed recording=%s timings=%s', recording.public_id, payload['transcript_json'])
         return payload
     finally:
         if path and not _enabled('PRESERVE_PREPROCESSED_AUDIO', False): Path(path).unlink(missing_ok=True)

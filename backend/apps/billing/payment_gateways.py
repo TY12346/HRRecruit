@@ -47,7 +47,7 @@ class DemoPaymentGateway(BasePaymentGateway):
         return {
             'gateway': self.gateway_name,
             'mode': 'demo',
-            'subscription_id': subscription.id,
+            'subscription_id': subscription.public_id,
             'checkout_url': endpoint,
             'message': 'Use the demo payment success endpoint to activate this subscription.',
         }
@@ -95,7 +95,7 @@ class StripeSandboxGateway(BasePaymentGateway):
             raise PaymentGatewayError('Stripe checkout requires a plan price greater than zero.')
         session = stripe.checkout.Session.create(
             mode='payment',
-            client_reference_id=str(subscription.id),
+            client_reference_id=str(subscription.public_id),
             payment_method_types=['card'],
             line_items=[
                 {
@@ -111,7 +111,7 @@ class StripeSandboxGateway(BasePaymentGateway):
                 }
             ],
             metadata={
-                'subscription_id': str(subscription.id),
+                'subscription_id': str(subscription.public_id),
                 'organization_id': str(subscription.organization_id),
                 'plan_id': str(subscription.plan_id),
                 'gateway': self.gateway_name,
@@ -123,7 +123,7 @@ class StripeSandboxGateway(BasePaymentGateway):
         return {
             'gateway': self.gateway_name,
             'mode': 'stripe_sandbox',
-            'subscription_id': subscription.id,
+            'subscription_id': subscription.public_id,
             'checkout_session_id': session.id,
             'checkout_url': session.url,
         }
@@ -150,7 +150,7 @@ class StripeSandboxGateway(BasePaymentGateway):
 
         try:
             subscription = Subscription.objects.select_related('organization', 'plan').get(
-                id=subscription_id,
+                public_id=subscription_id,
                 status=Subscription.Status.PENDING,
             )
         except Subscription.DoesNotExist as exc:

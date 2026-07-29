@@ -29,7 +29,7 @@ class JobDiscoveryService {
         .toList();
   }
 
-  Future<JobPosting> getJob(int jobId) async {
+  Future<JobPosting> getJob(String jobId) async {
     final response =
         await _apiClient.dio.get<Map<String, dynamic>>('jobs/$jobId/');
     return JobPosting.fromJson(response.data!);
@@ -43,15 +43,15 @@ class JobDiscoveryService {
         .toList();
   }
 
-  Future<void> saveJob(int jobId) async {
+  Future<void> saveJob(String jobId) async {
     await _apiClient.dio.post<Map<String, dynamic>>('jobs/$jobId/save/');
   }
 
-  Future<void> unsaveJob(int jobId) async {
+  Future<void> unsaveJob(String jobId) async {
     await _apiClient.dio.delete<void>('jobs/$jobId/save/');
   }
 
-  Future<JobApplication> applyForJob(int jobId, {required int resumeId}) async {
+  Future<JobApplication> applyForJob(String jobId, {required String resumeId}) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'jobs/$jobId/apply/',
       data: {'resume_id': resumeId},
@@ -60,7 +60,7 @@ class JobDiscoveryService {
     return JobApplication.fromJson(response.data!);
   }
 
-  Future<JobApplication> withdrawApplication(int jobId) async {
+  Future<JobApplication> withdrawApplication(String jobId) async {
     final response =
         await _apiClient.dio.delete<Map<String, dynamic>>('jobs/$jobId/apply/');
     return JobApplication.fromJson(response.data!);
@@ -74,14 +74,14 @@ class JobDiscoveryService {
         .toList();
   }
 
-  Future<JobApplication> getApplication(int applicationId) async {
+  Future<JobApplication> getApplication(String applicationId) async {
     final response = await _apiClient.dio
         .get<Map<String, dynamic>>('applications/$applicationId/');
     return JobApplication.fromJson(response.data!);
   }
 
   Future<List<ApplicationStageHistory>> getApplicationHistory(
-      int applicationId) async {
+      String applicationId) async {
     final response = await _apiClient.dio.get<List<dynamic>>(
       'applications/$applicationId/status-history/',
     );
@@ -102,7 +102,7 @@ extension EmployerInviteDiscovery on JobDiscoveryService {
         .toList();
   }
 
-  Future<void> declineEmployerInvite(int inviteId) async {
+  Future<void> declineEmployerInvite(String inviteId) async {
     await _apiClient.dio
         .post<void>('applications/employer-invites/$inviteId/decline/');
   }

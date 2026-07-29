@@ -4,6 +4,7 @@ from rest_framework import serializers
 from apps.applications.serializers import JobApplicationSerializer
 from apps.users.models import User
 from .models import HiringDecision, JobHiringDecision, JobHiringDecisionItem, JobOffer
+from apps.common.serializers import ReadableIdModelSerializer
 
 
 ALLOWED_OFFER_LETTER_CONTENT_TYPES = {
@@ -25,7 +26,7 @@ class HRDecisionReviewSerializer(serializers.Serializer):
 class JobDecisionSubmitSerializer(serializers.Serializer):
     decision_type = serializers.ChoiceField(choices=JobHiringDecision.DecisionType.choices)
     justification = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
-    application_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
+    application_ids = serializers.ListField(child=serializers.CharField(), required=False, default=list)
     reasons = serializers.DictField(child=serializers.CharField(allow_blank=True), required=False, default=dict)
 
 
@@ -37,7 +38,7 @@ class JobOfferReviewSerializer(serializers.Serializer):
     remarks = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True, default='')
 
 
-class JobHiringDecisionItemSerializer(serializers.ModelSerializer):
+class JobHiringDecisionItemSerializer(ReadableIdModelSerializer):
     application = JobApplicationSerializer(read_only=True)
 
     class Meta:
@@ -46,7 +47,7 @@ class JobHiringDecisionItemSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class JobHiringDecisionSerializer(serializers.ModelSerializer):
+class JobHiringDecisionSerializer(ReadableIdModelSerializer):
     job_title = serializers.CharField(source='job_posting.title', read_only=True)
     organization_name = serializers.CharField(source='job_posting.organization.name', read_only=True)
     vacancies = serializers.IntegerField(source='job_posting.vacancies', read_only=True)
@@ -67,7 +68,7 @@ class JobHiringDecisionSerializer(serializers.ModelSerializer):
         return JobApplicationSerializer(applications, many=True, context=self.context).data
 
 
-class HiringDecisionSerializer(serializers.ModelSerializer):
+class HiringDecisionSerializer(ReadableIdModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     recruiter_name = serializers.CharField(source='recruiter.full_name', read_only=True)
     recruiter_email = serializers.EmailField(source='recruiter.email', read_only=True)
@@ -154,7 +155,7 @@ class JobOfferDeclineSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
 
-class JobOfferSerializer(serializers.ModelSerializer):
+class JobOfferSerializer(ReadableIdModelSerializer):
     application = JobApplicationSerializer(read_only=True)
     offer_letter_url = serializers.SerializerMethodField()
     offer_status_label = serializers.CharField(source='get_offer_status_display', read_only=True)

@@ -31,7 +31,7 @@ from .serializers import (
 def assigned_interview_or_404(user, interview_id):
     if user.role != User.Role.INTERVIEWER:
         raise PermissionDenied('Only the assigned interviewer can perform this action.')
-    return get_object_or_404(visible_interviews_for(user), id=interview_id)
+    return get_object_or_404(visible_interviews_for(user), public_id=interview_id)
 
 
 def assigned_recording_or_404(user, recording_id):
@@ -46,7 +46,7 @@ def assigned_recording_or_404(user, recording_id):
             'interview__interviewer',
             'interview__organization',
         ),
-        id=recording_id,
+        public_id=recording_id,
         interview__in=visible_interviews_for(user),
     )
 
@@ -62,7 +62,7 @@ def assigned_transcript_or_404(user, transcript_id):
             'recording__interview__application__job',
             'recording__interview__interviewer',
         ),
-        id=transcript_id,
+        public_id=transcript_id,
         recording__interview__in=visible_interviews_for(user),
     )
 
@@ -78,7 +78,7 @@ def assigned_summary_or_404(user, summary_id):
             'transcript__recording__interview__application',
             'transcript__recording__interview__interviewer',
         ),
-        id=summary_id,
+        public_id=summary_id,
         transcript__recording__interview__in=visible_interviews_for(user),
     )
 
@@ -88,7 +88,7 @@ def recruiter_owned_interview_or_404(user, interview_id):
         raise PermissionDenied('Only the recruiter who owns the application can view evaluation detail.')
     return get_object_or_404(
         visible_interviews_for(user).prefetch_related('evaluations__answers__criterion'),
-        id=interview_id,
+        public_id=interview_id,
         application__job__recruiter=user,
     )
 

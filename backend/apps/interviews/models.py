@@ -1,12 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from apps.common.models import ReadableIdModel
 
 from apps.applications.models import JobApplication
 from apps.organizations.models import Organization
 from apps.users.models import User
 
 
-class InterviewerAvailabilityPattern(models.Model):
+class InterviewerAvailabilityPattern(ReadableIdModel):
     class DayOfWeek(models.IntegerChoices):
         MONDAY = 0, 'Monday'
         TUESDAY = 1, 'Tuesday'
@@ -51,7 +52,7 @@ class InterviewerAvailabilityPattern(models.Model):
         return f'{self.interviewer} weekly availability on {self.get_day_of_week_display()}'
 
 
-class InterviewerUnavailableDate(models.Model):
+class InterviewerUnavailableDate(ReadableIdModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='interviewer_unavailable_dates')
     interviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='unavailable_dates', limit_choices_to={'role': User.Role.INTERVIEWER})
     date = models.DateField()
@@ -71,7 +72,7 @@ class InterviewerUnavailableDate(models.Model):
         return f'{self.interviewer} unavailable on {self.date}'
 
 
-class InterviewerAvailabilitySlot(models.Model):
+class InterviewerAvailabilitySlot(ReadableIdModel):
     class Status(models.TextChoices):
         AVAILABLE = 'available', 'Available'
         BOOKED = 'booked', 'Booked'
@@ -118,7 +119,7 @@ class InterviewerAvailabilitySlot(models.Model):
         return f'{self.interviewer} available from {self.start_datetime} to {self.end_datetime}'
 
 
-class InterviewSchedulingRequest(models.Model):
+class InterviewSchedulingRequest(ReadableIdModel):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
         SCHEDULED = 'scheduled', 'Scheduled'
@@ -190,7 +191,7 @@ class InterviewSchedulingRequest(models.Model):
         return f'Scheduling request for {self.application}'
 
 
-class Interview(models.Model):
+class Interview(ReadableIdModel):
     class SchedulingMethod(models.TextChoices):
         SELF_SCHEDULED = 'self_scheduled', 'Self Scheduled'
 
@@ -299,7 +300,7 @@ class Interview(models.Model):
         )
 
 
-class InterviewStatusHistory(models.Model):
+class InterviewStatusHistory(ReadableIdModel):
     interview = models.ForeignKey(
         Interview,
         on_delete=models.CASCADE,
@@ -326,7 +327,7 @@ class InterviewStatusHistory(models.Model):
         return f'{self.interview} - {self.from_status} to {self.to_status}'
 
 
-class GoogleCalendarCredential(models.Model):
+class GoogleCalendarCredential(ReadableIdModel):
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -353,7 +354,7 @@ class GoogleCalendarCredential(models.Model):
         return f'{account} for {self.user}'
 
 
-class CalendarEvent(models.Model):
+class CalendarEvent(ReadableIdModel):
     class SyncStatus(models.TextChoices):
         NOT_SYNCED = 'not_synced', 'Not Synced'
         SYNCED = 'synced', 'Synced'

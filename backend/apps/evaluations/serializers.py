@@ -12,6 +12,8 @@ from rest_framework import serializers
 from apps.applications.models import JobApplication
 from apps.jobs.serializers import EvaluationCriterionSerializer
 from .deliverables import deliverable_deadline_for
+from apps.common.serializers import ReadableIdModelSerializer
+
 from .models import (
     ALLOWED_INTERVIEW_AUDIO_EXTENSIONS,
     MAX_INTERVIEW_AUDIO_SIZE_MB,
@@ -37,7 +39,7 @@ ALLOWED_INTERVIEW_AUDIO_CONTENT_TYPES = {
 }
 
 
-class InterviewRecordingSerializer(serializers.ModelSerializer):
+class InterviewRecordingSerializer(ReadableIdModelSerializer):
     uploaded_by_name = serializers.CharField(source='uploaded_by.full_name', read_only=True)
 
     class Meta:
@@ -46,7 +48,7 @@ class InterviewRecordingSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'interview', 'uploaded_by', 'uploaded_by_name', 'uploaded_at']
 
 
-class InterviewRecordingUploadSerializer(serializers.ModelSerializer):
+class InterviewRecordingUploadSerializer(ReadableIdModelSerializer):
     class Meta:
         model = InterviewRecording
         fields = ['audio_file']
@@ -76,7 +78,7 @@ class InterviewRecordingUploadSerializer(serializers.ModelSerializer):
         return recording
 
 
-class InterviewTranscriptSerializer(serializers.ModelSerializer):
+class InterviewTranscriptSerializer(ReadableIdModelSerializer):
     audio_url = serializers.SerializerMethodField()
     transcript = serializers.SerializerMethodField()
     speaker_labelled_transcript = serializers.SerializerMethodField()
@@ -129,7 +131,7 @@ class InterviewTranscriptSerializer(serializers.ModelSerializer):
         return self._metadata(obj).get('diarization_warning')
 
 
-class InterviewAISummarySerializer(serializers.ModelSerializer):
+class InterviewAISummarySerializer(ReadableIdModelSerializer):
     edited_by_name = serializers.CharField(source='edited_by.full_name', read_only=True)
     transparency = serializers.SerializerMethodField()
 
@@ -168,7 +170,7 @@ class InterviewAISummarySerializer(serializers.ModelSerializer):
         }
 
 
-class InterviewAISummaryUpdateSerializer(serializers.ModelSerializer):
+class InterviewAISummaryUpdateSerializer(ReadableIdModelSerializer):
     class Meta:
         model = InterviewAISummary
         fields = ['strengths', 'weaknesses', 'communication_score', 'overall_impression', 'editable_summary_text']
@@ -194,12 +196,12 @@ class InterviewAISummaryUpdateSerializer(serializers.ModelSerializer):
 
 
 class EvaluationAnswerInputSerializer(serializers.Serializer):
-    criterion_id = serializers.IntegerField()
+    criterion_id = serializers.CharField()
     score = serializers.DecimalField(max_digits=5, decimal_places=2)
     comment = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
 
-class EvaluationAnswerSerializer(serializers.ModelSerializer):
+class EvaluationAnswerSerializer(ReadableIdModelSerializer):
     criterion = EvaluationCriterionSerializer(read_only=True)
 
     class Meta:
@@ -208,7 +210,7 @@ class EvaluationAnswerSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class InterviewEvaluationSerializer(serializers.ModelSerializer):
+class InterviewEvaluationSerializer(ReadableIdModelSerializer):
     answers = EvaluationAnswerSerializer(many=True, read_only=True)
     interviewer_name = serializers.CharField(source='interviewer.full_name', read_only=True)
 
@@ -229,7 +231,7 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
             raise serializers.ValidationError({'answers': 'This job does not have an interview evaluation scorecard configured.'})
 
         criteria = list(form.criteria.all())
-        criteria_by_id = {criterion.id: criterion for criterion in criteria}
+        criteria_by_id = {criterion.public_id: criterion for criterion in criteria}
         expected_ids = set(criteria_by_id)
         submitted_ids = [answer['criterion_id'] for answer in attrs['answers']]
         submitted_id_set = set(submitted_ids)
@@ -293,12 +295,12 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
 
 
 class InterviewEvaluationDetailSerializer(serializers.Serializer):
-    interview_id = serializers.IntegerField(source='id')
-    application_id = serializers.IntegerField(source='application.id')
+    interview_id = serializers.CharField(source='public_id')
+    application_id = serializers.CharField(source='application.public_id')
     application_status = serializers.CharField(source='application.status')
-    job_id = serializers.IntegerField(source='application.job.id')
+    job_id = serializers.CharField(source='application.job.public_id')
     job_title = serializers.CharField(source='application.job.title')
-    applicant_id = serializers.IntegerField(source='application.applicant.id')
+    applicant_id = serializers.CharField(source='application.applicant.public_id')
     applicant_name = serializers.CharField(source='application.applicant.full_name')
     transcript = serializers.SerializerMethodField()
     ai_summary = serializers.SerializerMethodField()

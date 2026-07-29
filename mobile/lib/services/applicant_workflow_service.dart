@@ -19,7 +19,7 @@ class ApplicantWorkflowService {
   }
 
   Future<InterviewSchedulingRequest> getInterviewSchedulingRequest(
-      int requestId) async {
+      String requestId) async {
     final requests = await getInterviewSchedulingRequests();
     return requests.firstWhere(
       (request) => request.id == requestId,
@@ -28,7 +28,7 @@ class ApplicantWorkflowService {
   }
 
   Future<List<InterviewAvailableDate>> getInterviewAvailableDates(
-      int applicationId) async {
+      String applicationId) async {
     final response = await _apiClient.dio.get<List<dynamic>>(
       'applications/$applicationId/interview-available-dates/',
     );
@@ -39,7 +39,7 @@ class ApplicantWorkflowService {
   }
 
   Future<List<InterviewerAvailabilitySlot>> getInterviewAvailableSlots({
-    required int applicationId,
+    required String applicationId,
     required String date,
   }) async {
     final response = await _apiClient.dio.get<List<dynamic>>(
@@ -56,7 +56,7 @@ class ApplicantWorkflowService {
   }
 
   Future<InterviewSchedulingRequest> bookInterviewSchedulingRequest({
-    required int requestId,
+    required String requestId,
     required InterviewerAvailabilitySlot slot,
     String mode = 'online',
     String meetingLink = 'https://meet.example.com/hrrecruit-interview',
@@ -96,14 +96,14 @@ class ApplicantWorkflowService {
         .toList();
   }
 
-  Future<JobOffer> acceptJobOffer(int offerId) async {
+  Future<JobOffer> acceptJobOffer(String offerId) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'job-offers/$offerId/accept/',
     );
     return JobOffer.fromJson(response.data!);
   }
 
-  Future<JobOffer> declineJobOffer(int offerId, {String reason = ''}) async {
+  Future<JobOffer> declineJobOffer(String offerId, {String reason = ''}) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'job-offers/$offerId/decline/',
       data: {'reason': reason},
@@ -119,7 +119,7 @@ class ApplicantWorkflowService {
         .toList();
   }
 
-  Future<AppNotification> markNotificationRead(int notificationId) async {
+  Future<AppNotification> markNotificationRead(String notificationId) async {
     final response = await _apiClient.dio.patch<Map<String, dynamic>>(
       'notifications/$notificationId/read/',
     );

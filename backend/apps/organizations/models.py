@@ -1,10 +1,11 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from apps.common.models import ReadableIdModel
 
 from apps.users.models import User
 
 
-class Organization(models.Model):
+class Organization(ReadableIdModel):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
         ACTIVE = 'active', 'Active'
@@ -38,7 +39,7 @@ class Organization(models.Model):
         return self.name
 
 
-class OrganizationMembership(models.Model):
+class OrganizationMembership(ReadableIdModel):
     class Role(models.TextChoices):
         HR_HEAD = User.Role.HR_HEAD, 'Hiring Manager'
         RECRUITER = User.Role.RECRUITER, 'Recruiter'

@@ -10,7 +10,7 @@ from .models import Interview, InterviewerAvailabilityPattern, InterviewerUnavai
 @dataclass(frozen=True)
 class GeneratedInterviewSlot:
     id: str
-    pattern_id: int
+    pattern_id: str
     date: object
     start_time: time
     end_time: time
@@ -59,8 +59,8 @@ def generate_available_slots(interviewer, organization, days_ahead=28, from_date
                         end_dt = start_dt + timedelta(minutes=pattern.slot_duration_minutes)
                         if start_dt > now and (day, start_dt.time().replace(microsecond=0), end_dt.time().replace(microsecond=0)) not in booked:
                             slots.append(GeneratedInterviewSlot(
-                                id=f'pattern:{pattern.id}:{day.isoformat()}:{start_dt.time().strftime("%H:%M")}',
-                                pattern_id=pattern.id,
+                                id=f'SLT-{pattern.public_id}-{day:%Y%m%d}-{start_dt:%H%M}',
+                                pattern_id=pattern.public_id,
                                 date=day,
                                 start_time=start_dt.time().replace(microsecond=0),
                                 end_time=end_dt.time().replace(microsecond=0),

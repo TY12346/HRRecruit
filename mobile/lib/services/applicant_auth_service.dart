@@ -172,7 +172,7 @@ class ApplicantAuthService {
   }
 
   Future<ApplicantProfile> updateResume({
-    required int resumeId,
+    required String resumeId,
     required String title,
   }) async {
     await _apiClient.dio.patch<Map<String, dynamic>>(
@@ -182,7 +182,7 @@ class ApplicantAuthService {
     return getProfile();
   }
 
-  Future<ApplicantProfile> deleteResume({required int resumeId}) async {
+  Future<ApplicantProfile> deleteResume({required String resumeId}) async {
     await _apiClient.dio.delete<void>('auth/resumes/$resumeId/');
     return getProfile();
   }

@@ -19,7 +19,7 @@ class InterviewSchedulingRequestsScreen extends StatefulWidget {
 class _InterviewSchedulingRequestsScreenState
     extends State<InterviewSchedulingRequestsScreen> {
   late Future<List<InterviewSchedulingRequest>> _requestsFuture;
-  int? _bookingRequestId;
+  String? _bookingRequestId;
 
   @override
   void initState() {
