@@ -233,14 +233,14 @@ class JobPostingAPITests(APITestCase):
         }
 
         invalid_response = self.client.post(requirements_url, invalid_payload, format='json')
-        normalized_response = self.client.post(
+        normalized_response = self.client.put(
             requirements_url,
             {**invalid_payload, 'normalize_weights': True},
             format='json',
         )
 
         self.assertEqual(invalid_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(normalized_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(normalized_response.status_code, status.HTTP_200_OK)
         self.assertEqual(job.requirements.count(), 2)
         self.assertEqual(sum(job.requirements.values_list('weight_score', flat=True)), Decimal('1.00'))
 
@@ -267,7 +267,7 @@ class JobPostingAPITests(APITestCase):
             format='json',
         )
 
-        update_response = self.client.post(
+        update_response = self.client.put(
             reverse('job-evaluation-scorecard', args=[job.id]),
             {
                 'title': 'Updated Interview Scorecard',
