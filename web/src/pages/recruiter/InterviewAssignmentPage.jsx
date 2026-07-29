@@ -78,7 +78,7 @@ export default function InterviewAssignmentPage() {
     setSuccess('');
     setIsSaving(true);
     try {
-      const request = await createInterviewSchedulingRequest(applicationId, { interviewer_ids: interviewerIds.map(Number), remark });
+      const request = await createInterviewSchedulingRequest(applicationId, { interviewer_ids: interviewerIds, remark });
       setSchedulingRequest(request);
       if (request.has_common_availability) {
         setSuccess('Panel self-scheduling request created. The applicant can now choose from common panel availability slots.');

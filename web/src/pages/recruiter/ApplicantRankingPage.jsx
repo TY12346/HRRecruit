@@ -127,10 +127,10 @@ export default function ApplicantRankingPage() {
   const assignSelected = async () => {
     setIsBusy(true);
     try {
-      await Promise.all(assigningIds.map((id) => assignInterviewer(id, { interviewer_ids: selectedInterviewerIds.map(Number) })));
+      await Promise.all(assigningIds.map((id) => assignInterviewer(id, { interviewer_ids: selectedInterviewerIds })));
       setApplicants((current) => current.map((applicant) => (
         assigningIds.includes(applicant.id)
-          ? { ...applicant, assigned_interviewer: { id: Number(selectedInterviewerIds[0]) } }
+          ? { ...applicant, assigned_interviewer: { id: selectedInterviewerIds[0] } }
           : applicant
       )));
       setSuccess(`Interviewer assigned to ${assigningIds.length} applicant${assigningIds.length === 1 ? '' : 's'}.`);
