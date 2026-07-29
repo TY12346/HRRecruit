@@ -88,7 +88,13 @@ export default function ApplicantComparisonPage() {
     </Box>)}</Stack>
     : '—';
   const rows = data ? [
-    ['AI match score', (applicant) => scoreText(applicant.ai_resume_score)],
+    ['Semantic score', (applicant) => scoreText(applicant.semantic_score)],
+    ['Skills score', (applicant) => scoreText(applicant.skill_score)],
+    ['Experience score', (applicant) => scoreText(applicant.experience_score)],
+    ['Education score', (applicant) => scoreText(applicant.education_score)],
+    ['Final score', (applicant) => scoreText(applicant.ai_resume_score)],
+    ['Top semantic evidence', (applicant) => applicant.score_explanation?.semantic_analysis?.evidence_pairs?.[0]?.resume_evidence || 'Detailed evidence unavailable — refresh screening'],
+    ['Different-wording matches', (applicant) => applicant.score_explanation?.semantic_analysis?.different_wording_match_count ?? 0],
     ['Matched skills', (applicant) => <ListValue values={applicant.matched_skills} />],
     ['Missing skills', (applicant) => <ListValue values={applicant.missing_skills} />],
     ['AI interview summary', (applicant) => applicant.ai_interview_summaries?.join('\n\n') || '—'],
@@ -124,6 +130,7 @@ export default function ApplicantComparisonPage() {
                 <Typography variant="body2" color="text.secondary">{applicant.applicant_email}</Typography>
                 {applicant.applicant_phone ? <Typography variant="body2" color="text.secondary">{applicant.applicant_phone}</Typography> : null}
                 {applicant.resume_url ? <Button size="small" component="a" href={applicant.resume_url} target="_blank" rel="noreferrer" sx={{ mt: 1 }}>View resume</Button> : null}
+                <Button size="small" component={RouterLink} to={`/recruiter/applications/${applicant.application_id}`} sx={{ mt: 1 }}>Full AI explanation</Button>
               </TableCell>)}
             </TableRow>
             {rows.map(([label, render]) => <TableRow key={label}>

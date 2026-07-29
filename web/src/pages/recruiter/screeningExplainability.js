@@ -50,7 +50,7 @@ export function buildScoreComponents(scores = {}) {
 }
 
 export function buildScreeningExplainability(profile = {}) {
-  const scores = profile.scores ?? {};
+  const scores = profile.scores ?? profile;
   const explanation = scores.explanation ?? profile.score_explanation ?? {};
   const mlScreening = explanation.ml_screening ?? {};
   const finalScore = scoreNumber(scores.final_score ?? explanation.final_score);
@@ -61,19 +61,39 @@ export function buildScreeningExplainability(profile = {}) {
   const negativeFactors = normalizeList(mlScreening.top_negative_factors ?? explanation.negative_factors);
   const notes = normalizeList(explanation.notes);
   const debug = explanation.debug ?? {};
+  const semanticAnalysis = explanation.semantic_analysis ?? {};
+  const evidencePairs = Array.isArray(semanticAnalysis.evidence_pairs) ? semanticAnalysis.evidence_pairs : [];
+  const backendComponents = explanation.score_calculation?.components;
+  const scoreComponents = Array.isArray(backendComponents) ? backendComponents.map((component) => ({
+    ...component,
+    value: scoreNumber(component.score),
+    percent: scorePercent(component.score),
+    weighted_contribution: scoreNumber(component.weighted_contribution),
+  })) : buildScoreComponents(scores).map((component) => ({
+    ...component,
+    weight: { semantic_score: 0.4, skill_score: 0.3, experience_score: 0.2, education_score: 0.1 }[component.key],
+    method: 'Legacy result — method metadata unavailable',
+    weighted_contribution: component.value === null ? null : component.value * { semantic_score: 0.4, skill_score: 0.3, experience_score: 0.2, education_score: 0.1 }[component.key],
+  }));
 
   return {
     finalScore,
     fit,
     explanation,
     mlScreening,
-    scoreComponents: buildScoreComponents(scores),
+    scoreComponents,
+    semanticAnalysis,
+    evidencePairs,
+    differentWordingCount: Number(semanticAnalysis.different_wording_match_count ?? evidencePairs.filter((pair) => pair.different_wording).length),
+    analysisId: explanation.analysis_id,
+    generatedAt: explanation.generated_at,
+    provenance: explanation.analysis_provenance ?? 'legacy_result',
     matchedSkills,
     missingSkills,
     positiveFactors,
     negativeFactors,
     notes,
-    modelVersion: mlScreening.model_version ?? explanation.model_version ?? 'Rule-based screening',
+    modelVersion: semanticAnalysis.model_name ?? mlScreening.model_version ?? explanation.model_version ?? 'Unavailable',
     confidence: scoreNumber(mlScreening.ml_confidence),
     mlSuitabilityScore: scoreNumber(mlScreening.ml_suitability_score),
     mlMatchLabel: mlScreening.ml_match_label,

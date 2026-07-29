@@ -33,6 +33,7 @@ import {
   buildApplicationQueryParams,
   describeApplicationFilters,
 } from './applicationSearchViews.js';
+import ScreeningExplainabilityPanel from './ScreeningExplainabilityPanel.jsx';
 
 const RANKING_FILTER_DEFAULTS = {
   ...APPLICATION_FILTER_DEFAULTS,
@@ -77,6 +78,7 @@ export default function ApplicantRankingPage() {
   const [selectedInterviewerIds, setSelectedInterviewerIds] = useState([]);
   const [assigningIds, setAssigningIds] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
+  const [explainedApplicant, setExplainedApplicant] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -229,6 +231,7 @@ export default function ApplicantRankingPage() {
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
                     <Button component={RouterLink} to={`/recruiter/applications/${applicant.id}`} size="small">View</Button>
+                    <Button size="small" variant="outlined" onClick={() => setExplainedApplicant(applicant)}>Explain score</Button>
                     {applicant.status !== 'rejected' && !applicant.assigned_interviewer ? (
                       <>
                         <Button size="small" disabled={isBusy} onClick={() => openAssignment([applicant.id])}>Assign interviewer</Button>
@@ -247,6 +250,11 @@ export default function ApplicantRankingPage() {
           </TableBody>
         </Table>
       </Paper>
+      <Dialog open={Boolean(explainedApplicant)} onClose={() => setExplainedApplicant(null)} fullWidth maxWidth="lg">
+        <DialogTitle>Explain hybrid screening score</DialogTitle>
+        <DialogContent dividers>{explainedApplicant ? <ScreeningExplainabilityPanel profile={explainedApplicant} /> : null}</DialogContent>
+        <DialogActions><Button onClick={() => setExplainedApplicant(null)}>Close</Button></DialogActions>
+      </Dialog>
       <Dialog open={assigningIds.length > 0} onClose={() => !isBusy && setAssigningIds([])} fullWidth maxWidth="sm">
         <DialogTitle>Assign interviewer</DialogTitle>
         <DialogContent>

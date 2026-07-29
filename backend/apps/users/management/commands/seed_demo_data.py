@@ -1,13 +1,16 @@
 from datetime import timedelta
 from decimal import Decimal
+from io import BytesIO
 
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
+from docx import Document
 
 from apps.ai_services.summary_service import build_summary_transparency_metadata
 from apps.applications.models import ApplicationStageHistory, JobApplication
+from apps.applications.services import screen_job_application
 from apps.billing.models import Payment, Subscription, SubscriptionPlan
 from apps.evaluations.models import (
     EvaluationAnswer,
@@ -43,6 +46,7 @@ class Command(BaseCommand):
             action='store_true',
             help='Do not reset passwords for existing demo users.',
         )
+        parser.add_argument('--run-live-ai-screening', action='store_true', help='Run genuine Sentence-BERT screening for the main demo application.')
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -55,6 +59,11 @@ class Command(BaseCommand):
         organization = self._seed_organization(users)
         jobs = self._seed_jobs(organization, users[User.Role.RECRUITER])
         application = self._seed_application(jobs['software_engineer'], users, resumes['software_engineer'])
+        if options['run_live_ai_screening']:
+            try:
+                application = screen_job_application(application)
+            except Exception as exc:
+                raise CommandError(f'Live Sentence-BERT screening failed: {exc}') from exc
         interview = self._seed_interview(application, organization, users)
         self._seed_hiring(application, users)
         self._seed_recruiter_analytics(jobs, organization, users)
@@ -143,12 +152,13 @@ class Command(BaseCommand):
         resume_specs = {
             'software_engineer': {
                 'title': 'Software Engineer Resume',
-                'filename': 'demo-software-engineer-resume.txt',
+                'filename': 'demo-software-engineer-resume.docx',
                 'is_default': True,
                 'content': (
                     'Demo Software Engineer Resume\n'
                     'Bachelor in Computer Science. 2.5 years building Python, Django, REST API, React, '
-                    'PostgreSQL, analytics dashboards, role-based access control, and SaaS workflows.'
+                    'PostgreSQL, analytics dashboards, role-based access control, and SaaS workflows.\n'
+                    'Built REST APIs and server-side services for internal business platforms.'
                 ),
             },
             'data_analyst': {
@@ -169,8 +179,16 @@ class Command(BaseCommand):
                 title=spec['title'],
                 defaults={'is_default': spec['is_default']},
             )
-            if not resume.resume_file:
-                resume.resume_file.save(spec['filename'], ContentFile(spec['content'].encode('utf-8')), save=True)
+            if not resume.resume_file or (key == 'software_engineer' and not resume.resume_file.name.endswith('.docx')):
+                if key == 'software_engineer':
+                    document = Document()
+                    for paragraph in spec['content'].splitlines():
+                        document.add_paragraph(paragraph)
+                    output = BytesIO(); document.save(output)
+                    content = output.getvalue()
+                else:
+                    content = spec['content'].encode('utf-8')
+                resume.resume_file.save(spec['filename'], ContentFile(content), save=True)
             elif resume.is_default != spec['is_default']:
                 resume.is_default = spec['is_default']
                 resume.save(update_fields=['is_default'])
@@ -307,6 +325,8 @@ class Command(BaseCommand):
             defaults={
                 'status': JobApplication.Status.UNDER_REVIEW,
                 'resume': selected_resume,
+                'application_resume': selected_resume.resume_file.name,
+                'application_resume_name': 'demo-software-engineer-resume.docx',
                 'recruiter_remark': 'Demo applicant completed the full FYP workflow and accepted the offer.',
                 'assigned_interviewer': users[User.Role.INTERVIEWER],
                 'extracted_resume_text': (
@@ -330,6 +350,8 @@ class Command(BaseCommand):
                 'education_score': education_score,
                 'final_score': final_score,
                 'score_explanation': {
+                    'analysis_provenance': 'seeded_demo_fixture',
+                    'screening_method': 'hybrid_ai_assisted_screening',
                     'formula': '0.4 * semantic_score + 0.3 * skill_score + 0.2 * experience_score + 0.1 * education_score',
                     'summary': 'Strong skill match and relevant education; experience meets the 2-year requirement.',
                     'decision_support_note': 'AI screening supports recruiter review and does not make the final hiring decision.',
