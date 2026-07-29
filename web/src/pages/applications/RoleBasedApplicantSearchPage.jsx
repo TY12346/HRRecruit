@@ -34,7 +34,7 @@ const ROLE_CONFIG = {
     detailBase: '/recruiter/applications',
   },
   interviewer: {
-    title: 'My Interview Applicants',
+    title: 'Assigned Applicants',
     description: 'Search only applicants and interviews assigned to you. Organization-wide applicants are not exposed.',
     nav: InterviewerNav,
     detailBase: '/interviewer/applicants',

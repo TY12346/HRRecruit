@@ -160,7 +160,7 @@ HRRecruit provides a protected applicant search API and web portal screens for i
 Web portal entry points:
 
 - Recruiter: **Applicant Search** (`/recruiter/applicant-search`)
-- Interviewer: **Applicant Search** (`/interviewer/applicant-search`)
+- Interviewer: **Assigned Applicants** (`/interviewer/applicant-search`)
 - hiring manager: **Applicant Search** (`/hiring-manager/applicant-search`)
 
 ## Interview weekly availability scheduling
