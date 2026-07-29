@@ -482,7 +482,14 @@ class ApplicationSearchAPIView(APIView):
             raise PermissionDenied('Your role cannot search applicants.')
         if request.user.role == User.Role.RECRUITER:
             # Recruiters headhunt from the active, platform-wide applicant directory; this is not limited to past applications.
-            applicants = User.objects.filter(role=User.Role.APPLICANT, is_active=True).select_related('applicant_profile').prefetch_related('skills')
+            applicants = User.objects.filter(
+                role=User.Role.APPLICANT,
+                is_active=True,
+            ).select_related('applicant_profile').prefetch_related(
+                'skills',
+                'experiences',
+                'educations',
+            )
             search = request.query_params.get('search', '').strip()
             if search:
                 applicants = applicants.filter(Q(full_name__icontains=search) | Q(email__icontains=search) | Q(phone_number__icontains=search) | Q(applicant_profile__personal_summary__icontains=search) | Q(skills__skill_name__icontains=search)).distinct()
@@ -493,6 +500,26 @@ class ApplicationSearchAPIView(APIView):
             request.user,
         )
         return Response(ApplicationSearchResultSerializer(applications, many=True, context={'request': request}).data)
+
+
+class ApplicantDirectoryDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, applicant_id):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can view applicant directory profiles.')
+        applicant = get_object_or_404(
+            User.objects.filter(
+                role=User.Role.APPLICANT,
+                is_active=True,
+            ).select_related('applicant_profile').prefetch_related(
+                'skills',
+                'experiences',
+                'educations',
+            ),
+            public_id=applicant_id,
+        )
+        return Response(ApplicantDirectorySerializer(applicant, context={'request': request}).data)
 
 
 class ApplicationDetailAPIView(APIView):
