@@ -17,7 +17,13 @@ import {
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { useNavigate } from 'react-router-dom';
-import { createOrganization, deleteOrganization, getOrganization, updateOrganization } from '../../api/client.js';
+import {
+  createOrganization,
+  deleteOrganization,
+  getOrganization,
+  requestOrganizationDeletionOtp,
+  updateOrganization,
+} from '../../api/client.js';
 import HiringManagerNav from './HiringManagerNav.jsx';
 import { getApiErrorMessage } from './hiringManagerUtils.js';
 
@@ -48,7 +54,9 @@ export default function OrganizationProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteStep, setDeleteStep] = useState(1);
+  const [deletionOtp, setDeletionOtp] = useState('');
+  const [deleteDialogError, setDeleteDialogError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -90,7 +98,22 @@ export default function OrganizationProfilePage() {
       return;
     }
     setIsDeleteDialogOpen(false);
-    setDeleteConfirmation('');
+    setDeleteStep(1);
+    setDeletionOtp('');
+    setDeleteDialogError('');
+  };
+
+  const handleSendDeletionOtp = async () => {
+    setIsDeleting(true);
+    setDeleteDialogError('');
+    try {
+      await requestOrganizationDeletionOtp();
+      setDeleteStep(2);
+    } catch (requestError) {
+      setDeleteDialogError(getApiErrorMessage(requestError, 'Unable to send the deletion OTP.'));
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -121,14 +144,15 @@ export default function OrganizationProfilePage() {
     setIsDeleting(true);
 
     try {
-      const response = await deleteOrganization();
+      const response = await deleteOrganization(deletionOtp);
       setOrganization(null);
       setFormData(emptyForm);
       setSuccessMessage(response.message ?? 'Organization account deleted successfully.');
       setIsDeleteDialogOpen(false);
-      setDeleteConfirmation('');
+      setDeleteStep(1);
+      setDeletionOtp('');
     } catch (deleteError) {
-      setError(getApiErrorMessage(deleteError, 'Unable to delete organization account.'));
+      setDeleteDialogError(getApiErrorMessage(deleteError, 'Unable to delete organization account.'));
     } finally {
       setIsDeleting(false);
     }
@@ -181,39 +205,58 @@ export default function OrganizationProfilePage() {
       ) : null}
 
       <Dialog fullWidth maxWidth="sm" onClose={closeDeleteDialog} open={isDeleteDialogOpen}>
-        <DialogTitle>Delete organization account?</DialogTitle>
+        <DialogTitle>
+          {deleteStep === 1 ? 'Delete organization account?' : deleteStep === 2 ? 'Enter deletion OTP' : 'Final confirmation'}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <Alert severity="error">
-              This action removes active access to the organization workspace. The system will block deletion if unresolved recruitment or billing records still exist.
-            </Alert>
-            <Box>
-              <Typography sx={{ fontWeight: 700, mb: 1 }}>Before deletion is permitted, make sure:</Typography>
-              <List dense sx={{ listStyleType: 'disc', pl: 3 }}>
-                <ListItem sx={{ display: 'list-item', p: 0 }}>Draft and open job postings are closed.</ListItem>
-                <ListItem sx={{ display: 'list-item', p: 0 }}>Active applications, interviews, hiring decisions, and sent offers are resolved.</ListItem>
-                <ListItem sx={{ display: 'list-item', p: 0 }}>Active subscriptions and pending payments are resolved.</ListItem>
-              </List>
-            </Box>
-            <TextField
-              disabled={isDeleting}
-              helperText={`Type ${organization?.name ?? 'the organization name'} to confirm.`}
-              label="Organization name"
-              onChange={(event) => setDeleteConfirmation(event.target.value)}
-              value={deleteConfirmation}
-            />
+            {deleteDialogError ? <Alert severity="error">{deleteDialogError}</Alert> : null}
+            {deleteStep === 1 ? <>
+              <Alert severity="warning">
+                Are you sure you want to begin deleting {organization?.name}? Team members will lose access to this workspace.
+              </Alert>
+              <Box>
+                <Typography sx={{ fontWeight: 700, mb: 1 }}>Before deletion is permitted, make sure:</Typography>
+                <List dense sx={{ listStyleType: 'disc', pl: 3 }}>
+                  <ListItem sx={{ display: 'list-item', p: 0 }}>Draft and open job postings are closed.</ListItem>
+                  <ListItem sx={{ display: 'list-item', p: 0 }}>Active applications, interviews, hiring decisions, and sent offers are resolved.</ListItem>
+                  <ListItem sx={{ display: 'list-item', p: 0 }}>Active subscriptions and pending payments are resolved.</ListItem>
+                </List>
+              </Box>
+            </> : null}
+            {deleteStep === 2 ? <>
+              <Alert severity="info">A 6-digit OTP has been sent to your hiring manager email address. It expires in 10 minutes.</Alert>
+              <TextField
+                autoFocus
+                disabled={isDeleting}
+                inputProps={{ inputMode: 'numeric', maxLength: 6, pattern: '[0-9]*' }}
+                label="Deletion OTP"
+                onChange={(event) => setDeletionOtp(event.target.value.replace(/\D/g, ''))}
+                value={deletionOtp}
+              />
+            </> : null}
+            {deleteStep === 3 ? <Alert severity="error">
+              <Typography sx={{ fontWeight: 700 }}>This is your final confirmation.</Typography>
+              Deleting {organization?.name} will deactivate the organization and its team accounts. This deletion cannot be reversed.
+            </Alert> : null}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button disabled={isDeleting} onClick={closeDeleteDialog}>Cancel</Button>
-          <Button
+          {deleteStep === 1 ? <Button disabled={isDeleting} onClick={handleSendDeletionOtp} variant="contained">
+            {isDeleting ? 'Sending OTP…' : 'Confirm and send OTP'}
+          </Button> : null}
+          {deleteStep === 2 ? <Button disabled={isDeleting || deletionOtp.length !== 6} onClick={() => setDeleteStep(3)} variant="contained">
+            Continue
+          </Button> : null}
+          {deleteStep === 3 ? <Button
             color="error"
-            disabled={isDeleting || deleteConfirmation !== organization?.name}
+            disabled={isDeleting}
             onClick={handleDeleteOrganization}
             variant="contained"
           >
-            {isDeleting ? 'Deleting…' : 'Delete organization'}
-          </Button>
+            {isDeleting ? 'Deleting…' : 'Permanently delete organization'}
+          </Button> : null}
         </DialogActions>
       </Dialog>
     </Box>

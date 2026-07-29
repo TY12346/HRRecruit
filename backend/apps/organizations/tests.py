@@ -92,6 +92,10 @@ class OrganizationAPITests(APITestCase):
     def create_organization(self):
         return self.client.post(reverse('organization-create'), self.organization_payload, format='json')
 
+    def request_deletion_otp(self):
+        with patch('apps.organizations.views.secrets.randbelow', return_value=123456):
+            return self.client.post(reverse('organization-deletion-otp'))
+
     def test_hr_head_can_create_organization_and_becomes_member(self):
         response = self.create_organization()
 
@@ -292,8 +296,10 @@ class OrganizationAPITests(APITestCase):
             role=OrganizationMembership.Role.RECRUITER,
         )
 
-        response = self.client.delete(reverse('organization-detail'))
+        otp_response = self.request_deletion_otp()
+        response = self.client.delete(reverse('organization-detail'), {'otp': '123456'}, format='json')
 
+        self.assertEqual(otp_response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         organization.refresh_from_db()
         recruiter.refresh_from_db()
@@ -328,7 +334,8 @@ class OrganizationAPITests(APITestCase):
             status=JobPosting.Status.OPEN,
         )
 
-        response = self.client.delete(reverse('organization-detail'))
+        self.request_deletion_otp()
+        response = self.client.delete(reverse('organization-detail'), {'otp': '123456'}, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(response.data['detail'], 'Organization cannot be deleted yet.')

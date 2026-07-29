@@ -1,5 +1,7 @@
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 from apps.common.models import ReadableIdModel
 
 from apps.users.models import User
@@ -80,3 +82,23 @@ class OrganizationMembership(ReadableIdModel):
 
     def __str__(self):
         return f'{self.user.email} - {self.organization.name} ({self.get_role_display()})'
+
+
+class OrganizationDeletionOTP(ReadableIdModel):
+    """Short-lived, single-use authorization for an organization deletion."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='deletion_otps')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='organization_deletion_otps')
+    code_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def set_code(self, code):
+        self.code_hash = make_password(code)
+
+    def is_valid_code(self, code):
+        return self.used_at is None and self.expires_at > timezone.now() and check_password(code, self.code_hash)

@@ -1,16 +1,20 @@
 """hiring manager organization and team setup API views."""
 
+import secrets
+from datetime import timedelta
+
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.notifications.email_service import email_delivery_mode
+from apps.notifications.email_service import email_delivery_mode, send_organization_deletion_otp_email
 from apps.users.models import User
 from apps.users.permissions import IsHiringManager, IsRecruiterOrHiringManager
 
-from .models import Organization, OrganizationMembership
+from .models import Organization, OrganizationDeletionOTP, OrganizationMembership
 from .services import delete_organization_account, get_organization_deletion_blockers
 from .serializers import (
     OrganizationMemberBulkImportSerializer,
@@ -76,6 +80,15 @@ class OrganizationAPIView(ManagedOrganizationMixin, APIView):
         if not organization:
             return self.organization_not_found_response()
 
+        otp_code = str(request.data.get('otp', '')).strip()
+        otp = OrganizationDeletionOTP.objects.filter(
+            organization=organization,
+            requested_by=request.user,
+            used_at__isnull=True,
+        ).first()
+        if not otp or not otp.is_valid_code(otp_code):
+            return Response({'detail': 'The OTP is invalid or has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
         blockers = get_organization_deletion_blockers(organization)
         if blockers:
             return Response(
@@ -83,8 +96,31 @@ class OrganizationAPIView(ManagedOrganizationMixin, APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        otp.used_at = timezone.now()
+        otp.save(update_fields=['used_at'])
         delete_organization_account(organization)
         return Response({'message': 'Organization account deleted successfully.'})
+
+
+class OrganizationDeletionOTPAPIView(ManagedOrganizationMixin, APIView):
+    def post(self, request):
+        organization = self.get_organization(request)
+        if not organization:
+            return self.organization_not_found_response()
+
+        OrganizationDeletionOTP.objects.filter(
+            organization=organization, requested_by=request.user, used_at__isnull=True
+        ).update(used_at=timezone.now())
+        code = f'{secrets.randbelow(1_000_000):06d}'
+        otp = OrganizationDeletionOTP(
+            organization=organization,
+            requested_by=request.user,
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+        otp.set_code(code)
+        otp.save()
+        send_organization_deletion_otp_email(request.user, organization, code)
+        return Response({'message': 'A deletion OTP was sent to your email address.'})
 
 
 class OrganizationMemberListCreateAPIView(ManagedOrganizationMixin, APIView):
