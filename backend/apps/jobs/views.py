@@ -104,7 +104,16 @@ def recruiter_job_or_404(user, job_id):
     membership = get_active_membership(user, OrganizationMembership.Role.RECRUITER)
     if not membership:
         raise PermissionDenied('An active recruiter organization membership is required.')
-    return get_object_or_404(JobPosting, public_id=job_id, organization=membership.organization, recruiter=user)
+    jobs = JobPosting.objects.filter(organization=membership.organization, recruiter=user)
+    return get_object_or_404(jobs, _job_id_query(job_id))
+
+
+def _job_id_query(job_id):
+    """Resolve canonical public IDs while retaining links made with legacy PKs."""
+    query = Q(public_id=job_id)
+    if str(job_id).isdecimal():
+        query |= Q(pk=job_id)
+    return query
 
 
 def visible_requisitions_for(user):
@@ -303,7 +312,7 @@ class JobDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, job_id):
-        job = get_object_or_404(visible_jobs_for(request.user), public_id=job_id)
+        job = get_object_or_404(visible_jobs_for(request.user), _job_id_query(job_id))
         return Response(JobPostingSerializer(job, context={'request': request}).data)
 
     @transaction.atomic
