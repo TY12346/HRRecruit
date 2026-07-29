@@ -166,7 +166,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
                     {
                         'criterion_name': 'Technical Depth',
                         'description': 'Django and API design depth.',
-                        'max_score': '10.00',
+                        'max_score': '5.00',
                         'weight_score': '1.00',
                     }
                 ],
@@ -363,7 +363,7 @@ class HRRecruitBusinessFlowAPITests(TestCase):
             reverse('interview-evaluation-submit', args=[interview.id]),
             {
                 'overall_comment': 'Strong applicant for backend role.',
-                'answers': [{'criterion_id': criterion.id, 'score': '9.00', 'comment': 'Excellent technical depth.'}],
+                'answers': [{'criterion_id': criterion.id, 'score': '5', 'comment': 'Excellent technical depth.'}],
             },
             format='json',
         )

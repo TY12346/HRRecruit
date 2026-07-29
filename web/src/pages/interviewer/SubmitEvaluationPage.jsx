@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, Card, CardContent, Paper, Stack, TextField, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Paper,
+  Radio,
+  RadioGroup,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
 import { useParams } from 'react-router-dom';
 import { getInterview, submitInterviewEvaluation } from '../../api/client.js';
@@ -67,7 +81,7 @@ export default function SubmitEvaluationPage() {
       setInterview((current) => ({ ...current, evaluation_submitted: true }));
       setSuccess('Evaluation submitted successfully.');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to submit evaluation. Please complete every rubric score within its allowed maximum.'));
+      setError(getApiErrorMessage(err, 'Unable to submit evaluation. Please select a score from 1 to 5 for every criterion.'));
     } finally {
       setIsSaving(false);
     }
@@ -124,17 +138,21 @@ export default function SubmitEvaluationPage() {
                           </Typography>
                         ) : null}
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          Maximum score: {criterion.max_score} • Weight: {criterion.weight_score}
+                          Scoring scale: 1–5 • Weight: {criterion.weight_score}
                         </Typography>
                       </Box>
-                      <TextField
-                        label={`Score out of ${criterion.max_score}`}
-                        type="number"
-                        required
-                        value={answer.score}
-                        inputProps={{ min: 0, max: Number(criterion.max_score), step: '0.01' }}
-                        onChange={(event) => updateAnswer(criterion.id, { score: event.target.value })}
-                      />
+                      <FormControl required>
+                        <FormLabel>Score</FormLabel>
+                        <RadioGroup
+                          row
+                          value={answer.score}
+                          onChange={(event) => updateAnswer(criterion.id, { score: event.target.value })}
+                        >
+                          {[1, 2, 3, 4, 5].map((score) => (
+                            <FormControlLabel key={score} value={String(score)} control={<Radio />} label={score} />
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
                       <TextField
                         label="Criterion comment"
                         multiline

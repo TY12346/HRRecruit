@@ -24,6 +24,11 @@ class JobRequirementSerializer(ReadableIdModelSerializer):
 
 
 class EvaluationCriterionSerializer(ReadableIdModelSerializer):
+    def validate_max_score(self, value):
+        if value != Decimal('5'):
+            raise serializers.ValidationError('Evaluation criteria must use the 1 to 5 scoring scale.')
+        return value
+
     def validate_weight_score(self, value):
         if value < 0:
             raise serializers.ValidationError('Weight score cannot be negative.')

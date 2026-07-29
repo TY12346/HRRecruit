@@ -862,14 +862,14 @@ class InterviewEvaluationAPITests(APITestCase):
             form=self.form,
             criterion_name='Technical Skills',
             description='Evaluate technical problem solving.',
-            max_score='10.00',
+            max_score='5.00',
             weight_score='0.60',
         )
         self.criterion_two = EvaluationCriterion.objects.create(
             form=self.form,
             criterion_name='Communication',
             description='Evaluate communication clarity.',
-            max_score='10.00',
+            max_score='5.00',
             weight_score='0.40',
         )
         self.assign_interviewer()
@@ -928,7 +928,7 @@ class InterviewEvaluationAPITests(APITestCase):
         self.assertEqual(criteria[0]['id'], self.criterion_one.id)
         self.assertEqual(criteria[0]['criterion_name'], 'Technical Skills')
         self.assertEqual(criteria[0]['description'], 'Evaluate technical problem solving.')
-        self.assertEqual(criteria[0]['max_score'], '10.00')
+        self.assertEqual(criteria[0]['max_score'], '5.00')
         self.assertEqual(criteria[0]['weight_score'], '0.60')
         self.assertEqual(criteria[1]['id'], self.criterion_two.id)
 
@@ -1300,8 +1300,8 @@ class InterviewEvaluationAPITests(APITestCase):
             {
                 'overall_comment': 'Strong applicant for the role.',
                 'answers': [
-                    {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
-                    {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},
+                    {'criterion_id': self.criterion_one.id, 'score': '4', 'comment': 'Solid API knowledge.'},
+                    {'criterion_id': self.criterion_two.id, 'score': '5', 'comment': 'Clear communication.'},
                 ],
             },
             format='json',
@@ -1324,8 +1324,8 @@ class InterviewEvaluationAPITests(APITestCase):
             {
                 'overall_comment': 'Late scorecard.',
                 'answers': [
-                    {'criterion_id': self.criterion_one.id, 'score': '8.00'},
-                    {'criterion_id': self.criterion_two.id, 'score': '9.00'},
+                    {'criterion_id': self.criterion_one.id, 'score': '4'},
+                    {'criterion_id': self.criterion_two.id, 'score': '5'},
                 ],
             },
             format='json',
@@ -1344,8 +1344,8 @@ class InterviewEvaluationAPITests(APITestCase):
             {
                 'overall_comment': 'Early scorecard submitted for feature testing.',
                 'answers': [
-                    {'criterion_id': self.criterion_one.id, 'score': '8.00'},
-                    {'criterion_id': self.criterion_two.id, 'score': '9.00'},
+                    {'criterion_id': self.criterion_one.id, 'score': '4'},
+                    {'criterion_id': self.criterion_two.id, 'score': '5'},
                 ],
             },
             format='json',
@@ -1391,8 +1391,8 @@ class InterviewEvaluationAPITests(APITestCase):
             {
                 'overall_comment': 'Strong applicant for the role.',
                 'answers': [
-                    {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
-                    {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},
+                    {'criterion_id': self.criterion_one.id, 'score': '4', 'comment': 'Solid API knowledge.'},
+                    {'criterion_id': self.criterion_two.id, 'score': '5', 'comment': 'Clear communication.'},
                 ],
             },
             format='json',
@@ -1400,7 +1400,7 @@ class InterviewEvaluationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         evaluation = InterviewEvaluation.objects.get(id=response.data['id'])
-        self.assertEqual(str(evaluation.total_score), '8.40')
+        self.assertEqual(str(evaluation.total_score), '4.40')
         self.application.refresh_from_db()
         self.interview.refresh_from_db()
         self.assertEqual(self.application.status, JobApplication.Status.UNDER_REVIEW)
@@ -1427,8 +1427,8 @@ class InterviewEvaluationAPITests(APITestCase):
         payload = {
             'overall_comment': 'Panel scorecard submitted independently.',
             'answers': [
-                {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
-                {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},
+                {'criterion_id': self.criterion_one.id, 'score': '4', 'comment': 'Solid API knowledge.'},
+                {'criterion_id': self.criterion_two.id, 'score': '5', 'comment': 'Clear communication.'},
             ],
         }
         self.authenticate(self.interviewer)
@@ -1481,8 +1481,8 @@ class InterviewEvaluationAPITests(APITestCase):
         payload = {
             'overall_comment': 'Primary interviewer scorecard.',
             'answers': [
-                {'criterion_id': self.criterion_one.id, 'score': '8.00'},
-                {'criterion_id': self.criterion_two.id, 'score': '9.00'},
+                {'criterion_id': self.criterion_one.id, 'score': '4'},
+                {'criterion_id': self.criterion_two.id, 'score': '5'},
             ],
         }
         self.authenticate(self.interviewer)
@@ -1511,8 +1511,8 @@ class InterviewEvaluationAPITests(APITestCase):
         payload = {
             'overall_comment': 'Panel scorecard submitted independently.',
             'answers': [
-                {'criterion_id': self.criterion_one.id, 'score': '8.00', 'comment': 'Solid API knowledge.'},
-                {'criterion_id': self.criterion_two.id, 'score': '9.00', 'comment': 'Clear communication.'},
+                {'criterion_id': self.criterion_one.id, 'score': '4', 'comment': 'Solid API knowledge.'},
+                {'criterion_id': self.criterion_two.id, 'score': '5', 'comment': 'Clear communication.'},
             ],
         }
         self.authenticate(self.interviewer)
@@ -1551,8 +1551,8 @@ class InterviewEvaluationAPITests(APITestCase):
         payload = {
             'overall_comment': 'Primary interviewer scorecard.',
             'answers': [
-                {'criterion_id': self.criterion_one.id, 'score': '8.00'},
-                {'criterion_id': self.criterion_two.id, 'score': '9.00'},
+                {'criterion_id': self.criterion_one.id, 'score': '4'},
+                {'criterion_id': self.criterion_two.id, 'score': '5'},
             ],
         }
         self.authenticate(self.interviewer)
@@ -1580,7 +1580,7 @@ class InterviewEvaluationAPITests(APITestCase):
             {
                 'overall_comment': 'Incomplete rubric.',
                 'answers': [
-                    {'criterion_id': self.criterion_one.id, 'score': '8.00'},
+                    {'criterion_id': self.criterion_one.id, 'score': '4'},
                 ],
             },
             format='json',
@@ -1588,6 +1588,26 @@ class InterviewEvaluationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('answers', response.data)
+
+    def test_evaluation_scores_must_be_whole_numbers_from_one_to_five(self):
+        self.authenticate(self.interviewer)
+
+        for invalid_score in ('0', '3.5', '6'):
+            with self.subTest(invalid_score=invalid_score):
+                response = self.client.post(
+                    reverse('interview-evaluation-submit', args=[self.interview.id]),
+                    {
+                        'overall_comment': 'Invalid scale test.',
+                        'answers': [
+                            {'criterion_id': self.criterion_one.id, 'score': invalid_score},
+                            {'criterion_id': self.criterion_two.id, 'score': '5'},
+                        ],
+                    },
+                    format='json',
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertFalse(InterviewEvaluation.objects.filter(interview=self.interview).exists())
 
 from datetime import date, time
 from apps.interviews.models import InterviewerAvailabilityPattern, InterviewerUnavailableDate

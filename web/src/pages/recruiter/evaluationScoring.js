@@ -28,7 +28,7 @@ export const criterionImportanceOptions = [
 export const blankCriterion = {
   criterion_name: '',
   description: '',
-  max_score: '10.00',
+  max_score: '5.00',
   importance_level: 'standard',
   weight_score: '0.30',
 };
@@ -53,12 +53,10 @@ const findClosestImportance = (value) => {
 
 export function hydrateCriterion(criterion = {}) {
   const weightScore = normalizeDecimalString(criterion.weight_score, blankCriterion.weight_score);
-  const maxScore = normalizeDecimalString(criterion.max_score, blankCriterion.max_score);
-
   return {
     ...blankCriterion,
     ...criterion,
-    max_score: maxScore,
+    max_score: blankCriterion.max_score,
     weight_score: weightScore,
     importance_level: criterion.importance_level ?? findClosestImportance(weightScore).value,
   };
