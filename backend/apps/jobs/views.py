@@ -376,7 +376,7 @@ class JobDuplicateAPIView(APIView):
 class JobRequirementsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, job_id):
+    def put(self, request, job_id):
         if request.user.role != User.Role.RECRUITER:
             raise PermissionDenied('Only recruiters can configure job requirements.')
         job = recruiter_job_or_404(request.user, job_id)
@@ -387,23 +387,34 @@ class JobRequirementsAPIView(APIView):
         serializer = JobRequirementConfigurationSerializer(data=request.data, context={'job': job})
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(JobPostingSerializer(job, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        return Response(JobPostingSerializer(job, context={'request': request}).data, status=status.HTTP_200_OK)
+
+    def post(self, request, job_id):
+        """Retain the original endpoint contract for existing API clients."""
+        response = self.put(request, job_id)
+        response.status_code = status.HTTP_201_CREATED
+        return response
 
 
 class JobEvaluationFormAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, job_id):
+    def put(self, request, job_id):
         if request.user.role != User.Role.RECRUITER:
-            raise PermissionDenied('Only recruiters can create interview evaluation scorecards.')
+            raise PermissionDenied('Only recruiters can configure interview evaluation scorecards.')
         job = recruiter_job_or_404(request.user, job_id)
         form = getattr(job, 'interview_evaluation_form', None)
-        is_update = form is not None
         serializer = InterviewEvaluationFormSerializer(form, data=request.data) if form else InterviewEvaluationFormSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         form = serializer.save(job=job) if form is None else serializer.save()
-        response_status = status.HTTP_200_OK if is_update else status.HTTP_201_CREATED
-        return Response(InterviewEvaluationFormSerializer(form).data, status=response_status)
+        return Response(InterviewEvaluationFormSerializer(form).data, status=status.HTTP_200_OK)
+
+    def post(self, request, job_id):
+        """Retain create-or-replace behavior for existing API clients."""
+        existed = hasattr(recruiter_job_or_404(request.user, job_id), 'interview_evaluation_form')
+        response = self.put(request, job_id)
+        response.status_code = status.HTTP_200_OK if existed else status.HTTP_201_CREATED
+        return response
 
 
 class SavedJobListAPIView(APIView):
