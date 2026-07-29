@@ -153,10 +153,11 @@ export default function RoleNav({ items }) {
               px: 2.25,
               textTransform: 'none',
               width: { xs: 'auto', md: '100%' },
-              // Keep desktop navigation left-aligned even if a page scopes styles to MUI buttons.
+              // Navigation items are always left-aligned; page-level button styles must not
+              // change their alignment at any viewport width.
               '&&': {
-                justifyContent: { xs: 'center', md: 'flex-start' },
-                textAlign: { xs: 'center', md: 'left' },
+                justifyContent: 'flex-start',
+                textAlign: 'left',
               },
               '& .role-nav-icon': {
                 alignItems: 'center',
