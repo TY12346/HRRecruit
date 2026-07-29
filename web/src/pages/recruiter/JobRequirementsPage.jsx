@@ -57,7 +57,7 @@ export default function JobRequirementsPage() {
 
     setIsSaving(true);
     try {
-      await configureJobRequirements(jobId, {
+      const saved = await configureJobRequirements(jobId, {
         requirements: prepareRequirementsForApi(requirements),
         normalize_weights: true,
       });
