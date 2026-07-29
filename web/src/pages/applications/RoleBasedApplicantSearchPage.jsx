@@ -193,7 +193,16 @@ export default function RoleBasedApplicantSearchPage({ role }) {
                     <TableCell><CollapsibleContent text={summaryText}>{summaryText}</CollapsibleContent></TableCell>
                     <TableCell align="right">
                       <Stack spacing={1} sx={{ alignItems: 'flex-end' }}>
-                        <Button size="small" variant="outlined" onClick={() => setProfileApplicant(application)}>View profile</Button>
+                        <Button
+                          component={RouterLink}
+                          to={role === 'recruiter'
+                            ? `/recruiter/applicant-search/${application.id}`
+                            : (config.detailBase ? `${config.detailBase}/${application.id}` : '/hiring-manager/hiring-decisions')}
+                          size="small"
+                          variant="outlined"
+                        >
+                          View profile
+                        </Button>
                         {role === 'recruiter' ? <Button size="small" variant="contained" onClick={() => setInviteApplicant(application)}>Invite to apply</Button> : null}
                       </Stack>
                     </TableCell>
@@ -206,18 +215,6 @@ export default function RoleBasedApplicantSearchPage({ role }) {
             </TableBody>
           </Table>
         </TableContainer>
-        <Dialog open={Boolean(profileApplicant)} onClose={() => setProfileApplicant(null)} fullWidth maxWidth="md">
-          <DialogTitle>{applicantName(profileApplicant)} — Applicant profile</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <Typography><strong>Skills:</strong> {(profileApplicant?.skills ?? profileApplicant?.extracted_skills ?? []).join(', ') || '—'}</Typography>
-              <Typography><strong>Experience:</strong> {formatExperience(profileApplicant?.experiences)}</Typography>
-              <Typography><strong>Education:</strong> {formatEducation(profileApplicant?.educations)}</Typography>
-              <Typography sx={{ whiteSpace: 'pre-wrap' }}><strong>Profile summary:</strong> {profileApplicant?.personal_summary ?? profileApplicant?.applicant?.personal_summary ?? '—'}</Typography>
-            </Stack>
-          </DialogContent>
-          <DialogActions><Button onClick={() => setProfileApplicant(null)}>Close</Button></DialogActions>
-        </Dialog>
         <Dialog open={Boolean(inviteApplicant)} onClose={() => !isSending && setInviteApplicant(null)} fullWidth>
           <DialogTitle>Invite {inviteApplicant?.full_name} to apply</DialogTitle>
           <DialogContent>

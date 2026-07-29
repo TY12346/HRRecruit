@@ -399,6 +399,11 @@ export const getApplicantSearch = async (params = {}) => {
   return response.data;
 };
 
+export const getApplicantDirectoryProfile = async (applicantId) => {
+  const response = await apiClient.get(`/applications/directory/${applicantId}/`);
+  return response.data;
+};
+
 export const getEmployerInvites = async () => (await apiClient.get('/applications/employer-invites/')).data;
 export const sendEmployerInvite = async (payload) => (await apiClient.post('/applications/employer-invites/', payload)).data;
 

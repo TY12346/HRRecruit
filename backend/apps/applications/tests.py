@@ -313,12 +313,20 @@ class JobApplicationAPITests(APITestCase):
         self.authenticate(self.recruiter)
 
         response = self.client.get(reverse('application-search'), {'search': self.applicant.email})
+        detail_response = self.client.get(reverse('applicant-directory-detail', args=[self.applicant.public_id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['skills'], ['Django'])
         self.assertEqual(response.data[0]['experiences'][0]['job_title'], 'Software Engineer')
         self.assertEqual(response.data[0]['educations'][0]['degree_name'], 'Bachelor of Computer Science')
+        self.assertEqual(detail_response.data['email'], self.applicant.email)
+        self.assertEqual(detail_response.data['skills'], ['Django'])
+
+        self.authenticate(self.interviewer)
+        forbidden_response = self.client.get(reverse('applicant-directory-detail', args=[self.applicant.public_id]))
+        self.assertEqual(forbidden_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_hr_head_views_applications_only_within_organization(self):
         own_application = JobApplication.objects.create(job=self.job, applicant=self.applicant)

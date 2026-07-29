@@ -502,6 +502,26 @@ class ApplicationSearchAPIView(APIView):
         return Response(ApplicationSearchResultSerializer(applications, many=True, context={'request': request}).data)
 
 
+class ApplicantDirectoryDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, applicant_id):
+        if request.user.role != User.Role.RECRUITER:
+            raise PermissionDenied('Only recruiters can view applicant directory profiles.')
+        applicant = get_object_or_404(
+            User.objects.filter(
+                role=User.Role.APPLICANT,
+                is_active=True,
+            ).select_related('applicant_profile').prefetch_related(
+                'skills',
+                'experiences',
+                'educations',
+            ),
+            public_id=applicant_id,
+        )
+        return Response(ApplicantDirectorySerializer(applicant, context={'request': request}).data)
+
+
 class ApplicationDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
