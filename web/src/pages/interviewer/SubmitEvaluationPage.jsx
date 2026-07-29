@@ -36,6 +36,13 @@ export default function SubmitEvaluationPage() {
       .catch((err) => setError(getApiErrorMessage(err, 'Unable to load interview.')));
   }, [interviewId]);
 
+  useEffect(() => {
+    if (!success) return undefined;
+
+    const timer = window.setTimeout(() => setSuccess(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
   const updateAnswer = (criterionId, patch) => {
     setAnswers((current) => current.map((answer) => (
       answer.criterion_id === criterionId ? { ...answer, ...patch } : answer
