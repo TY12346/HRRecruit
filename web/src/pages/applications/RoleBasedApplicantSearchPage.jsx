@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -13,13 +12,13 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   TextField,
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { Link as RouterLink } from 'react-router-dom';
 import { getApplicantSearch, getJobs, sendEmployerInvite } from '../../api/client.js';
 import HiringManagerNav from '../hiring_manager/HiringManagerNav.jsx';
 import InterviewerNav from '../interviewer/InterviewerNav.jsx';
@@ -49,11 +48,43 @@ const defaultFilters = {
   search: '',
 };
 
-const titleize = (value) => String(value ?? '—').replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
-const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 const applicantName = (application) => application?.applicant?.full_name ?? application?.full_name ?? 'Applicant';
-const applicantEmail = (application) => application?.applicant?.email ?? application?.email ?? '—';
-const scoreText = (score) => (score === null || score === undefined || score === '' ? '—' : Number(score).toFixed(2));
+
+const formatExperience = (experiences = []) => experiences.map((experience) => [
+  experience.job_title,
+  experience.company_name ? `at ${experience.company_name}` : '',
+  experience.employment_type,
+  experience.location,
+].filter(Boolean).join(' ')).join('; ') || '—';
+
+const formatEducation = (educations = []) => educations.map((education) => [
+  education.degree_name,
+  education.field_of_study ? `in ${education.field_of_study}` : '',
+  education.school_name ? `at ${education.school_name}` : '',
+].filter(Boolean).join(' ')).join('; ') || '—';
+
+function CollapsibleContent({ children, text, collapseAt = 100 }) {
+  const [expanded, setExpanded] = useState(false);
+  const shouldCollapse = text.length > collapseAt;
+
+  return (
+    <Box sx={{ minWidth: 120, maxWidth: 280 }}>
+      <Box sx={!expanded && shouldCollapse ? {
+        display: '-webkit-box',
+        overflow: 'hidden',
+        WebkitBoxOrient: 'vertical',
+        WebkitLineClamp: 3,
+      } : undefined}>
+        {children}
+      </Box>
+      {shouldCollapse ? (
+        <Button size="small" onClick={() => setExpanded((current) => !current)} sx={{ display: 'block', mt: 0.5, p: 0 }}>
+          {expanded ? 'Collapse' : 'Expand'}
+        </Button>
+      ) : null}
+    </Box>
+  );
+}
 
 function getApiErrorMessage(error, fallback) {
   const data = error?.response?.data;
@@ -91,6 +122,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [inviteApplicant, setInviteApplicant] = useState(null);
+  const [profileApplicant, setProfileApplicant] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -131,41 +163,61 @@ export default function RoleBasedApplicantSearchPage({ role }) {
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         <SearchFilters filters={filters} onChange={setFilters} onApply={() => setAppliedFilters(filters)} onReset={reset} />
         {isLoading ? <CircularProgress /> : null}
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Applicant</TableCell>
-              <TableCell>Email</TableCell>
-              {role !== 'recruiter' ? <TableCell>Job</TableCell> : <TableCell>Skills</TableCell>}
-              {role !== 'recruiter' ? <TableCell>Status</TableCell> : <TableCell>Profile summary</TableCell>}
-              {role !== 'recruiter' ? <TableCell>AI score</TableCell> : null}
-              {role !== 'recruiter' ? <TableCell>Interview</TableCell> : null}
-              {role === 'hr_head' ? <TableCell>Recruiter</TableCell> : null}
-              <TableCell>Applied</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {results.map((application) => (
-              <TableRow key={application.id}>
-                <TableCell>{applicantName(application)}</TableCell>
-                <TableCell>{applicantEmail(application)}</TableCell>
-                {role !== 'recruiter' ? <TableCell>{application.job_title}</TableCell> : <TableCell>{(application.skills || []).join(', ') || '—'}</TableCell>}
-                {role !== 'recruiter' ? <TableCell><Chip label={titleize(application.status)} size="small" /></TableCell> : <TableCell>{application.personal_summary || '—'}</TableCell>}
-                {role !== 'recruiter' ? <TableCell>{scoreText(application.final_score)}</TableCell> : null}
-                {role !== 'recruiter' ? <TableCell>{application.latest_interview ? `${titleize(application.latest_interview.status)} • ${formatDate(application.latest_interview.scheduled_datetime)}` : '—'}</TableCell> : null}
-                {role === 'hr_head' ? <TableCell>{application.recruiter?.full_name ?? '—'}</TableCell> : null}
-                {role !== 'recruiter' ? <TableCell>{formatDate(application.applied_at)}</TableCell> : null}
-                <TableCell align="right">
-                  {role === 'recruiter' ? <Button size="small" variant="contained" onClick={() => setInviteApplicant(application)}>Invite to apply</Button> : (config.detailBase ? <Button component={RouterLink} to={`${config.detailBase}/${application.id}`} size="small">Open</Button> : <Button component={RouterLink} to="/hiring-manager/hiring-decisions" size="small">Approvals</Button>)}
-                </TableCell>
+        <TableContainer>
+          <Table sx={{ minWidth: 1100 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Applicant Name</TableCell>
+                <TableCell>Skills</TableCell>
+                <TableCell>Experience</TableCell>
+                <TableCell>Education</TableCell>
+                <TableCell>Profile Summary</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
-            ))}
-            {!isLoading && results.length === 0 ? (
-              <TableRow><TableCell colSpan={role === 'hr_head' ? 9 : 8}>No applicants match the current search.</TableCell></TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {results.map((application) => {
+                const skills = application.skills ?? application.extracted_skills ?? [];
+                const experiences = application.experiences ?? [];
+                const educations = application.educations ?? [];
+                const skillsText = skills.join(', ') || '—';
+                const experienceText = formatExperience(experiences);
+                const educationText = formatEducation(educations);
+                const summaryText = application.personal_summary ?? application.applicant?.personal_summary ?? '—';
+                return (
+                  <TableRow key={application.id}>
+                    <TableCell>{applicantName(application)}</TableCell>
+                    <TableCell><CollapsibleContent text={skillsText}>{skillsText}</CollapsibleContent></TableCell>
+                    <TableCell><CollapsibleContent text={experienceText}>{experienceText}</CollapsibleContent></TableCell>
+                    <TableCell><CollapsibleContent text={educationText}>{educationText}</CollapsibleContent></TableCell>
+                    <TableCell><CollapsibleContent text={summaryText}>{summaryText}</CollapsibleContent></TableCell>
+                    <TableCell align="right">
+                      <Stack spacing={1} sx={{ alignItems: 'flex-end' }}>
+                        <Button size="small" variant="outlined" onClick={() => setProfileApplicant(application)}>View profile</Button>
+                        {role === 'recruiter' ? <Button size="small" variant="contained" onClick={() => setInviteApplicant(application)}>Invite to apply</Button> : null}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {!isLoading && results.length === 0 ? (
+                <TableRow><TableCell colSpan={6}>No applicants match the current search.</TableCell></TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Dialog open={Boolean(profileApplicant)} onClose={() => setProfileApplicant(null)} fullWidth maxWidth="md">
+          <DialogTitle>{applicantName(profileApplicant)} — Applicant profile</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Typography><strong>Skills:</strong> {(profileApplicant?.skills ?? profileApplicant?.extracted_skills ?? []).join(', ') || '—'}</Typography>
+              <Typography><strong>Experience:</strong> {formatExperience(profileApplicant?.experiences)}</Typography>
+              <Typography><strong>Education:</strong> {formatEducation(profileApplicant?.educations)}</Typography>
+              <Typography sx={{ whiteSpace: 'pre-wrap' }}><strong>Profile summary:</strong> {profileApplicant?.personal_summary ?? profileApplicant?.applicant?.personal_summary ?? '—'}</Typography>
+            </Stack>
+          </DialogContent>
+          <DialogActions><Button onClick={() => setProfileApplicant(null)}>Close</Button></DialogActions>
+        </Dialog>
         <Dialog open={Boolean(inviteApplicant)} onClose={() => !isSending && setInviteApplicant(null)} fullWidth>
           <DialogTitle>Invite {inviteApplicant?.full_name} to apply</DialogTitle>
           <DialogContent>

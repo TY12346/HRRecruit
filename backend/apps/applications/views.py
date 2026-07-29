@@ -482,7 +482,14 @@ class ApplicationSearchAPIView(APIView):
             raise PermissionDenied('Your role cannot search applicants.')
         if request.user.role == User.Role.RECRUITER:
             # Recruiters headhunt from the active, platform-wide applicant directory; this is not limited to past applications.
-            applicants = User.objects.filter(role=User.Role.APPLICANT, is_active=True).select_related('applicant_profile').prefetch_related('skills')
+            applicants = User.objects.filter(
+                role=User.Role.APPLICANT,
+                is_active=True,
+            ).select_related('applicant_profile').prefetch_related(
+                'skills',
+                'experiences',
+                'educations',
+            )
             search = request.query_params.get('search', '').strip()
             if search:
                 applicants = applicants.filter(Q(full_name__icontains=search) | Q(email__icontains=search) | Q(phone_number__icontains=search) | Q(applicant_profile__personal_summary__icontains=search) | Q(skills__skill_name__icontains=search)).distinct()
