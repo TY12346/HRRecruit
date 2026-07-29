@@ -291,10 +291,10 @@ class Command(BaseCommand):
             defaults={'title': f'{job.title} Interview Evaluation'},
         )
         criteria = [
-            ('Technical fit', 'Role-specific technical and problem-solving capability.', '10.00', '40.00'),
-            ('Communication', 'Clarity, listening, and ability to explain decisions.', '10.00', '25.00'),
-            ('Culture and teamwork', 'Collaboration, ownership, and professional attitude.', '10.00', '20.00'),
-            ('Learning agility', 'Ability to learn new tools and improve from feedback.', '10.00', '15.00'),
+            ('Technical fit', 'Role-specific technical and problem-solving capability.', '5.00', '0.40'),
+            ('Communication', 'Clarity, listening, and ability to explain decisions.', '5.00', '0.25'),
+            ('Culture and teamwork', 'Collaboration, ownership, and professional attitude.', '5.00', '0.20'),
+            ('Learning agility', 'Ability to learn new tools and improve from feedback.', '5.00', '0.15'),
         ]
         for name, description, max_score, weight_score in criteria:
             EvaluationCriterion.objects.update_or_create(
@@ -566,23 +566,23 @@ class Command(BaseCommand):
             interview=interview,
             interviewer=interviewer,
             defaults={
-                'total_score': Decimal('84.00'),
+                'total_score': Decimal('4.30'),
                 'overall_comment': 'Recommended for hire in the demo workflow based on technical fit and communication.',
             },
         )
         form = interview.application.job.interview_evaluation_form
         score_map = {
-            'Technical fit': Decimal('8.50'),
-            'Communication': Decimal('8.00'),
-            'Culture and teamwork': Decimal('8.50'),
-            'Learning agility': Decimal('8.50'),
+            'Technical fit': Decimal('4.50'),
+            'Communication': Decimal('4.00'),
+            'Culture and teamwork': Decimal('4.50'),
+            'Learning agility': Decimal('4.00'),
         }
         for criterion in form.criteria.all():
             EvaluationAnswer.objects.update_or_create(
                 evaluation=evaluation,
                 criterion=criterion,
                 defaults={
-                    'score': score_map.get(criterion.criterion_name, Decimal('8.00')),
+                    'score': score_map.get(criterion.criterion_name, Decimal('4.00')),
                     'comment': f'Demo evaluation answer for {criterion.criterion_name}.',
                 },
             )

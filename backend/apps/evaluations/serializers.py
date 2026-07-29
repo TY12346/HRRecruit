@@ -197,7 +197,17 @@ class InterviewAISummaryUpdateSerializer(ReadableIdModelSerializer):
 
 class EvaluationAnswerInputSerializer(serializers.Serializer):
     criterion_id = serializers.CharField()
-    score = serializers.DecimalField(max_digits=5, decimal_places=2)
+    score = serializers.DecimalField(
+        max_digits=1,
+        decimal_places=0,
+        min_value=Decimal('1'),
+        max_value=Decimal('5'),
+        error_messages={
+            'min_value': 'Score must be between 1 and 5.',
+            'max_value': 'Score must be between 1 and 5.',
+            'max_decimal_places': 'Score must be a whole number between 1 and 5.',
+        },
+    )
     comment = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
 
@@ -244,8 +254,6 @@ class InterviewEvaluationSubmitSerializer(serializers.Serializer):
         for answer in attrs['answers']:
             criterion = criteria_by_id[answer['criterion_id']]
             score = answer['score']
-            if score < 0:
-                raise serializers.ValidationError({'answers': f'Score for {criterion.criterion_name} cannot be negative.'})
             if score > criterion.max_score:
                 raise serializers.ValidationError({'answers': f'Score for {criterion.criterion_name} cannot exceed {criterion.max_score}.'})
             answer['criterion'] = criterion

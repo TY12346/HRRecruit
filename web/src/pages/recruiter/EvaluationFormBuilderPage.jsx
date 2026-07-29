@@ -108,26 +108,18 @@ export default function EvaluationFormBuilderPage() {
                     value={criterion.description}
                     onChange={(event) => update(index, 'description', event.target.value)}
                   />
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <TextField
-                      label="Max score"
-                      type="number"
-                      value={criterion.max_score}
-                      onChange={(event) => update(index, 'max_score', event.target.value)}
-                    />
-                    <TextField
-                      label="Interview scoring importance"
-                      select
-                      value={criterion.importance_level}
-                      onChange={(event) => update(index, 'importance_level', event.target.value)}
-                    >
-                      {criterionImportanceOptions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label} — {option.description}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Stack>
+                  <TextField
+                    label="Interview scoring importance"
+                    select
+                    value={criterion.importance_level}
+                    onChange={(event) => update(index, 'importance_level', event.target.value)}
+                  >
+                    {criterionImportanceOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label} — {option.description}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                   <Button
                     color="error"
                     disabled={criteria.length === 1}
