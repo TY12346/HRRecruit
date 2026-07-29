@@ -56,6 +56,16 @@ function CalendarIcon() {
   );
 }
 
+function InterviewIcon() {
+  return (
+    <svg aria-hidden="true" {...iconProps}>
+      <rect x="3" y="6" width="13" height="12" rx="2" />
+      <path d="m16 10 5-3v10l-5-3" />
+      <circle cx="9.5" cy="12" r="2.5" />
+    </svg>
+  );
+}
+
 function ReportsIcon() {
   return (
     <svg aria-hidden="true" {...iconProps}>
@@ -91,7 +101,7 @@ const icons = {
   billing: <BriefcaseIcon />,
   applicants: <ApplicantsIcon />,
   dashboard: <DashboardIcon />,
-  interviews: <CalendarIcon />,
+  interviews: <InterviewIcon />,
   notifications: <NotificationIcon />,
   offers: <BriefcaseIcon />,
   organization: <SettingsIcon />,

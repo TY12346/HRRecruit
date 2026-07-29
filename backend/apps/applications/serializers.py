@@ -272,11 +272,41 @@ class ApplicantDirectorySerializer(ReadableIdModelSerializer):
     linkedin_url = serializers.CharField(source='applicant_profile.linkedin_url', read_only=True)
     personal_summary = serializers.CharField(source='applicant_profile.personal_summary', read_only=True)
     skills = serializers.SerializerMethodField()
+    experiences = serializers.SerializerMethodField()
+    educations = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email', 'phone_number', 'linkedin_url', 'personal_summary', 'skills']
+        fields = [
+            'id', 'full_name', 'email', 'phone_number', 'linkedin_url',
+            'personal_summary', 'skills', 'experiences', 'educations',
+        ]
         read_only_fields = fields
 
     def get_skills(self, applicant):
-        return list(applicant.skills.values_list('skill_name', flat=True))
+        return [skill.skill_name for skill in applicant.skills.all()]
+
+    def get_experiences(self, applicant):
+        return [
+            {
+                'job_title': experience.job_title,
+                'employment_type': experience.employment_type,
+                'company_name': experience.company_name,
+                'start_date': experience.start_date,
+                'location': experience.location,
+            }
+            for experience in applicant.experiences.all()
+        ]
+
+    def get_educations(self, applicant):
+        return [
+            {
+                'school_name': education.school_name,
+                'degree_name': education.degree_name,
+                'field_of_study': education.field_of_study,
+                'start_date': education.start_date,
+                'end_date': education.end_date,
+                'grade': education.grade,
+            }
+            for education in applicant.educations.all()
+        ]

@@ -41,10 +41,11 @@ export const useAuthStore = create((set, get) => ({
   refreshToken: initialSession.refreshToken,
   user: initialSession.user,
   isAuthenticated: Boolean(initialSession.accessToken),
+  sessionMessage: '',
   setSession: ({ accessToken, refreshToken, user }) => {
     const session = { accessToken, refreshToken, user };
     writeStoredSession(session);
-    set({ ...session, isAuthenticated: Boolean(accessToken) });
+    set({ ...session, isAuthenticated: Boolean(accessToken), sessionMessage: '' });
   },
   updateUser: (user) => {
     const session = {
@@ -57,8 +58,13 @@ export const useAuthStore = create((set, get) => ({
   },
   clearSession: () => {
     clearStoredSession();
-    set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
+    set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false, sessionMessage: '' });
   },
+  expireSession: (message) => {
+    clearStoredSession();
+    set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false, sessionMessage: message });
+  },
+  clearSessionMessage: () => set({ sessionMessage: '' }),
 }));
 
 export const authStorageKey = STORAGE_KEY;
