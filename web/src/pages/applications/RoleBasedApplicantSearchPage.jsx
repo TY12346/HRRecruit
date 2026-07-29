@@ -140,6 +140,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [inviteApplicant, setInviteApplicant] = useState(null);
+  const [profileApplicant, setProfileApplicant] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState('');
   const [isSending, setIsSending] = useState(false);
