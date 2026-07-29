@@ -19,7 +19,6 @@ import {
   Typography,
 } from '@mui/material';
 import Alert from '../../components/TimedAlert.jsx';
-import { Link as RouterLink } from 'react-router-dom';
 import { getApplicantSearch, getJobs, sendEmployerInvite } from '../../api/client.js';
 import HiringManagerNav from '../hiring_manager/HiringManagerNav.jsx';
 import InterviewerNav from '../interviewer/InterviewerNav.jsx';
@@ -123,6 +122,7 @@ export default function RoleBasedApplicantSearchPage({ role }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [inviteApplicant, setInviteApplicant] = useState(null);
+  const [profileApplicant, setProfileApplicant] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState('');
   const [isSending, setIsSending] = useState(false);
