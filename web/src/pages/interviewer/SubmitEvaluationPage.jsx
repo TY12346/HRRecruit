@@ -90,7 +90,7 @@ export default function SubmitEvaluationPage() {
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         {success ? <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert> : null}
 
-        {!evaluationSubmitted ? (
+        {!evaluationSubmitted && (
           <Stack component="form" spacing={2} onSubmit={submit}>
             <TextField
               label="Overall comment"
@@ -145,7 +145,7 @@ export default function SubmitEvaluationPage() {
               {isSaving ? 'Submitting…' : 'Submit evaluation'}
             </Button>
           </Stack>
-        ) : null}
+        )}
       </Paper>
     </Box>
   );
