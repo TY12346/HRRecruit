@@ -104,36 +104,54 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
                   onSubmitted: (_) => _search(),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _locationController,
-                        decoration: const InputDecoration(
-                          labelText: 'Location',
-                          border: OutlineInputBorder(),
-                        ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final locationField = TextField(
+                      controller: _locationController,
+                      decoration: const InputDecoration(
+                        labelText: 'Location',
+                        border: OutlineInputBorder(),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _employmentType,
-                        decoration: const InputDecoration(
-                          labelText: 'Employment type',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _employmentTypeOptions
-                            .map((option) => DropdownMenuItem(
-                                  value: option['value'],
-                                  child: Text(option['label']!),
-                                ))
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _employmentType = value ?? ''),
+                    );
+                    final employmentTypeField =
+                        DropdownButtonFormField<String>(
+                      initialValue: _employmentType,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Employment type',
+                        border: OutlineInputBorder(),
                       ),
-                    ),
-                  ],
+                      items: _employmentTypeOptions
+                          .map((option) => DropdownMenuItem(
+                                value: option['value'],
+                                child: Text(
+                                  option['label']!,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _employmentType = value ?? ''),
+                    );
+
+                    if (constraints.maxWidth < 520) {
+                      return Column(
+                        children: [
+                          locationField,
+                          const SizedBox(height: 12),
+                          employmentTypeField,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: locationField),
+                        const SizedBox(width: 12),
+                        Expanded(child: employmentTypeField),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 Row(
