@@ -1,7 +1,9 @@
 """Tests for real-result-or-clear-failure transcription guarantees."""
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 from django.test import SimpleTestCase, override_settings
+from django.utils import timezone
 from apps.ai_services.transcription_service import (
     TranscriptionUnavailable, _cached_whisper_model, _call_local_whisper_transcription, assess_transcript_quality,
     probe_audio, run_real_transcription,
@@ -10,6 +12,49 @@ from apps.ai_services.speaker_diarization import (
     DiarizationUnavailable, align_transcript_segments_to_speakers, format_speaker_labelled_transcript,
     run_speaker_diarization,
 )
+from apps.evaluations.models import ProcessingStatus
+from apps.evaluations.transcription_jobs import STALE_TRANSCRIPTION_ERROR, expire_stale_transcription
+
+
+class StaleTranscriptionTests(SimpleTestCase):
+    @patch.dict('os.environ', {'TRANSCRIPTION_STALE_MINUTES': '30'})
+    @patch('apps.evaluations.transcription_jobs.InterviewTranscript.objects.filter')
+    def test_hour_old_processing_job_becomes_retryable_failure(self, filter_transcripts):
+        filter_transcripts.return_value.update.return_value = 1
+        now = timezone.now()
+        transcript = SimpleNamespace(
+            pk=7,
+            generated_at=now - timedelta(hours=1),
+            processing_status=ProcessingStatus.PROCESSING,
+            processing_error='',
+            transcript_json={},
+        )
+
+        result = expire_stale_transcription(transcript, now=now)
+
+        self.assertIs(result, transcript)
+        self.assertEqual(transcript.processing_status, ProcessingStatus.FAILED)
+        self.assertEqual(transcript.processing_error, STALE_TRANSCRIPTION_ERROR)
+        self.assertEqual(transcript.transcript_json['failure_reason'], 'stale_background_job')
+        filter_transcripts.assert_called_once_with(
+            pk=7,
+            processing_status__in=(ProcessingStatus.PENDING, ProcessingStatus.PROCESSING),
+        )
+
+    @patch.dict('os.environ', {'TRANSCRIPTION_STALE_MINUTES': '30'})
+    @patch('apps.evaluations.transcription_jobs.InterviewTranscript.objects.filter')
+    def test_recent_processing_job_remains_active(self, filter_transcripts):
+        now = timezone.now()
+        transcript = SimpleNamespace(
+            pk=8,
+            generated_at=now - timedelta(minutes=5),
+            processing_status=ProcessingStatus.PROCESSING,
+        )
+
+        expire_stale_transcription(transcript, now=now)
+
+        self.assertEqual(transcript.processing_status, ProcessingStatus.PROCESSING)
+        filter_transcripts.assert_not_called()
 
 class RealTranscriptionGuaranteeTests(SimpleTestCase):
     @patch('apps.ai_services.transcription_service.importlib.util.find_spec', return_value=None)
