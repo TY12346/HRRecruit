@@ -334,17 +334,8 @@ def applicant_profile_application_or_404(user, application_id):
         if not membership:
             raise PermissionDenied('Interviewer must belong to an active organization.')
         return get_object_or_404(
-            JobApplication.objects.select_related(
-                'job',
-                'job__organization',
-                'applicant',
-                'applicant__applicant_profile',
-                'assigned_interviewer',
-                'resume',
-            ),
+            visible_search_applications_for(user),
             public_id=application_id,
-            assigned_interviewer=user,
-            job__organization=membership.organization,
         )
     raise PermissionDenied('Only recruiters and assigned interviewers can view applicant profiles.')
 
