@@ -51,10 +51,35 @@ python manage.py sqlflush
   `showmigrations` has no `[ ]` entries. Do not run `flush` between detecting an
   unapplied migration and applying it.
 
-- If `sqlflush` prints SQL but `flush` still fails, copy the **original database
-  exception shown immediately above** `CommandError` (for example, an undefined
-  table or a permission error). That PostgreSQL exception identifies the object
-  or privilege that must be repaired; the generic `CommandError` alone does not.
+- If `sqlflush` prints valid SQL but `flush` still reports only the generic
+  `CommandError`, run the generated SQL through PostgreSQL to expose the database
+  error that Django's `flush` command hides:
+
+  ```powershell
+  python manage.py sqlflush | python manage.py dbshell
+  ```
+
+  This is destructive when it succeeds, just like `flush`. A PostgreSQL error
+  such as `cannot truncate a table referenced in a foreign key constraint`
+  identifies a stale or non-Django table that references one of the managed
+  tables. Record the constraint and table names from that error before choosing
+  a recovery path.
+
+  For a disposable local database that is intentionally being emptied, rerun
+  the SQL with PostgreSQL's explicit `CASCADE` option, then recreate Django's
+  post-migration records:
+
+  ```powershell
+  python manage.py sqlflush |
+    ForEach-Object { $_ -replace 'RESTART IDENTITY;', 'RESTART IDENTITY CASCADE;' } |
+    python manage.py dbshell
+  python manage.py migrate
+  ```
+
+  `CASCADE` can also empty tables not listed by `sqlflush` when foreign keys link
+  them to Django tables. Use it only after confirming that every table in this
+  local database is safe to empty. On a shared or non-disposable database,
+  repair or remove the unexpected foreign-key/table instead of using `CASCADE`.
 
 Do not delete migration files or remove individual rows from
 `django_migrations` to repair a flush. If the goal is a completely fresh local
