@@ -41,7 +41,7 @@ scikit-learn>=1.5,<2.0
 joblib>=1.4,<2.0
 # torch<2.3 wheels were compiled against the NumPy 1.x C API. NumPy 2.x can
 # therefore emit _ARRAY_API errors while spaCy imports torch.
-numpy>=1.26,<2.0
+numpy==1.26.4
 sentence-transformers>=3.0,<4.0
 
 # Real local Whisper transcription support.  The model is selected by
@@ -51,8 +51,8 @@ openai-whisper==20250625
 # Real pyannote 3.1 diarization dependencies.  This compatible set avoids the
 # transformers 4.57 lazy-import regression that surfaces as an AutoModel error.
 # A Hugging Face token with accepted model terms is still required at runtime.
-torch>=2.0,<2.3
-torchaudio>=2.0,<2.3
+torch==2.2.2
+torchaudio==2.2.2
 pyannote.audio==3.1.1
 transformers>=4.35,<4.42
 huggingface_hub>=0.20,<0.25

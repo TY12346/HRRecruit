@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from django.test import SimpleTestCase, override_settings
 from apps.ai_services.transcription_service import (
-    TranscriptionUnavailable, _call_local_whisper_transcription, assess_transcript_quality,
+    TranscriptionUnavailable, _cached_whisper_model, _call_local_whisper_transcription, assess_transcript_quality,
     probe_audio, run_real_transcription,
 )
 from apps.ai_services.speaker_diarization import (
@@ -16,6 +16,19 @@ class RealTranscriptionGuaranteeTests(SimpleTestCase):
     def test_missing_whisper_configuration_fails_clearly(self, _available):
         with self.assertRaisesRegex(TranscriptionUnavailable, 'openai-whisper package is not installed'):
             run_real_transcription('/tmp/real-audio.wav')
+
+    @patch('apps.ai_services.transcription_service.importlib.util.find_spec', return_value=True)
+    @patch('apps.ai_services.transcription_service.importlib.import_module')
+    def test_incompatible_numpy_torch_pair_fails_with_reinstall_instructions(self, import_module, _find_spec):
+        fake_torch = SimpleNamespace(from_numpy=lambda _value: (_ for _ in ()).throw(RuntimeError('Numpy is not available')))
+        import_module.side_effect = lambda name: {
+            'whisper': SimpleNamespace(),
+            'torch': fake_torch,
+            'numpy': SimpleNamespace(zeros=lambda *_args, **_kwargs: [0], float32='float32'),
+        }[name]
+
+        with self.assertRaisesRegex(TranscriptionUnavailable, 'force-reinstall'):
+            _cached_whisper_model('numpy-incompatibility-test')
 
     def test_diarizer_output_never_invents_participant_roles(self):
         rendered = format_speaker_labelled_transcript([{'speaker_id': 'SPEAKER_00', 'text': 'Real words'}])
