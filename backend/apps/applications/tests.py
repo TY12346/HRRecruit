@@ -484,6 +484,33 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual([item['id'] for item in response.data], [assigned_application.id])
         self.assertEqual(response.data[0]['interview_statuses'], [Interview.Status.COMPLETED])
 
+    def test_interviewer_views_profile_for_applicant_assigned_through_interview(self):
+        application = JobApplication.objects.create(
+            job=self.job,
+            applicant=self.applicant,
+            status=JobApplication.Status.UNDER_REVIEW,
+        )
+        Interview.objects.create(
+            application=application,
+            organization=self.organization,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            status=Interview.Status.SCHEDULED,
+            scheduled_datetime=timezone.now(),
+        )
+        self.authenticate(self.interviewer)
+
+        search_response = self.client.get(reverse('application-search'))
+        profile_response = self.client.get(
+            reverse('application-applicant-profile', args=[application.public_id]),
+        )
+
+        self.assertEqual(search_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(search_response.data[0]['id'], application.public_id)
+        self.assertEqual(profile_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(profile_response.data['id'], application.public_id)
+        self.assertEqual(profile_response.data['applicant_profile']['email'], self.applicant.email)
+
     def test_hr_head_searches_organization_applicants_with_oversight_filters(self):
         self.job.department = 'Engineering'
         self.job.save(update_fields=['department'])
