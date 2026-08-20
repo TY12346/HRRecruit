@@ -13,12 +13,15 @@ python manage.py sqlflush
 
 The `django-admin sqlflush` error about `DATABASES` not being configured is a
 separate command-invocation problem; it does not reveal why the earlier flush
-failed. If using `django-admin` is necessary, provide the settings module
-explicitly:
-
-```powershell
-django-admin sqlflush --settings=config.settings
-```
+failed. Do not use bare `django-admin` for this diagnosis. In particular,
+`django-admin sqlflush --settings=config.settings` is not a reliable substitute:
+the `sqlflush` command accesses the configured database connections while it is
+building its argument parser, and that can happen before the command-line
+settings option takes effect. On Windows it can therefore fail with either
+`Requested setting DATABASES, but settings are not configured` or
+`ModuleNotFoundError: No module named 'config'`. The project's `manage.py`
+establishes the settings module before Django constructs the command, so use
+`python manage.py sqlflush` instead.
 
 Use the following checks to distinguish configuration, migration, and flush
 problems. These commands do not delete data:
@@ -33,13 +36,20 @@ python manage.py sqlflush
 - If the database check cannot connect, verify that PostgreSQL is running and
   that `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, and
   `POSTGRES_PORT` in `backend/.env` identify the intended database.
-- If `showmigrations` contains unapplied migrations, apply them before retrying
-  the flush:
+- If `showmigrations` contains any `[ ]` entry, stop troubleshooting `flush` and
+  apply that migration first. For example, an output containing
+  `[ ] 0020_remove_legacy_evaluation_importance_level` means the local schema is
+  one migration behind the checked-out code. Apply it before retrying the flush:
 
   ```powershell
   python manage.py migrate
+  python manage.py sqlflush
   python manage.py flush
   ```
+
+  Confirm that `migrate` completes successfully and that a subsequent
+  `showmigrations` has no `[ ]` entries. Do not run `flush` between detecting an
+  unapplied migration and applying it.
 
 - If `sqlflush` prints SQL but `flush` still fails, copy the **original database
   exception shown immediately above** `CommandError` (for example, an undefined
