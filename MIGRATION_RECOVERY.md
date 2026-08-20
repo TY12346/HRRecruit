@@ -1,5 +1,69 @@
 # Migration Recovery
 
+## `flush` fails or `django-admin sqlflush` says settings are not configured
+
+Run database commands through this project's `manage.py`, from the `backend`
+directory. Unlike a bare `django-admin` invocation, `manage.py` configures
+`DJANGO_SETTINGS_MODULE=config.settings` for this project:
+
+```powershell
+cd C:\FYP\hrrecruit\backend
+python manage.py sqlflush
+```
+
+The `django-admin sqlflush` error about `DATABASES` not being configured is a
+separate command-invocation problem; it does not reveal why the earlier flush
+failed. If using `django-admin` is necessary, provide the settings module
+explicitly:
+
+```powershell
+django-admin sqlflush --settings=config.settings
+```
+
+Use the following checks to distinguish configuration, migration, and flush
+problems. These commands do not delete data:
+
+```powershell
+python manage.py check --database default
+python manage.py showmigrations
+python manage.py migrate --plan
+python manage.py sqlflush
+```
+
+- If the database check cannot connect, verify that PostgreSQL is running and
+  that `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, and
+  `POSTGRES_PORT` in `backend/.env` identify the intended database.
+- If `showmigrations` contains unapplied migrations, apply them before retrying
+  the flush:
+
+  ```powershell
+  python manage.py migrate
+  python manage.py flush
+  ```
+
+- If `sqlflush` prints SQL but `flush` still fails, copy the **original database
+  exception shown immediately above** `CommandError` (for example, an undefined
+  table or a permission error). That PostgreSQL exception identifies the object
+  or privilege that must be repaired; the generic `CommandError` alone does not.
+
+Do not delete migration files or remove individual rows from
+`django_migrations` to repair a flush. If the goal is a completely fresh local
+development database and no data must be retained, recreate the database and
+then rebuild its schema instead:
+
+```powershell
+# Run these in psql while connected to a different database, such as postgres.
+DROP DATABASE hrrecruit_db;
+CREATE DATABASE hrrecruit_db;
+
+# Then return to the backend directory.
+python manage.py migrate
+```
+
+Only use the drop-and-create path for a local database whose contents are safe
+to destroy. Database ownership or project-specific PostgreSQL privileges may
+need to be included in the `CREATE DATABASE` statement.
+
 ## Hiring decision terminology upgrade
 
 The job-level hiring workflow is renamed by the forward-only migration
