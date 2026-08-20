@@ -108,8 +108,11 @@ class InterviewSerializer(ReadableIdModelSerializer):
     def get_transcript(self, interview):
         from apps.evaluations.models import InterviewTranscript
         from apps.evaluations.serializers import InterviewTranscriptSerializer
+        from apps.evaluations.transcription_jobs import expire_stale_transcription
 
         transcript = InterviewTranscript.objects.filter(recording__interview=interview).order_by('-generated_at').first()
+        if transcript:
+            expire_stale_transcription(transcript)
         return InterviewTranscriptSerializer(transcript, context=self.context).data if transcript else None
 
     def get_ai_summary(self, interview):

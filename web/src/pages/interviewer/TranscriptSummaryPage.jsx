@@ -46,7 +46,7 @@ function TranscriptResult({ transcript }) {
       <Stack spacing={1.5}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>Generated transcript</Typography>
         {processingStatus === 'PENDING' || processingStatus === 'PROCESSING' ? <Alert severity="info">Processing real transcription… This page refreshes automatically.</Alert> : null}
-        {processingStatus === 'FAILED' ? <Alert severity="error">Real transcription failed: {transcript.processing_error || transcript.transcript_json?.error || 'No error details were returned.'}</Alert> : null}
+        {processingStatus === 'FAILED' ? <Alert severity="error">Transcription failed: {transcript.processing_error || transcript.transcript_json?.error || 'No error details were returned.'} You can use Regenerate transcript to try again.</Alert> : null}
         {processingStatus === 'LOW_QUALITY' ? <Alert severity="error">Real transcription completed but failed quality checks and cannot be summarized: {transcript.processing_error || 'The returned text is likely unusable.'}</Alert> : null}
         {mergedSpeakerSegments.length ? (
           <Stack spacing={2}>
@@ -59,11 +59,11 @@ function TranscriptResult({ transcript }) {
               </Box>
             ))}
           </Stack>
-        ) : (
+        ) : displayTranscript || !['PENDING', 'PROCESSING'].includes(processingStatus) ? (
           <Typography variant="body1" whiteSpace="pre-line">
             {displayTranscript || 'No transcript text returned.'}
           </Typography>
-        )}
+        ) : null}
       </Stack>
     </Paper>
   );
