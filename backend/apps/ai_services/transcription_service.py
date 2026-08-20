@@ -103,6 +103,19 @@ def _cached_whisper_model(model_name):
         device = 'cpu'
         if importlib.util.find_spec('torch'):
             torch = importlib.import_module('torch')
+            # Whisper passes NumPy audio buffers into torch.  An incompatible
+            # binary pairing otherwise fails much later with the opaque
+            # ``RuntimeError: Numpy is not available`` message.
+            try:
+                numpy = importlib.import_module('numpy')
+                torch.from_numpy(numpy.zeros(1, dtype=numpy.float32))
+            except (ImportError, RuntimeError) as exc:
+                raise TranscriptionUnavailable(
+                    'Local Whisper requires compatible NumPy and PyTorch builds. '
+                    'Reinstall the pinned backend dependencies with '
+                    '`python -m pip install --force-reinstall -r requirements.txt` '
+                    'and restart the backend.'
+                ) from exc
             if torch.cuda.is_available(): device = 'cuda'
         started = perf_counter(); instance = whisper.load_model(model_name, device=device); elapsed = perf_counter() - started
         instance._hrrecruit_device = device
@@ -162,7 +175,7 @@ def run_real_transcription(audio_path):
         raise TranscriptionUnavailable('Only configured real local Whisper transcription is supported by this processing pipeline.')
     try: result = _call_local_whisper_transcription(audio_path, model)
     except TranscriptionUnavailable: raise
-    except Exception as exc: raise TranscriptionUnavailable(f'Real transcription failed: {exc.__class__.__name__}: {exc}') from exc
+    except Exception as exc: raise TranscriptionUnavailable(f'{exc.__class__.__name__}: {exc}') from exc
     text = post_process_transcript(result['text'])
     return {'text': text, 'segments': normalize_transcript_segments(result['segments']), 'metadata': {'provider': provider, 'mode': 'real', 'model': model, 'device': result['device'], 'model_load_seconds': round(result['model_load_seconds'], 3), 'transcription_seconds': round(result['transcription_seconds'], 3), 'language': 'en', 'detected_language': result['detected_language'], 'transcription_options': result['options'], 'whisper_segments': _segment_diagnostics(result['segments']), 'quality_assessment': assess_transcript_quality(text, result['segments'])}}
 
