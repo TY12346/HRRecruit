@@ -235,6 +235,16 @@ class JobApplicationAPITests(APITestCase):
         self.assertEqual(response.data['resume_file'], 'Upload a resume before applying so AI screening can run immediately.')
         self.assertFalse(JobApplication.objects.filter(job=self.job, applicant=self.applicant).exists())
 
+    @patch('apps.applications.views.JobApplication.objects.create', side_effect=IntegrityError)
+    def test_concurrent_duplicate_application_returns_validation_error(self, _create_application):
+        self.attach_resume()
+        self.authenticate(self.applicant)
+
+        response = self.client.post(reverse('job-apply', args=[self.job.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['job'], 'You have already applied for this job.')
+
     def test_applicant_cannot_apply_to_non_open_job(self):
         draft_job = self.create_job(self.recruiter, status=JobPosting.Status.DRAFTING)
         self.authenticate(self.applicant)

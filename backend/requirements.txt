@@ -39,7 +39,9 @@ stripe>=10.0,<11.0
 # Optional trained resume-matching ML pipeline
 scikit-learn>=1.5,<2.0
 joblib>=1.4,<2.0
-numpy>=1.26,<3.0
+# torch<2.3 wheels were compiled against the NumPy 1.x C API. NumPy 2.x can
+# therefore emit _ARRAY_API errors while spaCy imports torch.
+numpy>=1.26,<2.0
 sentence-transformers>=3.0,<4.0
 
 # Real local Whisper transcription support.  The model is selected by

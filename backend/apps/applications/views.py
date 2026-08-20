@@ -4,7 +4,7 @@ from datetime import timedelta
 from os.path import basename
 
 from django.core.files.base import ContentFile
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import FileResponse
 from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
@@ -398,6 +398,10 @@ class JobApplyAPIView(APIView):
 
         try:
             with transaction.atomic():
+                # Lock a row that always exists. Locking only the application
+                # queryset cannot serialize two first-time applications because
+                # there is no application row for either request to lock yet.
+                User.objects.select_for_update().get(pk=request.user.pk)
                 previous_applications = JobApplication.objects.select_for_update().filter(
                     job=job,
                     applicant=request.user,
@@ -426,11 +430,19 @@ class JobApplyAPIView(APIView):
                                 if may_reapply_after_wait else {}
                             ),
                         })
-                application = JobApplication.objects.create(
-                    job=job,
-                    applicant=request.user,
-                    resume=selected_resume,
-                )
+                try:
+                    # The savepoint keeps the outer transaction usable after a
+                    # uniqueness race is rejected by PostgreSQL.
+                    with transaction.atomic():
+                        application = JobApplication.objects.create(
+                            job=job,
+                            applicant=request.user,
+                            resume=selected_resume,
+                        )
+                except IntegrityError as exc:
+                    raise ValidationError({
+                        'job': 'You have already applied for this job.',
+                    }) from exc
                 source_resume_file = (
                     selected_resume.resume_file if selected_resume else legacy_resume_file
                 )
